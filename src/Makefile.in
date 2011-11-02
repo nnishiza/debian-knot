@@ -67,7 +67,7 @@ am_libknot_la_OBJECTS = libknot_error.lo utils.lo debug.lo \
 	ddns.lo edns.lo rrset.lo dname.lo rdata.lo nsec3.lo tsig.lo \
 	tsig-op.lo
 libknot_la_OBJECTS = $(am_libknot_la_OBJECTS)
-libknotd_la_DEPENDENCIES = ../libknot/libknot.la libknots.la @LIBOBJS@
+libknotd_la_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
 am_libknotd_la_OBJECTS = gatherer.lo stat.lo log.lo error.lo \
 	libknotd_la-cf-parse.lo libknotd_la-cf-lex.lo conf.lo \
 	logconf.lo process.lo dthreads.lo journal.lo socket.lo \
@@ -89,16 +89,14 @@ am_knot_zcompile_OBJECTS = zcompile_main.$(OBJEXT) \
 	zcompile.$(OBJEXT) parser-util.$(OBJEXT) \
 	parser-descriptor.$(OBJEXT)
 knot_zcompile_OBJECTS = $(am_knot_zcompile_OBJECTS)
-knot_zcompile_DEPENDENCIES = libknots.la ../libknot/libknot.la \
-	libknotd.la @LIBOBJS@
+knot_zcompile_DEPENDENCIES = libknots.la libknot.la libknotd.la \
+	@LIBOBJS@ $(am__empty)
 am_knotc_OBJECTS = knotc_main.$(OBJEXT)
 knotc_OBJECTS = $(am_knotc_OBJECTS)
-knotc_DEPENDENCIES = libknotd.la ../libknot/libknot.la libknots.la \
-	@LIBOBJS@ $(am__empty)
+knotc_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
 am_knotd_OBJECTS = main.$(OBJEXT)
 knotd_OBJECTS = $(am_knotd_OBJECTS)
-knotd_DEPENDENCIES = libknotd.la ../libknot/libknot.la libknots.la \
-	@LIBOBJS@ $(am__empty)
+knotd_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
 am_unittests_OBJECTS = acl_tests.$(OBJEXT) da_tests.$(OBJEXT) \
 	events_tests.$(OBJEXT) skiplist_tests.$(OBJEXT) \
 	slab_tests.$(OBJEXT) fdset_tests.$(OBJEXT) \
@@ -118,8 +116,7 @@ am_unittests_libknot_OBJECTS = cuckoo_tests.$(OBJEXT) \
 	zone_tests.$(OBJEXT) zone_tree_tests.$(OBJEXT) \
 	zonedb_tests.$(OBJEXT) unittests_libknot.$(OBJEXT)
 unittests_libknot_OBJECTS = $(am_unittests_libknot_OBJECTS)
-unittests_libknot_DEPENDENCIES = ../libknot/libknot.la libknots.la \
-	@LIBOBJS@ $(am__empty)
+unittests_libknot_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
 am_unittests_libknot_realdata_OBJECTS =  \
 	dname_tests_realdata.$(OBJEXT) \
 	response_tests_realdata.$(OBJEXT) \
@@ -131,15 +128,15 @@ am_unittests_libknot_realdata_OBJECTS =  \
 	unittests_libknot_realdata.$(OBJEXT)
 unittests_libknot_realdata_OBJECTS =  \
 	$(am_unittests_libknot_realdata_OBJECTS)
-unittests_libknot_realdata_DEPENDENCIES = ../libknot/libknot.la \
-	libknots.la @LIBOBJS@
+unittests_libknot_realdata_DEPENDENCIES = libknot.la libknots.la \
+	@LIBOBJS@ $(am__empty)
 am_unittests_zcompile_OBJECTS = zcompile-error.$(OBJEXT) \
 	zparser.$(OBJEXT) zlexer.$(OBJEXT) zcompile.$(OBJEXT) \
 	parser-util.$(OBJEXT) parser-descriptor.$(OBJEXT) \
 	unittests_zp_main.$(OBJEXT)
 unittests_zcompile_OBJECTS = $(am_unittests_zcompile_OBJECTS)
-unittests_zcompile_DEPENDENCIES = ../libknot/libknot.la libknots.la \
-	libknotd.la @LIBOBJS@
+unittests_zcompile_DEPENDENCIES = libknot.la libknots.la libknotd.la \
+	@LIBOBJS@ $(am__empty)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -617,15 +614,15 @@ libknotd_la_SOURCES = \
 	knot/zone/zone-dump.h			\
 	knot/server/server.h
 
-libknotd_la_LIBADD = ../libknot/libknot.la libknots.la @LIBOBJS@
+libknotd_la_LIBADD = libknot.la libknots.la @LIBOBJS@
 libknots_la_LIBADD = @LIBOBJS@
-knotd_LDADD = libknotd.la ../libknot/libknot.la libknots.la @LIBOBJS@
-knotc_LDADD = libknotd.la ../libknot/libknot.la libknots.la @LIBOBJS@
-knot_zcompile_LDADD = libknots.la ../libknot/libknot.la libknotd.la @LIBOBJS@
+knotd_LDADD = libknotd.la libknot.la libknots.la @LIBOBJS@
+knotc_LDADD = libknotd.la libknot.la libknots.la @LIBOBJS@
+knot_zcompile_LDADD = libknots.la libknot.la libknotd.la @LIBOBJS@
 unittests_LDADD = libknotd.la libknots.la @LIBOBJS@
-unittests_zcompile_LDADD = ../libknot/libknot.la libknots.la libknotd.la @LIBOBJS@
-unittests_libknot_LDADD = ../libknot/libknot.la libknots.la @LIBOBJS@
-unittests_libknot_realdata_LDADD = ../libknot/libknot.la libknots.la @LIBOBJS@
+unittests_zcompile_LDADD = libknot.la libknots.la libknotd.la @LIBOBJS@
+unittests_libknot_LDADD = libknot.la libknots.la @LIBOBJS@
+unittests_libknot_realdata_LDADD = libknot.la libknots.la @LIBOBJS@
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
