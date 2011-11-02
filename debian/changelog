@@ -1,0 +1,5 @@
+knot (0.8.0~pre1-1) unstable; urgency=low
+
+  * Initial release (Closes: #647461)
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 02 Nov 2011 22:45:14 +0100
