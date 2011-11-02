@@ -1,5 +1,7 @@
-knot (0.8.0~pre2-1) unstable; urgency=low
+knot (0.8.0~pre3-1) unstable; urgency=low
 
   * Initial release (Closes: #647461)
+  * Add some dependencies in the init.d script
+  * Add flex and bison to b-d
 
- -- Ondřej Surý <ondrej@debian.org>  Wed, 02 Nov 2011 23:27:22 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 03 Nov 2011 00:06:24 +0100
