@@ -16,7 +16,7 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Knot DNS server" # Introduce a short description here
 NAME=knotd             # Introduce the short server's name here
 DAEMON=/usr/sbin/knotd # Introduce the server's location here
-DAEMON_ARGS=""             # Arguments to run the daemon with
+DAEMON_ARGS="-d"             # Arguments to run the daemon with
 PIDFILE=/var/lib/knot/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
