@@ -1,4 +1,4 @@
-knot (0.8-1) experimental; urgency=low
+knot (0.8-1) unstable; urgency=low
 
   * Initial release (Closes: #647461)
   * Add some dependencies in the init.d script
