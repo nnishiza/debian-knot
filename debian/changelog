@@ -1,14 +1,10 @@
-knot (0.8-2) unstable; urgency=low
-
-  * Add versioned dependency on liburcu
-  * Daemonize on the start
-
- -- Ondřej Surý <ondrej@debian.org>  Thu, 03 Nov 2011 09:47:27 +0100
-
 knot (0.8-1) unstable; urgency=low
 
   * Initial release (Closes: #647461)
   * Add some dependencies in the init.d script
   * Add flex and bison to b-d
+  * Add versioned dependency on liburcu
+  * Daemonize on the start
+  * Update copyright file to include all licenses
 
- -- Ondřej Surý <ondrej@debian.org>  Thu, 03 Nov 2011 00:06:24 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 16 Nov 2011 07:14:55 +0100
