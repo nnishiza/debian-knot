@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 
 #include "common/lists.h"
+#include "common/WELL1024a.h"
 #include "libknot/dname.h"
 #include "libknot/util/wire.h"
 #include "knot/zone/zone-dump-text.h"
@@ -35,6 +36,8 @@
 #include "knot/zone/zone-dump.h"
 #include "libknot/nameserver/name-server.h"
 #include "libknot/updates/changesets.h"
+#include "libknot/tsig-op.h"
+#include "libknot/packet/response.h"
 
 static const size_t XFRIN_CHANGESET_BINARY_SIZE = 100;
 static const size_t XFRIN_CHANGESET_BINARY_STEP = 100;
@@ -367,11 +370,9 @@ static int zones_refresh_ev(event_t *e)
 		xfr_req.zone = zone;
 		
 		/* Select TSIG key. */
-		/*!< \todo [TSIG] DISABLED */
-		xfr_req.tsig_key = 0;
-//		if (zd->xfr_in.tsig_key.name) {
-//			xfr_req.tsig_key = &zd->xfr_in.tsig_key;
-//		}
+		if (zd->xfr_in.tsig_key.name) {
+			xfr_req.tsig_key = &zd->xfr_in.tsig_key;
+		}
 
 		/* Unlock zone contents. */
 		rcu_read_unlock();
@@ -382,11 +383,11 @@ static int zones_refresh_ev(event_t *e)
 			dbg_zones("zones: already bootstrapping '%s'\n",
 			          zd->conf->name);
 			return KNOTD_EOK;
-		} else {
-			log_zone_info("Attempting to bootstrap zone %s from master\n",
-			              zd->conf->name);
-			pthread_mutex_unlock(&zd->xfr_in.lock);
 		}
+
+		log_zone_info("Attempting to bootstrap zone %s from master\n",
+			      zd->conf->name);
+		pthread_mutex_unlock(&zd->xfr_in.lock);
 		
 		return xfr_request(zd->server->xfr_h, &xfr_req);
 	}
@@ -427,29 +428,37 @@ static int zones_refresh_ev(event_t *e)
 		int sock = socket_create(master->family, SOCK_DGRAM);
 
 		/* Send query. */
-		ret = -1;
+		ret = KNOTD_ERROR;
 		if (sock > -1) {
-			ret = sendto(sock, qbuf, buflen, 0,
-				     master->ptr, master->len);
+			int sent = sendto(sock, qbuf, buflen, 0,
+			                  master->ptr, master->len);
+		
+			/* Store ID of the awaited response. */
+			if (sent == buflen) {
+				ret = KNOTD_EOK;
+			} else {
+				socket_close(sock);
+				sock = -1;
+			}
 		}
-
-		/* Store ID of the awaited response. */
-		if (ret == buflen) {
+		
+		/* Check result. */
+		if (ret == KNOTD_EOK) {
 			zd->xfr_in.next_id = knot_wire_get_id(qbuf);
 			dbg_zones("zones: expecting SOA response "
 			          "ID=%d for '%s'\n",
 			          zd->xfr_in.next_id, zd->conf->name);
+			
+			/* Watch socket. */
+			knot_ns_xfr_t req;
+			memset(&req, 0, sizeof(req));
+			req.session = sock;
+			req.type = XFR_TYPE_SOA;
+			req.zone = zone;
+			memcpy(&req.addr, master, sizeof(sockaddr_t));
+			sockaddr_update(&req.addr);
+			xfr_request(zd->server->xfr_h, &req);
 		}
-
-		/* Watch socket. */
-		knot_ns_xfr_t req;
-		memset(&req, 0, sizeof(req));
-		req.session = sock;
-		req.type = XFR_TYPE_SOA;
-		req.zone = zone;
-		memcpy(&req.addr, master, sizeof(sockaddr_t));
-		sockaddr_update(&req.addr);
-		xfr_request(zd->server->xfr_h, &req);
 	} else {
 		ret = KNOTD_ERROR;
 	}
@@ -612,7 +621,7 @@ static int zones_zonefile_sync_ev(event_t *e)
 	if (ret == KNOTD_EOK) {
 		log_zone_info("Applied differences of '%s' to zonefile.\n",
 		              zd->conf->name);
-	} else {
+	} else if (ret != KNOTD_ERANGE) {
 		log_zone_warning("Failed to apply differences of '%s' "
 		                 "to zonefile.\n",
 		                 zd->conf->name);
@@ -666,7 +675,7 @@ static int zones_set_acl(acl_t **acl, list* acl_list)
 
 		/* Load rule. */
 		if (ret > 0) {
-			acl_create(*acl, &addr, ACL_ACCEPT);
+			acl_create(*acl, &addr, ACL_ACCEPT, cfg_if);
 		}
 	}
 
@@ -752,12 +761,17 @@ static int zones_load_zone(knot_zonedb_t *zonedb, const char *zone_name,
 		if (zone) {
 			/* save the timestamp from the zone db file */
 			struct stat s;
-			stat(filename, &s);
-			knot_zone_set_version(zone, s.st_mtime);
-
-			if (knot_zonedb_add_zone(zonedb, zone) != 0){
+			if (stat(filename, &s) < 0) {
+				dbg_zones("zones: failed to stat() zone db, "
+					  "something is seriously wrong\n");
 				knot_zone_deep_free(&zone, 0);
 				zone = 0;
+			} else {
+				knot_zone_set_version(zone, s.st_mtime);
+				if (knot_zonedb_add_zone(zonedb, zone) != 0){
+					knot_zone_deep_free(&zone, 0);
+					zone = 0;
+				}
 			}
 		}
 
@@ -1031,10 +1045,10 @@ static int zones_load_changesets(const knot_zone_t *zone,
 	dbg_xfr_detail("xfr: Journal entries read.\n");
 
 	/* Unpack binary data. */
-	ret = zones_changesets_from_binary(dst);
-	if (ret != KNOT_EOK) {
+	int unpack_ret = zones_changesets_from_binary(dst);
+	if (unpack_ret != KNOT_EOK) {
 		dbg_xfr("xfr: failed to unpack changesets "
-		        "from binary, %s\n", knot_strerror(ret));
+		        "from binary, %s\n", knot_strerror(unpack_ret));
 		return KNOTD_ERROR;
 	}
 
@@ -1099,12 +1113,12 @@ static int zones_journal_apply(knot_zone_t *zone)
 			log_server_info("Applying '%zu' changesets from journal "
 			                "to zone '%s'.\n",
 			                chsets->count, zd->conf->name);
-			ret = xfrin_apply_changesets_to_zone(zone, chsets);
-			if (ret != KNOT_EOK) {
+			int apply_ret = xfrin_apply_changesets_to_zone(zone, chsets);
+			if (apply_ret != KNOT_EOK) {
 				log_server_error("Failed to apply changesets to "
 				                 "'%s' - %s\n",
 				                 zd->conf->name,
-				                 knot_strerror(ret));
+				                 knot_strerror(apply_ret));
 				ret = KNOTD_ERROR;
 			}
 		}
@@ -1263,7 +1277,6 @@ static int zones_insert_zones(knot_nameserver_t *ns,
 				log_server_error("Error adding known zone '%s' to"
 				                 " the new database - %s\n",
 				                 z->name, knot_strerror(ret));
-				ret = KNOTD_ERROR;
 			} else {
 				++inserted;
 			}
@@ -1296,12 +1309,12 @@ static int zones_insert_zones(knot_nameserver_t *ns,
 					     cfg_if->family,
 					     cfg_if->address,
 					     cfg_if->port);
-				/*!< \todo [TSIG] DISABLED */
-//				if (cfg_if->key) {
-//					memcpy(&zd->xfr_in.tsig_key,
-//					       cfg_if->key,
-//					       sizeof(knot_key_t));
-//				}
+
+				if (cfg_if->key) {
+					memcpy(&zd->xfr_in.tsig_key,
+					       cfg_if->key,
+					       sizeof(knot_key_t));
+				}
 
 				dbg_zones("zones: using %s:%d as XFR master "
 				          "for '%s'\n",
@@ -1374,6 +1387,180 @@ dbg_zones_exec(
 }
 
 /*----------------------------------------------------------------------------*/
+
+static int zones_verify_tsig_query(const knot_packet_t *query,
+                                   const knot_rrset_t *tsig_rr,
+                                   const knot_key_t *key,
+                                   knot_rcode_t *rcode, uint16_t *tsig_rcode,
+                                   uint64_t *tsig_prev_time_signed)
+{
+	assert(tsig_rr != NULL);
+	assert(key != NULL);
+	assert(rcode != NULL);
+	assert(tsig_rcode != NULL);
+
+	/*
+	 * 1) Check if we support the requested algorithm.
+	 */
+	tsig_algorithm_t alg = tsig_rdata_alg(tsig_rr);
+	if (tsig_alg_digest_length(alg) == 0) {
+		log_answer_info("Unsupported digest algorithm "
+		                "requested, treating as bad key\n");
+		/*! \todo [TSIG] It is unclear from RFC if I
+		 *               should treat is as a bad key
+		 *               or some other error.
+		 */
+		*rcode = KNOT_RCODE_NOTAUTH;
+		*tsig_rcode = KNOT_TSIG_RCODE_BADKEY;
+		return KNOT_TSIG_EBADKEY;
+	}
+
+	const knot_dname_t *kname = knot_rrset_owner(tsig_rr);
+	assert(kname != NULL);
+
+	/*
+	 * 2) Find the particular key used by the TSIG.
+	 */
+	if (key && kname && knot_dname_compare(key->name, kname) == 0) {
+		dbg_zones_verb("Found claimed TSIG key for comparison\n");
+	} else {
+		*rcode = KNOT_RCODE_NOTAUTH;
+		*tsig_rcode = KNOT_TSIG_RCODE_BADKEY;
+		return KNOT_TSIG_EBADKEY;
+	}
+
+	/*
+	 * 3) Validate the query with TSIG.
+	 */
+	/* Prepare variables for TSIG */
+	/*! \todo These need to be saved to the response somehow. */
+	//size_t tsig_size = tsig_wire_maxsize(key);
+	size_t digest_max_size = tsig_alg_digest_length(key->algorithm);
+	//size_t digest_size = 0;
+	//uint64_t tsig_prev_time_signed = 0;
+	//uint8_t *digest = (uint8_t *)malloc(digest_max_size);
+	//memset(digest, 0 , digest_max_size);
+
+	/* Copy MAC from query. */
+	dbg_zones_verb("Validating TSIG from query\n");
+
+	//const uint8_t* mac = tsig_rdata_mac(tsig_rr);
+	size_t mac_len = tsig_rdata_mac_length(tsig_rr);
+
+	int ret = KNOT_EOK;
+
+	if (mac_len > digest_max_size) {
+		*rcode = KNOT_RCODE_FORMERR;
+		dbg_zones("MAC length %zu exceeds digest "
+		       "maximum size %zu\n", mac_len, digest_max_size);
+		return KNOT_EMALF;
+	} else {
+		//memcpy(digest, mac, mac_len);
+		//digest_size = mac_len;
+
+		/* Check query TSIG. */
+		ret = knot_tsig_server_check(tsig_rr,
+		                             knot_packet_wireformat(query),
+		                             knot_packet_size(query), key);
+		dbg_zones_verb("knot_tsig_server_check() returned %s\n",
+		               knot_strerror(ret));
+
+		/* Evaluate TSIG check results. */
+		switch(ret) {
+		case KNOT_EOK:
+			*rcode = KNOT_RCODE_NOERROR;
+			break;
+		case KNOT_TSIG_EBADKEY:
+			*tsig_rcode = KNOT_TSIG_RCODE_BADKEY;
+			*rcode = KNOT_RCODE_NOTAUTH;
+			break;
+		case KNOT_TSIG_EBADSIG:
+			*tsig_rcode = KNOT_TSIG_RCODE_BADSIG;
+			*rcode = KNOT_RCODE_NOTAUTH;
+			break;
+		case KNOT_TSIG_EBADTIME:
+			*tsig_rcode = KNOT_TSIG_RCODE_BADTIME;
+			// store the time signed from the query
+			*tsig_prev_time_signed = tsig_rdata_time_signed(tsig_rr);
+			*rcode = KNOT_RCODE_NOTAUTH;
+			break;
+		case KNOT_EMALF:
+			*rcode = KNOT_RCODE_FORMERR;
+			break;
+		default:
+			*rcode = KNOT_RCODE_SERVFAIL;
+		}
+	}
+
+	return ret;
+}
+
+/*----------------------------------------------------------------------------*/
+
+static int zones_check_tsig_query(const knot_zone_t *zone,
+                                  knot_packet_t *query,
+                                  const sockaddr_t *addr,
+                                  knot_rcode_t *rcode,
+                                  uint16_t *tsig_rcode,
+                                  knot_key_t **tsig_key_zone,
+                                  uint64_t *tsig_prev_time_signed)
+{
+	assert(zone != NULL);
+	assert(query != NULL);
+	assert(rcode != NULL);
+	assert(tsig_key_zone != NULL);
+
+	knot_rrset_t *tsig = NULL;
+
+	if (knot_packet_additional_rrset_count(query) > 0) {
+		/*! \todo warning */
+		tsig = knot_packet_additional_rrset(query,
+		                 knot_packet_additional_rrset_count(query) - 1);
+		if (knot_rrset_type(tsig) == KNOT_RRTYPE_TSIG) {
+			dbg_zones_verb("found TSIG in normal query\n");
+        } else {
+            tsig = NULL; /* Invalidate if not TSIG RRTYPE. */
+        }
+	}
+
+	if (tsig == NULL) {
+		// no TSIG, this is completely valid
+		*tsig_rcode = 0;
+		return KNOT_EOK;
+	}
+
+	// if there is some TSIG in the query, find the TSIG associated with
+	// the zone
+	//knot_key_t *tsig_key_zone = NULL;
+
+	dbg_zones_verb("Checking zone and ACL.\n");
+	int ret = zones_query_check_zone(zone, addr, tsig_key_zone, rcode);
+
+	/*! \todo What if there is TSIG, but no key is configured? */
+
+	if (ret == KNOTD_EOK) {
+		if (*tsig_key_zone != NULL) {
+			// everything OK, so check TSIG
+			dbg_zones_verb("Verifying TSIG.\n");
+			ret = zones_verify_tsig_query(query, tsig, *tsig_key_zone,
+			                              rcode, tsig_rcode,
+			                              tsig_prev_time_signed);
+		} else {
+			dbg_zones_verb("No key configured for zone.\n");
+			// no key configured for zone, return BADKEY
+			*tsig_rcode = KNOT_TSIG_RCODE_BADKEY;
+			*rcode = KNOT_RCODE_NOTAUTH;
+			ret = KNOT_TSIG_EBADKEY;
+		}
+	}
+
+	// save TSIG RR to query structure
+	knot_packet_set_tsig(query, tsig);
+
+	return ret;
+}
+
+/*----------------------------------------------------------------------------*/
 /* API functions                                                              */
 /*----------------------------------------------------------------------------*/
 
@@ -1414,8 +1601,8 @@ int zones_update_db_from_config(const conf_t *conf, knot_nameserver_t *ns,
 		log_server_warning("Not all the zones were loaded.\n");
 	}
 
-	dbg_zones_detail("zones: old db in nameserver: %p, old db stored: %p, new db: %p\n",
-	                 ns->zone_db, *db_old, db_new);
+	dbg_zones_detail("zones: old db in nameserver: %p, old db stored: %p, "
+	                 "new db: %p\n", ns->zone_db, *db_old, db_new);
 
 	/* Switch the databases. */
 	(void)rcu_xchg_pointer(&ns->zone_db, db_new);
@@ -1452,6 +1639,7 @@ int zones_zonefile_sync(knot_zone_t *zone)
 	}
 
 	/* Fetch zone data. */
+	int ret = KNOTD_EOK;
 	zonedata_t *zd = (zonedata_t *)zone->data;
 
 	/* Lock zone data. */
@@ -1471,6 +1659,7 @@ int zones_zonefile_sync(knot_zone_t *zone)
 	soa_rr = knot_rrset_rdata(soa_rrs);
 	int64_t serial_ret = knot_rdata_soa_serial(soa_rr);
 	if (serial_ret < 0) {
+		pthread_mutex_unlock(&zd->lock);
 		return KNOTD_EINVAL;
 	}
 	uint32_t serial_to = (uint32_t)serial_ret;
@@ -1499,11 +1688,52 @@ int zones_zonefile_sync(knot_zone_t *zone)
 	} else {
 		dbg_zones_verb("zones: '%s' zonefile is in sync "
 		               "with differences\n", zd->conf->name);
+		ret = KNOTD_ERANGE;
 	}
 
 	/* Unlock zone data. */
 	pthread_mutex_unlock(&zd->lock);
 
+	return ret;
+}
+
+/*----------------------------------------------------------------------------*/
+
+int zones_query_check_zone(const knot_zone_t *zone, const sockaddr_t *addr,
+                           knot_key_t **tsig_key, knot_rcode_t *rcode)
+{
+	if (addr == NULL || tsig_key == NULL || rcode == NULL) {
+		dbg_zones_verb("Wrong arguments.\n");
+		*rcode = KNOT_RCODE_SERVFAIL;
+		return KNOTD_EINVAL;
+	}
+
+	/* Check zone data. */
+	const zonedata_t *zd = (const zonedata_t *)knot_zone_data(zone);
+	if (zd == NULL) {
+		dbg_zones("zones: invalid zone data for zone %p\n", zone);
+		*rcode = KNOT_RCODE_SERVFAIL;
+		return KNOTD_ERROR;
+	}
+
+	/* Check xfr-out ACL */
+	acl_key_t *match = NULL;
+	if (acl_match(zd->xfr_out, addr, &match) == ACL_DENY) {
+		log_answer_warning("Unauthorized query or request for XFR "
+		                   "'%s/OUT'.\n", zd->conf->name);
+		*rcode = KNOT_RCODE_REFUSED;
+		return KNOTD_EACCES;
+	} else {
+		dbg_zones("zones: authorized query or request for XFR "
+		          "'%s/OUT'. match=%p\n", zd->conf->name, match);
+		if (match) {
+			/* Save configured TSIG key for comparison. */
+			conf_iface_t *iface = (conf_iface_t*)(match->val);
+			dbg_zones_detail("iface=%p, iface->key=%p\n",
+					 iface, iface->key);
+			*tsig_key = iface->key;
+		}
+	}
 	return KNOTD_EOK;
 }
 
@@ -1512,7 +1742,6 @@ int zones_zonefile_sync(knot_zone_t *zone)
 int zones_xfr_check_zone(knot_ns_xfr_t *xfr, knot_rcode_t *rcode)
 {
 	if (xfr == NULL || rcode == NULL) {
-		*rcode = KNOT_RCODE_SERVFAIL;
 		return KNOTD_EINVAL;
 	}
 
@@ -1521,33 +1750,239 @@ int zones_xfr_check_zone(knot_ns_xfr_t *xfr, knot_rcode_t *rcode)
 		*rcode = KNOT_RCODE_REFUSED;
 		return KNOTD_EACCES;
 	}
-	
-	/* Check zone data. */
-	zonedata_t *zd = (zonedata_t *)xfr->zone->data;
-	if (zd == NULL) {
-		dbg_zones("zones: invalid zone data for zone %p\n", xfr->zone);
-		*rcode = KNOT_RCODE_SERVFAIL;
-		return KNOTD_ERROR;
-	}
-	
+
 	/* Check zone contents. */
 	if (knot_zone_contents(xfr->zone) == NULL) {
-		dbg_zones("zones: invalid zone contents for zone %p\n", xfr->zone);
+		dbg_zones("zones: invalid zone contents for zone %p\n",
+		          xfr->zone);
 		*rcode = KNOT_RCODE_SERVFAIL;
 		return KNOTD_EEXPIRED;
 	}
 
-	// Check xfr-out ACL
-	if (acl_match(zd->xfr_out, &xfr->addr) == ACL_DENY) {
-		log_answer_warning("Unauthorized request for XFR '%s/OUT'.\n",
-		                   zd->conf->name);
-		*rcode = KNOT_RCODE_REFUSED;
-		return KNOTD_EACCES;
-	} else {
-		dbg_zones("zones: authorized XFR '%s/OUT'\n",
-		          zd->conf->name);
+	return zones_query_check_zone(xfr->zone, &xfr->addr, &xfr->tsig_key,
+	                              rcode);
+}
+
+/*----------------------------------------------------------------------------*/
+
+int zones_normal_query_answer(knot_nameserver_t *nameserver,
+                              knot_packet_t *query, const sockaddr_t *addr,
+                              uint8_t *resp_wire, size_t *rsize)
+{
+	rcu_read_lock();
+
+	knot_packet_t *resp = NULL;
+	const knot_zone_t *zone = NULL;
+
+	dbg_zones_verb("Preparing response structure.\n");
+	int ret = knot_ns_prep_normal_response(nameserver, query, &resp, &zone);
+
+	// check for TSIG in the query
+	if (knot_packet_additional_rrset_count(query) > 0) {
+		/*! \todo warning */
+		const knot_rrset_t *tsig = knot_packet_additional_rrset(query,
+		                 knot_packet_additional_rrset_count(query) - 1);
+		if (knot_rrset_type(tsig) == KNOT_RRTYPE_TSIG) {
+			dbg_zones_verb("found TSIG in normal query\n");
+			knot_packet_set_tsig(query, tsig);
+		}
 	}
-	return KNOTD_EOK;
+
+	knot_rcode_t rcode = 0;
+
+	switch (ret) {
+	case KNOT_EOK:
+		rcode = KNOT_RCODE_NOERROR;
+		break;
+	case KNOT_EMALF:
+		// no TSIG signing in this case
+		rcode = KNOT_RCODE_FORMERR;
+		break;
+	default:
+		// no TSIG signing in this case
+		rcode = KNOT_RCODE_SERVFAIL;
+		break;
+	}
+
+	if (zone == NULL && knot_packet_tsig(query) == NULL) {
+		/*! \todo If there is TSIG, this should be probably handled
+		 *        as a key error.
+		 */
+		rcode = KNOT_RCODE_REFUSED;
+	}
+
+	assert(resp != NULL);
+
+	if (rcode != KNOT_RCODE_NOERROR) {
+		dbg_zones_verb("Failed preparing response structure: %s.\n",
+		               knot_strerror(rcode));
+		knot_ns_error_response(nameserver, knot_packet_id(query),
+		                       rcode, resp_wire, rsize);
+	} else {
+		/*
+		 * Now we have zone. Verify TSIG if it is in the packet.
+		 */
+		assert(rcode == KNOT_RCODE_NOERROR);
+		uint16_t tsig_rcode = 0;
+		knot_key_t *tsig_key_zone = NULL;
+        uint64_t tsig_prev_time_signed = 0; /*! \todo Verify, as it was uninitialized! */
+
+		size_t answer_size = *rsize;
+		int ret = KNOT_EOK;
+
+		if (zone == NULL) {
+			assert(knot_packet_tsig(query) != NULL);
+			// treat as BADKEY error
+			rcode = KNOT_RCODE_NOTAUTH;
+			tsig_rcode = KNOT_TSIG_RCODE_BADKEY;
+			ret = KNOT_TSIG_EBADKEY;
+		} else {
+			dbg_zones_verb("Checking TSIG in query.\n");
+			ret = zones_check_tsig_query(zone, query, addr,
+			                             &rcode, &tsig_rcode,
+			                             &tsig_key_zone,
+			                             &tsig_prev_time_signed);
+		}
+
+		if (ret == KNOT_EOK) {
+			dbg_zones_verb("TSIG check successful. Answering "
+			               "query.\n");
+			assert(tsig_rcode == 0);
+
+			// reserve place for the TSIG
+			if (tsig_key_zone != NULL) {
+				size_t tsig_max_size =
+				         tsig_wire_maxsize(tsig_key_zone);
+				knot_packet_set_tsig_size(resp, tsig_max_size);
+			}
+			ret = knot_ns_answer_normal(nameserver, zone, resp,
+			                            resp_wire, &answer_size);
+
+			dbg_zones_detail("rsize = %zu\n", *rsize);
+			dbg_zones_detail("answer_size = %zu\n", answer_size);
+
+			assert(ret == KNOT_EOK);
+
+			// sign the message
+			if (tsig_key_zone != NULL) {
+				dbg_zones_verb("Signing message with TSIG.\n");
+				// TODO check
+				//*rsize = answer_size;
+
+				const knot_rrset_t *tsig =
+				      knot_packet_tsig(knot_packet_query(resp));
+
+				size_t digest_max_size =
+				                tsig_alg_digest_length(
+				                      tsig_key_zone->algorithm);
+				uint8_t *digest = (uint8_t *)malloc(
+				                        digest_max_size);
+				if (digest == NULL) {
+					knot_packet_free(&resp);
+					rcu_read_unlock();
+					return KNOT_ENOMEM;
+				}
+				size_t digest_size = digest_max_size;
+
+				ret = knot_tsig_sign(resp_wire, &answer_size,
+				               *rsize, tsig_rdata_mac(tsig),
+				               tsig_rdata_mac_length(tsig),
+				               digest, &digest_size,
+				               tsig_key_zone, tsig_rcode,
+				               tsig_prev_time_signed);
+				
+				free(digest);
+
+				dbg_zones_detail("answer_size = %zu\n",
+				                 answer_size);
+
+				if (ret != KNOT_EOK) {
+					dbg_zones_verb("Failed to sign message:"
+					            "%s\n", knot_strerror(ret));
+					rcode = KNOT_RCODE_SERVFAIL;
+				} else {
+					*rsize = answer_size;
+				}
+			} else {
+				*rsize = answer_size;
+			}
+		} else {
+			dbg_zones_verb("Failed TSIG check: %s, TSIG err: %u.\n",
+			               knot_strerror(ret), tsig_rcode);
+
+			if (tsig_rcode != 0) {
+				dbg_zones_verb("Sending TSIG error.\n");
+				// first, convert the response to wire format
+				answer_size = *rsize;
+				knot_response_set_rcode(resp, rcode);
+
+				ret = ns_response_to_wire(resp, resp_wire,
+				                          &answer_size);
+
+				dbg_zones_detail("Packet to wire returned %d\n",
+				                 ret);
+
+				// then add the TSIG to the wire format
+				if (ret == KNOT_EOK &&
+				    tsig_rcode != KNOT_TSIG_RCODE_BADTIME) {
+					dbg_zones_verb("Adding TSIG.\n");
+					ret = knot_tsig_add(resp_wire,
+					                    &answer_size,
+					                    *rsize, tsig_rcode,
+					                     knot_packet_tsig(
+					                            query));
+
+					*rsize = answer_size;
+
+				} else if (tsig_rcode
+				           == KNOT_TSIG_RCODE_BADTIME) {
+					dbg_zones_verb("Signing error resp.\n");
+					//*rsize = answer_size;
+
+					const knot_rrset_t *tsig =
+					      knot_packet_tsig(
+					          knot_packet_query(resp));
+
+					size_t digest_max_size =
+					           tsig_alg_digest_length(
+					              tsig_key_zone->algorithm);
+					uint8_t *digest = (uint8_t *)malloc(
+					                       digest_max_size);
+					if (digest == NULL) {
+						knot_packet_free(&resp);
+						rcu_read_unlock();
+						return KNOT_ENOMEM;
+					}
+					size_t digest_size = digest_max_size;
+
+					ret = knot_tsig_sign(resp_wire,
+					    &answer_size, *rsize,
+					    tsig_rdata_mac(tsig),
+					    tsig_rdata_mac_length(tsig),
+					    digest, &digest_size, tsig_key_zone,
+					    tsig_rcode, tsig_prev_time_signed);
+
+					*rsize = answer_size;
+				} else {
+					dbg_zones_verb("Failed.\n");
+					rcode = KNOT_RCODE_SERVFAIL;
+				}
+			}
+			// in other case the RCODE is set and ret != KNOT_EOK
+			// and a normal error is returned below
+		}
+
+		if (ret != KNOT_EOK) {
+			knot_ns_error_response_full(nameserver, resp,
+			                            rcode, resp_wire,
+			                            rsize);
+		}
+	}
+
+	knot_packet_free(&resp);
+	rcu_read_unlock();
+
+	return KNOT_EOK;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1647,12 +2082,9 @@ int zones_process_response(knot_nameserver_t *nameserver,
 		xfr_req.type = zones_transfer_to_use(contents);
 		
 		/* Select TSIG key. */
-		/*!< \todo [TSIG] DISABLED */
-		xfr_req.tsig_key = 0;
-		/* CLEANUP */
-//		if (zd->xfr_in.tsig_key.name) {
-//			xfr_req.tsig_key = &zd->xfr_in.tsig_key;
-//		}
+		if (zd->xfr_in.tsig_key.name) {
+			xfr_req.tsig_key = &zd->xfr_in.tsig_key;
+		}
 
 		/* Unlock zone contents. */
 		rcu_read_unlock();
@@ -1767,38 +2199,33 @@ static int zones_dump_xfr_zone_text(knot_zone_contents_t *zone,
 	char *new_zonefile = zones_find_free_filename(zonefile);
 
 	if (new_zonefile == NULL) {
-		dbg_zones("zones: failed to find free filename for temporary "
-		          "storage of the zone text file.\n");
+		log_zone_warning("Failed to find filename for temporary "
+		                 "storage of the transferred zone.\n");
 		return KNOTD_ERROR;	/*! \todo New error code? */
 	}
 
 	int rc = zone_dump_text(zone, new_zonefile);
 
 	if (rc != KNOTD_EOK) {
-		dbg_zones("Failed to save the zone to text zone file '%s'.\n",
-		          new_zonefile);
+		log_zone_warning("Failed to save the transferred zone to '%s'.\n",
+		                 new_zonefile);
 		free(new_zonefile);
 		return KNOTD_ERROR;
 	}
 
 	/*! \todo this would also need locking as well. */
-	struct stat s;
-	rc = stat(zonefile, &s);
-	if (rc < 0 || remove(zonefile) == 0) {
-		if (rename(new_zonefile, zonefile) != 0) {
-			dbg_zones("Failed to replace old zonefile '%s'' with new"
-			          " zone file '%s'.\n", zonefile, new_zonefile);
-			/*! \todo with proper locking, this shouldn't happen,
-			 *        revise it later on.
-			 */
-			zone_dump_text(zone, zonefile);
-			return KNOTD_ERROR;
-		}
-	} else {
-		dbg_zones("zones: failed to replace old zonefile '%s'.\n",
-		          zonefile);
+	remove(zonefile); /* Don't care, as the rename will trigger the error. */
+	if (rename(new_zonefile, zonefile) != 0) {
+		log_zone_warning("Failed to replace old zone file '%s'' with a new"
+		                 " zone file '%s'.\n", zonefile, new_zonefile);
+		/*! \todo with proper locking, this shouldn't happen,
+		 *        revise it later on.
+		 */
+		zone_dump_text(zone, zonefile);
+		free(new_zonefile);
 		return KNOTD_ERROR;
 	}
+
 
 	free(new_zonefile);
 	return KNOTD_EOK;
@@ -1944,7 +2371,7 @@ static int zones_changeset_rrset_to_binary(uint8_t **data, size_t *size,
 	uint8_t *binary = NULL;
 	size_t actual_size = 0;
 	int ret = knot_zdump_rrset_serialize(rrset, &binary, &actual_size);
-	if (ret != KNOT_EOK) {
+	if (ret != KNOT_EOK || binary == NULL) {
 		return KNOTD_ERROR;  /*! \todo Other code? */
 	}
 
@@ -2094,7 +2521,7 @@ int zones_store_changesets(knot_ns_xfr_t *xfr)
 				             "of '%s'\n",
 				             zd->conf->name);
 				ret = zones_zonefile_sync(zone);
-				if (ret != KNOTD_EOK) {
+				if (ret != KNOTD_EOK && ret != KNOTD_ERANGE) {
 					continue;
 				}
 
@@ -2166,6 +2593,7 @@ int zones_xfr_load_changesets(knot_ns_xfr_t *xfr, uint32_t serial_from,
 	if (ret != KNOTD_EOK) {
 		dbg_zones_verb("Loading changesets failed: %s\n",
 		               knotd_strerror(ret));
+		knot_free_changesets(&chgsets);
 		return ret;
 	}
 	
@@ -2291,7 +2719,7 @@ int zones_timers_update(knot_zone_t *zone, conf_zone_t *cfzone, evsched_t *sch)
 		ev->timeout = cfzone->notify_timeout;
 
 		/* Schedule request (30 - 60s random delay). */
-		int tmr_s = 30 + (int)(30.0 * (rand() / (RAND_MAX + 1.0)));
+		int tmr_s = 30 + (int)(30.0 * tls_rand());
 		pthread_mutex_lock(&zd->lock);
 		ev->timer = evsched_schedule_cb(sch, zones_notify_send, ev,
 						tmr_s * 1000);

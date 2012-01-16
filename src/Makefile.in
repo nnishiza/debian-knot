@@ -37,7 +37,8 @@ build_triplet = @build@
 host_triplet = @host@
 libexec_PROGRAMS = knot-zcompile$(EXEEXT) unittests$(EXEEXT) \
 	unittests-zcompile$(EXEEXT) \
-	unittests-libknot-realdata$(EXEEXT) unittests-libknot$(EXEEXT)
+	unittests-libknot-realdata$(EXEEXT) unittests-libknot$(EXEEXT) \
+	unittests-xfr$(EXEEXT)
 sbin_PROGRAMS = knotc$(EXEEXT) knotd$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -59,7 +60,7 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libknot_la_LIBADD =
-am_libknot_la_OBJECTS = libknot_error.lo utils.lo debug.lo \
+am_libknot_la_OBJECTS = libknot_error.lo utils.lo debug.lo conv.lo \
 	descriptor.lo tolower.lo query.lo response.lo packet.lo \
 	zone.lo zone-contents.lo zone-tree.lo zonedb.lo node.lo \
 	dname-table.lo hash-functions.lo cuckoo-hash-table.lo \
@@ -72,7 +73,8 @@ am_libknotd_la_OBJECTS = gatherer.lo stat.lo log.lo error.lo \
 	libknotd_la-cf-parse.lo libknotd_la-cf-lex.lo conf.lo \
 	logconf.lo process.lo dthreads.lo journal.lo socket.lo \
 	server.lo udp-handler.lo tcp-handler.lo xfr-handler.lo \
-	zones.lo notify.lo zone-load.lo zone-dump.lo zone-dump-text.lo
+	zones.lo notify.lo zone-load.lo semantic-check.lo zone-dump.lo \
+	zone-dump-text.lo
 libknotd_la_OBJECTS = $(am_libknotd_la_OBJECTS)
 libknots_la_DEPENDENCIES = @LIBOBJS@
 am_libknots_la_OBJECTS = slab.lo malloc.lo tap.lo lists.lo base32.lo \
@@ -113,8 +115,9 @@ am_unittests_libknot_OBJECTS = cuckoo_tests.$(OBJEXT) \
 	packet_tests.$(OBJEXT) query_tests.$(OBJEXT) \
 	edns_tests.$(OBJEXT) node_tests.$(OBJEXT) \
 	rdata_tests.$(OBJEXT) rrset_tests.$(OBJEXT) \
-	zone_tests.$(OBJEXT) zone_tree_tests.$(OBJEXT) \
-	zonedb_tests.$(OBJEXT) unittests_libknot.$(OBJEXT)
+	tsig_tests.$(OBJEXT) zone_tests.$(OBJEXT) \
+	zone_tree_tests.$(OBJEXT) zonedb_tests.$(OBJEXT) \
+	unittests_libknot.$(OBJEXT)
 unittests_libknot_OBJECTS = $(am_unittests_libknot_OBJECTS)
 unittests_libknot_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
 am_unittests_libknot_realdata_OBJECTS =  \
@@ -129,6 +132,10 @@ am_unittests_libknot_realdata_OBJECTS =  \
 unittests_libknot_realdata_OBJECTS =  \
 	$(am_unittests_libknot_realdata_OBJECTS)
 unittests_libknot_realdata_DEPENDENCIES = libknot.la libknots.la \
+	@LIBOBJS@ $(am__empty)
+am_unittests_xfr_OBJECTS = xfr_tests.$(OBJEXT)
+unittests_xfr_OBJECTS = $(am_unittests_xfr_OBJECTS)
+unittests_xfr_DEPENDENCIES = libknotd.la libknot.la libknots.la \
 	@LIBOBJS@ $(am__empty)
 am_unittests_zcompile_OBJECTS = zcompile-error.$(OBJEXT) \
 	zparser.$(OBJEXT) zlexer.$(OBJEXT) zcompile.$(OBJEXT) \
@@ -163,13 +170,13 @@ SOURCES = $(libknot_la_SOURCES) $(libknotd_la_SOURCES) \
 	$(libknots_la_SOURCES) $(knot_zcompile_SOURCES) \
 	$(knotc_SOURCES) $(knotd_SOURCES) $(unittests_SOURCES) \
 	$(nodist_unittests_SOURCES) $(unittests_libknot_SOURCES) \
-	$(unittests_libknot_realdata_SOURCES) \
+	$(unittests_libknot_realdata_SOURCES) $(unittests_xfr_SOURCES) \
 	$(unittests_zcompile_SOURCES)
 DIST_SOURCES = $(libknot_la_SOURCES) $(libknotd_la_SOURCES) \
 	$(libknots_la_SOURCES) $(knot_zcompile_SOURCES) \
 	$(knotc_SOURCES) $(knotd_SOURCES) $(unittests_SOURCES) \
 	$(unittests_libknot_SOURCES) \
-	$(unittests_libknot_realdata_SOURCES) \
+	$(unittests_libknot_realdata_SOURCES) $(unittests_xfr_SOURCES) \
 	$(unittests_zcompile_SOURCES)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -383,8 +390,8 @@ unittests_SOURCES = \
 	tests/common/skiplist_tests.h		\
 	tests/common/slab_tests.c		\
 	tests/common/slab_tests.h		\
-        tests/common/fdset_tests.c		\
-        tests/common/fdset_tests.h		\
+	tests/common/fdset_tests.c		\
+	tests/common/fdset_tests.h		\
 	tests/knot/conf_tests.c			\
 	tests/knot/conf_tests.h			\
 	tests/knot/dthreads_tests.c		\
@@ -433,9 +440,11 @@ unittests_libknot_SOURCES = \
 	tests/libknot/libknot/rdata_tests.h	\
 	tests/libknot/libknot/rrset_tests.c	\
 	tests/libknot/libknot/rrset_tests.h	\
+	tests/libknot/libknot/tsig_tests.c	\
+	tests/libknot/libknot/tsig_tests.h	\
 	tests/libknot/libknot/zone_tests.c	\
 	tests/libknot/libknot/zone_tests.h	\
-	tests/libknot/libknot/zone_tree_tests.h\
+	tests/libknot/libknot/zone_tree_tests.h	\
 	tests/libknot/libknot/zone_tree_tests.c	\
 	tests/libknot/libknot/zonedb_tests.c	\
 	tests/libknot/libknot/zonedb_tests.h	\
@@ -451,6 +460,10 @@ unittests_zcompile_SOURCES = \
 	zcompile/parser-util.c			\
 	zcompile/parser-descriptor.c		\
 	zcompile/tests/unittests_zp_main.c
+
+unittests_xfr_SOURCES = \
+	tests/xfr_tests.c		\
+	tests/xfr_tests.h
 
 nodist_unittests_SOURCES = \
 	tests/libknot/parsed_data.rc		\
@@ -469,6 +482,8 @@ libknot_la_SOURCES = \
 	libknot/util/debug.c			\
 	libknot/util/debug.h			\
 	libknot/util/utils.h			\
+	libknot/util/conv.h			\
+	libknot/util/conv.c			\
 	libknot/util/descriptor.c		\
 	libknot/util/tolower.h			\
 	libknot/util/tolower.c			\
@@ -610,6 +625,8 @@ libknotd_la_SOURCES = \
 	knot/server/zones.h				\
 	knot/zone/zone-load.c			\
 	knot/zone/zone-load.h			\
+	knot/zone/semantic-check.c		\
+	knot/zone/semantic-check.h		\
 	knot/zone/zone-dump.c			\
 	knot/zone/zone-dump-text.c			\
 	knot/zone/zone-dump-text.h			\
@@ -625,6 +642,7 @@ unittests_LDADD = libknotd.la libknots.la @LIBOBJS@
 unittests_zcompile_LDADD = libknot.la libknots.la libknotd.la @LIBOBJS@
 unittests_libknot_LDADD = libknot.la libknots.la @LIBOBJS@
 unittests_libknot_realdata_LDADD = libknot.la libknots.la @LIBOBJS@
+unittests_xfr_LDADD = libknotd.la libknot.la libknots.la @LIBOBJS@
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -806,6 +824,9 @@ unittests-libknot$(EXEEXT): $(unittests_libknot_OBJECTS) $(unittests_libknot_DEP
 unittests-libknot-realdata$(EXEEXT): $(unittests_libknot_realdata_OBJECTS) $(unittests_libknot_realdata_DEPENDENCIES) 
 	@rm -f unittests-libknot-realdata$(EXEEXT)
 	$(LINK) $(unittests_libknot_realdata_OBJECTS) $(unittests_libknot_realdata_LDADD) $(LIBS)
+unittests-xfr$(EXEEXT): $(unittests_xfr_OBJECTS) $(unittests_xfr_DEPENDENCIES) 
+	@rm -f unittests-xfr$(EXEEXT)
+	$(LINK) $(unittests_xfr_OBJECTS) $(unittests_xfr_LDADD) $(LIBS)
 unittests-zcompile$(EXEEXT): $(unittests_zcompile_OBJECTS) $(unittests_zcompile_DEPENDENCIES) 
 	@rm -f unittests-zcompile$(EXEEXT)
 	$(LINK) $(unittests_zcompile_OBJECTS) $(unittests_zcompile_LDADD) $(LIBS)
@@ -824,6 +845,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/changesets.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf_tests.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/crc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo-hash-table.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo_tests.Po@am__quote@
@@ -893,6 +915,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset_tests_realdata.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/semantic-check.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/skip-list.Plo@am__quote@
@@ -907,6 +930,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tolower.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsig-op.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsig.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsig_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/udp-handler.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unittests_libknot.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unittests_libknot_realdata.Po@am__quote@
@@ -916,6 +940,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utils.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xfr-handler.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xfr-in.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xfr_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zcompile-error.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zcompile.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zcompile_main.Po@am__quote@
@@ -976,6 +1001,13 @@ debug.lo: libknot/util/debug.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libknot/util/debug.c' object='debug.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o debug.lo `test -f 'libknot/util/debug.c' || echo '$(srcdir)/'`libknot/util/debug.c
+
+conv.lo: libknot/util/conv.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT conv.lo -MD -MP -MF $(DEPDIR)/conv.Tpo -c -o conv.lo `test -f 'libknot/util/conv.c' || echo '$(srcdir)/'`libknot/util/conv.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/conv.Tpo $(DEPDIR)/conv.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libknot/util/conv.c' object='conv.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o conv.lo `test -f 'libknot/util/conv.c' || echo '$(srcdir)/'`libknot/util/conv.c
 
 descriptor.lo: libknot/util/descriptor.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT descriptor.lo -MD -MP -MF $(DEPDIR)/descriptor.Tpo -c -o descriptor.lo `test -f 'libknot/util/descriptor.c' || echo '$(srcdir)/'`libknot/util/descriptor.c
@@ -1270,6 +1302,13 @@ zone-load.lo: knot/zone/zone-load.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='knot/zone/zone-load.c' object='zone-load.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o zone-load.lo `test -f 'knot/zone/zone-load.c' || echo '$(srcdir)/'`knot/zone/zone-load.c
+
+semantic-check.lo: knot/zone/semantic-check.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT semantic-check.lo -MD -MP -MF $(DEPDIR)/semantic-check.Tpo -c -o semantic-check.lo `test -f 'knot/zone/semantic-check.c' || echo '$(srcdir)/'`knot/zone/semantic-check.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/semantic-check.Tpo $(DEPDIR)/semantic-check.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='knot/zone/semantic-check.c' object='semantic-check.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o semantic-check.lo `test -f 'knot/zone/semantic-check.c' || echo '$(srcdir)/'`knot/zone/semantic-check.c
 
 zone-dump.lo: knot/zone/zone-dump.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT zone-dump.lo -MD -MP -MF $(DEPDIR)/zone-dump.Tpo -c -o zone-dump.lo `test -f 'knot/zone/zone-dump.c' || echo '$(srcdir)/'`knot/zone/zone-dump.c
@@ -1845,6 +1884,20 @@ rrset_tests.obj: tests/libknot/libknot/rrset_tests.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o rrset_tests.obj `if test -f 'tests/libknot/libknot/rrset_tests.c'; then $(CYGPATH_W) 'tests/libknot/libknot/rrset_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/libknot/libknot/rrset_tests.c'; fi`
 
+tsig_tests.o: tests/libknot/libknot/tsig_tests.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tsig_tests.o -MD -MP -MF $(DEPDIR)/tsig_tests.Tpo -c -o tsig_tests.o `test -f 'tests/libknot/libknot/tsig_tests.c' || echo '$(srcdir)/'`tests/libknot/libknot/tsig_tests.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tsig_tests.Tpo $(DEPDIR)/tsig_tests.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/libknot/libknot/tsig_tests.c' object='tsig_tests.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tsig_tests.o `test -f 'tests/libknot/libknot/tsig_tests.c' || echo '$(srcdir)/'`tests/libknot/libknot/tsig_tests.c
+
+tsig_tests.obj: tests/libknot/libknot/tsig_tests.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tsig_tests.obj -MD -MP -MF $(DEPDIR)/tsig_tests.Tpo -c -o tsig_tests.obj `if test -f 'tests/libknot/libknot/tsig_tests.c'; then $(CYGPATH_W) 'tests/libknot/libknot/tsig_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/libknot/libknot/tsig_tests.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tsig_tests.Tpo $(DEPDIR)/tsig_tests.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/libknot/libknot/tsig_tests.c' object='tsig_tests.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tsig_tests.obj `if test -f 'tests/libknot/libknot/tsig_tests.c'; then $(CYGPATH_W) 'tests/libknot/libknot/tsig_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/libknot/libknot/tsig_tests.c'; fi`
+
 zone_tests.o: tests/libknot/libknot/zone_tests.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT zone_tests.o -MD -MP -MF $(DEPDIR)/zone_tests.Tpo -c -o zone_tests.o `test -f 'tests/libknot/libknot/zone_tests.c' || echo '$(srcdir)/'`tests/libknot/libknot/zone_tests.c
 @am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/zone_tests.Tpo $(DEPDIR)/zone_tests.Po
@@ -2054,6 +2107,20 @@ unittests_libknot_realdata.obj: tests/libknot/realdata/unittests_libknot_realdat
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/libknot/realdata/unittests_libknot_realdata.c' object='unittests_libknot_realdata.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o unittests_libknot_realdata.obj `if test -f 'tests/libknot/realdata/unittests_libknot_realdata.c'; then $(CYGPATH_W) 'tests/libknot/realdata/unittests_libknot_realdata.c'; else $(CYGPATH_W) '$(srcdir)/tests/libknot/realdata/unittests_libknot_realdata.c'; fi`
+
+xfr_tests.o: tests/xfr_tests.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT xfr_tests.o -MD -MP -MF $(DEPDIR)/xfr_tests.Tpo -c -o xfr_tests.o `test -f 'tests/xfr_tests.c' || echo '$(srcdir)/'`tests/xfr_tests.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/xfr_tests.Tpo $(DEPDIR)/xfr_tests.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/xfr_tests.c' object='xfr_tests.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o xfr_tests.o `test -f 'tests/xfr_tests.c' || echo '$(srcdir)/'`tests/xfr_tests.c
+
+xfr_tests.obj: tests/xfr_tests.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT xfr_tests.obj -MD -MP -MF $(DEPDIR)/xfr_tests.Tpo -c -o xfr_tests.obj `if test -f 'tests/xfr_tests.c'; then $(CYGPATH_W) 'tests/xfr_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/xfr_tests.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/xfr_tests.Tpo $(DEPDIR)/xfr_tests.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/xfr_tests.c' object='xfr_tests.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o xfr_tests.obj `if test -f 'tests/xfr_tests.c'; then $(CYGPATH_W) 'tests/xfr_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/xfr_tests.c'; fi`
 
 unittests_zp_main.o: zcompile/tests/unittests_zp_main.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT unittests_zp_main.o -MD -MP -MF $(DEPDIR)/unittests_zp_main.Tpo -c -o unittests_zp_main.o `test -f 'zcompile/tests/unittests_zp_main.c' || echo '$(srcdir)/'`zcompile/tests/unittests_zp_main.c
