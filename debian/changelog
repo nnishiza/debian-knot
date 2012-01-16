@@ -1,3 +1,11 @@
+knot (0.9-1) unstable; urgency=low
+
+  * Imported Upstream version 0.9
+    + Add TSIG support
+    + Several smaller bugfixes
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 16 Jan 2012 09:06:11 +0100
+
 knot (0.8.1-1) unstable; urgency=low
 
   * Imported Upstream version 0.8.1
