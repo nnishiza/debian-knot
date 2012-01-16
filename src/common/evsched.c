@@ -187,7 +187,7 @@ int evsched_event_finished(evsched_t *s)
 
 int evsched_schedule(evsched_t *s, event_t *ev, uint32_t dt)
 {
-	if (!s || !ev || dt < 0) {
+	if (!s || !ev) {
 		return -1;
 	}
 
@@ -276,11 +276,11 @@ int evsched_cancel(evsched_t *s, event_t *ev)
 		return -1;
 	}
 
-	/* Lock calendar. */
-	pthread_mutex_lock(&s->mx);
-
 	/* Make sure not running. */
 	pthread_mutex_lock(&s->rl);
+
+	/* Lock calendar. */
+	pthread_mutex_lock(&s->mx);
 
 	/* Find in list. */
 	event_t *n = 0;
@@ -297,12 +297,12 @@ int evsched_cancel(evsched_t *s, event_t *ev)
 		rem_node(&ev->n);
 	}
 
-	/* Enable running events. */
-	pthread_mutex_unlock(&s->rl);
-
 	/* Unlock calendar. */
 	pthread_cond_signal(&s->notify);
 	pthread_mutex_unlock(&s->mx);
+
+	/* Enable running events. */
+	pthread_mutex_unlock(&s->rl);
 
 	return 0;
 }

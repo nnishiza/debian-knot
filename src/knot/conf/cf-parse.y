@@ -282,30 +282,39 @@ system:
 keys:
    KEYS '{'
  | keys TEXT TSIG_ALGO_NAME TEXT ';' {
+     /* Check algorithm length. */
+     if (tsig_alg_digest_length($3.alg) == 0) {
+        cf_error(scanner, "unsupported digest algorithm");
+     }
+     
      /* Normalize to FQDN */
      char *fqdn = $2.t;
-     if (fqdn[strlen(fqdn) - 1] != '.') {
-        char* tmp = malloc(strlen(fqdn) + 1 + 1); /* '.', '\0' */
-	if (!tmp) {
+     size_t fqdnl = strlen(fqdn);
+     if (fqdn[fqdnl - 1] != '.') {
+        /*! \todo Oddly, it requires memory aligned to 4B */
+        fqdnl = ((fqdnl + 2)/4+1)*4; /* '.', '\0' */
+        char* tmpdn = malloc(fqdnl); 
+	if (!tmpdn) {
 	   cf_error(scanner, "out of memory when allocating string");
 	   free(fqdn);
-	   fqdn = 0;
+	   fqdn = NULL;
+	   fqdnl = 0;
 	} else {
-	   strcpy(tmp, fqdn);
-	   strcat(tmp, ".");
+	   strncpy(tmpdn, fqdn, fqdnl);
+	   strncat(tmpdn, ".", 1);
 	   free(fqdn);
-	   fqdn = tmp;
+	   fqdn = tmpdn;
+	   fqdnl = strlen(fqdn);
 	}
      }
 
-     if (!conf_key_exists(scanner, fqdn)) {
-         knot_dname_t *dname = knot_dname_new_from_str(fqdn, strlen(fqdn), 0);
+     if (fqdn != NULL && !conf_key_exists(scanner, fqdn)) {
+         knot_dname_t *dname = knot_dname_new_from_str(fqdn, fqdnl, 0);
 	 if (!dname) {
 	     char buf[512];
              snprintf(buf, sizeof(buf), "key name '%s' not in valid domain "
 	                                "name format", fqdn);
              cf_error(scanner, buf);
-	     free(fqdn);
 	     free($4.t);
 	 } else {
              conf_key_t *k = malloc(sizeof(conf_key_t));
@@ -315,12 +324,12 @@ keys:
              k->k.secret = $4.t;
              add_tail(&new_config->keys, &k->n);
              ++new_config->key_count;
-	     free(fqdn);
 	 }
      } else {
-         free(fqdn);
          free($4.t);
      }
+     
+     free(fqdn);
 }
 
 remote_start:
@@ -387,6 +396,7 @@ remote:
      } else {
         conf_key_add(scanner, &this_remote->key, $3.t);
      }
+     free($3.t);
    }
  ;
 
@@ -469,20 +479,28 @@ zone_start: TEXT {
    this_zone->notify_retries = 0; // Default policy applies
    this_zone->ixfr_fslimit = -1; // Default policy applies
    this_zone->dbsync_timeout = -1; // Default policy applies
-   this_zone->name = $1.t;
 
    // Append mising dot to ensure FQDN
-   size_t nlen = strlen(this_zone->name);
-   if (this_zone->name[nlen - 1] != '.') {
-     this_zone->name = realloc(this_zone->name, nlen + 1 + 1);
-     strcat(this_zone->name, ".");
+   char *name = $1.t;
+   size_t nlen = strlen(name);
+   if (name[nlen - 1] != '.') {
+      this_zone->name = malloc(nlen + 2);
+      if (this_zone->name != NULL) {
+	memcpy(this_zone->name, name, nlen);
+	this_zone->name[nlen] = '.';
+	this_zone->name[nlen + 1] = '\0';
+     }
+     free(name);
+   } else {
+      this_zone->name = name; /* Already FQDN */
    }
 
    /* Check domain name. */
-   knot_dname_t *dn = knot_dname_new_from_str(this_zone->name,
-                                                  nlen + 1,
-                                                  0);
-   if (dn == 0) {
+   knot_dname_t *dn = NULL;
+   if (this_zone->name != NULL) {
+      dn = knot_dname_new_from_str(this_zone->name, nlen + 1, 0);
+   }
+   if (dn == NULL) {
      free(this_zone->name);
      free(this_zone);
      cf_error(scanner, "invalid zone origin");

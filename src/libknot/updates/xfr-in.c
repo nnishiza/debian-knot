@@ -121,7 +121,8 @@ static int xfrin_create_query(knot_dname_t *qname, uint16_t qtype,
 		
 		xfr->digest_size = xfr->digest_max_size;
 		rc = knot_tsig_sign(wire, &wire_size, *size, NULL, 0, 
-		               xfr->digest, &xfr->digest_size, xfr->tsig_key);
+		               xfr->digest, &xfr->digest_size, xfr->tsig_key,
+		               0, 0);
 		if (rc != KNOT_EOK) {
 			/*! \todo [TSIG] Handle TSIG errors. */
 			knot_packet_free(&pkt);
@@ -315,7 +316,7 @@ static int xfrin_process_orphan_rrsigs(knot_zone_contents_t *zone,
 
 /*----------------------------------------------------------------------------*/
 
-static void xfrin_free_orphan_rrsigs(xfrin_orphan_rrsig_t **rrsigs)
+void xfrin_free_orphan_rrsigs(xfrin_orphan_rrsig_t **rrsigs)
 {
 	xfrin_orphan_rrsig_t *r = *rrsigs;
 	while (r != NULL) {
@@ -358,6 +359,15 @@ static int xfrin_check_tsig(knot_packet_t *packet, knot_ns_xfr_t *xfr,
 	}
 	
 	if (xfr->tsig_key) {
+		// just append the wireformat to the TSIG data
+		assert(KNOT_NS_TSIG_DATA_MAX_SIZE - xfr->tsig_data_size
+		       >= xfr->wire_size);
+		memcpy(xfr->tsig_data + xfr->tsig_data_size,
+		       xfr->wire, xfr->wire_size);
+		xfr->tsig_data_size += xfr->wire_size;
+	}
+	
+	if (xfr->tsig_key) {
 		if (tsig_req && tsig == NULL) {
 			// TSIG missing!!
 			return KNOT_EMALF;
@@ -367,12 +377,14 @@ static int xfrin_check_tsig(knot_packet_t *packet, knot_ns_xfr_t *xfr,
 				ret = knot_tsig_client_check(tsig, 
 					xfr->wire, xfr->wire_size, 
 					xfr->digest, xfr->digest_size,
-					xfr->tsig_key);
+					xfr->tsig_key,
+					xfr->tsig_prev_time_signed);
 			} else {
 				ret = knot_tsig_client_check_next(tsig, 
-					xfr->wire, xfr->wire_size, 
+					xfr->tsig_data, xfr->tsig_data_size, 
 					xfr->digest, xfr->digest_size,
-					xfr->tsig_key);
+					xfr->tsig_key,
+					xfr->tsig_prev_time_signed);
 			}
 			
 			if (ret != KNOT_EOK) {
@@ -392,19 +404,22 @@ static int xfrin_check_tsig(knot_packet_t *packet, knot_ns_xfr_t *xfr,
 			memcpy(xfr->digest, tsig_rdata_mac(tsig), 
 			       tsig_rdata_mac_length(tsig));
 			xfr->digest_size = tsig_rdata_mac_length(tsig);
+
+			// Extract the time signed from the TSIG and store it
+			// We may rewrite the tsig_req_time_signed field
+			xfr->tsig_prev_time_signed =
+			                tsig_rdata_time_signed(tsig);
+
 			
-		} else { // TSIG not required and not there
-			// just append the wireformat to the TSIG data
-			assert(KNOT_NS_TSIG_DATA_MAX_SIZE - xfr->tsig_data_size
-			       >= xfr->wire_size);
-			memcpy(xfr->tsig_data + xfr->tsig_data_size,
-			       xfr->wire, xfr->wire_size);
-			xfr->tsig_data_size += xfr->wire_size;
-		}
+		}/* else { // TSIG not required and not there
+			
+		}*/
 	} else if (tsig != NULL) {
 		// TSIG where it should not be
 		return KNOT_EMALF;
 	}
+	
+	knot_rrset_deep_free(&tsig, 1, 1, 1);
 	
 	return KNOT_EOK;
 }
@@ -482,8 +497,8 @@ int xfrin_process_axfr_packet(/*const uint8_t *pkt, size_t size,
 		// this should be the first packet
 		/*! \note [TSIG] Packet number for checking TSIG validation. */
 		xfr->packet_nr = 0;
-		/*! \note [TSIG] Storing total size of data for TSIG digest. */
-		xfr->tsig_data_size = 0;
+//		/*! \note [TSIG] Storing total size of data for TSIG digest. */
+//		xfr->tsig_data_size = 0;
 		
 		// create new zone
 		/*! \todo Ensure that the packet is the first one. */
@@ -586,16 +601,16 @@ dbg_xfrin_exec(
 	/*! \note [TSIG] add the packet wire size to the data to be verified by 
 	 *               TSIG 
 	 */
-	if (xfr->tsig_key) {
-		dbg_xfrin("Adding packet wire to TSIG data (size till now: %zu,"
-		          " adding: %zu).\n", xfr->tsig_data_size, 
-		          xfr->wire_size);
-		assert(KNOT_NS_TSIG_DATA_MAX_SIZE - xfr->tsig_data_size
-		       >= xfr->wire_size);
-		memcpy(xfr->tsig_data + xfr->tsig_data_size, xfr->wire, 
-		       xfr->wire_size);
-		xfr->tsig_data_size += xfr->wire_size;
-	}
+//	if (xfr->tsig_key) {
+//		dbg_xfrin("Adding packet wire to TSIG data (size till now: %zu,"
+//		          " adding: %zu).\n", xfr->tsig_data_size, 
+//		          xfr->wire_size);
+//		assert(KNOT_NS_TSIG_DATA_MAX_SIZE - xfr->tsig_data_size
+//		       >= xfr->wire_size);
+//		memcpy(xfr->tsig_data + xfr->tsig_data_size, xfr->wire, 
+//		       xfr->wire_size);
+//		xfr->tsig_data_size += xfr->wire_size;
+//	}
 	
 	assert(zone != NULL);
 
@@ -904,8 +919,7 @@ static int xfrin_parse_first_rr(knot_packet_t **packet, const uint8_t *pkt,
 
 /*----------------------------------------------------------------------------*/
 
-int xfrin_process_ixfr_packet(/*const uint8_t *pkt, size_t size,
-                              knot_changesets_t **chs*/knot_ns_xfr_t *xfr)
+int xfrin_process_ixfr_packet(knot_ns_xfr_t *xfr)
 {
 	size_t size = xfr->wire_size;
 	const uint8_t *pkt = xfr->wire;
@@ -922,8 +936,6 @@ int xfrin_process_ixfr_packet(/*const uint8_t *pkt, size_t size,
 	}
 
 	knot_packet_t *packet = NULL;
-//	knot_rrset_t *soa1 = NULL;
-//	knot_rrset_t *soa2 = NULL;
 	knot_rrset_t *rr = NULL;
 
 	int ret;
@@ -977,13 +989,16 @@ int xfrin_process_ixfr_packet(/*const uint8_t *pkt, size_t size,
 		
 		/*
 		 * If there is no other records in the response than the SOA, it
-		 * means one of these two cases:
+		 * means one of these three cases:
 		 *
 		 * 1) The server does not have newer zone than ours.
 		 *    This is indicated by serial equal to the one of our zone.
 		 * 2) The server wants to send the transfer but is unable to fit
 		 *    it in the packet. This is indicated by serial different 
-		 *    (newer) from the one of our zone. 
+		 *    (newer) from the one of our zone, but applies only for
+		 *    IXFR/UDP.
+		 * 3) The master is weird and sends only SOA in the first packet
+		 *    of a fallback to AXFR answer (PowerDNS does this).
 		 *
 		 * The serials must be compared in other parts of the server, so
 		 * just indicate that the answer contains only one SOA.
@@ -996,8 +1011,6 @@ int xfrin_process_ixfr_packet(/*const uint8_t *pkt, size_t size,
 			knot_rrset_deep_free(&rr, 1, 1, 1);
 			dbg_xfrin("Fallback to AXFR.\n");
 			ret = XFRIN_RES_FALLBACK;
-			knot_free_changesets(chs);
-			xfr->data = 0;
 			return ret;
 		}
 	} else {
@@ -2014,7 +2027,6 @@ static knot_node_t *xfrin_add_new_node(knot_zone_contents_t *contents,
 //	dbg_xfrin("Adding new node to zone. From owner: %s type %s\n",
 //	               knot_dname_to_str(node->owner),
 //	               knot_rrtype_to_string(rrset->type));
-//	getchar();
 	if (knot_rrset_type(rrset) == KNOT_RRTYPE_NSEC3) {
 		ret = knot_zone_contents_add_nsec3_node(contents, node, 1, 0,
 		                                        1);
@@ -2067,7 +2079,6 @@ static int xfrin_apply_add_normal(xfrin_changes_t *changes,
 
 	dbg_xfrin("applying rrset:\n");
 	knot_rrset_dump(add, 0);
-//	getchar();
 	
 	if (!*rrset
 	    || knot_dname_compare(knot_rrset_owner(*rrset),
@@ -2089,7 +2100,6 @@ dbg_xfrin_exec_verb(
 		               knot_rrtype_to_string(add->type));
 		free(name);
 );
-//		getchar();
 		// add the RRSet from the changeset to the node
 		/*! \todo What about domain names?? Shouldn't we use the
 		 *        zone-contents' version of this function??
