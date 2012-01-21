@@ -80,8 +80,8 @@ libknots_la_DEPENDENCIES = @LIBOBJS@
 am_libknots_la_OBJECTS = slab.lo malloc.lo tap.lo lists.lo base32.lo \
 	print.lo dynamic-array.lo skip-list.lo base32hex.lo \
 	general-tree.lo evqueue.lo evsched.lo acl.lo sockaddr.lo \
-	crc.lo ref.lo errors.lo WELL1024a.lo fdset.lo fdset_poll.lo \
-	fdset_kqueue.lo fdset_epoll.lo
+	crc.lo ref.lo errors.lo dSFMT.lo prng.lo fdset.lo \
+	fdset_poll.lo fdset_kqueue.lo fdset_epoll.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(man8dir)"
@@ -575,8 +575,12 @@ libknots_la_SOURCES = \
 	common/ref.c				\
 	common/errors.h				\
 	common/errors.c				\
-        common/WELL1024a.h			\
-        common/WELL1024a.c			\
+        common/dSFMT.h				\
+        common/dSFMT-params.h			\
+        common/dSFMT-params521.h		\
+        common/dSFMT.c				\
+        common/prng.h				\
+        common/prng.c				\
         common/fdset.h				\
         common/fdset.c				\
         common/fdset_poll.h			\
@@ -837,7 +841,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WELL1024a.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acl_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base32.Plo@am__quote@
@@ -849,6 +852,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/crc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo-hash-table.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo_tests.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dSFMT.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/da_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddns.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/debug.Plo@am__quote@
@@ -902,6 +906,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser-descriptor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser-util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/print.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/prng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/query.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/query_tests.Po@am__quote@
@@ -1443,12 +1448,19 @@ errors.lo: common/errors.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o errors.lo `test -f 'common/errors.c' || echo '$(srcdir)/'`common/errors.c
 
-WELL1024a.lo: common/WELL1024a.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT WELL1024a.lo -MD -MP -MF $(DEPDIR)/WELL1024a.Tpo -c -o WELL1024a.lo `test -f 'common/WELL1024a.c' || echo '$(srcdir)/'`common/WELL1024a.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/WELL1024a.Tpo $(DEPDIR)/WELL1024a.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/WELL1024a.c' object='WELL1024a.lo' libtool=yes @AMDEPBACKSLASH@
+dSFMT.lo: common/dSFMT.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dSFMT.lo -MD -MP -MF $(DEPDIR)/dSFMT.Tpo -c -o dSFMT.lo `test -f 'common/dSFMT.c' || echo '$(srcdir)/'`common/dSFMT.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dSFMT.Tpo $(DEPDIR)/dSFMT.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/dSFMT.c' object='dSFMT.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o WELL1024a.lo `test -f 'common/WELL1024a.c' || echo '$(srcdir)/'`common/WELL1024a.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dSFMT.lo `test -f 'common/dSFMT.c' || echo '$(srcdir)/'`common/dSFMT.c
+
+prng.lo: common/prng.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT prng.lo -MD -MP -MF $(DEPDIR)/prng.Tpo -c -o prng.lo `test -f 'common/prng.c' || echo '$(srcdir)/'`common/prng.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/prng.Tpo $(DEPDIR)/prng.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/prng.c' object='prng.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o prng.lo `test -f 'common/prng.c' || echo '$(srcdir)/'`common/prng.c
 
 fdset.lo: common/fdset.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT fdset.lo -MD -MP -MF $(DEPDIR)/fdset.Tpo -c -o fdset.lo `test -f 'common/fdset.c' || echo '$(srcdir)/'`common/fdset.c

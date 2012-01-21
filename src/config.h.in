@@ -9,6 +9,9 @@
 /* Enable verbose debugging messages. */
 #undef DEBUG_ENABLE_VERBOSE
 
+/* DSFMT parameters. */
+#undef DSFMT_MEXP
+
 /* recvmmsg enabled */
 #undef ENABLE_RECVMMSG
 
