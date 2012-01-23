@@ -1,0 +1,4 @@
+usr/lib/knot
+usr/sbin/knotc
+usr/sbin/knotd
+usr/share/man/man8
