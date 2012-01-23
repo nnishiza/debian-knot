@@ -1,3 +1,9 @@
+knot (0.9.1-2) unstable; urgency=low
+
+  * Build knot-dbg package with debug symbols
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 23 Jan 2012 13:27:20 +0100
+
 knot (0.9.1-1) unstable; urgency=low
 
   * Imported Upstream version 0.9.1
