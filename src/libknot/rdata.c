@@ -268,20 +268,38 @@ int knot_rdata_from_wire(knot_rdata_t *rdata, const uint8_t *wire,
 				break;
 			case 3:
 				pos2 = *pos;
-				fprintf(stderr, "reading dname from pos: %zu\n", pos2);
-				dname =
-					knot_dname_parse_from_wire(
+				//fprintf(stderr, "reading dname from pos: %zu\n", pos2);
+				dname = knot_dname_parse_from_wire(
 					         wire, &pos2, total_size, NULL);
 				if (dname == NULL) {
 					return KNOT_ERROR;
 				}
-				items[i].dname = dname;
+			
+				items[i].raw_data = (uint16_t *)malloc(
+						knot_dname_size(dname) + 2);
+				if (items[i].raw_data == NULL) {
+					/*! \todo This will leak. */
+					free(items);
+					return KNOT_ENOMEM;
+				}
+				
+				items[i].raw_data[0] = knot_dname_size(dname);
+				memcpy((uint8_t *)(items[i].raw_data + 1),
+				       knot_dname_name(dname),
+				       knot_dname_size(dname));
+				
+//				items[i].dname = dname;
 				//*pos += dname->size;
 				parsed += pos2 - *pos;
 				
-				fprintf(stderr, "read %zu bytes.\n", parsed);
+				//fprintf(stderr, "read %zu bytes.\n", parsed);
 				*pos = pos2;
-				dname = 0;
+				knot_dname_free(&dname);
+				
+				// continue with next item
+				++i;
+				continue;
+				
 				break;
 			default:
 				assert(0);
@@ -295,6 +313,7 @@ int knot_rdata_from_wire(knot_rdata_t *rdata, const uint8_t *wire,
 
 		if (item_size != 0) {
 			if (parsed + item_size > rdlength) {
+				/*! \todo This will leak a lot. */
 				free(items);
 				return KNOT_EFEWDATA;
 			}
@@ -302,15 +321,16 @@ int knot_rdata_from_wire(knot_rdata_t *rdata, const uint8_t *wire,
 			items[i].raw_data = (uint16_t *)malloc(item_size + 2);
 			if (items[i].raw_data == NULL) {
 				free(items);
+				/*! \todo This will also leak a lot. */
 				return KNOT_ENOMEM;
 			}
 			memcpy(items[i].raw_data, &item_size, 2);
 			memcpy(items[i].raw_data + 1, wire + *pos, item_size);
 			*pos += item_size;
 			parsed += item_size;
-		} else if (item_type == KNOT_RDATA_WF_BINARY
-		           || item_type == KNOT_RDATA_WF_IPSECGATEWAY) {
-			fprintf(stderr, "item_size was 0, creating empty rdata item.\n");
+		} else if (item_type == KNOT_RDATA_WF_BINARY/*
+		           || item_type == KNOT_RDATA_WF_IPSECGATEWAY*/) {
+//			fprintf(stderr, "item_size was 0, creating empty rdata item.\n");
 			// in this case we are at the end of the RDATA
 			// and should create an empty RDATA item
 			items[i].raw_data = (uint16_t *)malloc(2);
@@ -322,8 +342,8 @@ int knot_rdata_from_wire(knot_rdata_t *rdata, const uint8_t *wire,
 		} else if (item_type != KNOT_RDATA_WF_COMPRESSED_DNAME
 		           && item_type != KNOT_RDATA_WF_UNCOMPRESSED_DNAME
 		           && item_type != KNOT_RDATA_WF_LITERAL_DNAME) {
-				fprintf(stderr, "RDATA item not set (i: %d), type: %u"
-					" RDATA item type: %d\n", i, desc->type ,item_type);
+//				fprintf(stderr, "RDATA item not set (i: %d), type: %u"
+//					" RDATA item type: %d\n", i, desc->type ,item_type);
 				assert(0);
 		}
 
@@ -634,7 +654,7 @@ void knot_rdata_deep_free(knot_rdata_t **rdata, uint type,
 /*----------------------------------------------------------------------------*/
 
 knot_rdata_t *knot_rdata_deep_copy(const knot_rdata_t *rdata, 
-                                       uint16_t type)
+                                       uint16_t type, int copy_dnames)
 {
 	knot_rdata_t *copy = knot_rdata_new();
 	CHECK_ALLOC_LOG(copy, NULL);
@@ -658,8 +678,13 @@ knot_rdata_t *knot_rdata_deep_copy(const knot_rdata_t *rdata,
 		if (d->wireformat[i] == KNOT_RDATA_WF_COMPRESSED_DNAME
 		    || d->wireformat[i] == KNOT_RDATA_WF_UNCOMPRESSED_DNAME
 		    || d->wireformat[i] == KNOT_RDATA_WF_LITERAL_DNAME) {
-			copy->items[i].dname =
-				knot_dname_deep_copy(rdata->items[i].dname);
+			if (copy_dnames) {
+				copy->items[i].dname =
+				    knot_dname_deep_copy(rdata->items[i].dname);
+			} else {
+				copy->items[i].dname = rdata->items[i].dname;
+				knot_dname_retain(rdata->items[i].dname);
+			}
 		} else {
 			copy->items[i].raw_data = (uint16_t *)malloc(
 					rdata->items[i].raw_data[0] + 2);

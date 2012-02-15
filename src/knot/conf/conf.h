@@ -59,6 +59,7 @@ typedef struct conf_iface_t {
 	int port;         /*!< Port number for this interface */
 	int family;       /*!< Address family. */
 	knot_key_t *key;  /*!< TSIG key (only valid for remotes). */
+	struct conf_iface_t *via; /*!< Used for remotes to specify qry endpoint.*/
 } conf_iface_t;
 
 /*!
@@ -79,8 +80,6 @@ typedef struct conf_remote_t {
  * location on the disk.  It also allows to have multiple DNS servers
  * as a source for the zone transfer and multiple DNS servers to allow
  * zone transfers.  Same logic applies for the NOTIFY.
- *
- * \todo Missing XFR type (AXFR/IXFR/IXFR-ONLY) for each server.
  */
 typedef struct conf_zone_t {
 	node n;
@@ -154,7 +153,11 @@ typedef struct conf_t {
 	char *version;  /*!< Version for CH TXT version.{bind|server} */
 	char *storage;  /*!< Persistent storage path for databases and such. */
 	char *pidfile;  /*!< PID file path. */
+	char *nsid;     /*!< Server's NSID. */
+	size_t nsid_len;/*!< Server's NSID length. */
 	int   workers;  /*!< Number of workers per interface. */
+	int   uid;      /*!< Specified user id. */
+	int   gid;      /*!< Specified group id. */
 
 	/*
 	 * Log

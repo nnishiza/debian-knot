@@ -55,6 +55,8 @@ static void knot_rrset_disconnect_rdata(knot_rrset_t *rrset,
 			rrset->rdata = rdata->next;
 		}
 	}
+
+	rdata->next = NULL;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -128,7 +130,7 @@ knot_rdata_t *knot_rrset_remove_rdata(knot_rrset_t *rrset,
 	}
 
 	while (rr != NULL) {
-		/*! \todo maybe the dnames should be compared case-insensitive*/
+		/*! \todo dnames are compared case-insensitive. is it OK?*/
 		if (knot_rdata_compare(rr, rdata, desc->wireformat) == 0) {
 			knot_rrset_disconnect_rdata(rrset, prev, rr);
 			return rr;
@@ -457,8 +459,7 @@ static int knot_rrset_rr_to_wire(const knot_rrset_t *rrset,
 			// save whole domain name
 			memcpy(*pos, knot_dname_name(dname), 
 			       knot_dname_size(dname));
-			dbg_rrset_detail(stderr,
-			                 "Uncompressed dname size: %d\n",
+			dbg_rrset_detail("Uncompressed dname size: %d\n",
 			                 knot_dname_size(dname));
 			*pos += knot_dname_size(dname);
 			rdlength += knot_dname_size(dname);
@@ -579,7 +580,9 @@ int knot_rrset_deep_copy(const knot_rrset_t *from, knot_rrset_t **to)
 	*to = (knot_rrset_t *)calloc(1, sizeof(knot_rrset_t));
 	CHECK_ALLOC_LOG(*to, KNOT_ENOMEM);
 
-	(*to)->owner = knot_dname_deep_copy(from->owner);
+	//(*to)->owner = knot_dname_deep_copy(from->owner);
+	(*to)->owner = from->owner;
+	knot_dname_retain((*to)->owner);
 	(*to)->rclass = from->rclass;
 	(*to)->ttl = from->ttl;
 	(*to)->type = from->type;
@@ -597,7 +600,7 @@ int knot_rrset_deep_copy(const knot_rrset_t *from, knot_rrset_t **to)
 	/*! \note Order of RDATA will be reversed. */
 	while (rdata != NULL) {
 		ret = knot_rrset_add_rdata(*to, knot_rdata_deep_copy(rdata,
-		                           knot_rrset_type(from)));
+		                           knot_rrset_type(from), 1));
 		if (ret != KNOT_EOK) {
 			knot_rrset_deep_free(to, 1, 1, 1);
 			return ret;
@@ -654,6 +657,12 @@ void knot_rrset_deep_free(knot_rrset_t **rrset, int free_owner,
 		return;
 	}
 
+//	char *name = knot_dname_to_str(knot_rrset_owner(*rrset));
+//	char *type = knot_rrtype_to_string(knot_rrset_type(*rrset));
+//	fprintf(stderr, "Deleting RRSet (%p) %s, type %s, rdata: %p\n",
+//	        *rrset, name, type, (*rrset)->rdata);
+//	free(name);
+
 	if (free_rdata) {
 		knot_rdata_t *tmp_rdata;
 		knot_rdata_t *next_rdata;
@@ -668,6 +677,7 @@ void knot_rrset_deep_free(knot_rrset_t **rrset, int free_owner,
 			tmp_rdata = next_rdata;
 		}
 
+//		printf("test: %p\n", tmp_rdata->next->next);
 		assert(tmp_rdata == NULL
 		       || tmp_rdata->next == (*rrset)->rdata);
 

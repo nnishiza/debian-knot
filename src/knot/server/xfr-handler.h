@@ -31,7 +31,7 @@
 #include "libknot/nameserver/name-server.h"
 #include "common/evqueue.h"
 #include "common/fdset.h"
-#include "common/skip-list.h" /*!< \todo Consider another data struct. */
+#include "common/skip-list.h"
 
 struct xfrhandler_t;
 
@@ -144,6 +144,18 @@ int xfr_request_init(knot_ns_xfr_t *r, int type, int flags, knot_packet_t *pkt);
  * \retval KNOTD_ERROR on error.
  */
 int xfr_request(xfrhandler_t *handler, knot_ns_xfr_t *req);
+
+/*!
+ * \brief Answer XFR query.
+ *
+ * \param ns Nameserver instance.
+ * \param req XFR request.
+ *
+ * \retval KNOTD_EOK on success.
+ * \retval KNOTD_EINVAL on NULL handler or request.
+ * \retval KNOTD_ERROR on error.
+ */
+int xfr_answer(knot_nameserver_t *ns, knot_ns_xfr_t *req);
 
 /*!
  * \brief XFR master runnable.

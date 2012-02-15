@@ -117,7 +117,6 @@ static unsigned SLAB_LOGSIZE = 0; /*!< \brief Binary logarithm of slab size. */
  * from a slab with just a few slab items by caching N slabs before returning
  * them to the system.
  *
- * \todo With wider use, locking or RCU will be necessary.
  */
 #ifdef MEM_SLAB_DEPOT
 static slab_depot_t _depot_g; /*! \brief Global slab depot. */
@@ -339,7 +338,7 @@ slab_t* slab_create(slab_cache_t* cache)
 
 	slab_t* slab = slab_depot_alloc(cache->bufsize);
 
-	if (unlikely(slab < 0)) {
+	if (unlikely(slab == 0)) {
 		dbg_mem("%s: failed to allocate aligned memory block\n",
 		          __func__);
 		return 0;
@@ -677,7 +676,6 @@ void* slab_alloc_alloc(slab_alloc_t* alloc, size_t size)
 
 #ifdef MEM_POISON
 	// Memory barrier
-	/*! \todo Broken, need to store the barrier byte size. */
 	//int* pb = (int*)((char*)mem + size - sizeof(int));
 	//mprotect(pb, sizeof(int), PROT_NONE);
 #endif

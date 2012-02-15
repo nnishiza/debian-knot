@@ -23,6 +23,7 @@
 #include "libknot/util/error.h"
 #include "libknot/util/wire.h"
 #include "libknot/tsig-op.h"
+#include "common/print.h"
 
 #include "tsig_tests.h"
 
@@ -239,8 +240,8 @@ static int test_knot_tsig_sign()
 	knot_wire_set_arcount(msg, 0);
 	/* Wire now should be identical. Compare with its pre-signing copy. */
 	if (strncmp((char *)msg, (char *)msg_copy, msg_len) != 0) {
-		hex_print(msg, msg_len);
-		hex_print(msg_copy, msg_len);
+		hex_print((const char*)msg, msg_len);
+		hex_print((const char*)msg_copy, msg_len);
 		diag("knot_tsig_sign has changed the signed wire!");
 		errors++;
 	}
@@ -267,8 +268,8 @@ static int test_knot_tsig_sign()
 	knot_wire_set_arcount(msg, 0);
 	/* Wire now should be identical. Compare with its pre-signing copy. */
 	if (strncmp((char *)msg, (char *)msg_copy, msg_len) != 0) {
-		hex_print(msg, msg_len);
-		hex_print(msg_copy, msg_len);
+		hex_print((const char*)msg, msg_len);
+		hex_print((const char*)msg_copy, msg_len);
 		diag("knot_tsig_sign has changed the signed wire!");
 		errors++;
 	}

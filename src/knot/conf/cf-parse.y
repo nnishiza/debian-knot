@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pwd.h>
+#include <grp.h>
 #include "libknot/dname.h"
 #include "knot/conf/conf.h"
 #include "libknotd_la-cf-parse.h" /* Automake generated header. */
@@ -30,7 +32,6 @@ static void conf_start_iface(char* ifname)
    this_iface = malloc(sizeof(conf_iface_t));
    memset(this_iface, 0, sizeof(conf_iface_t));
    this_iface->name = ifname;
-   this_iface->address = 0; // No default address (mandatory)
    this_iface->port = CONFIG_DEFAULT_PORT;
    add_tail(&new_config->ifaces, &this_iface->n);
    ++new_config->ifaces_count;
@@ -41,10 +42,28 @@ static void conf_start_remote(char *remote)
    this_remote = malloc(sizeof(conf_iface_t));
    memset(this_remote, 0, sizeof(conf_iface_t));
    this_remote->name = remote;
-   this_remote->address = 0; // No default address (mandatory)
-   this_remote->port = 0; // Port wildcard
    add_tail(&new_config->remotes, &this_remote->n);
    ++new_config->remotes_count;
+}
+
+static void conf_remote_set_via(void *scanner, char *item) {
+   /* Find existing node in remotes. */
+   node* r = 0; conf_iface_t* found = 0;
+   WALK_LIST (r, new_config->ifaces) {
+      if (strcmp(((conf_iface_t*)r)->name, item) == 0) {
+         found = (conf_iface_t*)r;
+         break;
+      }
+   }
+   
+   /* Check */
+   if (!found) {
+      char buf[512];
+      snprintf(buf, sizeof(buf), "remote '%s' is not defined", item);
+      cf_error(scanner, buf);
+   } else {
+      this_remote->via = found;
+   }
 }
 
 static void conf_acl_item(void *scanner, char *item)
@@ -148,14 +167,17 @@ static int conf_key_add(void *scanner, knot_key_t **key, char *item)
 
 %token END INVALID_TOKEN
 %token <tok> TEXT
+%token <tok> HEXSTR
 %token <tok> NUM
 %token <tok> INTERVAL
 %token <tok> SIZE
 %token <tok> BOOL
 
-%token <tok> SYSTEM IDENTITY VERSION STORAGE KEY KEYS
+%token <tok> SYSTEM IDENTITY VERSION NSID STORAGE KEY KEYS
 %token <tok> TSIG_ALGO_NAME
 %token <tok> WORKERS
+%token <tok> USER
+%token <tok> PIDFILE
 
 %token <tok> REMOTES
 
@@ -173,6 +195,7 @@ static int conf_key_add(void *scanner, knot_key_t **key, char *item)
 %token <tok> INTERFACES ADDRESS PORT
 %token <tok> IPA
 %token <tok> IPA6
+%token <tok> VIA
 
 %token <tok> LOG
 %token <tok> LOG_DEST
@@ -264,7 +287,10 @@ system:
    SYSTEM '{'
  | system VERSION TEXT ';' { new_config->version = $3.t; }
  | system IDENTITY TEXT ';' { new_config->identity = $3.t; }
+ | system NSID HEXSTR ';' { new_config->nsid = $3.t; new_config->nsid_len = $3.l; }
+ | system NSID TEXT ';' { new_config->nsid = $3.t; new_config->nsid_len = strlen(new_config->nsid); }
  | system STORAGE TEXT ';' { new_config->storage = $3.t; }
+ | system PIDFILE TEXT ';' { new_config->pidfile = $3.t; }
  | system KEY TSIG_ALGO_NAME TEXT ';' {
      fprintf(stderr, "warning: Config option 'system.key' is deprecated "
 		     "and has no effect.\n");
@@ -276,6 +302,30 @@ system:
      } else {
         new_config->workers = $3.i;
      }
+ }
+ | system USER TEXT ';' {
+     char buf[512];
+     new_config->uid = new_config->gid = -1; // Invalidate
+     char* dpos = strchr($3.t, '.'); // Find uid.gid format
+     if (dpos != NULL) {
+        struct group *grp = getgrnam(dpos + 1); // Skip dot
+        if (grp != NULL) {
+          new_config->gid = grp->gr_gid;
+        } else {
+          snprintf(buf, sizeof(buf), "invalid group name '%s'", dpos + 1);
+          cf_error(scanner, buf);
+        }
+        *dpos = '\0'; // Cut off
+     }
+     struct passwd* pwd = getpwnam($3.t);
+     if (pwd != NULL) {
+       new_config->uid = pwd->pw_uid;
+     } else {
+       snprintf(buf, sizeof(buf), "invalid user name '%s'", $3.t);
+       cf_error(scanner, buf);
+     }
+     
+     free($3.t);
  }
  ;
 
@@ -291,7 +341,6 @@ keys:
      char *fqdn = $2.t;
      size_t fqdnl = strlen(fqdn);
      if (fqdn[fqdnl - 1] != '.') {
-        /*! \todo Oddly, it requires memory aligned to 4B */
         fqdnl = ((fqdnl + 2)/4+1)*4; /* '.', '\0' */
         char* tmpdn = malloc(fqdnl); 
 	if (!tmpdn) {
@@ -397,6 +446,14 @@ remote:
         conf_key_add(scanner, &this_remote->key, $3.t);
      }
      free($3.t);
+   }
+ | remote VIA TEXT ';' {
+   if (this_remote->key != 0) {
+     cf_error(scanner, "only one 'via' definition is allowed in remote section\n");
+   } else {
+     conf_remote_set_via(scanner, $3.t);
+   }
+   free($3.t);
    }
  ;
 

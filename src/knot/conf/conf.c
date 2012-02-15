@@ -166,7 +166,7 @@ static void zone_free(conf_zone_t *zone)
  *
  * This function is called automatically after config update.
  *
- * \todo Selective hooks.
+ * \todo Selective hooks (issue #1583).
  */
 static void conf_update_hooks(conf_t *conf)
 {
@@ -201,10 +201,19 @@ static int conf_process(conf_t *conf)
 	struct stat st;
 	if (stat(conf->storage, &st) != 0) {
 		rmkdir(conf->storage, S_IRWXU);
+		if (conf->uid >= 0) {
+			if (chown(conf->storage, conf->uid, conf->gid) < 0) {
+				log_server_warning("Could not change ownership"
+				                   " of '%s' to uid=%d.\n",
+				                   conf->storage, conf->uid);
+			}
+		}
 	}
 
 	// Create PID file
-	conf->pidfile = strcdup(conf->storage, "/" PID_FILE);
+	if (conf->pidfile == NULL) {
+		conf->pidfile = strcdup(conf->storage, "/" PID_FILE);
+	}
 
 	// Postprocess zones
 	int ret = KNOTD_EOK;
@@ -445,6 +454,8 @@ conf_t *conf_new(const char* path)
 	c->notify_timeout = CONFIG_NOTIFY_TIMEOUT;
 	c->dbsync_timeout = CONFIG_DBSYNC_TIMEOUT;
 	c->ixfr_fslimit = -1;
+	c->uid = -1;
+	c->gid = -1;
 
 	return c;
 }
@@ -513,7 +524,7 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 	// Unload hooks
 	if (unload_hooks) {
 		WALK_LIST_DELSAFE(n, nxt, conf->hooks) {
-			//! \todo call hook unload.
+			/*! \todo Call hook unload (issue #1583) */
 			free((conf_hook_t*)n);
 		}
 		conf->hooks_count = 0;
@@ -573,6 +584,10 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 		free(conf->pidfile);
 		conf->pidfile = 0;
 	}
+	if (conf->nsid) {
+		free(conf->nsid);
+		conf->nsid = 0;
+	}
 }
 
 void conf_free(conf_t *conf)
@@ -624,11 +639,9 @@ int conf_open(const char* path)
 	}
 
 	/* Check if exists. */
-	FILE *fp = fopen(path, "r");
-	if (fp == 0) {
+	struct stat st;
+	if (stat(path, &st) != 0) {
 		return KNOTD_ENOENT;
-	} else {
-		fclose(fp);
 	}
 
 	/* Create new config. */

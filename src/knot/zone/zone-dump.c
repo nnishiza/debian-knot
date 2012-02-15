@@ -406,9 +406,9 @@ static void knot_node_dump_binary(knot_node_t *node, void *data,
 	fwrite_wrapper(&owner_id, sizeof(owner_id), 1, f, stream, stream_size,
 	               crc);
 
-	if (knot_node_parent(node, 0) != NULL) {
+	if (knot_node_parent(node) != NULL) {
 		uint32_t parent_id = knot_dname_id(
-				knot_node_owner(knot_node_parent(node, 0)));
+				knot_node_owner(knot_node_parent(node)));
 		fwrite_wrapper(&parent_id, sizeof(parent_id), 1, f,
 		               stream, stream_size, crc);
 	} else {
@@ -422,13 +422,13 @@ static void knot_node_dump_binary(knot_node_t *node, void *data,
 
 	dbg_zdump("Written flags: %u\n", node->flags);
 
-	if (knot_node_nsec3_node(node, 0) != NULL) {
+	if (knot_node_nsec3_node(node) != NULL) {
 		uint32_t nsec3_id =
-			knot_node_owner(knot_node_nsec3_node(node, 0))->id;
+			knot_node_owner(knot_node_nsec3_node(node))->id;
 		fwrite_wrapper(&nsec3_id, sizeof(nsec3_id), 1, f,
 		               stream, stream_size, crc);
 		dbg_zdump("Written nsec3 node id: %u\n",
-			 knot_node_owner(knot_node_nsec3_node(node, 0))->id);
+			 knot_node_owner(knot_node_nsec3_node(node))->id);
 	} else {
 		uint32_t nsec3_id = 0;
 		fwrite_wrapper(&nsec3_id, sizeof(nsec3_id), 1, f,
@@ -472,16 +472,7 @@ static void knot_node_dump_binary(knot_node_t *node, void *data,
 	dbg_zdump("Function ends with: %ld\n\n", ftell(f));
 }
 
-/*!
- * \brief Checks if zone uses DNSSEC and/or NSEC3
- *
- * \param zone Zone to be checked.
- *
- * \retval 0 if zone is not secured.
- * \retval 2 if zone uses NSEC3
- * \retval 1 if zone uses NSEC
- */
-static int zone_is_secure(knot_zone_contents_t *zone)
+int zone_is_secure(knot_zone_contents_t *zone)
 {
 	if (knot_node_rrset(knot_zone_contents_apex(zone),
 			      KNOT_RRTYPE_DNSKEY) == NULL) {
@@ -562,6 +553,21 @@ static void dump_node_to_file(knot_node_t *node, void *data)
 	knot_node_dump_binary(node, data, NULL, NULL, (crc_t *)arg->arg7);
 }
 
+static char *knot_zdump_crc_file(const char* filename)
+{
+	char *crc_path =
+		malloc(sizeof(char) * (strlen(filename) +
+		strlen(".crc") + 1));
+	CHECK_ALLOC_LOG(crc_path, NULL);
+	memset(crc_path, 0,
+	       sizeof(char) * (strlen(filename) +
+	       strlen(".crc") + 1));
+	memcpy(crc_path, filename,
+	       sizeof(char) * strlen(filename));
+	crc_path = strcat(crc_path, ".crc");
+	return crc_path;
+}
+
 int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 			int do_checks, const char *sfilename)
 {
@@ -572,6 +578,9 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 	int fd = open(new_path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 	if (fd == -1) {
+		close(fd);
+		remove(new_path);
+		remove(knot_zdump_crc_file(filename));
 		return KNOT_EBADARG;
 	}
 
@@ -606,31 +615,37 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 	if (do_checks && zone_is_secure(zone)) {
 		do_checks += zone_is_secure(zone);
 	}
-
-	err_handler_t *handler = NULL;
-
-	if (do_checks) {
-		handler = handler_new(1, 0, 1, 1, 1);
-		if (handler == NULL) {
-			/* disable checks and we can continue */
-			do_checks = 0;
-		} else { /* Do check for SOA right now */
-			if (knot_node_rrset(knot_zone_contents_apex(zone),
-					      KNOT_RRTYPE_SOA) == NULL) {
-				err_handler_handle_error(handler,
-							 knot_zone_contents_apex(zone),
-							 ZC_ERR_MISSING_SOA);
-			}
+	
+	err_handler_t *handler = handler_new(1, 1, 1, 1, 1);
+	if (handler == NULL) {
+		return KNOT_ENOMEM;
+	} else { /* Do check for SOA right now */
+		if (knot_node_rrset(knot_zone_contents_apex(zone),
+				      KNOT_RRTYPE_SOA) == NULL) {
+			err_handler_handle_error(handler,
+						 knot_zone_contents_apex(zone),
+						 ZC_ERR_MISSING_SOA);
 		}
-
-		knot_node_t *last_node = NULL;
-
-		zone_do_sem_checks(zone, do_checks, handler, &last_node);
-		log_cyclic_errors_in_zone(handler, zone, last_node,
-		                          first_nsec3_node, last_nsec3_node,
-		                          do_checks);
-		err_handler_log_all(handler);
-		free(handler);
+	}
+	
+	knot_node_t *last_node = NULL;
+	int ret = zone_do_sem_checks(zone,
+	                             do_checks, handler, &last_node);
+	log_cyclic_errors_in_zone(handler, zone, last_node,
+	                          first_nsec3_node, last_nsec3_node,
+	                          do_checks);
+	err_handler_log_all(handler);
+	free(handler);
+		
+	if (ret != KNOT_EOK) {
+		fprintf(stderr, "Zone will not be dumped because of "
+		        "fatal semantic errors.\n");
+		fclose(f);
+		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);	
+		remove(knot_zdump_crc_file(filename));
+		return KNOT_ERROR;
 	}
 
 	crc_t crc = crc_init();
@@ -671,6 +686,11 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 	/* Write dname table. */
 	if (knot_dump_dname_table(zone->dname_table, f, &crc)
 	    != KNOT_EOK) {
+		fclose(f);
+		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);	
+		remove(knot_zdump_crc_file(filename));
 		return KNOT_ERROR;
 	}
 
@@ -693,6 +713,10 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 		malloc(sizeof(char) * (strlen(filename) + strlen(".crc") + 1));
 	if (unlikely(!crc_path)) {
 		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);
+		remove(knot_zdump_crc_file(filename));
+		free(crc_path);
 		return KNOT_ENOMEM;
 	}
 	memset(crc_path, 0,
@@ -705,6 +729,9 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 		dbg_zload("knot_zload_open: failed to open '%s'\n",
 		                   crc_path);
 		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);
+		remove(knot_zdump_crc_file(filename));
 		free(crc_path);
 		return ENOENT;
 	}
@@ -720,6 +747,10 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 		fprintf(stderr, "%s\n", strerror(errno));
 		fprintf(stderr, "Could not open destination file! Use '%s' "
 		        "file instead.\n", new_path);
+		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);
+		remove(knot_zdump_crc_file(filename));
 		return KNOT_ERROR;
 	}
 
@@ -728,6 +759,9 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 		fprintf(stderr, "Could not lock destination file for write! "
 		        "Use '%s' file instead.\n", new_path);
 		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);
+		remove(knot_zdump_crc_file(filename));
 		return KNOT_ERROR;
 	}
 
@@ -736,12 +770,19 @@ int knot_zdump_binary(knot_zone_contents_t *zone, const char *filename,
 		fprintf(stderr, "Could not move to originally given file! "
 		        "Use '%s' file instead.\n", new_path);
 		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);
+		remove(knot_zdump_crc_file(filename));
 		return KNOT_ERROR;
 	}
 
 	/* Release the lock. */
 	if (fcntl(fd, F_SETLK, knot_file_lock(F_UNLCK, SEEK_SET)) == -1) {
 		fprintf(stderr, "Could not unlock destination file!\n");
+		close(fd);
+		/* If remove fails, there is nothing we can do. */
+		remove(new_path);
+		remove(knot_zdump_crc_file(filename));
 		return KNOT_ERROR;
 	}
 
@@ -765,21 +806,6 @@ int knot_zdump_rrset_serialize(const knot_rrset_t *rrset, uint8_t **stream,
 	knot_rrset_dump_binary(rrset, &arguments, 0, stream, size, NULL);
 
 	return KNOT_EOK;
-}
-
-static char *knot_zdump_crc_file(const char* filename)
-{
-	char *crc_path =
-		malloc(sizeof(char) * (strlen(filename) +
-		strlen(".crc") + 1));
-	CHECK_ALLOC_LOG(crc_path, NULL);
-	memset(crc_path, 0,
-	       sizeof(char) * (strlen(filename) +
-	       strlen(".crc") + 1));
-	memcpy(crc_path, filename,
-	       sizeof(char) * strlen(filename));
-	crc_path = strcat(crc_path, ".crc");
-	return crc_path;
 }
 
 int knot_zdump_dump_and_swap(knot_zone_contents_t *zone,

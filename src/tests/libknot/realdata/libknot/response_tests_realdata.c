@@ -105,8 +105,8 @@ static int test_response_init_from_query(list query_list)
 extern knot_rrset_t *rrset_from_test_rrset(test_rrset_t *test_rrset);
 
 static int test_response_add_generic(int (*func)(knot_packet_t *,
-                                                 const knot_rrset_t *,
-                                                 int, int, int),
+                                                 knot_rrset_t *,
+                                                 int, int, int, int),
                                      list rrset_list)
 {
 	/*!< \todo Now adding only one RRSet at the time, try more, use nodes */
@@ -125,7 +125,7 @@ static int test_response_add_generic(int (*func)(knot_packet_t *,
 		assert(rrset);
 
 		int ret = 0;
-		if ((ret = func(response, rrset, 0, 1, 0)) != KNOT_EOK) {
+		if ((ret = func(response, rrset, 0, 1, 0, 0)) != KNOT_EOK) {
 			diag("Could not add RRSet to response! Returned: %d",
 			     ret);
 			diag("(owner: %s type %s)",
