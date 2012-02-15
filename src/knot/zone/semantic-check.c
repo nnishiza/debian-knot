@@ -3,12 +3,97 @@
 #include <arpa/inet.h>
 
 #include "knot/common.h"
+#include "knot/zone/zone-dump.h"
 #include "knot/other/error.h"
 #include "libknot/libknot.h"
 #include "common/base32hex.h"
 #include "common/crc.h"
 
 #include "semantic-check.h"
+
+static char *error_messages[(-ZC_ERR_ALLOC) + 1] = {
+	[-ZC_ERR_ALLOC] = "Memory allocation error!\n",
+
+	[-ZC_ERR_MISSING_SOA] = "SOA record missing in zone!\n",
+
+	[-ZC_ERR_RRSIG_RDATA_TYPE_COVERED] =
+	"RRSIG: Type covered rdata field is wrong!\n",
+	[-ZC_ERR_RRSIG_RDATA_TTL] =
+	"RRSIG: TTL rdata field is wrong!\n",
+	[-ZC_ERR_RRSIG_RDATA_LABELS] =
+	"RRSIG: Labels rdata field is wrong!\n",
+	[-ZC_ERR_RRSIG_RDATA_DNSKEY_OWNER] =
+	"RRSIG: Signer name is different than in DNSKEY!\n",
+	[-ZC_ERR_RRSIG_RDATA_SIGNED_WRONG] =
+	"RRSIG: Key error!\n",
+	[-ZC_ERR_RRSIG_NO_RRSIG] =
+	"RRSIG: No RRSIG!\n",
+	[-ZC_ERR_RRSIG_SIGNED] =
+	"RRSIG: Signed RRSIG!\n",
+	[-ZC_ERR_RRSIG_OWNER] =
+	"RRSIG: Owner name rdata field is wrong!\n",
+	[-ZC_ERR_RRSIG_CLASS] =
+	"RRSIG: Class is wrong!\n",
+	[-ZC_ERR_RRSIG_TTL] =
+	"RRSIG: TTL is wrong!\n",
+	[-ZC_ERR_RRSIG_NOT_ALL] =
+	"RRSIG: Not all RRs are signed!\n",
+
+	[-ZC_ERR_NO_NSEC] =
+	"NSEC: Missing NSEC record\n",
+	[-ZC_ERR_NSEC_RDATA_BITMAP] =
+	"NSEC: Wrong NSEC bitmap!\n",
+	[-ZC_ERR_NSEC_RDATA_MULTIPLE] =
+	"NSEC: Multiple NSEC records!\n",
+	[-ZC_ERR_NSEC_RDATA_CHAIN] =
+	"NSEC: NSEC chain is not coherent!\n",
+	[-ZC_ERR_NSEC_RDATA_CHAIN_NOT_CYCLIC] =
+	"NSEC: NSEC chain is not cyclic!\n",
+
+	[-ZC_ERR_NSEC3_UNSECURED_DELEGATION] =
+	"NSEC3: Zone contains unsecured delegation!\n",
+	[-ZC_ERR_NSEC3_NOT_FOUND] =
+	"NSEC3: Could not find previous NSEC3 record in the zone!\n",
+	[-ZC_ERR_NSEC3_UNSECURED_DELEGATION_OPT] =
+	"NSEC3: Unsecured delegation is not part "
+	"of the Opt-Out span!\n",
+	[-ZC_ERR_NSEC3_RDATA_TTL] =
+	"NSEC3: Original TTL rdata field is wrong!\n",
+	[-ZC_ERR_NSEC3_RDATA_CHAIN] =
+	"NSEC3: NSEC3 chain is not coherent!\n",
+	[-ZC_ERR_NSEC3_RDATA_BITMAP] =
+	"NSEC3: NSEC3 bitmap error!\n",
+
+	[-ZC_ERR_CNAME_CYCLE] =
+	"CNAME: CNAME cycle!\n",
+	[-ZC_ERR_DNAME_CYCLE] =
+	"CNAME: DNAME cycle!\n",
+	[-ZC_ERR_CNAME_EXTRA_RECORDS] =
+	"CNAME: Node with CNAME record has other records!\n",
+	[-ZC_ERR_DNAME_CHILDREN] =
+	"DNAME: Node with DNAME record has children!\n",
+	[-ZC_ERR_CNAME_EXTRA_RECORDS_DNSSEC] =
+	"CNAME: Node with CNAME record has other "
+	"records than RRSIG and NSEC/NSEC3!\n",
+	[-ZC_ERR_CNAME_MULTIPLE] = "CNAME: Multiple CNAME records!\n",
+	[-ZC_ERR_DNAME_MULTIPLE] = "DNAME: Multiple DNAME records!\n",
+	[-ZC_ERR_CNAME_WILDCARD_SELF] = "CNAME wildcard "
+				  "pointing to itself!\n",
+	[-ZC_ERR_DNAME_WILDCARD_SELF] = "DNAME wildcard "
+				  "pointing to itself!\n",
+
+	/* ^
+	   | Important errors (to be logged on first occurence and counted) */
+
+
+	/* Below are errors of lesser importance, to be counted unless
+	   specified otherwise */
+
+	[-ZC_ERR_GLUE_NODE] =
+	"GLUE: Node with Glue record missing!\n",
+	[-ZC_ERR_GLUE_RECORD] =
+	"GLUE: Record with Glue address missing\n",
+};
 
 static const uint MAX_CNAME_CYCLE_DEPTH = 15;
 
@@ -21,7 +106,8 @@ err_handler_t *handler_new(char log_cname, char log_glue,
 
 	/* It should be initialized, but to be safe */
 	memset(handler->errors, 0, sizeof(uint) * (-ZC_ERR_ALLOC + 1));
-
+	
+	handler->error_count = 0;
 	handler->options.log_cname = log_cname;
 	handler->options.log_glue = log_glue;
 	handler->options.log_rrsigs = log_rrsigs;
@@ -42,9 +128,15 @@ err_handler_t *handler_new(char log_cname, char log_glue,
  */
 static void log_error_from_node(err_handler_t *handler,
 				const knot_node_t *node,
-				uint error)
+				int error)
 {
+	if (error > (int)ZC_ERR_GLUE_RECORD) {
+		fprintf(stderr, "Unknown error.\n");
+		return;
+	}
+	
 	if (node != NULL) {
+		handler->error_count++;
 		char *name =
 			knot_dname_to_str(knot_node_owner(node));
 		fprintf(stderr, "Semantic warning in node: %s: ", name);
@@ -59,7 +151,7 @@ static void log_error_from_node(err_handler_t *handler,
 
 int err_handler_handle_error(err_handler_t *handler,
 				    const knot_node_t *node,
-				    uint error)
+				    int error)
 {
 	assert(handler && node);
 	if ((error != 0) &&
@@ -67,9 +159,10 @@ int err_handler_handle_error(err_handler_t *handler,
 		return ZC_ERR_UNKNOWN;
 	}
 
-	if (error == ZC_ERR_ALLOC) {
-		ERR_ALLOC_FAILED;
-		return ZC_ERR_ALLOC;
+	/*!< \todo this is so wrong! This should not even return anything. */
+	if (error == ZC_ERR_ALLOC || error == KNOT_ERROR
+	    || error == KNOT_EBADARG) {
+		return KNOT_EBADARG;
 	}
 
 	/* missing SOA can only occur once, so there
@@ -145,8 +238,14 @@ void err_handler_log_all(err_handler_t *handler)
  * \retval ZC_ERR_CNAME_CYCLE when cycle is present.
  */
 static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
-				      const knot_rrset_t *rrset)
+				      const knot_rrset_t *rrset,
+                                      char *fatal_error)
 {
+	if (rrset->type != KNOT_RRTYPE_CNAME &&
+	    rrset->type != KNOT_RRTYPE_DNAME) {
+		return KNOT_EBADARG;
+	}
+	
 	const knot_rrset_t *next_rrset = rrset;
 	assert(rrset);
 	const knot_rdata_t *tmp_rdata = knot_rrset_rdata(next_rrset);
@@ -158,19 +257,151 @@ static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
 
 	const knot_dname_t *next_dname =
 		knot_rdata_cname_name(tmp_rdata);
+	/* (cname_name == dname_target) */
 
 	assert(next_dname);
-
+	
+	/* Check wildcard pointing to itself. */
+	if (knot_dname_is_wildcard(knot_rrset_owner(rrset))) {
+		/* We need to chop the wildcard. */
+		
+		knot_dname_t *chopped_wc =
+			knot_dname_left_chop(knot_rrset_owner(rrset));
+		if (!chopped_wc) {
+			/* Definitely not a cycle. */
+			return KNOT_EOK;
+		}
+		
+		/*
+		 * And check that no sub-dname up to zone apex is present
+		 * in its rdata.
+		 */
+		
+		knot_dname_t *next_dname_copy =
+			knot_dname_deep_copy(next_dname);
+		if (!next_dname_copy) {
+			knot_dname_free(&chopped_wc);
+			return KNOT_ERROR;
+		}
+		
+		const knot_dname_t *zone_origin =
+			knot_node_owner(knot_zone_contents_apex(zone));
+		if (!zone_origin) {
+			knot_dname_free(&chopped_wc);
+			knot_dname_free(&next_dname_copy);
+			return KNOT_ERROR;
+		}
+		
+		char error_found = 0;
+		char cut_offs = 1;
+		
+		while (knot_dname_compare(next_dname_copy,
+		                          zone_origin) != 0 &&
+		       !error_found) {
+			/* Compare chopped owner with current next dname. */
+			error_found =
+				knot_dname_compare(next_dname_copy,
+				                   chopped_wc) == 0;
+			if (error_found && cut_offs == 1) {
+				/* WC without * == link. */
+				knot_dname_free(&next_dname_copy);
+				knot_dname_free(&chopped_wc);
+				return KNOT_EOK;
+			}
+			
+			knot_dname_t *tmp_chopped =
+				knot_dname_left_chop(next_dname_copy);
+			knot_dname_free(&next_dname_copy);
+			if (!tmp_chopped) {
+				knot_dname_free(&chopped_wc);
+				knot_dname_free(&next_dname_copy);
+				return KNOT_ERROR;
+			}
+			
+			cut_offs++;
+			
+			next_dname_copy = tmp_chopped;
+		}
+		
+		if (error_found) {
+			knot_dname_free(&next_dname_copy);
+			knot_dname_free(&chopped_wc);
+			assert(cut_offs > 1);
+			*fatal_error = 1;
+			return ZC_ERR_CNAME_WILDCARD_SELF;
+		}
+		
+		knot_dname_free(&next_dname_copy);
+		knot_dname_free(&chopped_wc);
+		
+		/*
+		 * Test for transitive wildcard loops.
+		 * Basically the same as below, only we look for wildcards and
+		 * strip them in the same fashion as above.
+		 */
+		
+	}
+	
 	while (i < MAX_CNAME_CYCLE_DEPTH && next_dname != NULL) {
 		next_node = knot_zone_contents_get_node(zone, next_dname);
 		if (next_node == NULL) {
 			next_node =
-				knot_zone_contents_get_nsec3_node(zone, next_dname);
+				knot_zone_contents_get_nsec3_node(zone,
+			                                          next_dname);
 		}
+		
+/*!< \todo this might replace some of the code above. */
+//		/* Still NULL, try wildcards. */
+//		if (next_node == NULL && knot_dname_is_wildcard(next_dname)) {
+//			/* We can only use the wildcard so many times. */
+			
+//			/* Create chopped copy of wc. */
+//			knot_dname_t *chopped_wc =
+//				knot_dname_left_chop(next_dname);
+//			if (chopped_wc == NULL) {
+//				/* If name with this wc is in the zone,
+//				   we have a problem (eg. cycle continues). */
+//				next_node =
+//					knot_zone_contents_get_node(zone,
+//				                                    chopped_wc);
+//				/* (No need to consider NSEC3 nodes.) */
+//				knot_dname_free(&chopped_wc);
+//			}
+//		}
+		
+		/* Just a guess. */
+		knot_dname_t *chopped_next =
+			knot_dname_left_chop(next_dname);
+		if (chopped_next == NULL) {
+			/*!< \todo check. */
+			return KNOT_ERROR;
+		}
+		while (next_node == NULL && chopped_next != NULL) {
+			/* Cat '*' .*/
+			knot_dname_t *wc =
+				knot_dname_new_from_str("*", strlen("*"),
+			                                NULL);
+			if (wc == NULL) {
+				return KNOT_ENOMEM;
+			}
+			
+			if (knot_dname_cat(wc, chopped_next) == NULL) {
+				return KNOT_ERROR;
+			}
+			
+			next_node =
+				knot_zone_contents_get_node(zone, wc);
+			knot_dname_free(&wc);
+			knot_dname_t *tmp = chopped_next;
+			chopped_next = knot_dname_left_chop(chopped_next);
+			knot_dname_free(&tmp);
+		}
+		
+		knot_dname_free(&chopped_next);
 
 		if (next_node != NULL) {
 			next_rrset = knot_node_rrset(next_node,
-						       KNOT_RRTYPE_CNAME);
+						     rrset->type);
 			if (next_rrset != NULL) {
 				next_dname =
 				knot_rdata_cname_name(next_rrset->rdata);
@@ -186,6 +417,7 @@ static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
 
 	/* even if the length is 0, i will be 1 */
 	if (i >= MAX_CNAME_CYCLE_DEPTH) {
+		*fatal_error = 1;
 		return ZC_ERR_CNAME_CYCLE;
 	}
 
@@ -626,7 +858,7 @@ static int check_nsec3_node_in_zone(knot_zone_contents_t *zone, knot_node_t *nod
                                     err_handler_t *handler)
 {
 	assert(handler);
-	const knot_node_t *nsec3_node = knot_node_nsec3_node(node, 0);
+	const knot_node_t *nsec3_node = knot_node_nsec3_node(node);
 
 	if (nsec3_node == NULL) {
 		/* I know it's probably not what RFCs say, but it will have to
@@ -643,7 +875,7 @@ static int check_nsec3_node_in_zone(knot_zone_contents_t *zone, knot_node_t *nod
 			if (knot_zone_contents_find_nsec3_for_name(zone,
 						knot_node_owner(node),
 						&nsec3_node,
-						&nsec3_previous, 0) != 0) {
+						&nsec3_previous) != 0) {
 				err_handler_handle_error(handler, node,
 						 ZC_ERR_NSEC3_NOT_FOUND);
 			}
@@ -713,17 +945,17 @@ static int check_nsec3_node_in_zone(knot_zone_contents_t *zone, knot_node_t *nod
 	}
 
 	/* This is why we allocate maximum length of decoded string + 1 */
-	memmove(next_dname_decoded + 1, next_dname_decoded, real_size);
-	next_dname_decoded[0] = real_size;
-
+//	memmove(next_dname_decoded + 1, next_dname_decoded, real_size);
+//	next_dname_decoded[0] = real_size;
+	
 	/* Local allocation, will be discarded. */
 	knot_dname_t *next_dname =
-		knot_dname_new_from_wire(next_dname_decoded,
-					   real_size + 1, NULL);
+		knot_dname_new_from_str((char *)next_dname_decoded,
+					   real_size, NULL);
 	CHECK_ALLOC_LOG(next_dname, KNOT_ENOMEM);
 
 	free(next_dname_decoded);
-
+	
 	if (knot_dname_cat(next_dname,
 		     knot_node_owner(knot_zone_contents_apex(zone))) == NULL) {
 		fprintf(stderr, "Could not concatenate dnames!\n");
@@ -764,7 +996,6 @@ static int check_nsec3_node_in_zone(knot_zone_contents_t *zone, knot_node_t *nod
 				      type) == NULL) {
 			err_handler_handle_error(handler, node,
 						 ZC_ERR_NSEC3_RDATA_BITMAP);
-			break;
 /*			char *name =
 				knot_dname_to_str(
 			log_zone_error("Node %s does "
@@ -796,21 +1027,25 @@ static int check_nsec3_node_in_zone(knot_zone_contents_t *zone, knot_node_t *nod
 static int semantic_checks_plain(knot_zone_contents_t *zone,
 				 knot_node_t *node,
 				 char do_checks,
-				 err_handler_t *handler)
+				 err_handler_t *handler,
+				 int only_mandatory,
+				 char *fatal_error)
 {
 	assert(handler);
 	const knot_rrset_t *cname_rrset =
 			knot_node_rrset(node, KNOT_RRTYPE_CNAME);
 	if (cname_rrset != NULL) {
-		if (check_cname_cycles_in_zone(zone, cname_rrset) !=
-				KNOT_EOK) {
+		int ret = check_cname_cycles_in_zone(zone, cname_rrset,
+		                                     fatal_error);
+		if (ret != KNOT_EOK) {
 			err_handler_handle_error(handler, node,
-						 ZC_ERR_CNAME_CYCLE);
+						 ret);
 		}
 
 		/* No DNSSEC and yet there is more than one rrset in node */
 		if (do_checks == 1 &&
 		                knot_node_rrset_count(node) != 1) {
+			*fatal_error = 1;
 			err_handler_handle_error(handler, node,
 			                         ZC_ERR_CNAME_EXTRA_RECORDS);
 		} else if (knot_node_rrset_count(node) != 1) {
@@ -818,6 +1053,7 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 			if (!(knot_node_rrset(node, KNOT_RRTYPE_RRSIG) ||
 			      knot_node_rrset(node, KNOT_RRTYPE_NSEC)) ||
 			    knot_node_rrset_count(node) > 3) {
+				*fatal_error = 1;
 				err_handler_handle_error(handler, node,
 				ZC_ERR_CNAME_EXTRA_RECORDS_DNSSEC);
 			}
@@ -825,6 +1061,7 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 
 		if (knot_rrset_rdata(cname_rrset)->next !=
 		                knot_rrset_rdata(cname_rrset)) {
+			*fatal_error = 1;
 			err_handler_handle_error(handler, node,
 			                         ZC_ERR_CNAME_MULTIPLE);
 		}
@@ -833,23 +1070,35 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 	const knot_rrset_t *dname_rrset =
 		knot_node_rrset(node, KNOT_RRTYPE_DNAME);
 	if (dname_rrset != NULL) {
-		if (check_cname_cycles_in_zone(zone, dname_rrset) !=
-				KNOT_EOK) {
+		int ret = check_cname_cycles_in_zone(zone, dname_rrset,
+		                                     fatal_error);
+		if (ret == ZC_ERR_CNAME_CYCLE) {
+			*fatal_error = 1;
 			err_handler_handle_error(handler, node,
 						 ZC_ERR_DNAME_CYCLE);
+		} else if (ret == ZC_ERR_CNAME_WILDCARD_SELF) {
+			*fatal_error = 1;
+			err_handler_handle_error(handler, node,
+						 ZC_ERR_DNAME_WILDCARD_SELF);
 		}
 
 		if (knot_node_rrset(node, KNOT_RRTYPE_CNAME)) {
+			*fatal_error = 1;
 			err_handler_handle_error(handler, node,
-			                         ZC_ERR_DNAME_EXTRA_RECORDS);
+			                         ZC_ERR_CNAME_EXTRA_RECORDS);
 		}
-
-		if (knot_rrset_rdata(dname_rrset)->next !=
-		    knot_rrset_rdata(dname_rrset)) {
+		
+		if (node->children != 0) {
+			*fatal_error = 1;
 			err_handler_handle_error(handler, node,
-			                         ZC_ERR_DNAME_MULTIPLE);
+			                         ZC_ERR_DNAME_CHILDREN);
 		}
 	}
+	
+	if (only_mandatory) {
+		return KNOT_EOK;
+	}
+	
 
 	/* check for glue records at zone cuts */
 	if (knot_node_is_deleg_point(node)) {
@@ -1086,23 +1335,27 @@ static void do_checks_in_tree(knot_node_t *node, void *data)
 
 	assert(zone);
 
-
-/*	for (int i = 0; i < count; ++i) {
-		assert(rrsets[i] != NULL);
-		knot_zone_save_enclosers_rrset(rrsets[i],
-						 zone,
-						 (skip_list_t *)args->arg2);
-	} */
-
 	knot_node_t *first_node = (knot_node_t *)args->arg4;
 	knot_node_t **last_node = (knot_node_t **)args->arg5;
 
 	err_handler_t *handler = (err_handler_t *)args->arg6;
-
+	
 	char do_checks = *((char *)(args->arg3));
 
 	if (do_checks) {
-		semantic_checks_plain(zone, node, do_checks, handler);
+		semantic_checks_plain(zone, node, do_checks, handler, 0,
+		                      (char *)args->arg7);
+	} else {
+		assert(handler);
+		/* All CNAME/DNAME checks are mandatory. */
+		handler->options.log_cname = 1;
+		int check_level = 1 + (zone_is_secure(zone) ? 1 : 0);
+		semantic_checks_plain(zone, node, check_level, handler, 1,
+		                      (char *)args->arg7);
+		
+		free(rrsets);
+		assert(do_checks == 0);
+		return;
 	}
 
 	if (do_checks > 1) {
@@ -1113,24 +1366,31 @@ static void do_checks_in_tree(knot_node_t *node, void *data)
 	free(rrsets);
 }
 
-void zone_do_sem_checks(knot_zone_contents_t *zone, char do_checks,
+int zone_do_sem_checks(knot_zone_contents_t *zone, char do_checks,
                         err_handler_t *handler,
                         knot_node_t **last_node)
 {
-	if (!do_checks) {
-		return;
+	if (!handler) {
+		return KNOT_EBADARG;
 	}
-
 	arg_t arguments;
 	arguments.arg1 = zone;
 	arguments.arg3 = &do_checks;
 	arguments.arg4 = NULL;
 	arguments.arg5 = last_node;
 	arguments.arg6 = handler;
+	char fatal_error = 0;
+	arguments.arg7 = (void *)&fatal_error;
 
 	knot_zone_contents_tree_apply_inorder(zone,
 			   do_checks_in_tree,
 			   (void *)&arguments);
+	
+	if (fatal_error) {
+		return KNOT_ERROR;
+	}
+	
+	return KNOT_EOK;
 }
 
 void log_cyclic_errors_in_zone(err_handler_t *handler,
@@ -1167,14 +1427,10 @@ void log_cyclic_errors_in_zone(err_handler_t *handler,
 			return;
 		}
 
-		/* This is why allocate maximum length of decoded string + 1 */
-		memmove(next_dname_decoded + 1, next_dname_decoded, real_size);
-		next_dname_decoded[0] = real_size;
-
 		/* Local allocation, will be discarded. */
 		knot_dname_t *next_dname =
-			knot_dname_new_from_wire(next_dname_decoded,
-						   real_size + 1, NULL);
+			knot_dname_new_from_str((char *)next_dname_decoded,
+						real_size, NULL);
 		if (next_dname == NULL) {
 			fprintf(stderr, "Could not allocate dname!\n");
 			err_handler_handle_error(handler, last_nsec3_node,
@@ -1196,15 +1452,18 @@ void log_cyclic_errors_in_zone(err_handler_t *handler,
 
 		/* Check it points somewhere first. */
 		if (knot_zone_contents_find_nsec3_node(zone, next_dname) == NULL) {
+			assert(knot_zone_contents_find_node(zone,
+			                                    next_dname) ==
+			                                    NULL);
 			err_handler_handle_error(handler, last_nsec3_node,
 						 ZC_ERR_NSEC3_RDATA_CHAIN);
-		}
-
-		/* Compare with the actual first NSEC3 node. */
-		if (knot_dname_compare(first_nsec3_node->owner,
-		                         next_dname) != 0) {
-			err_handler_handle_error(handler, last_nsec3_node,
-						 ZC_ERR_NSEC3_RDATA_CHAIN);
+		} else {
+			/* Compare with the actual first NSEC3 node. */
+			if (knot_dname_compare(first_nsec3_node->owner,
+			                         next_dname) != 0) {
+				err_handler_handle_error(handler, last_nsec3_node,
+							 ZC_ERR_NSEC3_RDATA_CHAIN);
+			}
 		}
 
 		/* Directly discard. */

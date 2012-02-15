@@ -31,6 +31,9 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#ifdef HAVE_CAP_NG_H
+#include <cap-ng.h>
+#endif /* HAVE_CAP_NG_H */
 
 #include "common/sockaddr.h"
 #include "knot/common.h"
@@ -46,8 +49,12 @@
 #include "knot/server/notify.h"
 
 /* Check for sendmmsg syscall. */
-#ifdef SYS_sendmmsg
-#define ENABLE_SENDMMSG 1
+#ifdef HAVE_SENDMMSG
+  #define ENABLE_SENDMMSG 1
+#else
+  #ifdef SYS_sendmmsg
+    #define ENABLE_SENDMMSG 1
+  #endif
 #endif
 
 /*! \brief Pointer to selected UDP master implementation. */
@@ -62,7 +69,12 @@ static int (*_udp_master)(dthread_t *, stat_t *) = 0;
 int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 	       sockaddr_t* addr, knot_nameserver_t *ns)
 {
-	dbg_net("udp: fd=%d received %zd bytes.\n", fd, qbuflen);
+#ifdef DEBUG_ENABLE_BRIEF
+	char strfrom[SOCKADDR_STRLEN];
+	sockaddr_tostr(addr, strfrom, sizeof(strfrom));
+	dbg_net("udp: fd=%d received %zd bytes from %s:%d.\n", fd, qbuflen,
+	        strfrom, sockaddr_portnum(addr));
+#endif
 	
 	knot_packet_type_t qtype = KNOT_QUERY_NORMAL;
 	*resp_len = SOCKET_MTU_SZ;
@@ -81,11 +93,10 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 	int res = knot_ns_parse_packet(qbuf, qbuflen, packet, &qtype);
 	if (unlikely(res != KNOTD_EOK)) {
 		dbg_net("udp: failed to parse packet on fd=%d\n", fd);
-		/* Send error response on dnslib RCODE. */
-		if (res > 0) {
+		if (res > 0) { /* Returned RCODE */
 			uint16_t pkt_id = knot_wire_get_id(qbuf);
 			knot_ns_error_response(ns, pkt_id, res,
-					  qbuf, resp_len);
+					       qbuf, resp_len);
 		}
 
 		knot_packet_free(&packet);
@@ -119,29 +130,12 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 		/* RFC1034, p.28 requires reliable transfer protocol.
 		 * Bind responds with FORMERR.
  		 */
-		/*! \todo Draft exists for AXFR/UDP, but has not been standardized. */
+		/*! \note Draft exists for AXFR/UDP, but has not been standardized. */
 		knot_ns_error_response(ns, knot_packet_id(packet),
 				       KNOT_RCODE_FORMERR, qbuf,
 				       resp_len);
 		res = KNOTD_EOK;
 		break;
-		
-//		/* Process AXFR over UDP. */
-//		res = xfr_request_init(&xfr, XFR_TYPE_AOUT, XFR_FLAG_UDP, packet);
-//		if (res != KNOTD_EOK) {
-//			knot_ns_error_response(ns, knot_packet_id(packet),
-//			                       KNOT_RCODE_SERVFAIL, qbuf,
-//			                       resp_len);
-//			res = KNOTD_EOK;
-//			break;
-//		}
-//		xfr.send = xfr_send_udp;
-//		xfr.session = dup(fd);
-//		memcpy(&xfr.addr, addr, sizeof(sockaddr_t));
-//		xfr_request(srv->xfr_h, &xfr);
-//		dbg_net("udp: enqueued AXFR query on fd=%d\n", xfr.session);
-//		*resp_len = 0;
-//		return KNOTD_EOK;
 	case KNOT_QUERY_IXFR:
 		/* According to RFC1035, respond with SOA. 
 		 * Draft proposes trying to fit response into one packet,
@@ -154,28 +148,11 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 //		res = knot_ns_answer_normal(ns, packet, qbuf,
 //		                            resp_len);
 		break;
-//		/* Process IXFR over UDP. */
-//		res = xfr_request_init(&xfr, XFR_TYPE_IOUT, XFR_FLAG_UDP, packet);
-//		if (res != KNOTD_EOK) {
-//			knot_ns_error_response(ns, knot_packet_id(packet),
-//			                       KNOT_RCODE_SERVFAIL, qbuf,
-//			                       resp_len);
-//			res = KNOTD_EOK;
-//			break;
-//		}
-//		xfr.send = xfr_send_udp;
-//		xfr.session = dup(fd);
-//		memcpy(&xfr.addr, addr, sizeof(sockaddr_t));
-//		xfr_request(srv->xfr_h, &xfr);
-//		dbg_net("udp: enqueued IXFR query on fd=%d\n", xfr.session);
-//		*resp_len = 0;
-//		return KNOTD_EOK;
 	case KNOT_QUERY_NOTIFY:
 		res = notify_process_request(ns, packet, addr,
 					     qbuf, resp_len);
 		break;
 		
-	/*! \todo Implement query notify/update. */
 	case KNOT_QUERY_UPDATE:
 		dbg_net("udp: UPDATE query on fd=%d not implemented\n", fd);
 		knot_ns_error_response(ns, knot_packet_id(packet),
@@ -227,23 +204,13 @@ static inline int udp_master_recvfrom(dthread_t *thread, stat_t *thread_stat)
 	
 	int sock = dup(h->fd);
 	uint8_t qbuf[SOCKET_MTU_SZ];
-	struct msghdr msg;
-	memset(&msg, 0, sizeof(struct msghdr));
-	struct iovec iov;
-	memset(&iov, 0, sizeof(struct iovec));
-	iov.iov_base = qbuf;
-	iov.iov_len = SOCKET_MTU_SZ;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_name = addr.ptr;
-	msg.msg_namelen = addr.len;
 
 	/* Loop until all data is read. */
 	ssize_t n = 0;
 	while (n >= 0) {
 
 		/* Receive packet. */
-		n = recvmsg(sock, &msg, 0);
+		n = recvfrom(sock, qbuf, SOCKET_MTU_SZ, 0, addr.ptr, &addr.len);
 
 		/* Cancellation point. */
 		if (dt_is_cancelled(thread)) {
@@ -331,11 +298,13 @@ int udp_sendto(int sock, sockaddr_t * addrs, struct mmsghdr *msgs, size_t count)
 
 #ifdef ENABLE_SENDMMSG
 /*! \brief sendmmsg() syscall interface. */
+#ifndef HAVE_SENDMMSG
 static inline int sendmmsg(int fd, struct mmsghdr *mmsg, unsigned vlen,
                            unsigned flags)
 {
 	return syscall(SYS_sendmmsg, fd, mmsg, vlen, flags, NULL);
 }
+#endif
 
 /*!
  * \brief Send multiple packets.
@@ -509,6 +478,15 @@ int udp_master(dthread_t *thread)
 	stat_t *thread_stat = 0;
 	STAT_INIT(thread_stat); //XXX new stat instance every time.
 	stat_set_protocol(thread_stat, stat_UDP);
+	
+	/* Drop all capabilities on workers. */
+#ifdef HAVE_CAP_NG_H
+	if (capng_have_capability(CAPNG_EFFECTIVE, CAP_SETPCAP)) {
+		capng_clear(CAPNG_SELECT_BOTH);
+		capng_apply(CAPNG_SELECT_BOTH);
+	}
+#endif /* HAVE_CAP_NG_H */
+
 
 	/* Execute proper handler. */
 	dbg_net_verb("udp: thread started (worker %p).\n", thread);

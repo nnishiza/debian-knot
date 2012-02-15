@@ -23,6 +23,7 @@
 #include "util/error.h"
 #include "util/debug.h"
 #include "packet/packet.h"
+#include "edns.h"
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -75,7 +76,7 @@ static const size_t KNOT_RESPONSE_MAX_PTR = 16383;
  */
 static int knot_response_realloc_compr(knot_compressed_dnames_t *table)
 {
-	int free_old = table->max != DEFAULT_DOMAINS_IN_RESPONSE;
+	int free_old = table->max != table->default_count;
 	size_t *old_offsets = table->offsets;
 	const knot_dname_t **old_dnames = table->dnames;
 
@@ -233,10 +234,10 @@ dbg_response_exec(
 		// If case-sensitive search is in place, we should not save the
 		// node's parent's positions.
 		
-		to_save = !compr_cs && (knot_dname_node(to_save, 1) != NULL
-		      && knot_node_parent(knot_dname_node(to_save, 1), 1)
+		to_save = !compr_cs && (knot_dname_node(to_save) != NULL
+		      && knot_node_parent(knot_dname_node(to_save))
 		          != NULL) ? knot_node_owner(knot_node_parent(
-		                        knot_dname_node(to_save, 1), 1))
+		                        knot_dname_node(to_save)))
 		                   : NULL;
 
 		dbg_response("i: %d\n", i);
@@ -391,31 +392,31 @@ dbg_response_exec(
 		}
 #else
 		// if case-sensitive comparation, we cannot just take the parent
-		if (compr_cs || knot_dname_node(to_find, 1) == NULL
-		    || knot_node_owner(knot_dname_node(to_find, 1)) != to_find
-		    || knot_node_parent(knot_dname_node(to_find, 1), 1)
+		if (compr_cs || knot_dname_node(to_find) == NULL
+		    || knot_node_owner(knot_dname_node(to_find)) != to_find
+		    || knot_node_parent(knot_dname_node(to_find))
 		       == NULL) {
 			dbg_response("compr_cs: %d\n", compr_cs);
 			dbg_response("knot_dname_node(to_find, 1) == %p"
-			                    "\n", knot_dname_node(to_find, 1));
+			                    "\n", knot_dname_node(to_find));
 			
-			if (knot_dname_node(to_find, 1) != NULL) {
+			if (knot_dname_node(to_find) != NULL) {
 				dbg_response("knot_node_owner(knot_dname_node("
 						    "to_find, 1)) = %p, to_find = %p\n",
-					   knot_node_owner(knot_dname_node(to_find, 1)),
+					   knot_node_owner(knot_dname_node(to_find)),
 					   to_find);
 				dbg_response("knot_node_parent(knot_dname_node("
 						    "to_find, 1), 1) = %p\n",
-				      knot_node_parent(knot_dname_node(to_find, 1), 1));
+				      knot_node_parent(knot_dname_node(to_find)));
 			}
 			break;
 		} else {
-			assert(knot_dname_node(to_find, 1) !=
-			     knot_node_parent(knot_dname_node(to_find, 1), 1));
+			assert(knot_dname_node(to_find) !=
+			     knot_node_parent(knot_dname_node(to_find)));
 			assert(to_find != knot_node_owner(
-			    knot_node_parent(knot_dname_node(to_find, 1), 1)));
+			    knot_node_parent(knot_dname_node(to_find))));
 			to_find = knot_node_owner(
-			     knot_node_parent(knot_dname_node(to_find, 1), 1));
+			     knot_node_parent(knot_dname_node(to_find)));
 			dbg_response("New to_find: %p\n", to_find);
 		}
 #endif
@@ -456,7 +457,7 @@ dbg_response_exec(
 	assert(compr->wire_pos >= 0);
 	
 	if (knot_response_store_dname_pos(compr->table, dname, not_matched,
-	                                    compr->wire_pos, offset, compr_cs) 
+	                                  compr->wire_pos, offset, compr_cs)
 	    != 0) {
 		dbg_response("Compression info could not be stored."
 		                      "\n");
@@ -952,25 +953,79 @@ void knot_response_clear(knot_packet_t *resp, int clear_question)
 /*----------------------------------------------------------------------------*/
 
 int knot_response_add_opt(knot_packet_t *resp,
-                            const knot_opt_rr_t *opt_rr,
-                            int override_max_size)
+                          const knot_opt_rr_t *opt_rr,
+                          int override_max_size,
+                          int add_nsid)
 {
 	if (resp == NULL || opt_rr == NULL) {
 		return KNOT_EBADARG;
 	}
 
 	// copy the OPT RR
+
+	/*! \todo Change the way OPT RR is handled in response.
+	 *        Pointer to nameserver->opt_rr should be enough.
+	 */
+
 	resp->opt_rr.version = opt_rr->version;
 	resp->opt_rr.ext_rcode = opt_rr->ext_rcode;
 	resp->opt_rr.payload = opt_rr->payload;
-	resp->opt_rr.size = opt_rr->size;
+
+	/*
+	 * Add options only if NSID is requested.
+	 *
+	 * This is a bit hack and should be resolved in other way before some
+	 * other options are supported.
+	 */
+
+	if (add_nsid) {
+		resp->opt_rr.option_count = opt_rr->option_count;
+		assert(resp->opt_rr.options == NULL);
+		resp->opt_rr.options = (knot_opt_option_t *)malloc(
+				 resp->opt_rr.option_count * sizeof(knot_opt_option_t));
+		CHECK_ALLOC_LOG(resp->opt_rr.options, KNOT_ENOMEM);
+
+		memcpy(resp->opt_rr.options, opt_rr->options,
+		       resp->opt_rr.option_count * sizeof(knot_opt_option_t));
+
+		// copy all data
+		for (int i = 0; i < opt_rr->option_count; i++) {
+			resp->opt_rr.options[i].data = (uint8_t *)malloc(
+						resp->opt_rr.options[i].length);
+			CHECK_ALLOC_LOG(resp->opt_rr.options[i].data, KNOT_ENOMEM);
+
+			memcpy(resp->opt_rr.options[i].data,
+			       opt_rr->options[i].data,
+			       resp->opt_rr.options[i].length);
+
+//			struct knot_opt_option option;
+//			option = opt_rr->options[i];
+
+//			/* Do not add NSID unless specified. */
+//			if ((option.code != EDNS_OPTION_NSID) || (add_nsid)) {
+//				int ret =
+//					knot_edns_add_option(&resp->opt_rr,
+//				                             option.code,
+//					                     option.length,
+//					                     option.data);
+//				if (ret != KNOT_EOK) {
+//					dbg_response("Could not "
+//					             "copy option to EDNS!\n");
+//				}
+//			}
+		}
+		resp->opt_rr.size = opt_rr->size;
+	} else {
+		resp->opt_rr.size = KNOT_EDNS_MIN_SIZE;
+	}
 
 	// if max size is set, it means there is some reason to be that way,
 	// so we can't just set it to higher value
 
 	if (override_max_size && resp->max_size > 0
 	    && resp->max_size < opt_rr->payload) {
-		return KNOT_EPAYLOAD;
+//		return KNOT_EPAYLOAD;
+		return KNOT_EOK;
 	}
 
 	// set max size (less is OK)

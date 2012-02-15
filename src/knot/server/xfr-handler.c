@@ -60,6 +60,14 @@ static int xfr_udp_timeout(event_t *e)
 	if (!data) {
 		return KNOTD_EINVAL;
 	}
+	
+	/* Remove reference to this event. */
+	if (data->zone != NULL) {
+		zonedata_t *zd = (zonedata_t *)knot_zone_data(data->zone);
+		if (zd != NULL && zd->soa_pending == e) {
+			zd->soa_pending = NULL;
+		}
+	}
 
 	sockaddr_update(&data->addr);
 	char r_addr[SOCKADDR_STRLEN];
@@ -100,23 +108,16 @@ static int xfr_udp_timeout(event_t *e)
  */
 static int xfr_process_udp_query(xfrworker_t *w, int fd, knot_ns_xfr_t *data)
 {
-	/* Prepare msg header. */
-	struct msghdr msg;
-	memset(&msg, 0, sizeof(struct msghdr));
-	struct iovec iov;
-	memset(&iov, 0, sizeof(struct iovec));
-	iov.iov_base = data->wire;
-	iov.iov_len = data->wire_size;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_name = data->addr.ptr;
-	msg.msg_namelen = data->addr.len;
-
 	/* Receive msg. */
-	ssize_t n = recvmsg(data->session, &msg, 0);
+	ssize_t n = recvfrom(data->session, data->wire, data->wire_size, 0, data->addr.ptr, &data->addr.len);
 	size_t resp_len = data->wire_size;
 	if (n > 0) {
 		udp_handle(fd, data->wire, n, &resp_len, &data->addr, w->ns);
+	}
+	
+	if(data->type == XFR_TYPE_SOA && data->zone) {
+		zonedata_t * zd = (zonedata_t*)knot_zone_data(data->zone);
+		zd->soa_pending = NULL;
 	}
 
 	/* Disable timeout. */
@@ -144,7 +145,7 @@ static int xfr_process_udp_query(xfrworker_t *w, int fd, knot_ns_xfr_t *data)
 	return KNOTD_EOK;
 }
 
-/*! \todo Document me. */
+/*! \todo Document me (issue #1586) */
 static void xfr_free_task(knot_ns_xfr_t *task)
 {
 	if (!task) {
@@ -179,12 +180,11 @@ static void xfr_free_task(knot_ns_xfr_t *task)
 	skip_remove(h->tasks, (void*)((size_t)task->session), 0, 0);
 	pthread_mutex_unlock(&h->tasks_mx);
 
-	/*! \todo Free data. */
 	close(task->session);
 	free(task);
 }
 
-/*! \todo Document me. */
+/*! \todo Document me (issue #1586) */
 static knot_ns_xfr_t *xfr_register_task(xfrworker_t *w, knot_ns_xfr_t *req)
 {
 	knot_ns_xfr_t *t = malloc(sizeof(knot_ns_xfr_t));
@@ -223,13 +223,18 @@ static int xfr_xfrin_cleanup(xfrworker_t *w, knot_ns_xfr_t *data)
 	switch(data->type) {
 	case XFR_TYPE_AIN:
 		if (data->data) {
-			xfrin_constructed_zone_t *constr_zone = 
+			if (data->flags & XFR_FLAG_AXFR_FINISHED) {
+				knot_zone_contents_deep_free(
+					(knot_zone_contents_t **)&data->data, 0);
+			} else {
+				xfrin_constructed_zone_t *constr_zone =
 					(xfrin_constructed_zone_t *)data->data;
-			knot_zone_contents_deep_free(
-					&(constr_zone->contents), 0);
-			xfrin_free_orphan_rrsigs(&(constr_zone->rrsigs));
-			free(data->data);
-			data->data = 0;
+				knot_zone_contents_deep_free(
+						&(constr_zone->contents), 0);
+				xfrin_free_orphan_rrsigs(&(constr_zone->rrsigs));
+				free(data->data);
+				data->data = 0;
+			}
 		}
 		break;
 	case XFR_TYPE_IIN:
@@ -306,12 +311,12 @@ static int xfr_xfrin_finalize(xfrworker_t *w, knot_ns_xfr_t *data)
 		} else {
 			/* Update zone. */
 			ret = zones_apply_changesets(data);
-			if (ret != KNOTD_EOK) {
+			if (ret != KNOT_EOK) {
 				log_zone_error("IXFR failed to "
 				               "apply changesets to "
 				               "zone '%s/IN' - %s\n",
 				               zorigin, 
-				               knotd_strerror(ret));
+				               knot_strerror(ret));
 			}
 		}
 		/* Free changesets, but not the data. */
@@ -400,10 +405,6 @@ static int xfr_check_tsig(knot_ns_xfr_t *xfr, knot_rcode_t *rcode)
 				log_server_info("Unsupported digest algorithm "
 				                "requested, treating as "
 				                "bad key.\n");
-				/*! \todo [TSIG] It is unclear from RFC if I
-				 *               should treat is as a bad key
-				 *               or some other error.
-				 */
 				*rcode = KNOT_RCODE_NOTAUTH;
 				xfr->tsig_key = NULL;
 				xfr->tsig_rcode = KNOT_TSIG_RCODE_BADKEY;
@@ -419,7 +420,7 @@ static int xfr_check_tsig(knot_ns_xfr_t *xfr, knot_rcode_t *rcode)
 		if (key && kname && knot_dname_compare(key->name, kname) == 0) {
 			dbg_xfr("xfr: found claimed TSIG key for comparison\n");
 		} else {
-			/*! \todo These ifs are redundant. */
+			/*! \todo These ifs are redundant (issue #1586) */
 			*rcode = KNOT_RCODE_NOTAUTH;
 			/* TSIG is mandatory if configured for interface. */
 			if (key && !kname) {
@@ -517,9 +518,23 @@ static int xfr_check_tsig(knot_ns_xfr_t *xfr, knot_rcode_t *rcode)
  */
 int xfr_process_event(xfrworker_t *w, int fd, knot_ns_xfr_t *data, uint8_t *buf, size_t buflen)
 {
+	/* Fetch associated zone. */
+	const char *zname = "<unknown>";
+	knot_zone_t *zone = (knot_zone_t *)data->zone;
+	if (zone) {
+		zonedata_t *zd = (zonedata_t *)knot_zone_data(zone);
+		if (zd) {
+			zname = zd->conf->name;
+		}
+	}
+	
 	/* Update xfer state. */
 	data->wire = buf;
 	data->wire_size = buflen;
+	
+	char r_addr[SOCKADDR_STRLEN];
+	sockaddr_tostr(&data->addr, r_addr, sizeof(r_addr));
+	int r_port = sockaddr_portnum(&data->addr);
 
 	/* Handle SOA/NOTIFY responses. */
 	if (data->type == XFR_TYPE_NOTIFY || data->type == XFR_TYPE_SOA) {
@@ -551,7 +566,9 @@ int xfr_process_event(xfrworker_t *w, int fd, knot_ns_xfr_t *data, uint8_t *buf,
 
 	/* AXFR-style IXFR. */
 	if (ret == KNOT_ENOIXFR) {
-		log_server_notice("IXFR/IN - Fallback to AXFR/IN.\n");
+		log_server_notice("IXFR of '%s/IN' with %s:%d - "
+				  "Fallback to AXFR/IN.\n",
+				  zname, r_addr, r_port);
 		assert(data->type == XFR_TYPE_IIN);
 		data->type = XFR_TYPE_AIN;
 		ret = knot_ns_process_axfrin(w->ns, data);
@@ -567,10 +584,10 @@ int xfr_process_event(xfrworker_t *w, int fd, knot_ns_xfr_t *data, uint8_t *buf,
 	}
 	
 	/* IXFR refused, try again with AXFR. */
-	knot_zone_t *zone = (knot_zone_t *)data->zone;
 	if (zone && data->type == XFR_TYPE_IIN && ret == KNOT_EXFRREFUSED) {
-		log_server_notice("IXFR/IN failed, attempting to use "
-		                  "AXFR/IN instead.\n");
+		log_server_notice("IXFR of '%s/IN' with %s:%d failed, attempting "
+				  "to use AXFR/IN instead.\n",
+				  zname, r_addr, r_port);
 		size_t bufsize = buflen;
 		data->wire_size = buflen; /* Reset maximum bufsize */
 		ret = xfrin_create_axfr_query(zone->name, data,
@@ -589,13 +606,17 @@ int xfr_process_event(xfrworker_t *w, int fd, knot_ns_xfr_t *data, uint8_t *buf,
 
 	/* Handle errors. */
 	if (ret == KNOT_ENOXFR) {
-		log_server_warning("%cXFR/IN request finished - %s\n",
+		log_server_warning("%cXFR request of '%s/IN' with %s:%d "
+				   "finished - %s\n",
 		                   data->type == XFR_TYPE_AIN ? 'A' : 'I',
+				   zname, r_addr, r_port,
 		                   knot_strerror(ret));
 	} else if (ret < 0) {
-		log_server_error("%cXFR/IN request failed - %s\n",
-		                 data->type == XFR_TYPE_AIN ? 'A' : 'I',
-		                 knot_strerror(ret));
+		log_server_error("%cXFR/IN request of '%s/IN' with %s:%d "
+				 "failed - %s\n",
+				 data->type == XFR_TYPE_AIN ? 'A' : 'I',
+				 zname, r_addr, r_port,
+				 knot_strerror(ret));
 	}
 
 
@@ -605,7 +626,6 @@ int xfr_process_event(xfrworker_t *w, int fd, knot_ns_xfr_t *data, uint8_t *buf,
 		
 		knot_zone_t *zone = (knot_zone_t *)data->zone;
 		zonedata_t *zd = (zonedata_t *)knot_zone_data(zone);
-		const char *zorigin = zd->conf->name;
 
 		/* Only for successful xfers. */
 		if (ret > 0) {
@@ -613,14 +633,14 @@ int xfr_process_event(xfrworker_t *w, int fd, knot_ns_xfr_t *data, uint8_t *buf,
 			
 			/* AXFR bootstrap timeout. */
 			rcu_read_lock();
-			if (ret != KNOTD_EOK && data->type == XFR_TYPE_AIN) {
+			if (ret != KNOTD_EOK && !knot_zone_contents(zone)) {
 				/* Schedule request (60 - 90s random delay). */
 				int tmr_s = AXFR_BOOTSTRAP_RETRY;
 				tmr_s += (30.0 * 1000) * (tls_rand());
 				zd->xfr_in.bootstrap_retry = tmr_s;
 				log_zone_info("Another attempt to AXFR bootstrap "
 				              "zone '%s' in %d seconds.\n",
-				              zorigin, tmr_s/1000);
+				              zname, tmr_s/1000);
 			}
 			rcu_read_unlock();
 
@@ -652,7 +672,7 @@ int xfr_process_event(xfrworker_t *w, int fd, knot_ns_xfr_t *data, uint8_t *buf,
 	return result;
 }
 
-/*! \todo Document me.
+/*! \todo Document me (issue #1586)
  */
 static int xfr_client_start(xfrworker_t *w, knot_ns_xfr_t *data)
 {
@@ -693,7 +713,14 @@ static int xfr_client_start(xfrworker_t *w, knot_ns_xfr_t *data)
 	/* Connect to remote. */
 	if (data->session <= 0) {
 		int fd = socket_create(data->addr.family, SOCK_STREAM);
-		if (fd < 0) {
+		if (fd >= 0) {
+			/* Bind to specific address - if set. */
+			sockaddr_update(&data->saddr);
+			if (data->saddr.len > 0) {
+				/* Presume port is already preset. */
+				ret = bind(fd, data->saddr.ptr, data->saddr.len);
+			}
+		} else {
 			pthread_mutex_unlock(&zd->xfr_in.lock);
 			log_server_warning("Failed to create socket "
 					   "(type=%s, family=%s).\n",
@@ -702,6 +729,7 @@ static int xfr_client_start(xfrworker_t *w, knot_ns_xfr_t *data)
 					   "AF_INET" : "AF_INET6");
 			return KNOTD_ERROR;
 		}
+		
 		ret = connect(fd, data->addr.ptr, data->addr.len);
 		if (ret < 0) {
 			pthread_mutex_unlock(&zd->xfr_in.lock);
@@ -722,7 +750,7 @@ static int xfr_client_start(xfrworker_t *w, knot_ns_xfr_t *data)
 				                "another attempt in %d seconds."
 				                "\n", tmr_s / 1000);
 			}
-			return KNOTD_ERROR;
+			return KNOTD_ECONNREFUSED;
 		}
 
 		/* Store new socket descriptor. */
@@ -740,7 +768,7 @@ static int xfr_client_start(xfrworker_t *w, knot_ns_xfr_t *data)
 		rcu_read_unlock();
 		log_server_warning("Failed start IXFR on zone with no "
 				   "contents\n");
-		return KNOTD_ERROR;
+		return KNOTD_EINVAL;
 	}
 
 	/* Prepare TSIG key if set. */
@@ -791,6 +819,7 @@ static int xfr_client_start(xfrworker_t *w, knot_ns_xfr_t *data)
 	
 	ret = data->send(data->session, &data->addr, data->wire, bufsize);
 	if (ret != bufsize) {
+		pthread_mutex_unlock(&zd->xfr_in.lock);
 		log_server_notice("Failed to send %cXFR query.",
 		                  data->type == XFR_TYPE_AIN ? 'A' : 'I');
 		xfr_free_task(task);
@@ -817,6 +846,67 @@ static int xfr_fd_compare(void *k1, void *k2)
 	}
 	
 	return 0;
+}
+
+static inline char xfr_strtype(knot_ns_xfr_t *xfr) {
+	if (xfr->type == XFR_TYPE_IOUT) {
+		return 'I';
+	} else {
+		return 'A';
+	}
+}
+
+static int xfr_answer_axfr(knot_nameserver_t *ns, knot_ns_xfr_t *xfr)
+{
+	int ret = knot_ns_answer_axfr(ns, xfr);
+	dbg_xfr("xfr: ns_answer_axfr() = %d.\n", ret);
+	return ret;
+}
+
+static int xfr_answer_ixfr(knot_nameserver_t *ns, knot_ns_xfr_t *xfr)
+{
+	/* Check serial differeces. */
+	int ret = KNOT_EOK;
+	uint32_t serial_from = 0;
+	uint32_t serial_to = 0;
+	dbg_xfr_verb("Loading serials for IXFR.\n");
+	ret = ns_ixfr_load_serials(xfr, &serial_from, &serial_to);
+	dbg_xfr_detail("Loaded serials: from: %u, to: %u\n",
+	               serial_from, serial_to);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+	
+	/* Load changesets from journal. */
+	dbg_xfr_verb("Loading changesets from journal.\n");
+	int chsload = zones_xfr_load_changesets(xfr, serial_from, serial_to);
+	if (chsload != KNOTD_EOK) {
+		/* History cannot be reconstructed, fallback to AXFR. */
+		if (chsload == KNOTD_ERANGE || chsload == KNOTD_ENOENT) {
+			log_server_info("IXFR transfer of zone '%s/OUT'"
+			                " - failed to load data from journal: "
+			                " Incomplete history. "
+			                "Fallback to AXFR.\n",
+			                xfr->zname);
+			xfr->type = XFR_TYPE_AOUT;
+			return xfr_answer_axfr(ns, xfr);
+		} else if (chsload == KNOTD_EMALF) {
+			xfr->rcode = KNOT_RCODE_FORMERR;
+		} else {
+			xfr->rcode = KNOT_RCODE_SERVFAIL;
+		}
+		
+		/* Mark all as generic error. */
+		ret = KNOT_ERROR;
+	}
+	
+	/* Finally, answer. */
+	if (chsload == KNOTD_EOK) {
+		ret = knot_ns_answer_ixfr(ns, xfr);
+		dbg_xfr("xfr: ns_answer_ixfr() = %d.\n", ret);
+	}
+	
+	return ret;
 }
 
 /*
@@ -1014,12 +1104,113 @@ int xfr_request(xfrhandler_t *handler, knot_ns_xfr_t *req)
 	return KNOTD_EOK;
 }
 
+int xfr_answer(knot_nameserver_t *ns, knot_ns_xfr_t *xfr)
+{
+	if (ns == NULL || xfr == NULL) {
+		return KNOTD_EINVAL;
+	}
+	
+	int ret = knot_ns_init_xfr(ns, xfr);
+	int xfr_failed = (ret != KNOT_EOK);
+	const char * errstr = knot_strerror(ret);
+
+	/* Check requested zone. */
+	if (!xfr_failed) {
+		ret = zones_xfr_check_zone(xfr, &xfr->rcode);
+		xfr_failed = (ret != KNOTD_EOK);
+		errstr = knotd_strerror(ret);
+	}
+
+	/* Check TSIG. */
+	if (!xfr_failed && xfr->tsig_key != NULL) {
+		ret = xfr_check_tsig(xfr, &xfr->rcode);
+		xfr_failed = (ret != KNOT_EOK);
+		errstr = knot_strerror(ret);
+	}
+	
+	/* Prepare place for TSIG data */
+	xfr->tsig_data = malloc(KNOT_NS_TSIG_DATA_MAX_SIZE);
+	if (xfr->tsig_data) {
+		dbg_xfr("xfr: TSIG data allocated: %zu.\n",
+			KNOT_NS_TSIG_DATA_MAX_SIZE);
+		xfr->tsig_data_size = 0;
+	} else {
+		dbg_xfr("xfr: failed to allocate TSIG data "
+			"buffer (%zu kB)\n",
+			KNOT_NS_TSIG_DATA_MAX_SIZE / 1024);
+	}
+	
+	// use the QNAME as the zone name to get names also for
+	// zones that are not in the server
+	const knot_dname_t *qname = knot_packet_qname(xfr->query);
+	if (qname != NULL) {
+		xfr->zname = knot_dname_to_str(qname);
+	} else {
+		xfr->zname = strdup("(unknown)");
+	}
+	
+	/* Finally, answer AXFR/IXFR. */
+	int io_error = 0;
+	if (!xfr_failed) {
+		switch(xfr->type) {
+		case XFR_TYPE_AOUT:
+			ret = xfr_answer_axfr(ns, xfr);
+			break;
+		case XFR_TYPE_IOUT:
+			ret = xfr_answer_ixfr(ns, xfr);
+			break;
+		default: ret = KNOTD_ENOTSUP; break;
+		}
+		
+		xfr_failed = (ret != KNOT_EOK);
+		errstr = knot_strerror(ret);
+		io_error = (ret == KNOT_ECONN);
+	}
+	
+	/* Remote address identification. */
+	char r_addr[SOCKADDR_STRLEN];
+	sockaddr_tostr(&xfr->addr, r_addr, sizeof(r_addr));
+	int r_port = sockaddr_portnum(&xfr->addr);
+
+	/* Check results. */
+	if (xfr_failed) {
+		if (!io_error) {
+			knot_ns_xfr_send_error(ns, xfr, xfr->rcode);
+		}
+		log_server_notice("%cXFR transfer of zone '%s/OUT' "
+				  "%s:%d failed: %s\n",
+				  xfr_strtype(xfr) , xfr->zname,
+				  r_addr, r_port,
+				  errstr);
+		ret = KNOTD_ERROR;
+	} else {
+		log_server_info("%cXFR transfer of zone '%s/OUT' "
+				"to %s:%d successful.\n",
+				xfr_strtype(xfr), xfr->zname,
+				r_addr, r_port);
+		ret = KNOTD_EOK;
+	}
+	
+	/* Free allocated data. */
+	free(xfr->tsig_data);
+	xfr->tsig_data = NULL;
+	
+	/* Cleanup. */
+	free(xfr->digest);
+	free(xfr->query->wireformat);   /* Free wireformat. */
+	knot_packet_free(&xfr->query);  /* Free query. */
+	knot_packet_free(&xfr->response);  /* Free response. */
+	knot_free_changesets((knot_changesets_t **)(&xfr->data));
+	free(xfr->zname);
+	return ret;
+}
+
 static int xfr_process_request(xfrworker_t *w, uint8_t *buf, size_t buflen)
 {
 	/* Read single request. */
 	knot_ns_xfr_t xfr = {};
 	int ret = evqueue_read(w->q, &xfr, sizeof(knot_ns_xfr_t));
-	if (ret != sizeof(knot_ns_xfr_t)) {		
+	if (ret != sizeof(knot_ns_xfr_t)) {
 		dbg_xfr_verb("xfr: evqueue_read() returned %d.\n", ret);
 		return KNOTD_ENOTRUNNING;
 	}
@@ -1035,247 +1226,23 @@ static int xfr_process_request(xfrworker_t *w, uint8_t *buf, size_t buflen)
 	conf_read_lock();
 
 	/* Handle request. */
+	zonedata_t *zd = NULL;
+	if(xfr.zone != NULL) {
+		zd = (zonedata_t *)knot_zone_data(xfr.zone);
+	}
 	knot_ns_xfr_t *task = 0;
 	evsched_t *sch = 0;
 	const char *req_type = "";
-	knot_rcode_t rcode = 0;
-	char *zname = "(unknown)";
-	uint32_t serial_from = 0;
-	uint32_t serial_to = 0;
-
-	/* XFR request state tracking. */
-	int init_failed = 0;
-	const char *errstr = "";
-	const knot_dname_t *qname = NULL;
-	
-	dbg_xfr_verb("Query ptr: %p\n", xfr.query);
-
 	dbg_xfr_verb("xfr: processing request type '%d'\n", xfr.type);
+	dbg_xfr_verb("xfr: query ptr: %p\n", xfr.query);
 	switch(xfr.type) {
-	case XFR_TYPE_AOUT:
-		req_type = "AXFR/OUT";
-		ret = knot_ns_init_xfr(w->ns, &xfr);
-		init_failed = (ret != KNOT_EOK);
-		errstr = knot_strerror(ret);
-
-		// use the QNAME as the zone name to get names also for
-		// zones that are not in the server
-		qname = knot_packet_qname(xfr.query);
-		if (qname != NULL) {
-			zname = knot_dname_to_str(qname);
-		}
-
-		/* Check requested zone. */
-		if (!init_failed) {
-			ret = zones_xfr_check_zone(&xfr, &rcode);
-			init_failed = (ret != KNOTD_EOK);
-			errstr = knotd_strerror(ret);
-		}
-
-		/* Check TSIG. */
-		if (!init_failed && xfr.tsig_key != NULL) {
-			ret = xfr_check_tsig(&xfr, &rcode);
-			init_failed = (ret != KNOT_EOK);
-			errstr = knot_strerror(ret);
-		}
-
-		/* Evaluate progress and answer if passed. */
-		if (init_failed) {
-			knot_ns_xfr_send_error(w->ns, &xfr, rcode);
-			socket_close(xfr.session);
-			log_server_notice("AXFR transfer of zone '%s/OUT' "
-			                  "%s:%d failed: %s\n",
-			                  zname,
-			                  r_addr, r_port,
-			                  errstr);
-		} else {
-			/* Prepare place for TSIG data */
-			xfr.tsig_data = malloc(KNOT_NS_TSIG_DATA_MAX_SIZE);
-			if (xfr.tsig_data) {
-				dbg_xfr("xfr: TSIG data allocated: %zu.\n",
-					KNOT_NS_TSIG_DATA_MAX_SIZE);
-				xfr.tsig_data_size = 0;
-			} else {
-				dbg_xfr("xfr: failed to allocate TSIG data "
-					"buffer (%zu kB)\n",
-					KNOT_NS_TSIG_DATA_MAX_SIZE / 1024);
-			}
-
-			ret = knot_ns_answer_axfr(w->ns, &xfr);
-			dbg_xfr("xfr: ns_answer_axfr() = %d.\n", ret);
-			if (ret != KNOTD_EOK) {
-				socket_close(xfr.session);
-			} else {
-				log_server_info("AXFR transfer of zone '%s/OUT' "
-				                "to %s:%d successful.\n",
-				                zname,
-				                r_addr, r_port);
-			}
-
-			/* Free allocated data. */
-			free(xfr.tsig_data);
-			xfr.tsig_data = NULL;
-		}
-		
-		if (xfr.digest) {
-			free(xfr.digest);
-			xfr.digest_max_size = 0;
-			xfr.digest = 0;
-		}
-		free(xfr.query->wireformat);
-		xfr.query->wireformat = 0;
-		knot_packet_free(&xfr.query);  /* Free query. */
-		xfr.query = NULL;
-		knot_packet_free(&xfr.response);  /* Free response. */
-		xfr.response = NULL;
-		
-		if (qname != NULL) {
-			free(zname);
-		}
-		
-		break;
-	case XFR_TYPE_IOUT:
-		req_type = "IXFR/OUT";
-		ret = knot_ns_init_xfr(w->ns, &xfr);
-		init_failed = (ret != KNOT_EOK);
-		errstr = knot_strerror(ret);
-
-		qname = knot_packet_qname(xfr.query);
-		if (qname != NULL) {
-			zname = knot_dname_to_str(qname);
-		}
-		
-		/* Check requested zone. */
-		if (!init_failed) {
-			ret = zones_xfr_check_zone(&xfr, &rcode);
-			init_failed = (ret != KNOTD_EOK);
-			errstr = knotd_strerror(ret);
-		}
-
-		/* Check TSIG. */
-		if (!init_failed && xfr.tsig_key != NULL) {
-			ret = xfr_check_tsig(&xfr, &rcode);
-			init_failed = (ret != KNOT_EOK);
-			errstr = knot_strerror(ret);
-		}
-		
-		// Check serial differeces
-		if (!init_failed) {
-			dbg_xfr_verb("Loading serials for IXFR.\n");
-			ret = ns_ixfr_load_serials(&xfr, &serial_from, 
-			                           &serial_to);
-			dbg_xfr_detail("Loaded serials: from: %u, to: %u\n",
-			               serial_from, serial_to);
-			init_failed = (ret != KNOT_EOK);
-			errstr = knot_strerror(ret);
-		}
-		
-		/* Load changesets from journal. */
-		if (!init_failed) {
-			dbg_xfr_verb("Loading changesets from journal.\n");
-			ret = zones_xfr_load_changesets(&xfr, serial_from, 
-			                                serial_to);
-			if (ret != KNOTD_EOK) {
-				/* History cannot be reconstructed, fallback to AXFR. */
-				if (ret == KNOTD_ERANGE || ret == KNOTD_ENOENT) {
-					log_server_info("IXFR transfer of zone '%s/OUT'"
-					                " - failed to load data from journal: %s."
-					                " Fallback to AXFR.\n",
-					                knotd_strerror(ret), zname);
-					xfr.type = XFR_TYPE_AOUT;
-					xfr_request(w->master, &xfr);
-					conf_read_unlock();
-					return KNOTD_EOK;
-				} else if (ret == KNOTD_EMALF) {
-					rcode = KNOT_RCODE_FORMERR;
-				} else {
-					rcode = KNOT_RCODE_SERVFAIL;
-				}
-				init_failed = (ret != KNOTD_EOK);
-				errstr = knotd_strerror(ret);
-			}
-		}
-
-		/* Evaluate progress and answer if passed. */
-		if (init_failed) {
-			knot_ns_xfr_send_error(w->ns, &xfr, rcode);
-			log_server_notice("IXFR transfer of zone '%s/OUT' "
-					  "%s:%d failed: %s\n",
-					  zname,
-					  r_addr, r_port,
-					  errstr);
-			ret = KNOTD_ERROR;
-		} else {
-			/* Prepare place for TSIG data */
-			xfr.tsig_data = malloc(KNOT_NS_TSIG_DATA_MAX_SIZE);
-			if (xfr.tsig_data) {
-				dbg_xfr("xfr: TSIG data allocated: %zu.\n",
-					KNOT_NS_TSIG_DATA_MAX_SIZE);
-				xfr.tsig_data_size = 0;
-			} else {
-				dbg_xfr("xfr: failed to allocate TSIG data "
-					"buffer (%zu kB)\n",
-					KNOT_NS_TSIG_DATA_MAX_SIZE / 1024);
-			}
-
-			ret = knot_ns_answer_ixfr(w->ns, &xfr);
-			dbg_xfr("xfr: ns_answer_ixfr() = %d.\n", ret);
-			if (ret != KNOT_EOK) {
-				errstr = knot_strerror(ret);
-				log_server_notice("IXFR transfer of zone '%s/OUT' "
-						  "%s:%d failed: %s\n",
-						  zname,
-						  r_addr, r_port,
-						  errstr);
-				socket_close(xfr.session);
-			} else {
-				log_server_info("IXFR transfer of zone '%s/OUT' "
-						"to %s:%d successful.\n",
-						zname,
-						r_addr, r_port);
-			}
-
-			/* Free allocated data. */
-			free(xfr.tsig_data);
-			xfr.tsig_data = NULL;
-		}
-
-		/* Cleanup. */
-		if (xfr.digest) {
-			free(xfr.digest);
-			xfr.digest = NULL;
-			xfr.digest_max_size = 0;
-		}
-		free(xfr.query->wireformat);   /* Free wireformat. */
-		xfr.query->wireformat = NULL;
-		knot_packet_free(&xfr.query);  /* Free query. */
-		xfr.query = NULL;
-		knot_packet_free(&xfr.response);  /* Free response. */
-		xfr.response = NULL;
-		
-		if (xfr.data != NULL) {  /* Free changesets. */
-			knot_free_changesets((knot_changesets_t **)
-			                     (&xfr.data));
-		}
-		
-		if (zname) {
-			free(zname);
-		}
-		
-		break;
 	case XFR_TYPE_AIN:
-		req_type = "AXFR/IN";
-		ret = xfr_client_start(w, &xfr);
-		
-		/* Report. */
-		if (ret != KNOTD_EOK && ret != KNOTD_EACCES) {
-			log_server_error("%s request from %s:%d failed: %s\n",
-			                 req_type, r_addr, r_port,
-			                 knotd_strerror(ret));
-		}
-		break;
 	case XFR_TYPE_IIN:
-		req_type = "IXFR/IN";
+		if (xfr.type == XFR_TYPE_IIN) {
+			req_type = "IXFR/IN";
+		} else {
+			req_type = "AXFR/IN";
+		}
 		ret = xfr_client_start(w, &xfr);
 		
 		/* Report. */
@@ -1302,13 +1269,18 @@ static int xfr_process_request(xfrworker_t *w, uint8_t *buf, size_t buflen)
 		sch = ((server_t *)knot_ns_get_data(w->ns))->sched;
 		task->data = evsched_schedule_cb(sch, xfr_udp_timeout,
 						 task, SOA_QRY_TIMEOUT);
+		if (zd && xfr.type == XFR_TYPE_SOA) {
+			zd->soa_pending = (event_t*)task->data;
+		}
 		ret = KNOTD_EOK;
 		break;
 	/* Socket close event. */
 	case XFR_TYPE_CLOSE:
 		xfr_free_task((knot_ns_xfr_t *)xfr.data);
 		ret = KNOTD_EOK;
+		break;
 	default:
+		log_server_error("Unknown XFR request type (%d).\n", xfr.type);
 		break;
 	}
 
@@ -1347,7 +1319,7 @@ int xfr_worker(dthread_t *thread)
 		}
 		
 		/* Poll fdset. */
-		int nfds = fdset_wait(w->fdset);
+		int nfds = fdset_wait(w->fdset, OS_EV_FOREVER);
 		if (nfds <= 0) {
 			continue;
 		}

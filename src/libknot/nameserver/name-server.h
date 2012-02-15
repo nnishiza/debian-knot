@@ -81,9 +81,10 @@ typedef int (*xfr_callback_t)(int session, sockaddr_t *addr,
 typedef struct knot_ns_xfr {
 	int type;
 	int flags;
-	sockaddr_t addr;
+	sockaddr_t addr, saddr;
 	knot_packet_t *query;
 	knot_packet_t *response;
+	knot_rcode_t rcode;
 	xfr_callback_t send;
 	int session;
 	
@@ -100,6 +101,7 @@ typedef struct knot_ns_xfr {
 	size_t wire_size;
 	void *data;
 	knot_zone_t *zone;
+	char* zname;
 	void *owner;
 	
 	/*! \note [TSIG] TSIG fields */
@@ -148,7 +150,8 @@ static const size_t KNOT_NS_TSIG_DATA_MAX_SIZE = 100 * 64 * 1024;
  */
 enum knot_ns_xfr_flag_t {
 	XFR_FLAG_TCP = 1 << 0, /*!< XFR request is on TCP. */
-	XFR_FLAG_UDP = 1 << 1  /*!< XFR request is on UDP. */
+	XFR_FLAG_UDP = 1 << 1,  /*!< XFR request is on UDP. */
+	XFR_FLAG_AXFR_FINISHED = 1 << 2
 };
 
 /*!
@@ -174,6 +177,10 @@ typedef enum knot_ns_xfr_type_t {
  * \return Pointer to the name server structure.
  */
 knot_nameserver_t *knot_ns_create();
+
+/*! \todo Document me. */
+void knot_ns_set_nsid(knot_nameserver_t *nameserver, const char *nsid,
+                      size_t nsid_length);
 
 /*!
  * \brief Parses the given query into the response structure and recognizes

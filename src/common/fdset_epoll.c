@@ -24,11 +24,13 @@
 #include <unistd.h>
 
 #include "fdset_epoll.h"
+#include "skip-list.h"
 
 #define OS_FDS_CHUNKSIZE 8   /*!< Number of pollfd structs in a chunk. */
 #define OS_FDS_KEEPCHUNKS 32 /*!< Will attempt to free memory when reached. */
 
 struct fdset_t {
+	fdset_base_t _base;
 	int epfd;
 	struct epoll_event *events;
 	size_t nfds;
@@ -40,7 +42,7 @@ fdset_t *fdset_epoll_new()
 {
 	fdset_t *set = malloc(sizeof(fdset_t));
 	if (!set) {
-		return 0;
+		return NULL;
 	}
 
 	/* Blank memory. */
@@ -95,7 +97,7 @@ int fdset_epoll_add(fdset_t *fdset, int fd, int events)
 	/* Add to epoll set. */
 	struct epoll_event ev;
 	memset(&ev, 0, sizeof(struct epoll_event));
-	ev.events = EPOLLIN; /*! \todo MAP events. */
+	ev.events = EPOLLIN;
 	ev.data.fd = fd;
 	if (epoll_ctl(fdset->epfd, EPOLL_CTL_ADD, fd, &ev) < 0) {
 		return -1;
@@ -121,11 +123,11 @@ int fdset_epoll_remove(fdset_t *fdset, int fd)
 	/* Overwrite current item. */
 	--fdset->nfds;
 
-	/*! \todo Return memory if overallocated (nfds is far lower than reserved). */
+	/*! \todo Return memory if unused (issue #1582). */
 	return 0;
 }
 
-int fdset_epoll_wait(fdset_t *fdset)
+int fdset_epoll_wait(fdset_t *fdset, int timeout)
 {
 	if (!fdset || fdset->nfds < 1 || !fdset->events) {
 		return -1;
@@ -133,7 +135,7 @@ int fdset_epoll_wait(fdset_t *fdset)
 
 	/* Poll new events. */
 	fdset->polled = 0;
-	int nfds = epoll_wait(fdset->epfd, fdset->events, fdset->nfds, -1);
+	int nfds = epoll_wait(fdset->epfd, fdset->events, fdset->nfds, timeout);
 
 	/* Check. */
 	if (nfds < 0) {
@@ -173,7 +175,7 @@ int fdset_epoll_end(fdset_t *fdset, fdset_it_t *it)
 	size_t nid = fdset->polled - 1;
 	it->fd = fdset->events[nid].data.fd;
 	it->pos = nid;
-	it->events = 0; /*! \todo Map events. */
+	it->events = 0;
 	return -1;
 }
 
@@ -191,7 +193,7 @@ int fdset_epoll_next(fdset_t *fdset, fdset_it_t *it)
 	/* Select next. */
 	size_t nid = it->pos++;
 	it->fd = fdset->events[nid].data.fd;
-	it->events = 0; /*! \todo Map events. */
+	it->events = 0;
 	return 0;
 }
 

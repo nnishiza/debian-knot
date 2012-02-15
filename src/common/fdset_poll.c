@@ -29,6 +29,7 @@
 #define OS_FDS_KEEPCHUNKS 32 /*!< Will attempt to free memory when reached. */
 
 struct fdset_t {
+	fdset_base_t _base;
 	struct pollfd *fds;
 	nfds_t nfds;
 	size_t reserved;
@@ -53,8 +54,6 @@ int fdset_poll_destroy(fdset_t * fdset)
 	if(!fdset) {
 		return -1;
 	}
-
-	/*! \todo No teardown required I guess. */
 
 	/* OK if NULL. */
 	free(fdset->fds);
@@ -88,7 +87,7 @@ int fdset_poll_add(fdset_t *fdset, int fd, int events)
 	/* Append. */
 	int nid = fdset->nfds++;
 	fdset->fds[nid].fd = fd;
-	fdset->fds[nid].events = POLLIN; /*! \todo Map events to POLL events. */
+	fdset->fds[nid].events = POLLIN;
 	return 0;
 }
 
@@ -119,12 +118,11 @@ int fdset_poll_remove(fdset_t *fdset, int fd)
 	memmove(fdset->fds + pos, fdset->fds + (pos + 1), remaining);
 	--fdset->nfds;
 
-	/*! \todo Return memory if overallocated (nfds is far lower than reserved). */
-	/*! \todo Maybe >64 free chunks is excess? */
+	/*! \todo Return memory if unused (issue #1582). */
 	return 0;
 }
 
-int fdset_poll_wait(fdset_t *fdset)
+int fdset_poll_wait(fdset_t *fdset, int timeout)
 {
 	if (!fdset || fdset->nfds < 1 || !fdset->fds) {
 		return -1;
@@ -135,7 +133,7 @@ int fdset_poll_wait(fdset_t *fdset)
 	fdset->begin = 0;
 
 	/* Poll for events. */
-	int ret = poll(fdset->fds, fdset->nfds, -1);
+	int ret = poll(fdset->fds, fdset->nfds, timeout);
 	if (ret < 0) {
 		return -1;
 	}
@@ -197,7 +195,7 @@ int fdset_poll_next(fdset_t *fdset, fdset_it_t *it)
 		struct pollfd* pfd = fdset->fds + it->pos;
 		if (pfd->events & pfd->revents) {
 			it->fd = pfd->fd;
-			it->events = pfd->revents; /*! \todo MAP events. */
+			it->events = pfd->revents;
 			++it->pos; /* Next will start after current. */
 			return 0;
 		}

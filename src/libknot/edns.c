@@ -32,9 +32,6 @@ enum knot_edns_consts {
 	KNOT_EDNS_OPTION_STEP = 1
 };
 
-/*! \brief Minimum size of EDNS OPT RR in wire format. */
-static const short KNOT_EDNS_MIN_SIZE = 11;
-
 /*----------------------------------------------------------------------------*/
 
 knot_opt_rr_t *knot_edns_new()
@@ -42,6 +39,7 @@ knot_opt_rr_t *knot_edns_new()
 	knot_opt_rr_t *opt_rr = (knot_opt_rr_t *)malloc(
 	                                               sizeof(knot_opt_rr_t));
 	CHECK_ALLOC_LOG(opt_rr, NULL);
+	memset(opt_rr, 0, sizeof(knot_opt_rr_t));
 	opt_rr->size = KNOT_EDNS_MIN_SIZE;
 	opt_rr->option_count = 0;
 	opt_rr->options_max = 0;
@@ -174,15 +172,16 @@ int knot_edns_new_from_rr(knot_opt_rr_t *opt_rr,
 	// i.e. preceded by their length
 	if (rdata != NULL) {
 		assert(knot_rdata_item_count(rdata) == 1);
+		uint16_t size = knot_rdata_item(rdata, 0)->raw_data[0];
 		const uint8_t *raw = (const uint8_t *)
 		                      knot_rdata_item(rdata, 0)->raw_data;
-		uint16_t size = knot_wire_read_u16(raw);
 		int pos = 2;
 		assert(size > 0);
 		while (pos - 2 < size) {
 			// ensure there is enough data to parse the OPTION CODE
 			// and OPTION LENGTH
 			if (size - pos + 2 < 4) {
+				dbg_edns("Not enough data to parse.\n");
 				return KNOT_EMALF;
 			}
 			uint16_t opt_code = knot_wire_read_u16(raw + pos);
@@ -191,16 +190,23 @@ int knot_edns_new_from_rr(knot_opt_rr_t *opt_rr,
 			// there should be enough data for parsing the OPTION
 			// data
 			if (size - pos - 2 < opt_size) {
+				dbg_edns("Not enough data to parse options: "
+				         "size - pos - 2=%d, opt_size=%d\n",
+				         size - pos - 2, opt_size);
 				return KNOT_EMALF;
 			}
 			rc = knot_edns_add_option(opt_rr, opt_code, opt_size,
 			                          raw + pos + 4);
 			if (rc != KNOT_EOK) {
+				dbg_edns("Could not add option.\n");
 				return rc;
 			}
 			pos += 4 + opt_size;
 		}
 	}
+	
+	
+	dbg_edns("EDNS created.\n");
 
 	return KNOT_EOK;
 }
@@ -302,8 +308,11 @@ int knot_edns_add_option(knot_opt_rr_t *opt_rr, uint16_t code,
 				sizeof(knot_opt_option_t));
 		CHECK_ALLOC_LOG(options_new, KNOT_ENOMEM);
 		memcpy(options_new, opt_rr->options, opt_rr->option_count);
+
+		knot_opt_option_t *old_options = opt_rr->options;
 		opt_rr->options = options_new;
 		opt_rr->options_max += KNOT_EDNS_OPTION_STEP;
+		free(old_options);
 	}
 
 	dbg_edns("Adding option.\n");
@@ -359,6 +368,11 @@ short knot_edns_to_wire(const knot_opt_rr_t *opt_rr, uint8_t *wire,
 	}
 
 	uint8_t *pos = wire;
+
+	dbg_edns_detail("Putting OPT RR to the wire format. Size: %zu, "
+	                "position: %zu\n",
+	                opt_rr->size, (size_t)(pos - wire));
+
 	*(pos++) = 0;
 	knot_wire_write_u16(pos, KNOT_RRTYPE_OPT);
 	pos += 2;
@@ -369,12 +383,17 @@ short knot_edns_to_wire(const knot_opt_rr_t *opt_rr, uint8_t *wire,
 	knot_wire_write_u16(pos, opt_rr->flags);
 	pos += 2;
 
+	dbg_edns_detail("Leaving space for RDLENGTH at pos %zu\n",
+	                (size_t)(pos - wire));
+
 	uint8_t *rdlen = pos;
 	uint16_t len = 0;
 	pos += 2;
 
 	// OPTIONs
 	for (int i = 0; i < opt_rr->option_count; ++i) {
+		dbg_edns_detail("Inserting option #%d at pos %zu\n",
+		                i, (size_t)(pos - wire));
 		knot_wire_write_u16(pos, opt_rr->options[i].code);
 		pos += 2;
 		knot_wire_write_u16(pos, opt_rr->options[i].length);
@@ -383,6 +402,8 @@ short knot_edns_to_wire(const knot_opt_rr_t *opt_rr, uint8_t *wire,
 		pos += opt_rr->options[i].length;
 		len += 4 + opt_rr->options[i].length;
 	}
+
+	dbg_edns_detail("Final pos %zu\n", (size_t)(pos - wire));
 
 	knot_wire_write_u16(rdlen, len);
 
@@ -402,15 +423,30 @@ short knot_edns_size(knot_opt_rr_t *opt_rr)
 
 /*----------------------------------------------------------------------------*/
 
+void knot_edns_free_options(knot_opt_rr_t *opt_rr)
+{
+	if (opt_rr->option_count > 0) {
+		/* Free the option data, if any. */
+		for (int i = 0; i < opt_rr->option_count; i++) {
+			struct knot_opt_option option = opt_rr->options[i];
+			if (option.data != NULL) {
+				free(option.data);
+			}
+		}
+		free(opt_rr->options);
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+
 void knot_edns_free(knot_opt_rr_t **opt_rr)
 {
 	if (opt_rr == NULL || *opt_rr == NULL) {
 		return;
 	}
 
-	if ((*opt_rr)->option_count > 0) {
-		free((*opt_rr)->options);
-	}
+	knot_edns_free_options(*opt_rr);
+
 	free(*opt_rr);
 	*opt_rr = NULL;
 }

@@ -69,6 +69,7 @@ typedef struct zonedata_t
 	struct {
 		acl_t         *acl;      /*!< ACL for xfr-in.*/
 		sockaddr_t     master;   /*!< Master server for xfr-in.*/
+		sockaddr_t     via;      /*!< Master server transit interface.*/
 		knot_key_t    tsig_key;  /*!< Master TSIG key. */
 		struct event_t *timer;   /*!< Timer for REFRESH/RETRY. */
 		struct event_t *expire;  /*!< Timer for REFRESH. */
@@ -80,6 +81,9 @@ typedef struct zonedata_t
 
 	/*! \brief List of pending NOTIFY events. */
 	list notify_pending;
+	
+	/*! \brief List of pending SOA queries. */
+	struct event_t* soa_pending;
 
 	/*! \brief Zone IXFR history. */
 	journal_t *ixfr_db;

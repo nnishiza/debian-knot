@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#include <time.h>
 
 #include "fdset_kqueue.h"
 
@@ -31,6 +32,7 @@
 #define OS_FDS_KEEPCHUNKS 32 /*!< Will attempt to free memory when reached. */
 
 struct fdset_t {
+	fdset_base_t _base;
 	int kq;
 	struct kevent *events;
 	struct kevent *revents;
@@ -75,7 +77,7 @@ int fdset_kqueue_destroy(fdset_t * fdset)
 	return 0;
 }
 
-int fdset_kqueue_realloc(void **old, size_t oldsize, size_t nsize)
+int fdset_kqueue_realloc(struct kevent **old, size_t oldsize, size_t nsize)
 {
 	void *nmem = malloc(nsize);
 	if (!nmem) {
@@ -101,10 +103,10 @@ int fdset_kqueue_add(fdset_t *fdset, int fd, int events)
 
 	/* Realloc needed. */
 	if (fdset->nfds == fdset->reserved) {
-		const size_t chunk = OS_FDS_CHUNKSIZE;
-		const size_t nsize = (fdset->reserved + chunk) *
+		size_t chunk = OS_FDS_CHUNKSIZE;
+		size_t nsize = (fdset->reserved + chunk) *
 				     sizeof(struct kevent);
-		const size_t oldsize = fdset->nfds * sizeof(struct kevent);
+		size_t oldsize = fdset->nfds * sizeof(struct kevent);
 		
 		if (fdset_kqueue_realloc(&fdset->events, oldsize, nsize) < 0) {
 			return -1;
@@ -117,7 +119,7 @@ int fdset_kqueue_add(fdset_t *fdset, int fd, int events)
 	}
 
 	/* Add to kqueue set. */
-	int evfilt = EVFILT_READ; /*! \todo Map events. */
+	int evfilt = EVFILT_READ;
 	EV_SET(&fdset->events[fdset->nfds], fd, evfilt,
 	       EV_ADD|EV_ENABLE, 0, 0, 0);
 
@@ -155,20 +157,33 @@ int fdset_kqueue_remove(fdset_t *fdset, int fd)
 	/* Overwrite current item. */
 	--fdset->nfds;
 
-	/*! \todo Return memory if overallocated (nfds is far lower than reserved). */
+	/*! \todo Return memory if unused (issue #1582). */
 	return 0;
 }
 
-int fdset_kqueue_wait(fdset_t *fdset)
+int fdset_kqueue_wait(fdset_t *fdset, int timeout)
 {
 	if (!fdset || fdset->nfds < 1 || !fdset->events) {
 		return -1;
 	}
 
+	/* Set timeout. */
+	struct timespec tmval;
+	struct timespec *tm = NULL;
+	if (timeout == 0) {
+		tmval.tv_sec = tmval.tv_nsec = 0;
+		tm = &tmval;
+	} else if (timeout > 0) {
+		tmval.tv_sec = timeout / 1000;     /* ms -> s */
+		timeout -= tmval.tv_sec * 1000;    /* Cut off */
+		tmval.tv_nsec = timeout * 1000000L; /* ms -> ns */
+		tm = &tmval;
+	}
+
 	/* Poll new events. */
 	fdset->polled = 0;
 	int nfds = kevent(fdset->kq, fdset->events, fdset->nfds,
-	                  fdset->revents, fdset->nfds, 0);
+	                  fdset->revents, fdset->nfds, tm);
 
 	/* Check. */
 	if (nfds < 0) {

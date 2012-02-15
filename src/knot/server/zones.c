@@ -46,7 +46,6 @@ static const size_t XFRIN_CHANGESET_BINARY_STEP = 100;
 
 /*!
  * \brief Wrapper for TCP send.
- * \todo Implement generic fd pool properly with callbacks.
  */
 #include "knot/server/tcp-handler.h"
 static int zones_send_cb(int fd, sockaddr_t *addr, uint8_t *msg, size_t msglen)
@@ -59,6 +58,10 @@ static int zones_send_cb(int fd, sockaddr_t *addr, uint8_t *msg, size_t msglen)
 /*! \brief Zone data destructor function. */
 static int zonedata_destroy(knot_zone_t *zone)
 {
+	if (zone == NULL) {
+		return KNOTD_EINVAL;
+	}
+	
 	dbg_zones_verb("zones: zonedata_destroy(%p) called\n", zone);
 	
 	zonedata_t *zd = (zonedata_t *)knot_zone_data(zone);
@@ -122,10 +125,14 @@ static int zonedata_destroy(knot_zone_t *zone)
 /*! \brief Zone data constructor function. */
 static int zonedata_init(conf_zone_t *cfg, knot_zone_t *zone)
 {
+	if (cfg == NULL || zone == NULL) {
+		return KNOTD_EINVAL;
+	}
 	zonedata_t *zd = malloc(sizeof(zonedata_t));
 	if (!zd) {
 		return KNOTD_ENOMEM;
 	}
+	memset(zd, 0, sizeof(zonedata_t));
 
 	/* Link to config. */
 	zd->conf = cfg;
@@ -362,6 +369,7 @@ static int zones_refresh_ev(event_t *e)
 		knot_ns_xfr_t xfr_req;
 		memset(&xfr_req, 0, sizeof(knot_ns_xfr_t));
 		memcpy(&xfr_req.addr, &zd->xfr_in.master, sizeof(sockaddr_t));
+		memcpy(&xfr_req.saddr, &zd->xfr_in.via, sizeof(sockaddr_t));
 		xfr_req.data = (void *)zone;
 		xfr_req.send = zones_send_cb;
 
@@ -410,15 +418,17 @@ static int zones_refresh_ev(event_t *e)
 	} else {
 		pthread_mutex_unlock(&zd->xfr_in.lock);
 	}
-
-	/* Create query. */
-	/*! \todo API for retrieval of name. */
+	
+	/* Invalidate pending SOA query. */
+	event_t *soa_pending = zd->soa_pending;
+	zd->soa_pending = NULL;
 	
 	/*! \todo [TSIG] CHANGE!!! only for compatibility now. */
 	knot_ns_xfr_t xfr_req;
 	memset(&xfr_req, 0, sizeof(knot_ns_xfr_t));
 	xfr_req.wire = qbuf;
-	
+
+	/* Create query. */
 	int ret = xfrin_create_soa_query(zone->name, &xfr_req, &buflen);
 	if (ret == KNOT_EOK) {
 
@@ -426,6 +436,15 @@ static int zones_refresh_ev(event_t *e)
 
 		/* Create socket on random port. */
 		int sock = socket_create(master->family, SOCK_DGRAM);
+		
+		/* Check requested source. */
+		sockaddr_t *via = &zd->xfr_in.via;
+		if (via->len > 0) {
+			if (bind(sock, via->ptr, via->len) < 0) {
+				socket_close(sock);
+				sock = -1;
+			}
+		}
 
 		/* Send query. */
 		ret = KNOTD_ERROR;
@@ -456,11 +475,17 @@ static int zones_refresh_ev(event_t *e)
 			req.type = XFR_TYPE_SOA;
 			req.zone = zone;
 			memcpy(&req.addr, master, sizeof(sockaddr_t));
+			memcpy(&req.saddr, &zd->xfr_in.via, sizeof(sockaddr_t));
 			sockaddr_update(&req.addr);
-			xfr_request(zd->server->xfr_h, &req);
+			ret = xfr_request(zd->server->xfr_h, &req);
 		}
 	} else {
 		ret = KNOTD_ERROR;
+	}
+	
+	if (ret != KNOTD_EOK) {
+		log_server_warning("Failed to issue SOA query for zone '%s'.\n",
+		                   zd->conf->name);
 	}
 
 	/* Schedule EXPIRE timer on first attempt. */
@@ -481,7 +506,13 @@ static int zones_refresh_ev(event_t *e)
 
 	/* Unlock RCU. */
 	rcu_read_unlock();
-
+	
+	/* Close invalidated SOA query. */
+	evsched_event_finished(e->parent);
+	if (soa_pending != NULL) {
+		/* Execute */
+		evsched_schedule(e->parent, soa_pending, 0);
+	}
 	return ret;
 }
 
@@ -495,7 +526,7 @@ static int zones_notify_send(event_t *e)
 	notify_ev_t *ev = (notify_ev_t *)e->data;
 	knot_zone_t *zone = ev->zone;
 	if (!zone) {
-		log_zone_error("notify: NOTIFY invalid event received\n");
+		log_zone_error("NOTIFY invalid event received\n");
 		evsched_event_free(e->parent, e);
 		free(ev);
 		return KNOTD_EINVAL;
@@ -544,6 +575,14 @@ static int zones_notify_send(event_t *e)
 
 		/* Create socket on random port. */
 		int sock = socket_create(ev->addr.family, SOCK_DGRAM);
+		
+		/* Check requested source. */
+		if (ev->saddr.len > 0) {
+			if (bind(sock, ev->saddr.ptr, ev->saddr.len) < 0) {
+				socket_close(sock);
+				sock = -1;
+			}
+		}
 
 		/* Send query. */
 		ret = -1;
@@ -558,9 +597,9 @@ static int zones_notify_send(event_t *e)
 			sockaddr_tostr(&ev->addr, r_addr, sizeof(r_addr));
 			int r_port = sockaddr_portnum(&ev->addr);
 			ev->msgid = knot_wire_get_id(qbuf);
-			log_server_info("Issued NOTIFY query to %s:%d, expecting "
-					"response ID=%d\n",
-					r_addr, r_port,
+			log_server_info("Issued '%s' NOTIFY query to %s:%d, "
+					"expecting  response ID=%d\n",
+					zd->conf->name, r_addr, r_port,
 					ev->msgid);
 			
 		}
@@ -698,6 +737,17 @@ static int zones_load_zone(knot_zonedb_t *zonedb, const char *zone_name,
 			   const char *source, const char *filename)
 {
 	knot_zone_t *zone = NULL;
+	size_t zlen = strlen(zone_name);
+	char *zname = NULL;
+	if (zlen > 0) {
+		if ((zname = strdup(zone_name)) == NULL) {
+			return KNOTD_ENOMEM;
+		}
+	} else {
+		return KNOTD_EINVAL;
+	}
+	
+	zname[zlen - 1] = '\0'; /* Trim last dot */
 
 	/* Check path */
 	if (filename) {
@@ -709,24 +759,29 @@ static int zones_load_zone(knot_zonedb_t *zonedb, const char *zone_name,
 			/* OK */
 			break;
 		case KNOT_EFEWDATA:
-			log_server_error("Compiled zone db '%s' not exists.\n",
-					 filename);
+			log_server_error("Couldn't find compiled zone. "
+			                 "Please recompile '%s'.\n", zname);
+			free(zname);
 			return KNOTD_EZONEINVAL;
 		case KNOT_ECRC:
-			log_server_error("Compiled zone db CRC mismatches, "
-					 "db is corrupted or .crc file is "
-					 "deleted.\n");
+			log_server_error("Compiled zone db CRC mismatch, "
+			                 "db is corrupted or .crc file is "
+			                 "deleted. Please recompile '%s'.\n",
+			                 zname);
+			free(zname);
 			return KNOTD_EZONEINVAL;
 		case KNOT_EMALF:
-			log_server_error("Compiled db '%s' is too old, "
-			                 " please recompile.\n",
-			                 filename);
+			log_server_error("Compiled db '%s' is too old. "
+			                 "Please recompile '%s'.\n",
+			                 filename, zname);
+			free(zname);
 			return KNOTD_EZONEINVAL;
 		case KNOT_ERROR:
 		case KNOT_ENOMEM:
 		default:
-			log_server_error("Failed to read zone db file '%s'.\n",
-					 filename);
+			log_server_error("Failed to load compiled zone file "
+			                 "'%s'.\n", filename);
+			free(zname);
 			return KNOTD_EZONEINVAL;
 		}
 
@@ -735,7 +790,7 @@ static int zones_load_zone(knot_zonedb_t *zonedb, const char *zone_name,
 		if (src_changed || knot_zload_needs_update(zl)) {
 			log_server_warning("Database for zone '%s' is not "
 			                   "up-to-date. Please recompile.\n",
-			                   zone_name);
+			                   zname);
 		}
 
 		zone = knot_zload_load(zl);
@@ -743,8 +798,7 @@ static int zones_load_zone(knot_zonedb_t *zonedb, const char *zone_name,
 		/* Check loaded name. */
 		const knot_dname_t *dname = knot_zone_name(zone);
 		knot_dname_t *dname_req = 0;
-		dname_req = knot_dname_new_from_str(zone_name,
-		                                    strlen(zone_name), 0);
+		dname_req = knot_dname_new_from_str(zone_name, zlen, 0);
 		if (knot_dname_compare(dname, dname_req) != 0) {
 			log_server_warning("Origin of the zone db file is "
 			                   "different than '%s'\n",
@@ -756,7 +810,9 @@ static int zones_load_zone(knot_zonedb_t *zonedb, const char *zone_name,
 		knot_dname_free(&dname_req);
 
 		/* CLEANUP */
-		//knot_zone_contents_dump(zone->contents, 1);
+//		knot_zone_contents_dump(zone->contents, 1);
+//		int errs = knot_zone_contents_integrity_check(zone->contents);
+//		fprintf(stderr, "INTEGRITY CHECK OF ZONE. ERRORS: %d\n", errs);
 
 		if (zone) {
 			/* save the timestamp from the zone db file */
@@ -780,16 +836,20 @@ static int zones_load_zone(knot_zonedb_t *zonedb, const char *zone_name,
 		if (!zone) {
 			log_server_error("Failed to load "
 					 "db '%s' for zone '%s'.\n",
-					 filename, zone_name);
+					 filename, zname);
+			free(zname);
 			return KNOTD_EZONEINVAL;
 		}
 	} else {
 		/* db is null. */
+		log_server_error("No file name for zone '%s'.\n", zname);
+		free(zname);
 		return KNOTD_EINVAL;
 	}
 
 	/* CLEANUP */
 //	knot_zone_dump(zone, 1);
+	free(zname);
 
 	return KNOTD_EOK;
 }
@@ -1113,7 +1173,7 @@ static int zones_journal_apply(knot_zone_t *zone)
 			log_server_info("Applying '%zu' changesets from journal "
 			                "to zone '%s'.\n",
 			                chsets->count, zd->conf->name);
-			int apply_ret = xfrin_apply_changesets_to_zone(zone, chsets);
+			int apply_ret = xfrin_apply_changesets(zone, chsets);
 			if (apply_ret != KNOT_EOK) {
 				log_server_error("Failed to apply changesets to "
 				                 "'%s' - %s\n",
@@ -1237,15 +1297,10 @@ static int zones_insert_zones(knot_nameserver_t *ns,
 				               z->name,
 				               z->db);
 				ret = zones_load_zone(db_new, z->name,
-							  z->file, z->db);
+				                      z->file, z->db);
 				if (ret == KNOTD_EOK) {
 					log_server_info("Loaded zone '%s'\n",
 					                z->name);
-				} else {
-					log_server_error("Failed to load zone "
-					                 "'%s' - %s\n",
-					                 z->name,
-					                 knotd_strerror(ret));
 				}
 			}
 
@@ -1302,6 +1357,7 @@ static int zones_insert_zones(knot_nameserver_t *ns,
 			/* Update master server address. */
 			memset(&zd->xfr_in.tsig_key, 0, sizeof(knot_key_t));
 			sockaddr_init(&zd->xfr_in.master, -1);
+			sockaddr_init(&zd->xfr_in.via, -1);
 			if (!EMPTY_LIST(z->acl.xfr_in)) {
 				conf_remote_t *r = HEAD(z->acl.xfr_in);
 				conf_iface_t *cfg_if = r->remote;
@@ -1309,6 +1365,12 @@ static int zones_insert_zones(knot_nameserver_t *ns,
 					     cfg_if->family,
 					     cfg_if->address,
 					     cfg_if->port);
+				if (cfg_if->via) {
+					sockaddr_set(&zd->xfr_in.via,
+					             cfg_if->via->family,
+					             cfg_if->via->address,
+					             0);
+				}
 
 				if (cfg_if->key) {
 					memcpy(&zd->xfr_in.tsig_key,
@@ -1510,7 +1572,7 @@ static int zones_check_tsig_query(const knot_zone_t *zone,
 	assert(rcode != NULL);
 	assert(tsig_key_zone != NULL);
 
-	knot_rrset_t *tsig = NULL;
+	const knot_rrset_t *tsig = NULL;
 
 	if (knot_packet_additional_rrset_count(query) > 0) {
 		/*! \todo warning */
@@ -1811,17 +1873,24 @@ int zones_normal_query_answer(knot_nameserver_t *nameserver,
 		rcode = KNOT_RCODE_REFUSED;
 	}
 
-	assert(resp != NULL);
-
 	if (rcode != KNOT_RCODE_NOERROR) {
 		dbg_zones_verb("Failed preparing response structure: %s.\n",
 		               knot_strerror(rcode));
-		knot_ns_error_response(nameserver, knot_packet_id(query),
-		                       rcode, resp_wire, rsize);
+		if (resp == NULL) {
+			knot_ns_error_response(nameserver, knot_packet_id(query),
+					      rcode, resp_wire, rsize);
+			rcu_read_unlock();
+			return KNOT_EOK;
+		}
+		knot_ns_error_response_full(nameserver, resp, rcode, resp_wire,
+		                            rsize);
+//		knot_ns_error_response(nameserver, knot_packet_id(query),
+//		                       rcode, resp_wire, rsize);
 	} else {
 		/*
 		 * Now we have zone. Verify TSIG if it is in the packet.
 		 */
+		assert(resp != NULL);
 		assert(rcode == KNOT_RCODE_NOERROR);
 		uint16_t tsig_rcode = 0;
 		knot_key_t *tsig_key_zone = NULL;
@@ -1996,6 +2065,9 @@ int zones_process_response(knot_nameserver_t *nameserver,
 	    response_wire == NULL) {
 		return KNOTD_EINVAL;
 	}
+	
+	/* Declare no response. */
+	*rsize = 0;
 
 	/* Handle SOA query response, cancel EXPIRE timer
 	 * and start AXFR transfer if needed.
@@ -2007,9 +2079,6 @@ int zones_process_response(knot_nameserver_t *nameserver,
 			/*! \todo Handle error response. */
 			return KNOTD_ERROR;
 		}
-
-		/* No response. */
-		*rsize = 0;
 
 		/* Find matching zone and ID. */
 		const knot_dname_t *zone_name = knot_packet_qname(packet);
@@ -2041,6 +2110,7 @@ int zones_process_response(knot_nameserver_t *nameserver,
 		dbg_zones_verb("xfrin_transfer_needed() returned %d\n", ret);
 		if (ret < 0) {
 			/* RETRY/EXPIRE timers running, do not interfere. */
+			rcu_read_unlock();
 			return KNOTD_ERROR;
 		}
 		
@@ -2074,7 +2144,8 @@ int zones_process_response(knot_nameserver_t *nameserver,
 		/* Prepare XFR client transfer. */
 		knot_ns_xfr_t xfr_req;
 		memset(&xfr_req, 0, sizeof(knot_ns_xfr_t));
-		memcpy(&xfr_req.addr, from, sizeof(sockaddr_t));
+		memcpy(&xfr_req.addr, &zd->xfr_in.master, sizeof(sockaddr_t));
+		memcpy(&xfr_req.saddr, &zd->xfr_in.via, sizeof(sockaddr_t));
 		xfr_req.zone = (void *)zone;
 		xfr_req.send = zones_send_cb;
 
@@ -2093,7 +2164,6 @@ int zones_process_response(knot_nameserver_t *nameserver,
 		return xfr_request(((server_t *)knot_ns_get_data(
 		                     nameserver))->xfr_h, &xfr_req);
 	}
-
 
 	return KNOTD_EOK;
 }
@@ -2194,6 +2264,7 @@ static int zones_dump_xfr_zone_text(knot_zone_contents_t *zone,
 	 *        until the zone_dump_text is called. Needs to be opened in
 	 *        this function for writing.
 	 *        Use open() for exclusive open and fcntl() for locking.
+	 *        (issue #1587)
 	 */
 
 	char *new_zonefile = zones_find_free_filename(zonefile);
@@ -2213,13 +2284,13 @@ static int zones_dump_xfr_zone_text(knot_zone_contents_t *zone,
 		return KNOTD_ERROR;
 	}
 
-	/*! \todo this would also need locking as well. */
+	/*! \todo this would also need locking as well (issue #1587) */
 	remove(zonefile); /* Don't care, as the rename will trigger the error. */
 	if (rename(new_zonefile, zonefile) != 0) {
 		log_zone_warning("Failed to replace old zone file '%s'' with a new"
 		                 " zone file '%s'.\n", zonefile, new_zonefile);
 		/*! \todo with proper locking, this shouldn't happen,
-		 *        revise it later on.
+		 *        revise it later on (issue #1587)
 		 */
 		zone_dump_text(zone, zonefile);
 		free(new_zonefile);
@@ -2243,6 +2314,7 @@ static int ns_dump_xfr_zone_binary(knot_zone_contents_t *zone,
 	 *        until the zone_dump_text is called. Needs to be opened in
 	 *        this function for writing.
 	 *        Use open() for exclusive open and fcntl() for locking.
+	 *        (issue #1587)
 	 */
 	char *new_zonedb = zones_find_free_filename(zonedb);
 
@@ -2253,7 +2325,7 @@ static int ns_dump_xfr_zone_binary(knot_zone_contents_t *zone,
 		return KNOTD_ERROR;	/*! \todo New error code? */
 	}
 
-	/*! \todo this would also need locking as well. */
+	/*! \todo this would also need locking as well (issue #1587) */
 	int rc = knot_zdump_dump_and_swap(zone, new_zonedb, zonedb, zonefile);
 	free(new_zonedb);
 
@@ -2306,6 +2378,9 @@ int zones_ns_conf_hook(const struct conf_t *conf, void *data)
 {
 	knot_nameserver_t *ns = (knot_nameserver_t *)data;
 	dbg_zones_verb("zones: reconfiguring name server.\n");
+	
+	/* Set NSID. */
+	knot_ns_set_nsid(ns, conf->nsid, conf->nsid_len);
 
 	knot_zonedb_t *old_db = 0;
 
@@ -2477,8 +2552,6 @@ int zones_store_changesets(knot_ns_xfr_t *xfr)
 	knot_zone_t *zone = xfr->zone;
 	knot_changesets_t *src = (knot_changesets_t *)xfr->data;
 	
-	/*! \todo Convert to binary format. */
-	
 	int ret = zones_changesets_to_binary(src);
 	if (ret != KNOTD_EOK) {
 		return ret;
@@ -2606,11 +2679,11 @@ int zones_xfr_load_changesets(knot_ns_xfr_t *xfr, uint32_t serial_from,
 int zones_apply_changesets(knot_ns_xfr_t *xfr) 
 {
 	if (xfr == NULL || xfr->zone == NULL || xfr->data == NULL) {
-		return KNOTD_EINVAL;
+		return KNOT_EBADARG;
 	}
 	
-	return xfrin_apply_changesets_to_zone(xfr->zone, 
-	                                      (knot_changesets_t *)xfr->data);
+	return xfrin_apply_changesets(xfr->zone,
+	                              (knot_changesets_t *)xfr->data);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2665,7 +2738,7 @@ int zones_timers_update(knot_zone_t *zone, conf_zone_t *cfzone, evsched_t *sch)
 	}
 
 	/* Schedule IXFR database syncing. */
-	/*! \todo Sync timer should not be reset after each xfr. */
+	/*! \todo Sync timer should not be reset after each xfr (issue #1348) */
 	int sync_timeout = cfzone->dbsync_timeout * 1000; /* Convert to ms. */
 	if (zd->ixfr_dbsync) {
 		evsched_cancel(sch, zd->ixfr_dbsync);
@@ -2702,9 +2775,15 @@ int zones_timers_update(knot_zone_t *zone, conf_zone_t *cfzone, evsched_t *sch)
 		}
 
 		/* Parse server address. */
+		sockaddr_init(&ev->saddr, -1);
 		int ret = sockaddr_set(&ev->addr, cfg_if->family,
 				       cfg_if->address,
 				       cfg_if->port);
+		conf_iface_t *via = cfg_if->via;
+		if (ret > 0 && via != NULL) {
+			ret = sockaddr_set(&ev->saddr, via->family,
+			                   via->address, 0);
+		}
 		if (ret < 1) {
 			free(ev);
 			dbg_zones("notify: NOTIFY slave %s has invalid "
@@ -2726,7 +2805,8 @@ int zones_timers_update(knot_zone_t *zone, conf_zone_t *cfzone, evsched_t *sch)
 		add_tail(&zd->notify_pending, &ev->n);
 		pthread_mutex_unlock(&zd->lock);
 
-		log_server_info("Scheduled NOTIFY query after %d s to %s:%d\n",
+		log_server_info("Scheduled '%s' NOTIFY query "
+				"after %d s to %s:%d\n", zd->conf->name,
 			    tmr_s, cfg_if->address, cfg_if->port);
 	}
 

@@ -21,6 +21,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#ifdef HAVE_CAP_NG_H
+#include <cap-ng.h>
+#endif /* HAVE_CAP_NG_H */
 
 #include "knot/common.h"
 #include "knot/server/dthreads.h"
@@ -120,9 +123,20 @@ static void *thread_ep(void *data)
 	sigaddset(&ignset, SIGINT);
 	sigaddset(&ignset, SIGTERM);
 	sigaddset(&ignset, SIGHUP);
-	pthread_sigmask(SIG_BLOCK, &ignset, 0); /*! \todo Review under BSD. */
+	sigaddset(&ignset, SIGPIPE);
+	pthread_sigmask(SIG_BLOCK, &ignset, 0); /*! \todo Review under BSD (issue #1441). */
 
 	dbg_dt("dthreads: [%p] entered ep\n", thread);
+	
+	/* Drop capabilities except FS access. */
+#ifdef HAVE_CAP_NG_H
+	if (capng_have_capability(CAPNG_EFFECTIVE, CAP_SETPCAP)) {
+		capng_type_t tp = CAPNG_EFFECTIVE|CAPNG_PERMITTED;
+		capng_clear(CAPNG_SELECT_BOTH);
+		capng_update(CAPNG_ADD, tp, CAP_DAC_OVERRIDE);
+		capng_apply(CAPNG_SELECT_BOTH);
+	}
+#endif /* HAVE_CAP_NG_H */
 
 	// Run loop
 	for (;;) {
@@ -176,7 +190,6 @@ static void *thread_ep(void *data)
 
 			// Wait for notification from unit
 			dbg_dt("dthreads: [%p] going idle\n", thread);
-			/*! \todo Check return value. */
 			pthread_cond_wait(&unit->_notify, &unit->_notify_mx);
 			pthread_mutex_unlock(&unit->_notify_mx);
 			dbg_dt("dthreads: [%p] resumed from idle\n", thread);
@@ -961,7 +974,7 @@ int dt_optimal_size()
 }
 
 /*!
- * \todo Use memory barriers or asynchronous read-only access, locking
+ * \note Use memory barriers or asynchronous read-only access, locking
  *       poses a thread performance decrease by 1.31%.
  */
 

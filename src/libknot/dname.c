@@ -408,8 +408,8 @@ knot_dname_t *knot_dname_new_from_str(const char *name, uint size,
 	dbg_dname("\n");
 
 	if (dname->size <= 0) {
-		fprintf(stderr, "Could not parse domain name "
-		        "from string: '%.*s'\n", size, name);
+		dbg_dname("Could not parse domain name "
+		          "from string: '%.*s'\n", size, name);
 	}
 	assert(dname->name != NULL);
 
@@ -491,6 +491,10 @@ knot_dname_t *knot_dname_parse_from_wire(const uint8_t *wire,
 	int pointer_used = 0;
 
 	while (p < size && wire[p] != 0) {
+		/* Check maximum number of labels (may overflow). */
+		if (l == KNOT_MAX_DNAME_LABELS) {
+			return NULL;
+		}
 		labels[l] = i;
 		dbg_dname("Next label (%d.) position: %zu\n", l, i);
 
@@ -508,7 +512,15 @@ knot_dname_t *knot_dname_parse_from_wire(const uint8_t *wire,
 		} else {
 			// label; first byte is label length
 			uint8_t length = *(wire + p);
-//			printf("Label, length: %u.\n", length);
+			/* Check label length (maximum 63 bytes allowed). */
+			if (length > 63) {
+				return NULL;
+			}
+			/* Check if there's enough space. */
+			if (i + length + 2 > KNOT_MAX_DNAME_LENGTH) {
+				return NULL;
+			}
+			//printf("Label %d (max %d), length: %u.\n", l, KNOT_MAX_DNAME_LABELS, length);
 			memcpy(name + i, wire + p, length + 1);
 			p += length + 1;
 			i += length + 1;
@@ -693,27 +705,20 @@ uint8_t knot_dname_size_part(const knot_dname_t *dname, int labels)
 
 /*----------------------------------------------------------------------------*/
 
-const struct knot_node *knot_dname_node(const knot_dname_t *dname,
-                                            int check_version)
+const struct knot_node *knot_dname_node(const knot_dname_t *dname)
 
 {
-	if (check_version) {
-		return knot_node_current(dname->node);
-	} else {
-		return dname->node;
-	}
+	return knot_dname_get_node(dname);
 }
 
 /*----------------------------------------------------------------------------*/
 
-struct knot_node *knot_dname_get_node(knot_dname_t *dname,
-                                          int check_version)
+struct knot_node *knot_dname_get_node(const knot_dname_t *dname)
 {
-	if (check_version) {
-		return knot_node_get_current(dname->node);
-	} else {
-		return dname->node;
+	if (dname == NULL) {
+		return NULL;
 	}
+	return dname->node;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -741,10 +746,42 @@ int knot_dname_is_fqdn(const knot_dname_t *dname)
 
 knot_dname_t *knot_dname_left_chop(const knot_dname_t *dname)
 {
+	if (dname == NULL ||
+		/* Root domain. */
+		((knot_dname_label_count(dname) == 0) &&
+		 (knot_dname_is_fqdn(dname)))) {
+		return NULL;
+	}
+	
 	knot_dname_t *parent = knot_dname_new();
 	if (parent == NULL) {
 		return NULL;
 	}
+	
+	// last label, the result should be root domain
+	if (dname->label_count == 1) {
+		dbg_dname_verb("Chopping last label.\n");
+		parent->label_count = 0;
+		
+		parent->name = (uint8_t *)malloc(1);
+		if (parent->name == NULL) {
+			ERR_ALLOC_FAILED;
+			knot_dname_free(&parent);
+			return NULL;
+		}
+		
+		*parent->name = 0;
+		
+		parent->size = 1;
+		
+		return parent;
+	}
+	
+//	if (dname->label_count <= 1) {
+//		/* Nothing to chop. */
+//		return NULL;
+//	}
+	
 
 	parent->size = dname->size - dname->name[0] - 1;
 	parent->name = (uint8_t *)malloc(parent->size);
@@ -763,6 +800,7 @@ knot_dname_t *knot_dname_left_chop(const knot_dname_t *dname)
 	}
 
 	memcpy(parent->name, &dname->name[dname->name[0] + 1], parent->size);
+	
 
 	short first_label_length = dname->labels[1];
 

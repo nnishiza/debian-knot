@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <openssl/evp.h>
 #include <assert.h>
+#include <grp.h>
 
 #include "knot/common.h"
 #include "knot/other/error.h"
@@ -152,12 +153,15 @@ static int server_init_iface(iface_t *new_if, conf_iface_t *cfg_if)
 	new_if->type[UDP_ID] = cfg_if->family;
 
 	/* Set socket options - voluntary. */
+	char ebuf[512];
 	if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &snd_opt, sizeof(snd_opt)) < 0) {
-	//	log_server_warning("Failed to configure socket "
-	//	                   "write buffers.\n");
+		strerror_r(errno, ebuf, sizeof(ebuf));	
+		log_server_warning("Failed to configure socket "
+		                   "write buffers: %s.\n", ebuf);
 	}
 	if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) < 0) {
-	//	log_server_warning("Failed to configure socket read buffers.\n");
+		strerror_r(errno, ebuf, sizeof(ebuf));	
+		log_server_warning("Failed to configure socket read buffers: %s.\n", ebuf);
 	}
 
 	/* Create TCP socket. */
@@ -207,7 +211,9 @@ static int server_init_iface(iface_t *new_if, conf_iface_t *cfg_if)
  */
 static int server_bind_sockets(server_t *server)
 {
-	/*! \todo This requires locking to disable parallel updates. */
+	/*! \todo This requires locking to disable parallel updates (issue #278).
+	 *  However, this is only used when RCU is read-locked, so count with that.
+	 */
 
 	/* Lock configuration. */
 	conf_read_lock();
@@ -455,7 +461,9 @@ iohandler_t *server_create_handler(server_t *server, int fd, dt_unit_t *unit)
 		}
 	}
 
-	/*! \todo This requires either RCU compatible ptr swap or locking. */
+	/*! \todo This requires locking to disable parallel updates (issue #278).
+	 *  However, this is only used when RCU is read-locked, so count with that.
+	 */
 
 	/* Lock RCU. */
 	rcu_read_lock();
@@ -479,7 +487,9 @@ int server_remove_handler(server_t *server, iohandler_t *h)
 	/* Lock RCU. */
 	rcu_read_lock();
 
-	/*! \todo This requires either RCU compatible ptr swap or locking. */
+	/*! \todo This requires locking to disable parallel updates (issue #278).
+	 *  However, this is only used when RCU is read-locked, so count with that.
+	 */
 
 	// Remove node
 	rem_node((node*)h);
@@ -687,23 +697,60 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 	if ((ret = server_bind_sockets(server)) < 0) {
 		log_server_error("Failed to bind configured "
 		                 "interfaces.\n");
-		return KNOTD_ERROR;
+	} else {
+		/* Update handlers. */
+		if ((ret = server_bind_handlers(server)) < 0) {
+			log_server_error("Failed to create handlers for "
+			                 "configured interfaces.\n");
+		}
+	}
+	
+	/* Lock configuration. */
+	conf_read_lock();
+	int priv_failed = 0;
+	
+#ifdef HAVE_SETGROUPS
+	/* Drop supplementary groups. */
+	if (conf->gid > -1 || conf->uid > -1) {
+		ret = setgroups(0, NULL);
+		
+		/* Collect results. */
+		if (ret < 0) {
+			log_server_error("Failed to set supplementary groups "
+			                 "for uid=%d %s\n",
+			                 getuid(), strerror(errno));
+			priv_failed = 1;
+		}
+	}
+#endif
+	
+	/* Watch uid/gid. */
+	if (conf->gid > -1 && conf->gid != getgid()) {
+		log_server_info("Changing group id to %d.\n", conf->gid);
+		if (setregid(conf->gid, conf->gid) < 0) {
+			log_server_error("Failed to change gid to %d.\n",
+			                 conf->gid);
+			priv_failed = 1;
+		}
+	}
+	if (conf->uid > -1 && conf->uid != getuid()) {
+		log_server_info("Changing user id to %d.\n", conf->uid);
+		if (setreuid(conf->uid, conf->uid) < 0) {
+			log_server_error("Failed to change uid to %d.\n",
+			                 conf->uid);
+			priv_failed = 1;
+		}
 	}
 
-	/* Update handlers. */
-	if ((ret = server_bind_handlers(server)) < 0) {
-		log_server_error("Failed to create handlers for "
-		                 "configured interfaces.\n");
-		return ret;
+	if (priv_failed) {
+		ret = KNOTD_EACCES;
 	}
 
 	/* Exit if the server is not running. */
-	if (!(server->state & ServerRunning)) {
+	if (ret != KNOTD_EOK || !(server->state & ServerRunning)) {
+		conf_read_unlock();
 		return KNOTD_ENOTRUNNING;
 	}
-
-	/* Lock configuration. */
-	conf_read_lock();
 
 	/* Start new handlers. */
 	iohandler_t *h = 0;
