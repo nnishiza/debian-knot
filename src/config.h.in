@@ -210,6 +210,33 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
+/* Server debug. */
+#undef KNOTD_SERVER_DEBUG
+
+/* Zone compiler debug. */
+#undef KNOT_COMPILER_DEBUG
+
+/* Domain names debug. */
+#undef KNOT_DNAME_DEBUG
+
+/* Hashtable debug. */
+#undef KNOT_HASH_DEBUG
+
+/* Nameserver debug. */
+#undef KNOT_NS_DEBUG
+
+/* Packet debug. */
+#undef KNOT_PACKET_DEBUG
+
+/* RR debug. */
+#undef KNOT_RR_DEBUG
+
+/* XFR debug. */
+#undef KNOT_XFR_DEBUG
+
+/* Zones debug. */
+#undef KNOT_ZONES_DEBUG
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
