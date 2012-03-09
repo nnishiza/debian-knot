@@ -1,3 +1,13 @@
+knot (1.0.1-1) unstable; urgency=low
+
+  * Imported Upstream version 1.0.1
+   - Implemented jitter to REFRESH/RETRY timers
+   - Fixed problem with creating IXFR journal for bootstrapped zone
+   - Fixed race condition in processing NOTIFY/SOA queries
+   - Fixed improper assignment of TSIG algorithm type
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 09 Mar 2012 20:18:37 +0100
+
 knot (1.0.0-1) unstable; urgency=low
 
   * Imported Upstream version 1.0.0
