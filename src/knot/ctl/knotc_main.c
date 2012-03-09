@@ -91,7 +91,22 @@ int check_zone(const char *db, const char* source)
 	/* Check zonefile. */
 	struct stat st;
 	if (stat(source, &st) != 0) {
-		fprintf(stderr, "Zone file '%s' doesn't exist.\n", source);
+		int reason = errno;
+		const char *emsg = "";
+		switch(reason) {
+		case EACCES:
+			emsg = "Not enough permissions to access zone file '%s'.\n";
+			break;
+		case ENOENT:
+			emsg = "Zone file '%s' doesn't exist.\n";
+			break;
+		default:
+			emsg = "Unable to stat zone file '%s'.\n";
+			break;
+		}
+		
+		fprintf(stderr, "error: ");
+		fprintf(stderr, emsg, source);
 		return KNOTD_ENOENT;
 	}
 
@@ -546,7 +561,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 		
 		/* Wait for all running tasks. */
 		while (running > 0) {
-			zctask_wait(tasks, jobs);
+			rc |= zctask_wait(tasks, jobs);
 			--running;
 		}
 		free(tasks);
