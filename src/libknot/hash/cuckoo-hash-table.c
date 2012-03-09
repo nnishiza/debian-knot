@@ -343,14 +343,14 @@ static inline void ck_put_item(ck_hash_table_item_t **to,
 static uint ck_check_used_twice(da_array_t *used, uint32_t hash)
 {
 	uint i = 0, found = 0;
-	while (i <= da_get_count(used) && found < 2) {
-		++i;
+	while (i < da_get_count(used) && found < 2) {
 		if (((uint *)(da_get_items(used)))[i] == hash) {
 			++found;
 		}
+		++i;
 	}
 
-	if (i <= da_get_count(used) && found == 2) {
+	if (found == 2) {
 		dbg_ck_hash("Hashing entered infinite loop.\n");
 		return -1;
 	} else {
@@ -412,10 +412,6 @@ static ck_hash_table_item_t **ck_find_in_stash(const ck_hash_table_t *table,
 {
 	ck_stash_item_t *item = table->stash;
 	while (item != NULL) {
-		dbg_ck("Comparing item in stash (key: %.*s (size %zu))"
-		         "with searched item (key %.*s (size %u)).\n",
-		         (int)item->item->key_length, item->item->key,
-		         item->item->key_length, (int)length, key, length);
 		/*! \todo Can the item be NULL?
 		 *        Sometimes it crashed on assert in ck_items_match(),
 		 *        But I'm not sure if this may happen or if the
@@ -423,6 +419,11 @@ static ck_hash_table_item_t **ck_find_in_stash(const ck_hash_table_t *table,
 		 *        non-NULL.
 		 */
 		if (item->item && ck_items_match(item->item, key, length)) {
+			dbg_ck("Comparing item in stash (key: %.*s (size %zu))"
+			         "with searched item (key %.*s (size %u)).\n",
+			         (int)item->item->key_length, item->item->key,
+			         item->item->key_length, (int)length, key,
+			         length);
 			return &item->item;
 		}
 		item = item->next;
