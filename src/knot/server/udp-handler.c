@@ -72,7 +72,7 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 #ifdef DEBUG_ENABLE_BRIEF
 	char strfrom[SOCKADDR_STRLEN];
 	sockaddr_tostr(addr, strfrom, sizeof(strfrom));
-	dbg_net("udp: fd=%d received %zd bytes from %s:%d.\n", fd, qbuflen,
+	dbg_net("udp: fd=%d received %zd bytes from '%s@%d'.\n", fd, qbuflen,
 	        strfrom, sockaddr_portnum(addr));
 #endif
 	
@@ -458,8 +458,8 @@ void __attribute__ ((constructor)) udp_master_init()
 	}
 	
 	/* Check for sendmmsg() support. */
-#ifdef ENABLE_SENDMMSG
 	_send_mmsg = udp_sendto;
+#ifdef ENABLE_SENDMMSG
 	sendmmsg(0, 0, 0, 0); /* Just check if syscall exists */
 	if (errno != ENOSYS) {
 		_send_mmsg = udp_sendmmsg;
