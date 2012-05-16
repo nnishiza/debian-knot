@@ -1,3 +1,17 @@
+knot (1.0.4-1) unstable; urgency=low
+
+  * Imported Upstream version 1.0.4
+   - Speed-up loading of many zones due parallelization
+   - Support for TLSA resource record (Type 52)
+   - New commands knotc checkzone and knotc refresh (forced update)
+   - Fixed responses to CNAME queries if the canonical name was also
+     an alias
+   - Fixed crash when NS or MX points to an alias
+   - Fixed crash when bootstraping/compiling a lot of zones
+   - Significant speed-up and memory usage reduction of IXFR-in
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 16 May 2012 09:33:26 +0200
+
 knot (1.0.3-1) unstable; urgency=low
 
   * Imported Upstream version 1.0.3
