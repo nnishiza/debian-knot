@@ -80,8 +80,8 @@ libknots_la_DEPENDENCIES = @LIBOBJS@
 am_libknots_la_OBJECTS = slab.lo tap.lo mempattern.lo lists.lo \
 	base32.lo print.lo dynamic-array.lo skip-list.lo base32hex.lo \
 	general-tree.lo evqueue.lo evsched.lo acl.lo sockaddr.lo \
-	crc.lo ref.lo errors.lo dSFMT.lo prng.lo fdset.lo \
-	fdset_poll.lo fdset_kqueue.lo fdset_epoll.lo log.lo
+	ref.lo errors.lo dSFMT.lo prng.lo fdset.lo fdset_poll.lo \
+	fdset_kqueue.lo fdset_epoll.lo log.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(man8dir)"
@@ -570,7 +570,6 @@ libknots_la_SOURCES = \
 	common/sockaddr.h			\
 	common/sockaddr.c			\
 	common/crc.h				\
-	common/crc.c				\
 	common/ref.h				\
 	common/ref.c				\
 	common/errors.h				\
@@ -849,7 +848,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conv.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/crc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo-hash-table.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dSFMT.Plo@am__quote@
@@ -1419,13 +1417,6 @@ sockaddr.lo: common/sockaddr.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/sockaddr.c' object='sockaddr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o sockaddr.lo `test -f 'common/sockaddr.c' || echo '$(srcdir)/'`common/sockaddr.c
-
-crc.lo: common/crc.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT crc.lo -MD -MP -MF $(DEPDIR)/crc.Tpo -c -o crc.lo `test -f 'common/crc.c' || echo '$(srcdir)/'`common/crc.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/crc.Tpo $(DEPDIR)/crc.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/crc.c' object='crc.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o crc.lo `test -f 'common/crc.c' || echo '$(srcdir)/'`common/crc.c
 
 ref.lo: common/ref.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ref.lo -MD -MP -MF $(DEPDIR)/ref.Tpo -c -o ref.lo `test -f 'common/ref.c' || echo '$(srcdir)/'`common/ref.c

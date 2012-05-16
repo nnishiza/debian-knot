@@ -105,6 +105,9 @@
 /* Define to 1 if you have the `pselect' function. */
 #undef HAVE_PSELECT
 
+/* Define to 1 if you have the `pthread_setaffinity_np' function. */
+#undef HAVE_PTHREAD_SETAFFINITY_NP
+
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
 
