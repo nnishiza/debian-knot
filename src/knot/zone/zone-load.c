@@ -260,9 +260,15 @@ static knot_rdata_t *knot_load_rdata(uint16_t type, FILE *f,
 
 	knot_rdata_item_t *items =
 		malloc(sizeof(knot_rdata_item_t) * rdata_count);
+	if (items == NULL) {
+		ERR_ALLOC_FAILED;
+		free(items);
+		return NULL;
+	}
 
-	if (desc->fixed_items) {
-		assert(desc->length == rdata_count);
+	if (rdata_count > desc->length) {
+		dbg_zload("zload: load_rdata: Read wrong count of RDATA.\n");
+		return NULL;
 	}
 
 	uint16_t raw_data_length = 0;
@@ -347,8 +353,8 @@ static knot_rdata_t *knot_load_rdata(uint16_t type, FILE *f,
 			}
 			
 			/*!< \todo this is not proper fix, see #1678 */
-			items[i].raw_data = (uint16_t *)
-				malloc(sizeof(uint8_t) * (raw_data_length + 2));
+			items[i].raw_data =
+				malloc(raw_data_length + 2);
 			if (items[i].raw_data == NULL) {
 				ERR_ALLOC_FAILED;
 				load_rdata_purge(rdata, items, i + 1, desc,
@@ -908,16 +914,7 @@ int knot_zload_open(zloader_t **dst, const char *filename)
 	/* Free some value and close the CRC file */
 	free(crc_path);
 	close(f_crc);
-
-	/* Compare calculated and read CRCs. */
-	if (crc_from_file != crc_calculated) {
-		dbg_zload("knot_zload_open: CRC failed for "
-		                   "file '%s'\n",
-		                   filename);
-		fclose(f);
-		return KNOT_ECRC;
-	}
-
+	
 	/* Check magic sequence. */
 	static const uint8_t MAGIC[MAGIC_LENGTH] = MAGIC_BYTES;
 	if (!knot_check_magic(f, MAGIC, MAGIC_LENGTH)) {
@@ -927,6 +924,15 @@ int knot_zload_open(zloader_t **dst, const char *filename)
 			 "(%s)\n",
 			 (int)MAGIC_LENGTH, (const char*)MAGIC, filename);
 		return KNOT_EMALF; // Illegal byte sequence (POSIX.1, C99)
+	}
+
+	/* Compare calculated and read CRCs. */
+	if (crc_from_file != crc_calculated) {
+		dbg_zload("knot_zload_open: CRC failed for "
+		                   "file '%s'\n",
+		                   filename);
+		fclose(f);
+		return KNOT_ECRC;
 	}
 
 	/* Read source file length. */
