@@ -1,3 +1,11 @@
+knot (1.0.6-1) unstable; urgency=low
+
+  * Imported Upstream version 1.0.6
+   - Add NSEC/NSEC3 for all wildcard CNAMEs in the response.
+   - Fixed potential problems with RCU synchronization.
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 13 Jun 2012 15:31:52 +0200
+
 knot (1.0.5-1) unstable; urgency=low
 
   * Imported Upstream version 1.0.5
