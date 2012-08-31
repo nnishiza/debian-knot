@@ -1,3 +1,20 @@
+knot (1.1.0-1) unstable; urgency=low
+
+  * Imported Upstream version 1.1.0
+   - User manual now available.
+   - Optionally disable ANY queries for authoritative answers.
+   - Dropping identical records in zone and incoming transfers.
+   - Support for '/' in zone names.
+   - Generating journal from reloaded zone (EXPERIMENTAL).
+   - Outgoing-only interfaces in configuration file.
+   - Following DNAME if the synthetized name is in the same zone.
+   - IXFR-in optimized.
+   - Many zones loading optimized.
+   - Signing SOA with TSIG queries when checking zone version with master.
+  * Enable maintainer mode to generate version.texi as a workaround.
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 31 Aug 2012 16:27:07 +0200
+
 knot (1.0.6-1) unstable; urgency=low
 
   * Imported Upstream version 1.0.6
