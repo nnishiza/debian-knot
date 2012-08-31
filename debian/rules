@@ -15,7 +15,8 @@
 override_dh_auto_configure:
 	dh_auto_configure -- \
 	  --sysconfdir=/etc/knot \
-	  --localstatedir /var/lib
+	  --localstatedir /var/lib \
+	  --enable-maintainer-mode
 
 override_dh_strip:
 	dh_strip --dbg-package=knot-dbg
