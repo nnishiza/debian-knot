@@ -105,7 +105,6 @@ void knot_rrset_dump(const knot_rrset_t *rrset, char loaded_zone)
 		return;
 	}
 
-	fprintf(stderr, "  rdata count: %d\n", rrset->rdata->count);
 	knot_rdata_t *tmp = rrset->rdata;
 	
 	while (tmp->next != rrset->rdata && tmp->next != NULL) {
@@ -133,11 +132,6 @@ void knot_node_dump(knot_node_t *node, void *loaded_zone)
 	hex_print((char *)node->owner->labels, node->owner->label_count);
 	fprintf(stderr, "node: %p\n", node);
 	fprintf(stderr, "node (in node's owner): %p\n", node->owner->node);
-	if (loaded_zone && node->prev != NULL) {
-		name = knot_dname_to_str(node->prev->owner);
-		fprintf(stderr, "previous node: %s\n", name);
-		free(name);
-	}
 
 	if (knot_node_is_deleg_point(node)) {
 		fprintf(stderr, "delegation point\n");
@@ -197,6 +191,8 @@ void knot_node_dump(knot_node_t *node, void *loaded_zone)
 	} else {
 		fprintf(stderr, "none\n");
 	}
+	
+	fprintf(stderr, "Zone: %p\n", node->zone);
 
 	fprintf(stderr, "RRSet count: %d\n", node->rrset_count);
 

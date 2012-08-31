@@ -5,7 +5,7 @@
  *
  * \brief XFR client API.
  *
- * \addtogroup query_processing
+ * \addtogroup xfr
  * @{
  */
 /*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
@@ -188,9 +188,6 @@ int xfrin_apply_changesets(knot_zone_t *zone,
 int xfrin_switch_zone(knot_zone_t *zone,
                       knot_zone_contents_t *new_contents,
                       int deep_free);
-
-//void xfrin_cleanup_failed_update(knot_zone_contents_t *old_contents,
-//                                 knot_zone_contents_t **new_contents);
 
 void xfrin_cleanup_successful_update(knot_changes_t **changes);
 

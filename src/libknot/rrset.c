@@ -32,7 +32,7 @@
 /*----------------------------------------------------------------------------*/
 
 static void knot_rrset_disconnect_rdata(knot_rrset_t *rrset,
-                                    knot_rdata_t *prev, knot_rdata_t *rdata)
+                                        knot_rdata_t *prev, knot_rdata_t *rdata)
 {
 	if (prev == NULL) {
 		// find the previous RDATA in the series, as its pointer must
@@ -113,6 +113,53 @@ int knot_rrset_add_rdata(knot_rrset_t *rrset, knot_rdata_t *rdata)
 
 /*----------------------------------------------------------------------------*/
 
+int knot_rrset_add_rdata_order(knot_rrset_t *rrset, knot_rdata_t *rdata)
+{
+	if (rrset == NULL || rdata == NULL) {
+		dbg_rrset("rrset: add_rdata_order: NULL arguments.\n");
+		return KNOT_EBADARG;
+	}
+	
+	if (rrset->rdata == NULL) {
+		/* Easy peasy, just insert the first item. */
+		rrset->rdata = rdata;
+		rrset->rdata->next = rrset->rdata;
+	} else {
+		knot_rdata_t *walk = NULL;
+		char found = 0;
+		knot_rdata_t *insert_after = rrset->rdata;
+		while (((walk = knot_rrset_rdata_get_next(rrset,
+		                                          walk)) != NULL) && 
+		       (!found)) {
+			const knot_rrtype_descriptor_t *desc =
+				knot_rrtype_descriptor_by_type(rrset->type);
+			assert(desc);
+			int cmp = knot_rdata_compare(rdata, walk,
+			                             desc->wireformat);
+			if (cmp < 1) {
+				/* We've found place for this item. */
+			} else if (cmp == 0) {
+				/* This item will not be inserted. */
+				found = 1;
+				insert_after = NULL;
+			}
+			assert(cmp > 1);
+			/* Continue the search. */
+			insert_after = walk;
+		}
+		if (insert_after != NULL) {
+			rdata->next = insert_after->next;
+			insert_after->next = rdata;
+		} else {
+			;
+			/* Consider returning something different than EOK. */
+		}
+	}
+	return KNOT_EOK;
+}
+
+/*----------------------------------------------------------------------------*/
+
 knot_rdata_t *knot_rrset_remove_rdata(knot_rrset_t *rrset,
                                           const knot_rdata_t *rdata)
 {
@@ -167,19 +214,30 @@ int knot_rrset_add_rrsigs(knot_rrset_t *rrset, knot_rrset_t *rrsigs,
 	int rc;
 	if (rrset->rrsigs != NULL) {
 		if (dupl == KNOT_RRSET_DUPL_MERGE) {
-			rc = knot_rrset_merge((void **)&rrset->rrsigs,
-			                        (void **)&rrsigs);
+			rc = knot_rrset_merge_no_dupl((void **)&rrset->rrsigs,
+			                              (void **)&rrsigs);
 			if (rc != KNOT_EOK) {
 				return rc;
 			} else {
 				return 1;
 			}
 		} else if (dupl == KNOT_RRSET_DUPL_SKIP) {
+//			rc = knot_rrset_merge_no_dupl((void **)&rrset->rrsigs,
+//			                              (void **)&rrsigs);
+//			if (rc != KNOT_EOK) {
+//				return rc;
+//			} else {
+//				return 1;
+//			}
 			return 2;
 		} else if (dupl == KNOT_RRSET_DUPL_REPLACE) {
 			rrset->rrsigs = rrsigs;
 		}
 	} else {
+		if (rrset->ttl != rrsigs->ttl) {
+			rrsigs->ttl = rrset->ttl;
+		}
+		
 		rrset->rrsigs = rrsigs;
 	}
 
@@ -291,6 +349,10 @@ knot_rdata_t *knot_rrset_rdata_get_next(knot_rrset_t *rrset,
 
 int knot_rrset_rdata_rr_count(const knot_rrset_t *rrset)
 {
+	if (rrset == NULL) {
+		return 0;
+	}
+
 	int count = 0;
 	const knot_rdata_t *rdata = rrset->rdata;
 	
@@ -341,7 +403,7 @@ int knot_rrset_compare_rdata(const knot_rrset_t *r1, const knot_rrset_t *r2)
 	}
 
 	// compare RDATA sets (order is not significant)
-	const knot_rdata_t *rdata1= knot_rrset_rdata(r1);
+	const knot_rdata_t *rdata1 = knot_rrset_rdata(r1);
 	const knot_rdata_t *rdata2;
 
 	// find all RDATA from r1 in r2
@@ -434,7 +496,6 @@ static int knot_rrset_rr_to_wire(const knot_rrset_t *rrset,
 	*pos += 2;
 
 	size += 10;
-//	compr->wire_pos += size;
 	
 	dbg_rrset_detail("Max size: %zu, size: %d\n", max_size, size);
 
@@ -465,7 +526,6 @@ static int knot_rrset_rr_to_wire(const knot_rrset_t *rrset,
 			                 knot_dname_size(dname));
 			*pos += knot_dname_size(dname);
 			rdlength += knot_dname_size(dname);
-//			compr->wire_pos += dname->size;
 			break;
 		}
 		default: {
@@ -481,7 +541,6 @@ static int knot_rrset_rr_to_wire(const knot_rrset_t *rrset,
 			dbg_rrset_detail("Raw data size: %d\n", raw_data[0]);
 			*pos += raw_data[0];
 			rdlength += raw_data[0];
-//			compr->wire_pos += raw_data[0];
 			break;
 		}
 		}
@@ -523,11 +582,11 @@ int knot_rrset_to_wire(const knot_rrset_t *rrset, uint8_t *wire, size_t *size,
 		if (ret < 0) {
 			// some RR didn't fit in, so no RRs should be used
 			// TODO: remove last entries from compression table
-			dbg_rrset_detail("Some RR didn't fit in.\n");
+			dbg_rrset_verb("Some RR didn't fit in.\n");
 			return KNOT_ESPACE;
 		}
 
-		dbg_rrset_detail("RR of size %d added.\n", ret);
+		dbg_rrset_verb("RR of size %d added.\n", ret);
 		rrset_size += ret;
 		++rrs;
 	} while ((rdata = knot_rrset_rdata_next(rrset, rdata)) != NULL);
@@ -556,7 +615,7 @@ int knot_rrset_compare(const knot_rrset_t *r1,
 
 	int res = ((r1->rclass == r2->rclass)
 	           && (r1->type == r2->type)
-	           && (r1->ttl == r2->ttl)
+//	           && (r1->ttl == r2->ttl)
 	           && knot_dname_compare(r1->owner, r2->owner) == 0);
 
 	if (cmp == KNOT_RRSET_COMPARE_WHOLE && res) {
@@ -571,7 +630,8 @@ int knot_rrset_compare(const knot_rrset_t *r1,
 
 /*----------------------------------------------------------------------------*/
 
-int knot_rrset_deep_copy(const knot_rrset_t *from, knot_rrset_t **to)
+int knot_rrset_deep_copy(const knot_rrset_t *from, knot_rrset_t **to,
+                         int copy_rdata_dnames)
 {
 	if (from == NULL || to == NULL) {
 		return KNOT_EBADARG;
@@ -582,14 +642,14 @@ int knot_rrset_deep_copy(const knot_rrset_t *from, knot_rrset_t **to)
 	*to = (knot_rrset_t *)calloc(1, sizeof(knot_rrset_t));
 	CHECK_ALLOC_LOG(*to, KNOT_ENOMEM);
 
-	//(*to)->owner = knot_dname_deep_copy(from->owner);
 	(*to)->owner = from->owner;
 	knot_dname_retain((*to)->owner);
 	(*to)->rclass = from->rclass;
 	(*to)->ttl = from->ttl;
 	(*to)->type = from->type;
 	if (from->rrsigs != NULL) {
-		ret = knot_rrset_deep_copy(from->rrsigs, &(*to)->rrsigs);
+		ret = knot_rrset_deep_copy(from->rrsigs, &(*to)->rrsigs,
+		                           copy_rdata_dnames);
 		if (ret != KNOT_EOK) {
 			knot_rrset_deep_free(to, 1, 0, 0);
 			return ret;
@@ -601,8 +661,19 @@ int knot_rrset_deep_copy(const knot_rrset_t *from, knot_rrset_t **to)
 
 	/*! \note Order of RDATA will be reversed. */
 	while (rdata != NULL) {
-		ret = knot_rrset_add_rdata(*to, knot_rdata_deep_copy(rdata,
-		                           knot_rrset_type(from), 1));
+		knot_rdata_t *rdata_copy = knot_rdata_deep_copy(rdata,
+		                                      knot_rrset_type(from), 
+		                                      copy_rdata_dnames);
+dbg_rrset_exec_detail(
+		char *name = knot_dname_to_str(knot_rrset_owner(from));
+		dbg_rrset_detail("Copying RDATA from RRSet with owner: %s, type"
+		                 ": %s. Old RDATA ptr: %p, new RDATA ptr: %p\n",
+		                 name,
+		                 knot_rrtype_to_string(knot_rrset_type(from)),
+		                 rdata, rdata_copy);
+		free(name);
+);
+		ret = knot_rrset_add_rdata(*to, rdata_copy);
 		if (ret != KNOT_EOK) {
 			knot_rrset_deep_free(to, 1, 1, 1);
 			return ret;
@@ -632,6 +703,7 @@ int knot_rrset_shallow_copy(const knot_rrset_t *from, knot_rrset_t **to)
 
 void knot_rrset_rotate(knot_rrset_t *rrset)
 {
+	/*! \todo Maybe implement properly one day. */
 	//rrset->rdata = rrset->rdata->next;
 }
 
@@ -659,12 +731,6 @@ void knot_rrset_deep_free(knot_rrset_t **rrset, int free_owner,
 		return;
 	}
 
-//	char *name = knot_dname_to_str(knot_rrset_owner(*rrset));
-//	char *type = knot_rrtype_to_string(knot_rrset_type(*rrset));
-//	fprintf(stderr, "Deleting RRSet (%p) %s, type %s, rdata: %p\n",
-//	        *rrset, name, type, (*rrset)->rdata);
-//	free(name);
-
 	if (free_rdata) {
 		knot_rdata_t *tmp_rdata;
 		knot_rdata_t *next_rdata;
@@ -679,7 +745,6 @@ void knot_rrset_deep_free(knot_rrset_t **rrset, int free_owner,
 			tmp_rdata = next_rdata;
 		}
 
-//		printf("test: %p\n", tmp_rdata->next->next);
 		assert(tmp_rdata == NULL
 		       || tmp_rdata->next == (*rrset)->rdata);
 
@@ -693,10 +758,7 @@ void knot_rrset_deep_free(knot_rrset_t **rrset, int free_owner,
 		                       free_rdata_dnames);
 	}
 
-	/*! \todo Release owner every time? */
-	//if (free_owner) {
-		knot_dname_release((*rrset)->owner);
-	//}
+	knot_dname_release((*rrset)->owner);
 
 	free(*rrset);
 	*rrset = NULL;
@@ -711,8 +773,7 @@ int knot_rrset_merge(void **r1, void **r2)
 
 	if ((knot_dname_compare(rrset1->owner, rrset2->owner) != 0)
 	    || rrset1->rclass != rrset2->rclass
-	    || rrset1->type != rrset2->type
-	    || rrset1->ttl != rrset2->ttl) {
+	    || rrset1->type != rrset2->type) {
 		return KNOT_EBADARG;
 	}
 
@@ -744,6 +805,155 @@ int knot_rrset_merge(void **r1, void **r2)
 	}
 
 	tmp_rdata->next = rrset1->rdata;
+	rrset2->rdata = rrset1->rdata;
+
+	return KNOT_EOK;
+}
+
+int knot_rrset_merge_no_dupl(void **r1, void **r2)
+{
+	if (r1 == NULL || r2 == NULL) {
+		dbg_rrset("rrset: merge_no_dupl: NULL arguments.");
+		return KNOT_EBADARG;
+	}
+	
+	knot_rrset_t *rrset1 = (knot_rrset_t *)(*r1);
+	knot_rrset_t *rrset2 = (knot_rrset_t *)(*r2);
+	if (rrset1 == NULL || rrset2 == NULL) {
+		dbg_rrset("rrset: merge_no_dupl: NULL arguments.");
+		return KNOT_EBADARG;
+	}
+
+dbg_rrset_exec_detail(
+	char *name = knot_dname_to_str(rrset1->owner);
+	dbg_rrset_detail("rrset: merge_no_dupl: Merging %s.\n", name);
+	free(name);
+);
+
+	if ((knot_dname_compare(rrset1->owner, rrset2->owner) != 0)
+	    || rrset1->rclass != rrset2->rclass
+	    || rrset1->type != rrset2->type) {
+		dbg_rrset("rrset: merge_no_dupl: Trying to merge "
+		          "different RRs.\n");
+		return KNOT_EBADARG;
+	}
+
+	knot_rdata_t *walk2 = rrset2->rdata;
+
+	// no RDATA in RRSet 1
+	if (rrset1->rdata == NULL && rrset2->rdata != NULL) {
+		/*
+		 * This function has to assure that there are no duplicates in 
+		 * second RRSet's list. This can be done by putting a first 
+		 * item from the second list as a first item of the first list
+		 * and then simply continuing with inserting items from second
+		 * list to the first one.
+		 *
+		 * However, we must store pointer to second item in the second
+		 * list, as the 'next' pointer of the first item will be altered
+		 */
+
+		// Store pointer to the second item in RRSet2 RDATA so that
+		// we later start from this item.
+		walk2 = knot_rrset_rdata_get_next(rrset2, walk2);
+		assert(walk2 == rrset2->rdata->next || walk2 == NULL);
+
+		// Connect the first item from second list to the first list.
+		rrset1->rdata = rrset2->rdata;
+		// Close the cyclic list (by pointing to itself).
+		rrset1->rdata->next = rrset1->rdata;
+	} else if (rrset2->rdata == NULL) {
+		return KNOT_EOK;
+	}
+	
+	/*
+	 * Check that rrset1 does not contain any rdata from rrset2, if so
+	 * such RDATA shall not be inserted. 
+	 */
+	
+	/* Get last RDATA from first rrset, we'll need it for insertion. */
+	knot_rdata_t *insert_after = rrset1->rdata;
+	while (insert_after->next != rrset1->rdata) {
+		dbg_rrset_detail("rrset: merge_dupl: first rrset rdata: %p.\n",
+		                 insert_after);
+		insert_after = insert_after->next;
+	}
+	assert(insert_after->next == rrset1->rdata);
+
+	while (walk2 != NULL) {
+		knot_rdata_t *walk1 = rrset1->rdata;
+		char dupl = 0;
+		while ((walk1 != NULL) &&
+		       !dupl) {
+			const knot_rrtype_descriptor_t *desc =
+				knot_rrtype_descriptor_by_type(rrset1->type);
+			assert(desc);
+			/* If walk1 and walk2 are equal, do not insert. */
+			dupl = !knot_rdata_compare(walk1, walk2,
+			                           desc->wireformat);
+			walk1 = knot_rrset_rdata_get_next(rrset1, walk1);
+			dbg_rrset_detail("rrset: merge_dupl: next item: %p.\n",
+			                 walk1);
+		}
+		if (!dupl) {
+			dbg_rrset_detail("rrset: merge_dupl: Inserting "
+			                 "unique item (%p).\n",
+			                 walk2);
+			knot_rdata_t *tmp = walk2;
+			/*
+			 * We need to move this, insertion
+			 * will corrupt pointers.
+			 */
+			walk2 = knot_rrset_rdata_get_next(rrset2, walk2);
+			/* Insert this item at the end of first list. */
+			tmp->next = insert_after->next;
+			insert_after->next = tmp;
+			insert_after = tmp;
+			/*!< \todo This message has to be removed after bugfix. */
+			dbg_rrset_detail("rrset: merge_no_dupl: Insert after=%p"
+			                 ", tmp=%p, tmp->next=%p, "
+			                 " rrset1->rdata=%p"
+			                 "\n",
+			                 insert_after, tmp, tmp->next,
+			                 rrset1->rdata);
+			assert(tmp->next == rrset1->rdata);
+		} else {
+			dbg_rrset_detail("rrset: merge_dupl: Skipping and "
+			                 "freeing duplicated item "
+			                 "of type: %s (%p).\n",
+			                 knot_rrtype_to_string(rrset1->type),
+			                 walk2);
+			/* 
+			 * Not freeing this item will result in a leak. 
+			 * Since this operation destroys the second 
+			 * list, we have to free the item here.
+			 */
+			knot_rdata_t *tmp = walk2;
+			dbg_rrset_detail("rrset: merge_dupl: freeing: %p.\n",
+			                 tmp);
+			walk2 = knot_rrset_rdata_get_next(rrset2, walk2);
+			knot_rdata_deep_free(&tmp, rrset1->type, 1);
+			assert(tmp == NULL);
+			/* Maybe caller should be warned about this. */
+		}
+	}
+	
+	assert(walk2 == NULL);
+dbg_rrset_exec_detail(
+	dbg_rrset_detail("rrset: merge_dupl: RDATA after merge:\n ");
+	knot_rdata_t *walk1 = rrset1->rdata;
+	while (walk1 != NULL) {
+		dbg_rrset_detail("%p ->\n", walk1);
+		walk1 = knot_rrset_rdata_get_next(rrset1, walk1);
+	}
+	dbg_rrset_detail("rrset: merge_dupl: RDATA after merge: r1:%p r2: %p\n",
+	                 rrset1->rdata, rrset2->rdata);
+);
+	/*
+	 * Since there is a possibility of corrupted list for second RRSet, it
+	 * is safer to set its list to NULL, so that it cannot be used.
+	 */
+	rrset2->rdata = NULL;
 
 	return KNOT_EOK;
 }

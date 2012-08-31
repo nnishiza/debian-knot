@@ -42,6 +42,7 @@
 #include "zcompile/parser-util.h"
 #include "zcompile/zcompile-error.h"
 #include "knot/zone/zone-dump.h"
+#include "libknot/zone/zone-diff.h"
 #include "libknot/libknot.h"
 #include "libknot/util/utils.h"
 
@@ -111,69 +112,6 @@ static void rrset_list_delete(rrset_list_t **head)
 	dbg_zp("zp: list_delete: List deleleted.\n");
 }
 
-static int find_rrset_for_rrsig_in_zone(knot_zone_contents_t *zone,
-                                        knot_rrset_t *rrsig)
-{
-	assert(rrsig != NULL);
-	assert(rrsig->rdata->items[0].raw_data);
-
-	knot_node_t *tmp_node = NULL;
-
-	if (knot_rdata_rrsig_type_covered(knot_rrset_rdata(rrsig))
-		!= KNOT_RRTYPE_NSEC3) {
-		tmp_node = knot_zone_contents_get_node(zone, rrsig->owner);
-	} else {
-		tmp_node = knot_zone_contents_get_nsec3_node(zone,
-						      rrsig->owner);
-	}
-	
-	dbg_zp_verb("zp: find_rr_for_sig: Found this node for RRSIG: %p.\n",
-	            tmp_node);
-
-	if (tmp_node == NULL) {
-		dbg_zp("zp: find_rr_for_sig: There is no node for this RR.\n");
-		return KNOTDZCOMPILE_EINVAL;
-	}
-
-	knot_rrset_t *tmp_rrset =
-		knot_node_get_rrset(tmp_node,
-	                            knot_rdata_rrsig_type_covered(
-	                                    rrsig->rdata));
-	
-	dbg_zp_verb("zp: find_rr_for_sig: Found this RRSet for RRSIG: %p.\n",
-	            tmp_rrset);
-
-	if (tmp_rrset == NULL) {
-		dbg_zp("zp: find_rr_for_sig: There is no RRSet "
-		       "for this RRSIG.\n");
-		return KNOTDZCOMPILE_EINVAL;
-	}
-	
-
-	if (tmp_rrset->rrsigs != NULL) {
-		int ret = knot_zone_contents_add_rrsigs(zone, rrsig,
-		                                        &tmp_rrset, &tmp_node,
-		                       KNOT_RRSET_DUPL_MERGE, 1);
-		if (ret != KNOT_EOK) {
-			dbg_zp("zp: find_rr_for_sig: Cannot add RRSIG.\n");
-			return ret;
-		}
-		knot_rrset_free(&rrsig);
-	} else {
-		int ret = knot_zone_contents_add_rrsigs(zone, rrsig,
-		                                        &tmp_rrset, &tmp_node,
-		                       KNOT_RRSET_DUPL_SKIP, 1);
-		if (ret != KNOT_EOK) {
-			dbg_zp("zp: find_rr_for_sig: Cannot add RRSIG.\n");
-			return ret;
-		}
-	}
-	
-	dbg_zp("zp: find_rr_for_sig: Found node: %p found rrset: %p.\n",
-	       tmo_node, tmp_rrset);
-	return KNOTDZCOMPILE_EOK;
-}
-
 static int find_rrset_for_rrsig_in_node(knot_zone_contents_t *zone,
                                  knot_node_t *node,
                                  knot_rrset_t *rrsig)
@@ -187,28 +125,51 @@ static int find_rrset_for_rrsig_in_node(knot_zone_contents_t *zone,
 	knot_rrset_t *tmp_rrset =
 		knot_node_get_rrset(node, rrsig_type_covered(rrsig));
 
+	int ret;
+
 	if (tmp_rrset == NULL) {
 		dbg_zp("zp: find_rr_for_sig_in_node: Node does not contain "
 		       "RRSet of type %s.\n",
 		       knot_rrtype_to_string(rrsig_type_covered(rrsig)));
-		return KNOTDZCOMPILE_EINVAL;
+		tmp_rrset = knot_rrset_new(rrsig->owner,
+		                           rrsig_type_covered(rrsig),
+		                           rrsig->rclass,
+		                           rrsig->ttl);
+		if (tmp_rrset == NULL) {
+			dbg_zp("zp: find_rr_for_sig_in_node: Cannot create "
+			       "dummy RRSet.\n");
+			return KNOT_ERROR;
+		}
+
+		ret = knot_zone_contents_add_rrset(zone, tmp_rrset, &node,
+		                                   KNOT_RRSET_DUPL_MERGE, 1);
+		assert(ret <= 0);
+		if (ret < 0) {
+			dbg_zp("zp: Failed to add new dummy RRSet to the zone."
+			       "\n");
+			return KNOT_ERROR;
+		}
+	}
+	
+	assert(tmp_rrset);
+	
+	if (tmp_rrset->ttl != rrsig->ttl) {
+		char *name = knot_dname_to_str(tmp_rrset->owner);
+		assert(name);
+		log_zone_warning("RRSIG owned by: %s cannot be added to "
+		                 "its RRSet, because their TTLs differ. "
+		                 "Changing TTL to value=%d.\n",
+		                 name, tmp_rrset->ttl);
+		free(name);
 	}
 
-	if (tmp_rrset->rrsigs != NULL) {
-		if (knot_zone_contents_add_rrsigs(zone, rrsig,
-		                                  &tmp_rrset, &node,
-		                           KNOT_RRSET_DUPL_MERGE, 1) < 0) {
-			dbg_zp("zp: find_rr_for_sig: Cannot add RRSIG.\n");
-			return KNOTDZCOMPILE_EINVAL;
-		}
+	ret = knot_zone_contents_add_rrsigs(zone, rrsig, &tmp_rrset, &node,
+			                    KNOT_RRSET_DUPL_MERGE, 1);
+	if (ret < 0) {
+		dbg_zp("zp: find_rr_for_sig: Cannot add RRSIG.\n");
+		return KNOTDZCOMPILE_EINVAL;
+	} else if (ret > 0) {
 		knot_rrset_free(&rrsig);
-	} else {
-		if (knot_zone_contents_add_rrsigs(zone, rrsig,
-		                                  &tmp_rrset, &node,
-		                           KNOT_RRSET_DUPL_SKIP, 1) < 0) {
-			dbg_zp("zp: find_rr_for_sig: Cannot add RRSIG.\n");
-			return KNOTDZCOMPILE_EINVAL;
-		}
 	}
 
 	assert(tmp_rrset->rrsigs != NULL);
@@ -244,10 +205,9 @@ static void process_rrsigs_in_node(knot_zone_contents_t *zone,
 	rrset_list_t *tmp = parser->node_rrsigs;
 	while (tmp != NULL) {
 		if (find_rrset_for_rrsig_in_node(zone, node,
-						 tmp->data) != 0) {
-			rrset_list_add(&parser->rrsig_orphans,
-				       tmp->data);
-			parser->rrsig_orphan_count++;
+						 tmp->data) != KNOT_EOK) {
+			zc_error_prev_line("Could not add RRSIG to zone!\n");
+			return;
 		}
 		tmp = tmp->next;
 	}
@@ -278,6 +238,7 @@ dbg_zp_exec_detail(
 	if (descriptor->fixed_items) {
 		assert(current_rrset->rdata->count == descriptor->length);
 	}
+
 
 	assert(current_rrset->rdata->count > 0);
 	assert(knot_dname_is_fqdn(current_rrset->owner));
@@ -336,6 +297,7 @@ dbg_zp_exec_detail(
 	}
 
 	if (current_rrset->type == KNOT_RRTYPE_RRSIG) {
+		/*!< \todo Use deep copy function here! */
 		knot_rrset_t *tmp_rrsig =
 			knot_rrset_new(current_rrset->owner,
 					     KNOT_RRTYPE_RRSIG,
@@ -458,11 +420,10 @@ dbg_zp_exec_detail(
 			       "add RDATA to RRSet.\n");
 			return KNOTDZCOMPILE_EBRDATA;
 		}
-
-		/* I chose skip, but there should not really be
-		 * any rrset to skip */
+		
+		/* Selected merge option does not really matter here. */
 		if (knot_zone_contents_add_rrset(contents, rrset, &node,
-		                   KNOT_RRSET_DUPL_SKIP, 1) < 0) {
+		                   KNOT_RRSET_DUPL_MERGE, 1) < 0) {
 			knot_rrset_free(&rrset);
 			dbg_zp("zp: process_rr: Cannot "
 			       "add RDATA to RRSet.\n");
@@ -472,8 +433,9 @@ dbg_zp_exec_detail(
 		if (current_rrset->type !=
 				KNOT_RRTYPE_RRSIG && rrset->ttl !=
 				current_rrset->ttl) {
-			zc_error_prev_line(
-				"TTL does not match the TTL of the RRSet");
+			zc_warning_prev_line(
+				"TTL does not match the TTL of the RRSet. "
+				"Changing to %lu.\n", rrset->ttl);
 		}
 
 		if (knot_zone_contents_add_rrset(contents, current_rrset,
@@ -495,31 +457,6 @@ dbg_zp_exec_detail(
 	dbg_zp_verb("zp: process_rr: RRSet %p processed successfully.\n",
 	            parser->current_rrset);
 	return KNOTDZCOMPILE_EOK;
-}
-
-static uint find_rrsets_orphans(knot_zone_contents_t *zone, rrset_list_t
-				*head)
-{
-	uint found_rrsets = 0;
-	while (head != NULL) {
-		if (find_rrset_for_rrsig_in_zone(zone, head->data) == 0) {
-			found_rrsets += 1;
-			dbg_zp("zp: find_orphans: "
-			       "RRSet succesfully found: owner %s type %s\n",
-				 knot_dname_to_str(head->data->owner),
-				 knot_rrtype_to_string(head->data->type));
-		}
-		else { /* we can throw it away now */
-			dbg_zp("zp: find_orphans: "
-			       "RRSet not found for RRSIG: %s (%s)\n",
-			       knot_dname_to_str(head->data->owner),
-			       knot_rrtype_to_string(
-			  knot_rdata_rrsig_type_covered(head->data->rdata)));
-			knot_rrset_free(&head->data);
-		}
-		head = head->next;
-	}
-	return found_rrsets;
 }
 
 static int zone_open(const char *filename, uint32_t ttl, uint16_t rclass,
@@ -549,19 +486,23 @@ static int zone_open(const char *filename, uint32_t ttl, uint16_t rclass,
 
 int zone_read(const char *name, const char *zonefile, const char *outfile,
 	      int semantic_checks)
-{	
+{
+	if (!outfile) {
+		zc_error_prev_line("Missing output file for '%s'\n",
+			zonefile);
+		return KNOTDZCOMPILE_EINVAL;
+	}
+	
 	dbg_zp("zp: zone_read: Reading zone: %s.\n", zonefile);
 
 	/* Check that we can write to outfile. */
-	if (outfile != NULL) {
-		FILE *f = fopen(outfile, "wb");
-		if (f == NULL) {
-			fprintf(stderr, "Cannot write zone db to file '%s' (%s).\n",
-			        outfile, strerror(errno));
-			return KNOTDZCOMPILE_EINVAL;
-		}
-		fclose(f);
+	FILE *f = fopen(outfile, "wb");
+	if (f == NULL) {
+		log_zone_error("Cannot write zone db to file '%s' (%s).\n",
+		        outfile, strerror(errno));
+		return KNOTDZCOMPILE_EINVAL;
 	}
+	fclose(f);
 
 	knot_dname_t *dname =
 		knot_dname_new_from_str(name, strlen(name), NULL);
@@ -570,7 +511,7 @@ int zone_read(const char *name, const char *zonefile, const char *outfile,
 	}
 
 	if (!knot_dname_is_fqdn(dname)) {
-		fprintf(stderr, "Error: given zone origin is not FQDN.\n");
+		log_zone_error("Error: given zone origin is not FQDN.\n");
 		knot_dname_release(dname);
 		return KNOTDZCOMPILE_EINVAL;
 	}
@@ -587,7 +528,7 @@ int zone_read(const char *name, const char *zonefile, const char *outfile,
 	knot_dname_t *origin_from_config =
 		knot_dname_new_from_str(name, strlen(name), NULL);
 	if (origin_from_config == NULL) {
-		knot_node_free(&origin_node, 0);
+		knot_node_free(&origin_node);
 		return KNOTDZCOMPILE_ENOMEM;
 	}
 
@@ -595,7 +536,7 @@ int zone_read(const char *name, const char *zonefile, const char *outfile,
 	zp_lex_init(&scanner);
 	if (scanner == NULL) {
 		knot_dname_release(origin_from_config);
-		knot_node_free(&origin_node, 0);
+		knot_node_free(&origin_node);
 		return KNOTDZCOMPILE_ENOMEM;
 	}
 
@@ -608,25 +549,55 @@ int zone_read(const char *name, const char *zonefile, const char *outfile,
 //		knot_node_free(&origin_node, 0);
 		return KNOTDZCOMPILE_EZONEINVAL;
 	}
-
-	if (zp_parse(scanner) != 0) {
-		/*!< \todo #1676 Implement proper locking. */
+	
+	/* Lock zone file. There should not be any modifications. */
+	struct flock lock;
+	lock.l_type = F_RDLCK;
+	lock.l_start = 0;
+	lock.l_whence = SEEK_SET;
+	lock.l_len = 0;
+	lock.l_pid = getpid();
+	if (fcntl(fileno(zp_get_in(scanner)), F_SETLK, &lock) == -1) {
+		log_zone_error("Cannot obtain zone source file lock (%d).\n",
+		        errno);
 		FILE *in_file = (FILE *)zp_get_in(scanner);
 		fclose(in_file);
 		zp_lex_destroy(scanner);
 		knot_dname_release(origin_from_config);
+		return KNOTDZCOMPILE_EINVAL;
+	}
+	
+	/* Change lock type to unlock rigth away. */
+	lock.l_type = F_UNLCK;
+
+	if (zp_parse(scanner) != 0) {
+		log_zone_error("Parse failed.\n");
+		FILE *in_file = (FILE *)zp_get_in(scanner);
+		fclose(in_file);
+		knot_dname_release(origin_from_config);
 //		knot_node_free(&origin_node, 0);
+		/* Release file lock. */
+		if (fcntl(fileno(zp_get_in(scanner)), F_SETLK, &lock) == -1) {
+			log_zone_error("Cannot release zone source file "
+			        "lock (%d).\n",
+			        errno);
+		}
+		zp_lex_destroy(scanner);
 		return KNOTDZCOMPILE_ESYNT;
 	}
 
 	knot_zone_contents_t *contents =
 			knot_zone_get_contents(parser->current_zone);
+	
+	/* Release file lock. */
+	if (fcntl(fileno(zp_get_in(scanner)), F_SETLK, &lock) == -1) {
+		log_zone_error("Cannot release zone source file lock (%d).\n",
+		        errno);
+	}
 
 	FILE *in_file = (FILE *)zp_get_in(scanner);
 	fclose(in_file);
 	zp_lex_destroy(scanner);
-	
-	/*!< \todo #1676 Implement proper locking. */
 
 	dbg_zp("zp: zone_read: Parse complete for %s.\n",
 	       zonefile);
@@ -650,31 +621,20 @@ int zone_read(const char *name, const char *zonefile, const char *outfile,
 		return KNOTDZCOMPILE_EZONEINVAL;
 	}
 
-	uint found_orphans;
-	found_orphans = find_rrsets_orphans(contents,
-					    parser->rrsig_orphans);
-
-	dbg_zp("zp: zone_read: %u RRSIG orphans found.\n", found_orphans);
-
-	rrset_list_delete(&parser->rrsig_orphans);
-
-	if (found_orphans != parser->rrsig_orphan_count) {
-		/*! \todo This might be desired behaviour. */
-		fprintf(stderr,
-		        "There are unassigned RRSIGs in the zone!\n");
+	int ret = knot_zone_contents_adjust(contents);
+	if (ret != KNOT_EOK) {
+		fprintf(stderr, "Zone could not be adjusted, error: %s.\n",
+		        knot_strerror(ret));
 		parser->errors++;
 	}
-
-	/*! \todo Check return value. */
-	knot_zone_contents_adjust(contents);
-
+	
 	dbg_zp("zp: zone_read: Zone adjusted.\n");
 
 	if (parser->errors != 0) {
-		log_zone_error("Parser finished with %d error(s)%s\n",
-			       parser->errors, outfile == NULL ?
-			       "." : ", not dumping the zone!");
-	} else if (outfile != NULL) {
+		log_zone_error("Parser finished with %d error(s), "
+		               "not dumping the zone!\n",
+		               parser->errors);
+	} else {
 		int fd = open(outfile, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
 		if (fd < 0) {
 			log_zone_error("Could not open destination file for db: %s.\n",
@@ -688,7 +648,10 @@ int zone_read(const char *name, const char *zonefile, const char *outfile,
 			if (ret != KNOT_EOK) {
 				log_zone_error("Could not dump zone, reason: "
 				               "%s.\n", knot_strerror(ret));
-				remove(outfile);
+				if (remove(outfile) != 0) {
+					log_zone_error("Could not remove "
+					               "db file!\n");
+				}
 				totalerrors++;
 			} else {
 				/* Write CRC file. */

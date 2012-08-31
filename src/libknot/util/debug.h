@@ -42,6 +42,7 @@
   #define KNOT_ZONE_DEBUG
   #define KNOT_ZONEDB_DEBUG
   #define KNOT_NODE_DEBUG
+  #define KNOT_ZONEDIFF_DEBUG
 #endif
 
 #ifdef KNOT_NS_DEBUG
@@ -368,6 +369,48 @@ void knot_zone_contents_dump(knot_zone_contents_t *zone, char loaded_zone);
 #define dbg_zonedb_exec_detail(cmds)
 #endif
 
+#ifdef KNOT_ZONEDIFF_DEBUG
+
+/* Brief messages. */
+#ifdef DEBUG_ENABLE_BRIEF
+#define dbg_zonediff(msg...) fprintf(stderr, msg)
+#define dbg_zonediff_hex(data, len)  hex_print((data), (len))
+#else
+#define dbg_zonediff(msg...)
+#define dbg_zonediff_hex(data, len)
+#endif
+
+/* Verbose messages. */
+#ifdef DEBUG_ENABLE_VERBOSE
+#define dbg_zonediff_verb(msg...) fprintf(stderr, msg)
+#define dbg_zonediff_hex_verb(data, len)  hex_print((data), (len))
+#else
+#define dbg_zonediff_verb(msg...)
+#define dbg_zonediff_hex_verb(data, len)
+#endif
+
+/* Detail messages. */
+#ifdef DEBUG_ENABLE_DETAILS
+#define dbg_zonediff_detail(msg...) fprintf(stderr, msg)
+#define dbg_zonediff_hex_detail(data, len)  hex_print((data), (len))
+#define dbg_zonediff_exec_detail(cmds) do { cmds } while (0)
+#else
+#define dbg_zonediff_detail(msg...)
+#define dbg_zonediff_hex_detail(data, len)
+#define dbg_zonediff_exec_detail(cmds)
+#endif
+
+/* No messages. */
+#else
+#define dbg_zonediff(msg...)
+#define dbg_zonediff_hex(data, len)
+#define dbg_zonediff_verb(msg...)
+#define dbg_zonediff_hex_verb(data, len)
+#define dbg_zonediff_detail(msg...)
+#define dbg_zonediff_hex_detail(data, len)
+#define dbg_zonediff_exec_detail(cmds)
+#endif
+
 /******************************************************************************/
 
 #ifdef KNOT_RESPONSE_DEBUG
@@ -607,7 +650,6 @@ void knot_zone_contents_dump(knot_zone_contents_t *zone, char loaded_zone);
 /* Brief messages. */
 #ifdef DEBUG_ENABLE_BRIEF
 #define dbg_ck_hash(msg...) log_msg(LOG_SERVER, LOG_DEBUG, msg)
-#define dbg_ck_rehash(msg...) log_msg(LOG_SERVER, LOG_DEBUG, msg)
 #define dbg_ck_hash_hex(data, len)  hex_log(LOG_SERVER, (data), (len))
 #else
 #define dbg_ck_hash(msg...)
@@ -636,13 +678,27 @@ void knot_zone_contents_dump(knot_zone_contents_t *zone, char loaded_zone);
 /* No messages. */
 #else
 #define dbg_ck_hash(msg...)
-#define dbg_ck_rehash(msg...)
 #define dbg_ck_hash_hex(data, len)
 #define dbg_ck_hash_verb(msg...)
 #define dbg_ck_hash_hex_verb(data, len)
 #define dbg_ck_hash_detail(msg...)
 #define dbg_ck_hash_hex_detail(data, len)
 #endif
+
+/******************************************************************************/
+
+#ifdef KNOT_STASH_DEBUG
+
+#ifdef DEBUG_ENABLE_BRIEF
+#define dbg_stash(msg...) log_msg(LOG_ZONE, LOG_DEBUG, msg)
+#else
+#define dbg_stash(msg...)
+#endif
+
+#else
+#define dbg_stash(msg...)
+#endif
+
 
 /******************************************************************************/
 
@@ -780,37 +836,46 @@ void knot_zone_contents_dump(knot_zone_contents_t *zone, char loaded_zone);
 #ifdef DEBUG_ENABLE_BRIEF
 #define dbg_rrset(msg...) log_msg(LOG_ZONE, LOG_DEBUG, msg)
 #define dbg_rrset_hex(data, len)  hex_log(LOG_ZONE, (data), (len))
+#define dbg_rrset_exec(cmds) do { cmds } while (0)
 #else
 #define dbg_rrset(msg...)
 #define dbg_rrset_hex(data, len)
+#define dbg_rrset_exec(cmds)
 #endif
 
 /* Verbose messages. */
 #ifdef DEBUG_ENABLE_VERBOSE
 #define dbg_rrset_verb(msg...) log_msg(LOG_ZONE, LOG_DEBUG, msg)
 #define dbg_rrset_hex_verb(data, len)  hex_log(LOG_ZONE, (data), (len))
+#define dbg_rrset_exec_verb(cmds) do { cmds } while (0)
 #else
 #define dbg_rrset_verb(msg...)
 #define dbg_rrset_hex_verb(data, len)
+#define dbg_rrset_exec_verb(cmds)
 #endif
 
 /* Detail messages. */
 #ifdef DEBUG_ENABLE_DETAILS
 #define dbg_rrset_detail(msg...) log_msg(LOG_ZONE, LOG_DEBUG, msg)
 #define dbg_rrset_hex_detail(data, len)  hex_log(LOG_ZONE, (data), (len))
+#define dbg_rrset_exec_detail(cmds) do { cmds } while (0)
 #else
 #define dbg_rrset_detail(msg...)
 #define dbg_rrset_hex_detail(data, len)
+#define dbg_rrset_exec_detail(cmds)
 #endif
 
 /* No messages. */
 #else
 #define dbg_rrset(msg...)
 #define dbg_rrset_hex(data, len)
+#define dbg_rrset_exec(cmds)
 #define dbg_rrset_verb(msg...)
 #define dbg_rrset_hex_verb(data, len)
+#define dbg_rrset_exec_verb(cmds)
 #define dbg_rrset_detail(msg...)
 #define dbg_rrset_hex_detail(data, len)
+#define dbg_rrset_exec_detail(cmds)
 #endif
 
 /******************************************************************************/

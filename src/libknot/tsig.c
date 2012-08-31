@@ -319,21 +319,21 @@ tsig_algorithm_t tsig_rdata_alg(const knot_rrset_t *tsig)
 	/* Get the algorithm name. */
 	const knot_dname_t *alg_name = tsig_rdata_alg_name(tsig);
 	if (!alg_name) {
-		dbg_tsig_detail("TSIG: rdata: cannot get algorithm name.\n");
+		dbg_tsig("TSIG: rdata: cannot get algorithm name.\n");
 		return KNOT_TSIG_ALG_NULL;
 	}
 
 	/* Convert alg name to string. */
 	char *name = knot_dname_to_str(alg_name);
 	if (!name) {
-		dbg_tsig_detail("TSIG: rdata: cannot convert alg name.\n");
+		dbg_tsig("TSIG: rdata: cannot convert alg name.\n");
 		return KNOT_TSIG_ALG_NULL;
 	}
 
 	knot_lookup_table_t *item = knot_lookup_by_name(tsig_alg_table, name);
 	free(name);
 	if (!item) {
-		dbg_tsig_detail("TSIG: rdata: unknown algorithm.\n");
+		dbg_tsig("TSIG: rdata: unknown algorithm.\n");
 		return KNOT_TSIG_ALG_NULL;
 	}
 
@@ -342,7 +342,7 @@ tsig_algorithm_t tsig_rdata_alg(const knot_rrset_t *tsig)
 
 uint64_t tsig_rdata_time_signed(const knot_rrset_t *tsig)
 {
-	/*!< \note How about assert. Or maybe change API??? */
+	/*! \note How about assert. Or maybe change API??? */
 	if (!tsig) {
 		return 0;
 	}
@@ -366,7 +366,7 @@ uint64_t tsig_rdata_time_signed(const knot_rrset_t *tsig)
 
 uint16_t tsig_rdata_fudge(const knot_rrset_t *tsig)
 {
-	/*!< \note How about assert. Or maybe change API??? */
+	/*! \note How about assert. Or maybe change API??? */
 	if (!tsig) {
 		return 0;
 	}
@@ -390,7 +390,7 @@ uint16_t tsig_rdata_fudge(const knot_rrset_t *tsig)
 
 const uint8_t *tsig_rdata_mac(const knot_rrset_t *tsig)
 {
-	/*!< \note How about assert. Or maybe change API??? */
+	/*! \note How about assert. Or maybe change API??? */
 	if (!tsig) {
 		return 0;
 	}
@@ -424,7 +424,7 @@ size_t tsig_rdata_mac_length(const knot_rrset_t *tsig)
 
 uint16_t tsig_rdata_orig_id(const knot_rrset_t *tsig)
 {
-	/*!< \note How about assert. Or maybe change API??? */
+	/*! \note How about assert. Or maybe change API??? */
 	if (!tsig) {
 		return 0;
 	}
@@ -448,7 +448,7 @@ uint16_t tsig_rdata_orig_id(const knot_rrset_t *tsig)
 
 uint16_t tsig_rdata_error(const knot_rrset_t *tsig)
 {
-	/*!< \note How about assert. Or maybe change API??? */
+	/*! \note How about assert. Or maybe change API??? */
 	if (!tsig) {
 		return 0;
 	}
@@ -472,7 +472,7 @@ uint16_t tsig_rdata_error(const knot_rrset_t *tsig)
 
 const uint8_t *tsig_rdata_other_data(const knot_rrset_t *tsig)
 {
-	/*!< \note How about assert. Or maybe change API??? */
+	/*! \note How about assert. Or maybe change API??? */
 	if (!tsig) {
 		return 0;
 	}
@@ -491,7 +491,7 @@ const uint8_t *tsig_rdata_other_data(const knot_rrset_t *tsig)
 
 uint16_t tsig_rdata_other_data_length(const knot_rrset_t *tsig)
 {
-	/*!< \note How about assert. Or maybe change API??? */
+	/*! \note How about assert. Or maybe change API??? */
 	if (!tsig) {
 		return 0;
 	}
@@ -558,6 +558,9 @@ uint16_t tsig_alg_digest_length(tsig_algorithm_t alg)
 
 size_t tsig_rdata_tsig_variables_length(const knot_rrset_t *tsig)
 {
+	if (tsig == NULL) {
+		return 0;
+	}
 	/* Key name, Algorithm name and Other data have variable lengths. */
 	const knot_dname_t *key_name = knot_rrset_owner(tsig);
 	if (!key_name) {
@@ -568,13 +571,6 @@ size_t tsig_rdata_tsig_variables_length(const knot_rrset_t *tsig)
 	if (!alg_name) {
 		return 0;
 	}
-
-//	dbg_tsig_detail("key_name: %.*s (size: %u) alg_name: %.*s (size: %u)\n", knot_dname_size(key_name),
-//	                key_name->name, alg_name->size,  alg_name->name,
-//	                key_name->size, alg_name->size);
-
-//	dbg_tsig_hex_detail(key_name->name, key_name->size);
-//	dbg_tsig_hex_detail(alg_name->name, alg_name->size);
 
 	uint16_t other_data_length = tsig_rdata_other_data_length(tsig);
 
@@ -594,7 +590,7 @@ int tsig_rdata_store_current_time(knot_rrset_t *tsig)
 		return KNOT_EBADARG;
 	}
 	time_t curr_time = time(NULL);
-	/*!< \todo bleeding eyes. */
+	/*! \todo bleeding eyes. */
 	tsig_rdata_set_time_signed(tsig, (uint64_t)curr_time);
 	return KNOT_EOK;
 }
@@ -612,6 +608,10 @@ const char* tsig_alg_to_str(tsig_algorithm_t alg)
 
 size_t tsig_wire_maxsize(const knot_key_t* key)
 {
+	if (key == NULL) {
+		return 0;
+	}
+	
 	size_t alg_name_size = strlen(tsig_alg_to_str(key->algorithm)) + 1;
 
 	return knot_dname_size(key->name) +
@@ -632,6 +632,10 @@ size_t tsig_wire_maxsize(const knot_key_t* key)
 
 size_t tsig_wire_actsize(const knot_rrset_t *tsig)
 {
+	if (tsig == NULL) {
+		return 0;
+	}
+	
 	return knot_dname_size(knot_rrset_owner(tsig)) +
 	sizeof(uint16_t) + /* TYPE */
 	sizeof(uint16_t) + /* CLASS */
@@ -646,5 +650,14 @@ size_t tsig_wire_actsize(const knot_rrset_t *tsig)
 	sizeof(uint16_t) + /* Error */
 	sizeof(uint16_t) + /* Other len */
 	tsig_rdata_other_data_length(tsig);
+}
+
+int tsig_rdata_is_ok(const knot_rrset_t *tsig)
+{
+	return (tsig
+	        && knot_rrset_rdata(tsig) != NULL 
+	        && knot_rdata_item_count(knot_rrset_rdata(tsig)) >= 7
+	        && tsig_rdata_alg_name(tsig) != NULL
+	        && tsig_rdata_time_signed(tsig) != 0);
 }
 

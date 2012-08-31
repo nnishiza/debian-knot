@@ -360,6 +360,11 @@ static int knot_rdata_dump_binary(knot_rdata_t *rdata,
 				rdata->items[i].dname) {
 				wildcard = rdata->items[i].dname->node->owner;
 			}
+			
+			dbg_zdump_detail("zdump: dump_rdata: "
+			                 "Writing dname: %s.\n",
+			                 knot_dname_to_str(
+						rdata->items[i].dname));
 
 			if (use_ids) {
 				/* Write ID. */
@@ -392,6 +397,8 @@ static int knot_rdata_dump_binary(knot_rdata_t *rdata,
 			/*! \todo Does not have to be so complex.
 			 *        Create extra variable. */
 			if (rdata->items[i].dname->node != NULL && !wildcard) {
+				dbg_zdump("zdump: dump_rdata: "
+				          "This dname is in the zone.\n");
 				if (!write_wrapper((uint8_t *)"\1",
 				                   sizeof(uint8_t), 1, fd,
 				                   stream, max_size,
@@ -401,6 +408,8 @@ static int knot_rdata_dump_binary(knot_rdata_t *rdata,
 					return KNOT_ERROR;
 				}
 			} else {
+				dbg_zdump("zdump: dump_rdata: "
+				          "This dname is not in the zone.\n");
 				if (!write_wrapper((uint8_t *)"\0",
 				                   sizeof(uint8_t),
 				                   1, fd,
@@ -423,6 +432,9 @@ static int knot_rdata_dump_binary(knot_rdata_t *rdata,
 				}
 				
 				uint32_t wildcard_id = wildcard->id;
+				dbg_zdump("zdump: dump_rdata: "
+				          "This dname is covered by wc (%s).\n",
+				          knot_dname_to_str(wildcard));
 				if (!write_wrapper(&wildcard_id,
 				                   sizeof(wildcard_id), 1,
 				                   fd, stream, max_size,
@@ -567,7 +579,11 @@ static int knot_rrset_dump_binary(const knot_rrset_t *rrset, int fd,
 	                         "Dumping RRSet \\w owner: %s.\n",
 		                 name);
 		free(name);
-	);	
+	);
+		
+	if (!use_ids) {
+		assert(rrset->rrsigs == NULL);
+	}
 	
 	if (!use_ids) {
 		/*!< \todo IDs in changeset do no good. Change loading too. */
@@ -602,9 +618,13 @@ static int knot_rrset_dump_binary(const knot_rrset_t *rrset, int fd,
 
 	/* Calculate rrset rdata count. */
 	knot_rdata_t *tmp_rdata = rrset->rdata;
-	while(tmp_rdata->next != rrset->rdata) {
+	while(tmp_rdata && (tmp_rdata->next != rrset->rdata)) {
 		tmp_rdata = tmp_rdata->next;
 		rdata_count++;
+	}
+	
+	if (rrset->rdata == NULL) {
+		rdata_count = 0;
 	}
 
 	if (!write_wrapper(&rdata_count, sizeof(rdata_count), 1, fd,
@@ -619,29 +639,35 @@ static int knot_rrset_dump_binary(const knot_rrset_t *rrset, int fd,
 	}
 	
 	dbg_zdump_verb("zdump: rrset_dump_binary: Static data dumped.\n");
+	
+	if (rdata_count != 0) {
+	
+		tmp_rdata = rrset->rdata;
 
-	tmp_rdata = rrset->rdata;
-
-	while (tmp_rdata->next != rrset->rdata) {
+		while (tmp_rdata->next != rrset->rdata) {
+			int ret = knot_rdata_dump_binary(tmp_rdata, rrset->type,
+			                                 fd, use_ids,
+			                                 stream, max_size,
+			                                 written_bytes, crc);
+			if (ret != KNOT_EOK) {
+				dbg_zdump("zdump: rrset_to_binary: Could not "
+				          "dump "
+				          "rdata. Reason: %s.\n",
+				          knot_strerror(ret));
+				return ret;
+			}
+			tmp_rdata = tmp_rdata->next;
+		}
+	
 		int ret = knot_rdata_dump_binary(tmp_rdata, rrset->type,
 		                                 fd, use_ids,
-		                                 stream, max_size,
-		                                 written_bytes, crc);
+		                                 stream,
+		                                 max_size, written_bytes, crc);
 		if (ret != KNOT_EOK) {
 			dbg_zdump("zdump: rrset_to_binary: Could not dump "
 			          "rdata. Reason: %s.\n", knot_strerror(ret));
 			return ret;
 		}
-		tmp_rdata = tmp_rdata->next;
-	}
-	
-	int ret = knot_rdata_dump_binary(tmp_rdata, rrset->type, fd, use_ids,
-	                                 stream,
-	                                 max_size, written_bytes, crc);
-	if (ret != KNOT_EOK) {
-		dbg_zdump("zdump: rrset_to_binary: Could not dump "
-		          "rdata. Reason: %s.\n", knot_strerror(ret));
-		return ret;
 	}
 	
 	dbg_zdump_verb("zdump: rrset_dump_binary: Rdata dumped.\n");
@@ -894,6 +920,7 @@ int knot_zdump_binary(knot_zone_contents_t *zone, int fd,
                       int do_checks, const char *sfilename,
                       crc_t *crc)
 {
+
 	if (fd < 0 || sfilename == NULL) {
 		dbg_zdump("zdump: Bad arguments.\n");
 		return KNOT_EBADARG;

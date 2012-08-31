@@ -59,7 +59,7 @@ typedef struct zonedata_t
 
 	/*! \brief Zone data lock for exclusive access. */
 	pthread_mutex_t lock;
-
+	
 	/*! \brief Access control lists. */
 	acl_t *xfr_out;    /*!< ACL for xfr-out.*/
 	acl_t *notify_in;  /*!< ACL for notify-in.*/
@@ -270,6 +270,23 @@ int zones_changesets_to_binary(knot_changesets_t *chgsets);
  */
 int zones_xfr_load_changesets(knot_ns_xfr_t *xfr, uint32_t serial_from,
                               uint32_t serial_to);
+
+/*!
+ * \brief Creates changesets from zones difference.
+ *
+ * Also saves changesets to journal, which is taken from old zone.
+ *
+ * \param old_zone Old zone, previously served by server.
+ * \param new_zone New zone, to be served by server, after creating changesets.
+ *
+ * \retval KNOTD_EOK on success.
+ * \retval KNOTD_EINVAL on invalid arguments.
+ * \retval KNOTD_ERANGE when new serial is lower than the old one.
+ * \retval KNOTD_ENODIFF when new zone's serial are equal.
+ * \retval KNOTD_ERROR when there was error creating changesets.
+ */
+int zones_create_and_save_changesets(const knot_zone_t *old_zone,
+                                     const knot_zone_t *new_zone);
 
 /*!
  * \brief Update zone timers.
