@@ -2,7 +2,7 @@ Source: knot
 Section: net
 Priority: extra
 Maintainer: Ondřej Surý <ondrej@debian.org>
-Build-Depends: debhelper (>= 7.0.50~), autotools-dev, liburcu-dev (>= 0.4), libssl-dev, flex, bison
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, liburcu-dev (>= 0.4), libssl-dev, flex, bison, texinfo
 Standards-Version: 3.9.2
 Homepage: http://www.knot-dns.cz/
 Vcs-Browser: http://git.debian.org/?p=users/ondrej/knot-dns.git
