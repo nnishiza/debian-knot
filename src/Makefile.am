@@ -1,8 +1,8 @@
 ACLOCAL_AMFLAGS = -I ../m4
 libexec_PROGRAMS = knot-zcompile unittests unittests-zcompile unittests-libknot-realdata unittests-libknot unittests-xfr
 sbin_PROGRAMS = knotc knotd
-MANPAGES = knotc.8 knotd.8
-man8_MANS = knotc.8 knotd.8
+MANPAGES = knotc.8 knotd.8 knot.conf.5
+man8_MANS = knotc.8 knotd.8 knot.conf.5
 EXTRA_DIST = $(man8_MANS)
 
 # $(YACC) will generate header file
@@ -58,8 +58,6 @@ knot_zcompile_SOURCES =				\
 unittests_SOURCES =				\
 	tests/common/acl_tests.c		\
 	tests/common/acl_tests.h		\
-	tests/common/da_tests.c			\
-	tests/common/da_tests.h			\
 	tests/common/events_tests.c		\
 	tests/common/events_tests.h		\
 	tests/common/skiplist_tests.c		\
@@ -159,8 +157,6 @@ libknot_la_SOURCES =				\
 	libknot/util/debug.c			\
 	libknot/util/debug.h			\
 	libknot/util/utils.h			\
-	libknot/util/conv.h			\
-	libknot/util/conv.c			\
 	libknot/util/descriptor.c		\
 	libknot/util/tolower.h			\
 	libknot/util/tolower.c			\
@@ -184,6 +180,8 @@ libknot_la_SOURCES =				\
 	libknot/zone/node.c			\
 	libknot/zone/dname-table.h		\
 	libknot/zone/dname-table.c		\
+	libknot/zone/zone-diff.h		\
+	libknot/zone/zone-diff.c		\
 	libknot/hash/hash-functions.c		\
 	libknot/hash/cuckoo-hash-table.c	\
 	libknot/hash/universal-system.c		\
@@ -225,17 +223,19 @@ libknots_la_SOURCES =				\
 	common/mempattern.c			\
 	common/lists.c				\
 	common/base32.c				\
+	common/base64.c				\
+	common/base64.h				\
 	common/lists.h				\
+	common/heap.h				\
+	common/heap.c				\
 	common/base32.h				\
 	common/print.c				\
 	common/print.h				\
-	common/dynamic-array.c			\
 	common/skip-list.c			\
 	common/base32hex.c			\
 	common/skip-list.h			\
 	common/general-tree.h			\
 	common/general-tree.c			\
-	common/dynamic-array.h			\
 	common/tree.h				\
 	common/base32hex.h			\
 	common/evqueue.h			\

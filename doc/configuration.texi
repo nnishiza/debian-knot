@@ -1,0 +1,196 @@
+@node Knot DNS Configuration, Running Knot DNS, Knot DNS Installation, Top
+@chapter Knot DNS Configuration
+
+In this chapter we provide suggested configurations and explain the meaning of individual configuration options.
+
+@menu
+* Minimal configuration::       
+* Slave configuration::       
+* Master configuration::       
+* Configuring multiple interfaces::       
+* Enabling zone semantic checks::
+* Creating IXFR differences from zone file changes::
+@end menu
+
+@node Minimal configuration
+@section Minimal configuration
+
+The following configuration presents a minimal configuration
+file which can be used as a base for your Knot DNS setup.
+
+@example
+
+# This is a sample of a minimal configuration file for Knot DNS.
+#
+# For exhaustive list of all options see samples/knot.full.conf
+# in the source directory.
+#
+
+system @{
+  storage "/var/lib/knot";
+@}
+
+interfaces @{
+  my_interface @{ address 127.0.0.1@@53; @}
+  second_int @{ address ::1; @}
+@}
+
+log @{
+  syslog @{ any notice, warning, error; @}
+@}
+
+zones @{
+  example.com @{  
+    file "/etc/knot/example.com";
+  @}
+@}
+	
+@end example
+
+@page
+Now let's go step by step through this minimal configuration file:
+
+@enumerate 
+
+@item
+In @code{system} statement we have configured @code{storage}
+directory where Knot DNS will store compiled zone files, 
+PID file and for slave zone also their journal files. (See @ref{system} and @ref{storage})
+
+@item
+The @code{interfaces} statement defines interfaces where Knot
+DNS will listen for incoming connections. We have defined two
+interfaces: one IPv4 called @kbd{my_interface} explicitly listening
+on port 53 and second IPv6 called @kbd{second_int} also listening on
+port 53, which is the default port for the DNS. See @ref{interfaces}.
+
+@item
+The @code{log} statement defines the log facilities for Knot DNS.
+In this example we told Knot DNS to send its log messages with the severities
+@code{debug}, @code{warning} and @code{notice} into the syslog.
+If you omit this sections, all severities will printed to
+either @code{stdout} or @code{stderr}, and the severities
+from the @code{warning} and more serious to syslog. You can find all
+possible combinations in the @ref{log}.
+
+@item
+The @code{zones} statement is probably the most important one,
+because it defines the zones that Knot DNS will serve.  In its most simple
+form you can define a zone by its name and zone file.
+@end enumerate
+
+@page
+@node Slave configuration
+@section Slave configuration
+
+Knot DNS doesn't strictly differ between master and slave zones.
+The only requirement is to have @code{xfr-in} @code{zones} statement set for given zone,
+thus allowing both incoming XFR from that remote and using it as the
+zone master. Note that you need to explicitly allow incoming NOTIFY, otherwise
+the daemon would reject them.
+Also, you can specify paths, relative to the storage directory.
+See @ref{zones} and @ref{storage}.
+If the zone file doesn't exist and @code{xfr-in} is set, it will be bootstrapped over AXFR.
+
+@example
+remotes @{
+  master @{ address 127.0.0.1@@53; @}
+@}
+zones @{
+  example.com @{  
+    file "example.com"; # relative to 'storage'
+    xfr-in master;      # define 'master' for this zone
+    notify-in master;   # also allow NOTIFY from 'master'
+  @}
+@}
+@end example
+
+You can also use TSIG for access control. For this, you need to configure a TSIG key
+and assign it to a remote.
+Supported algorithms for TSIG key are:@*
+@code{hmac-md5, hmac-sha1, hmac-sha224, hmac-sha256, hmac-sha384, hmac-sha512}
+@*
+Key secret is written in a base64 encoded format. See @ref{keys}.
+
+@example
+keys @{
+  key0 hmac-md5 "Wg=="; # keyname algorithm secret
+@}
+remotes @{
+  master @{ address 127.0.0.1@@53; key key0; @}
+@}
+zones @{
+  example.com @{  
+    file "example.com"; # relative to 'storage'
+    xfr-in master;      # define 'master' for this zone
+    notify-in master;   # also allow NOTIFY from 'master'
+  @}
+@}
+@end example
+
+As of now it is not possible to associate multiple keys with a remote.
+
+@page
+@node Master configuration
+@section Master configuration
+
+You can specify which remotes to allow for outgoing XFR and NOTIFY @code{zones}.
+
+@example
+remotes @{
+  slave @{ address 127.0.0.1@@53; @}
+  any @{ address 0.0.0.0/0; @}
+  subnet1 @{ address 192.168.1.0/8; @}
+  subnet2 @{ address 192.168.2.0/8; @}
+@}
+zones @{
+  example.com @{  
+    file "/var/zones/example.com";
+    xfr-out subnet1, subnet2; # allow outgoing transfers
+    notify-out slave;
+  @}
+@}
+@end example
+
+You can also secure outgoing XFRs with TSIG.
+
+@example
+keys @{
+  key0 hmac-md5 "Wg=="; # keyname algorithm secret
+@}
+remotes @{
+  any @{ address 0.0.0.0/0; key key0; @}
+@}
+zones @{
+  example.com @{  
+    file "/var/zones/example.com";
+    xfr-out any; # uses 'any' remote secured with TSIG key 'key0'
+  @}
+@}
+@end example
+
+@node Configuring multiple interfaces
+@section Configuring multiple interfaces
+
+Knot DNS support binding to multiple available interfaces in the @code{interfaces} section.
+@*You can also use the special addresses for "any address" like @code{0.0.0.0} or @code{[::]}.
+
+@example
+interfaces @{
+  if1 @{ address 192.168.1.2@@53; @}
+  anyv6 @{ address [::]@@53; @}
+@}
+@end example
+
+@node Enabling zone semantic checks
+@section Enabling zone semantic checks
+You can turn on more detailed semantic
+checks of zone file in this @code{zones} statement (@pxref{zones}). Refer to @ref{zones List of zone semantic checks} to see
+which checks are enabled by default and which are optional.
+
+@node Creating IXFR differences from zone file changes
+@section Creating IXFR differences from zone file changes
+If Knot is being run as a master server, experimental feature @code{ixfr-from-differences} 
+can be enabled to create IXFR differences from changes made to the master zone file.
+See @ref{Controlling running daemon} for more information. For more about @code{zones} statement see @ref{zones}.
+

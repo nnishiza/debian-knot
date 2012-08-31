@@ -62,8 +62,6 @@ struct knot_node {
 	 */
 	struct knot_node *prev;
 
-	struct knot_node *next;
-
 	/*!
 	 * \brief NSEC3 node corresponding to this node.
 	 *
@@ -74,7 +72,7 @@ struct knot_node {
 
 	struct knot_node *nsec3_referer;
 
-	struct knot_zone *zone;
+	const struct knot_zone *zone;
 
 	struct knot_node *new_node;
 	
@@ -83,22 +81,12 @@ struct knot_node {
 	unsigned short rrset_count; /*!< Number of RRSets stored in the node. */
 
 	/*!
-	 * \brief Generation of node to be used.
-	 *
-	 * If set to 0, the old node will be used. Otherwise new nodes will
-	 * be used. This applies when getting some referenced node.
-	 
-	 */
-//	short **generation;
-
-	/*!
 	 * \brief Various flags.
 	 *
 	 * Currently only two:
 	 *   0x01 - node is a delegation point
 	 *   0x02 - node is non-authoritative (under a delegation point)
-	 *   0x80 - node is old and will be removed (during update)
-	 *   0x40 - node is new, should not be used while zone is old
+	 *   0x10 - node is empty and will be deleted after update
 	 */
 	uint8_t flags;
 };
@@ -113,9 +101,11 @@ typedef enum {
 	/*! \brief Node is not authoritative (i.e. below a zone cut). */
 	KNOT_NODE_FLAGS_NONAUTH = (uint8_t)0x02,
 	/*! \brief Node is old and will be removed (during update). */
-	KNOT_NODE_FLAGS_OLD = (uint8_t)0x80,
+	KNOT_NODE_FLAGS_OLD = (uint8_t)0x04,
 	/*! \brief Node is new and should not be used while zoen is old. */
-	KNOT_NODE_FLAGS_NEW = (uint8_t)0x40
+	KNOT_NODE_FLAGS_NEW = (uint8_t)0x08,
+	/*! \brief Node is empty and will be deleted after update. */
+	KNOT_NODE_FLAGS_EMPTY = (uint8_t)0x10
 } knot_node_flags_t;
 
 /*----------------------------------------------------------------------------*/
@@ -146,6 +136,8 @@ knot_node_t *knot_node_new(knot_dname_t *owner, knot_node_t *parent,
  */
 int knot_node_add_rrset(knot_node_t *node, knot_rrset_t *rrset,
                           int merge);
+
+int knot_node_add_rrset_no_dupl(knot_node_t *node, knot_rrset_t *rrset);
 
 /*!
  * \brief Returns the RRSet of the given type from the node.
@@ -255,8 +247,6 @@ const knot_node_t *knot_node_previous(const knot_node_t *node);
  */
 knot_node_t *knot_node_get_previous(const knot_node_t *node);
 
-const knot_node_t *knot_node_next(const knot_node_t *node);
-
 /*!
  * \brief Sets the previous node of the given node.
  *
@@ -351,7 +341,9 @@ knot_node_t *knot_node_get_new_node(const knot_node_t *node);
 
 void knot_node_set_new_node(knot_node_t *node, knot_node_t *new_node);
 
-void knot_node_set_zone(knot_node_t *node, struct knot_zone *zone);
+void knot_node_set_zone(knot_node_t *node, const struct knot_zone *zone);
+
+const struct knot_zone *knot_node_zone(const knot_node_t *node);
 
 void knot_node_update_ref(knot_node_t **ref);
 
@@ -405,6 +397,10 @@ void knot_node_clear_new(knot_node_t *node);
 
 void knot_node_clear_old(knot_node_t *node);
 
+int knot_node_is_empty(const knot_node_t *node);
+
+void knot_node_set_empty(knot_node_t *node);
+
 /*!
  * \brief Destroys the RRSets within the node structure.
  *
@@ -428,7 +424,7 @@ void knot_node_free_rrsets(knot_node_t *node, int free_rdata_dnames);
  *
  * \todo Document missing parameters.
  */
-void knot_node_free(knot_node_t **node, int fix_refs);
+void knot_node_free(knot_node_t **node);
 
 /*!
  * \brief Compares two nodes according to their owner.

@@ -85,7 +85,7 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 	if (packet == NULL) {
 		dbg_net("udp: failed to create packet on fd=%d\n", fd);
 
-		int ret = knot_ns_error_response_from_query(ns, qbuf, qbuflen,
+		int ret = knot_ns_error_response_from_query_wire(ns, qbuf, qbuflen,
 		                                            KNOT_RCODE_SERVFAIL,
 		                                            qbuf, resp_len);
 
@@ -101,14 +101,24 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 	if (unlikely(res != KNOTD_EOK)) {
 		dbg_net("udp: failed to parse packet on fd=%d\n", fd);
 		if (res > 0) { /* Returned RCODE */
-			int ret = knot_ns_error_response_from_query(ns, qbuf,
-			                                            qbuflen,
-			                                            res, qbuf,
-			                                            resp_len);
+//			int ret = knot_ns_error_response_from_query_wire(ns,
+//				qbuf, qbuflen, res, qbuf, resp_len);
+			int ret = knot_ns_error_response_from_query(ns,
+				packet, res, qbuf, resp_len);
 
 			if (ret != KNOT_EOK) {
 				knot_packet_free(&packet);
 				return KNOTD_EMALF;
+			}
+		} else {
+			assert(res < 0);
+			int ret = knot_ns_error_response_from_query_wire(
+			       ns, qbuf, qbuflen, KNOT_RCODE_SERVFAIL, qbuf, 
+			       resp_len);
+			
+			if (ret != KNOT_EOK) {
+				knot_packet_free(&packet);
+				return ret;
 			}
 		}
 
@@ -122,14 +132,6 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 	res = KNOTD_ERROR;
 	switch(qtype) {
 
-	/* Response types. */
-	case KNOT_RESPONSE_NORMAL:
-		res = zones_process_response(ns, addr, packet, qbuf, resp_len);
-		break;
-	case KNOT_RESPONSE_NOTIFY:
-		res = notify_process_response(ns, packet, addr, qbuf, resp_len);
-		break;
-	
 	/* Query types. */
 	case KNOT_QUERY_NORMAL:
 		res = zones_normal_query_answer(ns, packet, addr, qbuf,
@@ -140,9 +142,9 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 		 * Bind responds with FORMERR.
  		 */
 		/*! \note Draft exists for AXFR/UDP, but has not been standardized. */
-		knot_ns_error_response(ns, knot_packet_id(packet),
-		                       &packet->header.flags1,
-		                       KNOT_RCODE_FORMERR, qbuf, resp_len);
+		knot_ns_error_response_from_query(ns, packet,
+		                                  KNOT_RCODE_FORMERR, qbuf,
+		                                  resp_len);
 		res = KNOTD_EOK;
 		break;
 	case KNOT_QUERY_IXFR:
@@ -151,7 +153,7 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 		 * but I have found no tool or slave server to actually attempt
 		 * IXFR/UDP.
 		 */
-		knot_packet_set_qtype(packet, KNOT_RRTYPE_SOA);
+//		knot_packet_set_qtype(packet, KNOT_RRTYPE_SOA);
 		res = zones_normal_query_answer(ns, packet, addr,
 		                                qbuf, resp_len, 
 		                                NS_TRANSPORT_UDP);
@@ -163,27 +165,26 @@ int udp_handle(int fd, uint8_t *qbuf, size_t qbuflen, size_t *resp_len,
 		
 	case KNOT_QUERY_UPDATE:
 		dbg_net("udp: UPDATE query on fd=%d not implemented\n", fd);
-		knot_ns_error_response(ns, knot_packet_id(packet),
-		                       &packet->header.flags1,
-		                       KNOT_RCODE_NOTIMPL, qbuf, resp_len);
+		knot_ns_error_response_from_query(ns, packet,
+		                                  KNOT_RCODE_NOTIMPL, qbuf,
+		                                  resp_len);
 		res = KNOTD_EOK;
 		break;
 		
 	/* Unhandled opcodes. */
 	case KNOT_RESPONSE_AXFR: /*!< Processed in XFR handler. */
 	case KNOT_RESPONSE_IXFR: /*!< Processed in XFR handler. */
-		knot_ns_error_response(ns, knot_packet_id(packet),
-		                       &packet->header.flags1,
-		                       KNOT_RCODE_REFUSED, qbuf,
-		                       resp_len);
+		knot_ns_error_response_from_query(ns, packet,
+		                                  KNOT_RCODE_REFUSED, qbuf,
+		                                  resp_len);
 		res = KNOTD_EOK;
 		break;
 			
 	/* Unknown opcodes */
 	default:
-		knot_ns_error_response(ns, knot_packet_id(packet),
-		                       &packet->header.flags1,
-		                       KNOT_RCODE_FORMERR, qbuf, resp_len);
+		knot_ns_error_response_from_query(ns, packet,
+		                                  KNOT_RCODE_FORMERR, qbuf,
+		                                  resp_len);
 		res = KNOTD_EOK;
 		break;
 	}
@@ -204,17 +205,14 @@ static inline int udp_master_recvfrom(dthread_t *thread, stat_t *thread_stat)
 	/* Set CPU affinity to improve load distribution on multicore systems.
 	 * Partial overlapping mask to be nice to scheduler.
 	 */
-#ifdef HAVE_PTHREAD_SETAFFINITY_NP
 	int cpcount = dt_online_cpus();
 	if (cpcount > 0) {
-		unsigned tid = dt_get_id(thread);
-		cpu_set_t cpus;
-		CPU_ZERO(&cpus);
-		CPU_SET(tid % cpcount, &cpus);
-		CPU_SET((tid + 1) % cpcount, &cpus);
-		dt_setaffinity(thread, &cpus, sizeof(cpu_set_t));
+		unsigned cpu[2];
+		cpu[0] = dt_get_id(thread);
+		cpu[1] = (cpu[0] + 1) % cpcount;
+		cpu[0] = cpu[0] % cpcount;
+		dt_setaffinity(thread, cpu, 2);
 	}
-#endif
 	
 	knot_nameserver_t *ns = h->server->nameserver;
 
@@ -389,6 +387,7 @@ static inline int udp_master_recvmmsg(dthread_t *thread, stat_t *thread_stat)
 		free(addrs);
 		free(iov);
 		free(msgs);
+		close(sock);
 		return KNOTD_ENOMEM;
 	}
 
@@ -407,17 +406,14 @@ static inline int udp_master_recvmmsg(dthread_t *thread, stat_t *thread_stat)
 	/* Set CPU affinity to improve load distribution on multicore systems.
 	 * Partial overlapping mask to be nice to scheduler.
 	 */
-#ifdef HAVE_PTHREAD_SETAFFINITY_NP
 	int cpcount = dt_online_cpus();
 	if (cpcount > 0) {
-		unsigned tid = dt_get_id(thread);
-		cpu_set_t cpus;
-		CPU_ZERO(&cpus);
-		CPU_SET(tid % cpcount, &cpus);
-		CPU_SET((tid + 1) % cpcount, &cpus);
-		dt_setaffinity(thread, &cpus, sizeof(cpu_set_t));
+		unsigned cpu[2];
+		cpu[0] = dt_get_id(thread);
+		cpu[1] = (cpu[0] + 1) % cpcount;
+		cpu[0] = cpu[0] % cpcount;
+		dt_setaffinity(thread, cpu, 2);
 	}
-#endif
 
 	/* Loop until all data is read. */
 	ssize_t n = 0;
@@ -433,7 +429,9 @@ static inline int udp_master_recvmmsg(dthread_t *thread, stat_t *thread_stat)
 
 		/* Error and interrupt handling. */
 		if (unlikely(n <= 0)) {
-			if (errno != EINTR && errno != 0) {
+			if (errno != EINTR && errno != 0 && n < 0) {
+				log_server_error("I/O failure in UDP - errno %d "
+				                 "(Linux/recvmmsg)", errno);
 				dbg_net("udp: recvmmsg() failed: %d\n",
 				        errno);
 			}
@@ -493,7 +491,10 @@ void __attribute__ ((constructor)) udp_master_init()
 #ifdef MSG_WAITFORONE
 	/* Check for recvmmsg() support. */
 	if (dlsym(RTLD_DEFAULT, "recvmmsg") != 0) {
-		_udp_master = udp_master_recvmmsg;
+		int r = recvmmsg(0, NULL, 0, 0, 0);
+		if (errno != ENOSYS) {
+			_udp_master = udp_master_recvmmsg;
+		}
 	}
 	
 	/* Check for sendmmsg() support. */

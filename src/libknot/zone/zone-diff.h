@@ -14,12 +14,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KNOTD_DA_TESTS_H_
-#define _KNOTD_DA_TESTS_H_
+#ifndef _KNOT_ZONE_DIFF_H_
+#define _KNOT_ZONE_DIFF_H_
 
-#include "common/libtap/tap_unit.h"
+#include "libknot/zone/zone-contents.h"
+#include "libknot/updates/changesets.h"
 
-/* Unit API. */
-unit_api da_tests_api;
+/*! \brief zone1 -> zone2 */
+int knot_zone_diff_create_changesets(const knot_zone_contents_t *z1,
+                                     const knot_zone_contents_t *z2,
+                                     knot_changesets_t **changesets);
 
-#endif /* _KNOTD_DA_TESTS_H_ */
+#endif // _KNOT_ZONE_DIFF_H_

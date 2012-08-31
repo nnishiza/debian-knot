@@ -60,13 +60,13 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libknot_la_LIBADD =
-am_libknot_la_OBJECTS = libknot_error.lo utils.lo debug.lo conv.lo \
+am_libknot_la_OBJECTS = libknot_error.lo utils.lo debug.lo \
 	descriptor.lo tolower.lo query.lo response.lo packet.lo \
 	zone.lo zone-contents.lo zone-tree.lo zonedb.lo node.lo \
-	dname-table.lo hash-functions.lo cuckoo-hash-table.lo \
-	universal-system.lo name-server.lo changesets.lo xfr-in.lo \
-	ddns.lo edns.lo rrset.lo dname.lo rdata.lo nsec3.lo tsig.lo \
-	tsig-op.lo
+	dname-table.lo zone-diff.lo hash-functions.lo \
+	cuckoo-hash-table.lo universal-system.lo name-server.lo \
+	changesets.lo xfr-in.lo ddns.lo edns.lo rrset.lo dname.lo \
+	rdata.lo nsec3.lo tsig.lo tsig-op.lo
 libknot_la_OBJECTS = $(am_libknot_la_OBJECTS)
 libknotd_la_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
 am_libknotd_la_OBJECTS = gatherer.lo stat.lo error.lo \
@@ -78,7 +78,7 @@ am_libknotd_la_OBJECTS = gatherer.lo stat.lo error.lo \
 libknotd_la_OBJECTS = $(am_libknotd_la_OBJECTS)
 libknots_la_DEPENDENCIES = @LIBOBJS@
 am_libknots_la_OBJECTS = slab.lo tap.lo mempattern.lo lists.lo \
-	base32.lo print.lo dynamic-array.lo skip-list.lo base32hex.lo \
+	base32.lo base64.lo heap.lo print.lo skip-list.lo base32hex.lo \
 	general-tree.lo evqueue.lo evsched.lo acl.lo sockaddr.lo \
 	ref.lo errors.lo dSFMT.lo prng.lo fdset.lo fdset_poll.lo \
 	fdset_kqueue.lo fdset_epoll.lo log.lo
@@ -99,12 +99,11 @@ knotc_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
 am_knotd_OBJECTS = main.$(OBJEXT)
 knotd_OBJECTS = $(am_knotd_OBJECTS)
 knotd_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
-am_unittests_OBJECTS = acl_tests.$(OBJEXT) da_tests.$(OBJEXT) \
-	events_tests.$(OBJEXT) skiplist_tests.$(OBJEXT) \
-	slab_tests.$(OBJEXT) fdset_tests.$(OBJEXT) \
-	conf_tests.$(OBJEXT) dthreads_tests.$(OBJEXT) \
-	journal_tests.$(OBJEXT) server_tests.$(OBJEXT) \
-	unittests_main.$(OBJEXT)
+am_unittests_OBJECTS = acl_tests.$(OBJEXT) events_tests.$(OBJEXT) \
+	skiplist_tests.$(OBJEXT) slab_tests.$(OBJEXT) \
+	fdset_tests.$(OBJEXT) conf_tests.$(OBJEXT) \
+	dthreads_tests.$(OBJEXT) journal_tests.$(OBJEXT) \
+	server_tests.$(OBJEXT) unittests_main.$(OBJEXT)
 nodist_unittests_OBJECTS =
 unittests_OBJECTS = $(am_unittests_OBJECTS) \
 	$(nodist_unittests_OBJECTS)
@@ -326,8 +325,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I ../m4
-MANPAGES = knotc.8 knotd.8
-man8_MANS = knotc.8 knotd.8
+MANPAGES = knotc.8 knotd.8 knot.conf.5
+man8_MANS = knotc.8 knotd.8 knot.conf.5
 EXTRA_DIST = $(man8_MANS)
 
 # $(YACC) will generate header file
@@ -382,8 +381,6 @@ knot_zcompile_SOURCES = \
 unittests_SOURCES = \
 	tests/common/acl_tests.c		\
 	tests/common/acl_tests.h		\
-	tests/common/da_tests.c			\
-	tests/common/da_tests.h			\
 	tests/common/events_tests.c		\
 	tests/common/events_tests.h		\
 	tests/common/skiplist_tests.c		\
@@ -482,8 +479,6 @@ libknot_la_SOURCES = \
 	libknot/util/debug.c			\
 	libknot/util/debug.h			\
 	libknot/util/utils.h			\
-	libknot/util/conv.h			\
-	libknot/util/conv.c			\
 	libknot/util/descriptor.c		\
 	libknot/util/tolower.h			\
 	libknot/util/tolower.c			\
@@ -507,6 +502,8 @@ libknot_la_SOURCES = \
 	libknot/zone/node.c			\
 	libknot/zone/dname-table.h		\
 	libknot/zone/dname-table.c		\
+	libknot/zone/zone-diff.h		\
+	libknot/zone/zone-diff.c		\
 	libknot/hash/hash-functions.c		\
 	libknot/hash/cuckoo-hash-table.c	\
 	libknot/hash/universal-system.c		\
@@ -548,17 +545,19 @@ libknots_la_SOURCES = \
 	common/mempattern.c			\
 	common/lists.c				\
 	common/base32.c				\
+	common/base64.c				\
+	common/base64.h				\
 	common/lists.h				\
+	common/heap.h				\
+	common/heap.c				\
 	common/base32.h				\
 	common/print.c				\
 	common/print.h				\
-	common/dynamic-array.c			\
 	common/skip-list.c			\
 	common/base32hex.c			\
 	common/skip-list.h			\
 	common/general-tree.h			\
 	common/general-tree.c			\
-	common/dynamic-array.h			\
 	common/tree.h				\
 	common/base32hex.h			\
 	common/evqueue.h			\
@@ -844,14 +843,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acl_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base32.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base32hex.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/changesets.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf_tests.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo-hash-table.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cuckoo_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dSFMT.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/da_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddns.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/debug.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/descriptor.Plo@am__quote@
@@ -862,7 +860,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dname_tests_realdata.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dthreads.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dthreads_tests.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynamic-array.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns_tests_realdata.Po@am__quote@
@@ -879,6 +876,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gatherer.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/general-tree.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hash-functions.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/heap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/knotc_main.Po@am__quote@
@@ -949,6 +947,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zcompile_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zlexer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone-contents.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone-diff.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone-dump-text.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone-dump.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone-load.Plo@am__quote@
@@ -1004,13 +1003,6 @@ debug.lo: libknot/util/debug.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libknot/util/debug.c' object='debug.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o debug.lo `test -f 'libknot/util/debug.c' || echo '$(srcdir)/'`libknot/util/debug.c
-
-conv.lo: libknot/util/conv.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT conv.lo -MD -MP -MF $(DEPDIR)/conv.Tpo -c -o conv.lo `test -f 'libknot/util/conv.c' || echo '$(srcdir)/'`libknot/util/conv.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/conv.Tpo $(DEPDIR)/conv.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libknot/util/conv.c' object='conv.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o conv.lo `test -f 'libknot/util/conv.c' || echo '$(srcdir)/'`libknot/util/conv.c
 
 descriptor.lo: libknot/util/descriptor.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT descriptor.lo -MD -MP -MF $(DEPDIR)/descriptor.Tpo -c -o descriptor.lo `test -f 'libknot/util/descriptor.c' || echo '$(srcdir)/'`libknot/util/descriptor.c
@@ -1088,6 +1080,13 @@ dname-table.lo: libknot/zone/dname-table.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libknot/zone/dname-table.c' object='dname-table.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dname-table.lo `test -f 'libknot/zone/dname-table.c' || echo '$(srcdir)/'`libknot/zone/dname-table.c
+
+zone-diff.lo: libknot/zone/zone-diff.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT zone-diff.lo -MD -MP -MF $(DEPDIR)/zone-diff.Tpo -c -o zone-diff.lo `test -f 'libknot/zone/zone-diff.c' || echo '$(srcdir)/'`libknot/zone/zone-diff.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/zone-diff.Tpo $(DEPDIR)/zone-diff.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libknot/zone/zone-diff.c' object='zone-diff.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o zone-diff.lo `test -f 'libknot/zone/zone-diff.c' || echo '$(srcdir)/'`libknot/zone/zone-diff.c
 
 hash-functions.lo: libknot/hash/hash-functions.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT hash-functions.lo -MD -MP -MF $(DEPDIR)/hash-functions.Tpo -c -o hash-functions.lo `test -f 'libknot/hash/hash-functions.c' || echo '$(srcdir)/'`libknot/hash/hash-functions.c
@@ -1355,19 +1354,26 @@ base32.lo: common/base32.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o base32.lo `test -f 'common/base32.c' || echo '$(srcdir)/'`common/base32.c
 
+base64.lo: common/base64.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT base64.lo -MD -MP -MF $(DEPDIR)/base64.Tpo -c -o base64.lo `test -f 'common/base64.c' || echo '$(srcdir)/'`common/base64.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/base64.Tpo $(DEPDIR)/base64.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/base64.c' object='base64.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o base64.lo `test -f 'common/base64.c' || echo '$(srcdir)/'`common/base64.c
+
+heap.lo: common/heap.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT heap.lo -MD -MP -MF $(DEPDIR)/heap.Tpo -c -o heap.lo `test -f 'common/heap.c' || echo '$(srcdir)/'`common/heap.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/heap.Tpo $(DEPDIR)/heap.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/heap.c' object='heap.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o heap.lo `test -f 'common/heap.c' || echo '$(srcdir)/'`common/heap.c
+
 print.lo: common/print.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT print.lo -MD -MP -MF $(DEPDIR)/print.Tpo -c -o print.lo `test -f 'common/print.c' || echo '$(srcdir)/'`common/print.c
 @am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/print.Tpo $(DEPDIR)/print.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/print.c' object='print.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o print.lo `test -f 'common/print.c' || echo '$(srcdir)/'`common/print.c
-
-dynamic-array.lo: common/dynamic-array.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dynamic-array.lo -MD -MP -MF $(DEPDIR)/dynamic-array.Tpo -c -o dynamic-array.lo `test -f 'common/dynamic-array.c' || echo '$(srcdir)/'`common/dynamic-array.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dynamic-array.Tpo $(DEPDIR)/dynamic-array.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/dynamic-array.c' object='dynamic-array.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dynamic-array.lo `test -f 'common/dynamic-array.c' || echo '$(srcdir)/'`common/dynamic-array.c
 
 skip-list.lo: common/skip-list.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT skip-list.lo -MD -MP -MF $(DEPDIR)/skip-list.Tpo -c -o skip-list.lo `test -f 'common/skip-list.c' || echo '$(srcdir)/'`common/skip-list.c
@@ -1592,20 +1598,6 @@ acl_tests.obj: tests/common/acl_tests.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/common/acl_tests.c' object='acl_tests.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o acl_tests.obj `if test -f 'tests/common/acl_tests.c'; then $(CYGPATH_W) 'tests/common/acl_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/common/acl_tests.c'; fi`
-
-da_tests.o: tests/common/da_tests.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT da_tests.o -MD -MP -MF $(DEPDIR)/da_tests.Tpo -c -o da_tests.o `test -f 'tests/common/da_tests.c' || echo '$(srcdir)/'`tests/common/da_tests.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/da_tests.Tpo $(DEPDIR)/da_tests.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/common/da_tests.c' object='da_tests.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o da_tests.o `test -f 'tests/common/da_tests.c' || echo '$(srcdir)/'`tests/common/da_tests.c
-
-da_tests.obj: tests/common/da_tests.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT da_tests.obj -MD -MP -MF $(DEPDIR)/da_tests.Tpo -c -o da_tests.obj `if test -f 'tests/common/da_tests.c'; then $(CYGPATH_W) 'tests/common/da_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/common/da_tests.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/da_tests.Tpo $(DEPDIR)/da_tests.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tests/common/da_tests.c' object='da_tests.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o da_tests.obj `if test -f 'tests/common/da_tests.c'; then $(CYGPATH_W) 'tests/common/da_tests.c'; else $(CYGPATH_W) '$(srcdir)/tests/common/da_tests.c'; fi`
 
 events_tests.o: tests/common/events_tests.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT events_tests.o -MD -MP -MF $(DEPDIR)/events_tests.Tpo -c -o events_tests.o `test -f 'tests/common/events_tests.c' || echo '$(srcdir)/'`tests/common/events_tests.c

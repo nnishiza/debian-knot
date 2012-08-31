@@ -172,6 +172,7 @@ static void conf_zone_start(void *scanner, char *name) {
    this_zone->ixfr_fslimit = -1; // Default policy applies
    this_zone->dbsync_timeout = -1; // Default policy applies
    this_zone->disable_any = -1; // Default policy applies
+   this_zone->build_diffs = -1; // Default policy applies
 
    // Append mising dot to ensure FQDN
    size_t nlen = strlen(name);
@@ -266,6 +267,7 @@ static int conf_mask(void* scanner, int nval, int prefixlen) {
 %token <tok> XFR_OUT
 %token <tok> NOTIFY_IN
 %token <tok> NOTIFY_OUT
+%token <tok> BUILD_DIFFS
 
 %token <tok> INTERFACES ADDRESS PORT
 %token <tok> IPA
@@ -630,12 +632,31 @@ zone_acl:
  ;
 
 zone_start:
- | TEXT  { conf_zone_start(scanner, $1.t); }
  | USER  { conf_zone_start(scanner, strdup($1.t)); }
  | REMOTES { conf_zone_start(scanner, strdup($1.t)); }
  | LOG_SRC { conf_zone_start(scanner, strdup($1.t)); }
  | LOG { conf_zone_start(scanner, strdup($1.t)); }
  | LOG_LEVEL { conf_zone_start(scanner, strdup($1.t)); }
+ | NUM '/' TEXT {
+    if ($1.i < 0 || $1.i > 255) {
+        char buf[256] = "";
+        snprintf(buf, sizeof(buf), "rfc2317 origin prefix '%ld' out of bounds", $1.i);
+        cf_error(scanner, buf);
+    }
+    size_t len = 3 + 1 + strlen($3.t) + 1; /* <0,255> '/' rest */
+    char *name = malloc(len * sizeof(char));
+    if (name == NULL) {
+        cf_error(scanner, "out of memory");
+    } else {
+        name[0] = '\0';
+        if (snprintf(name, len, "%ld/%s", $1.i, $3.t) < 0) {
+            cf_error(scanner,"failed to convert rfc2317 origin to string");
+        }
+    }
+    free($3.t);
+    conf_zone_start(scanner, name);
+ }
+ | TEXT  { conf_zone_start(scanner, $1.t); }
  ;
 
 zone:
@@ -643,6 +664,7 @@ zone:
  | zone zone_acl '}'
  | zone zone_acl_list
  | zone FILENAME TEXT ';' { this_zone->file = $3.t; }
+ | zone BUILD_DIFFS BOOL ';' { this_zone->build_diffs = $3.i; }
  | zone SEMANTIC_CHECKS BOOL ';' { this_zone->enable_checks = $3.i; }
  | zone DISABLE_ANY BOOL ';' { this_zone->disable_any = $3.i; }
  | zone DBSYNC_TIMEOUT NUM ';' { this_zone->dbsync_timeout = $3.i; }
@@ -669,6 +691,7 @@ zones:
    ZONES '{'
  | zones zone '}'
  | zones DISABLE_ANY BOOL ';' { new_config->disable_any = $3.i; }
+ | zones BUILD_DIFFS BOOL ';' { new_config->build_diffs = $3.i; }
  | zones SEMANTIC_CHECKS BOOL ';' { new_config->zone_checks = $3.i; }
  | zones IXFR_FSLIMIT SIZE ';' { new_config->ixfr_fslimit = $3.l; }
  | zones IXFR_FSLIMIT NUM ';' { new_config->ixfr_fslimit = $3.i; }

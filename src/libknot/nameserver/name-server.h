@@ -115,8 +115,6 @@ typedef struct knot_ns_xfr {
 	 */
 	uint8_t *tsig_data;
 	size_t tsig_data_size; /*!< Size of the message(s) in bytes */
-//	const knot_rrset_t *tsig; /*!< Response TSIG. 
-//	                            \todo [TSIG] Replace with separate data. */
 	size_t tsig_size;      /*!< Size of the TSIG RR wireformat in bytes.*/
 	knot_key_t *tsig_key;  /*!< Associated TSIG key for signing. */
 	
@@ -126,13 +124,6 @@ typedef struct knot_ns_xfr {
 
 	uint16_t tsig_rcode;
 	uint64_t tsig_prev_time_signed;
-	
-	/*! \brief Previous digest or request digest. 
-	 *
-	 *  Should be allocated before the transfer (known size).
-	 */
-//	uint8_t *prev_digest;
-//	size_t prev_digest_size; /*!< Size of previous digest in bytes. */
 	
 	/*! 
 	 * \brief Number of the packet currently assembled.
@@ -154,7 +145,7 @@ static const size_t KNOT_NS_TSIG_DATA_MAX_SIZE = 100 * 64 * 1024;
 enum knot_ns_xfr_flag_t {
 	XFR_FLAG_TCP = 1 << 0, /*!< XFR request is on TCP. */
 	XFR_FLAG_UDP = 1 << 1,  /*!< XFR request is on UDP. */
-	XFR_FLAG_AXFR_FINISHED = 1 << 2
+	XFR_FLAG_AXFR_FINISHED = 1 << 2 /*!< Transfer is finished. */
 };
 
 typedef enum knot_ns_transport {
@@ -218,26 +209,13 @@ void knot_ns_set_nsid(knot_nameserver_t *nameserver, const char *nsid,
 int knot_ns_parse_packet(const uint8_t *query_wire, size_t qsize,
                     knot_packet_t *packet, knot_packet_type_t *type);
 
-/*!
- * \brief Prepares wire format of an error response using generic error template
- *        stored in the nameserver structure.
- *
- * The error response will not contain the Question section from the query, just
- * a header with ID copied from the query and the given RCODE.
- *
- * \param nameserver Nameserver structure containing the error template.
- * \param query_id ID of the query.
- * \param rcode RCODE to set in the response.
- * \param response_wire Place for wire format of the response.
- * \param rsize Size of the error response will be stored here.
- */
-void knot_ns_error_response(const knot_nameserver_t *nameserver,
-                            uint16_t query_id, uint8_t *flags1_query,
-                            uint8_t rcode, uint8_t *response_wire,
-                            size_t *rsize);
+int knot_ns_error_response_from_query_wire(const knot_nameserver_t *nameserver,
+                                      const uint8_t *query, size_t size,
+                                      uint8_t rcode, uint8_t *response_wire,
+                                      size_t *rsize);
 
 int knot_ns_error_response_from_query(const knot_nameserver_t *nameserver,
-                                      const uint8_t *query, size_t size,
+                                      const knot_packet_t *query,
                                       uint8_t rcode, uint8_t *response_wire,
                                       size_t *rsize);
 
@@ -264,7 +242,11 @@ int knot_ns_prep_normal_response(knot_nameserver_t *nameserver,
  */
 int knot_ns_answer_normal(knot_nameserver_t *nameserver, 
                           const knot_zone_t *zone, knot_packet_t *resp,
-                          uint8_t *response_wire, size_t *rsize);
+                          uint8_t *response_wire, size_t *rsize, int check_any);
+
+int knot_ns_answer_ixfr_udp(knot_nameserver_t *nameserver,
+                            const knot_zone_t *zone, knot_packet_t *resp,
+                            uint8_t *response_wire, size_t *rsize);
 
 int knot_ns_init_xfr(knot_nameserver_t *nameserver, knot_ns_xfr_t *xfr);
 
@@ -322,11 +304,11 @@ int knot_ns_answer_ixfr(knot_nameserver_t *nameserver, knot_ns_xfr_t *xfr);
  * \param nameserver Name server structure to provide the data for answering.
  * \param xfr Persistent transfer-specific data.
  *
- * \todo Document me.
  */
 int knot_ns_process_axfrin(knot_nameserver_t *nameserver, 
                              knot_ns_xfr_t *xfr);
 
+/*! \todo Document me. */
 int knot_ns_switch_zone(knot_nameserver_t *nameserver, 
                           knot_ns_xfr_t *xfr);
 

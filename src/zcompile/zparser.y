@@ -314,7 +314,6 @@ origin_directive:	DOLLAR_ORIGIN sp abs_dname trail
 //		knot_node_free(&parser->origin, 1);
 	}
 	    parser->origin = origin_node;
-	    parser->origin_directive = 1;
     }
     |	DOLLAR_ORIGIN sp rel_dname trail
     {
@@ -406,12 +405,8 @@ abs_dname:	'.'
     }
     |	'@'
     {
-    	if (parser->origin_directive) {
-	    $$ = parser->origin->owner;
-	} else {
-		zc_error("@ used, but no $ORIGIN specified.\n");
-		$$ = parser->origin->owner;
-	}
+    	assert(parser->origin != NULL);
+	$$ = parser->origin->owner;
     }
     |	rel_dname '.'
     {
@@ -1267,13 +1262,13 @@ rdata_apl:	rdata_apl_seq trail
 
 rdata_apl_seq:	dotted_str
     {
-	    zadd_rdata_wireformat(zparser_conv_apl_rdata($1.str));
+	    zadd_rdata_txt_wireformat(zparser_conv_apl_rdata($1.str), 1);
 
 	    free($1.str);
     }
     |	rdata_apl_seq sp dotted_str
     {
-	    zadd_rdata_wireformat(zparser_conv_apl_rdata($3.str));
+	    zadd_rdata_txt_wireformat(zparser_conv_apl_rdata($3.str), 0);
 
 	    free($3.str);
     }
@@ -1637,13 +1632,9 @@ zparser_init(const char *filename, uint32_t ttl, uint16_t rclass,
 	parser->current_zone = knot_zone_new(origin, 0, 1);
 
 	parser->node_rrsigs = NULL;
-	parser->rrsig_orphans = NULL;
-	parser->rrsig_orphan_count = 0;
 
 	parser->current_rrset->rclass = parser->default_class;
 	parser->current_rrset->rdata = NULL;
-	
-	parser->origin_directive = 0;
 }
 
 

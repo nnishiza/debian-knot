@@ -43,7 +43,8 @@ enum knotc_flag_t {
 	F_VERBOSE     = 1 << 1,
 	F_WAIT        = 1 << 2,
 	F_INTERACTIVE = 1 << 3,
-	F_AUTO        = 1 << 4
+	F_AUTO        = 1 << 4,
+	F_UNPRIVILEGED= 1 << 5
 };
 
 static inline unsigned has_flag(unsigned flags, enum knotc_flag_t f) {
@@ -55,9 +56,9 @@ void help(int argc, char **argv)
 {
 	printf("Usage: %sc [parameters] start|stop|restart|reload|running|"
 	       "compile [additional]\n", PACKAGE_NAME);
-	printf("Parameters:\n"
+	printf("\nParameters:\n"
 	       " -c [file], --config=[file] Select configuration file.\n"
-	       " -j [num], --jobs=[num]     Number of parallel tasks to run (only for 'compile').\n"
+	       " -j [num], --jobs=[num]     Number of parallel tasks to run when compiling.\n"
 	       " -f, --force                Force operation - override some checks.\n"
 	       " -v, --verbose              Verbose mode - additional runtime information.\n"
 	       " -V, --version              Print %s server version.\n"
@@ -66,7 +67,7 @@ void help(int argc, char **argv)
 	       " -a, --auto                 Enable automatic recompilation (start or reload).\n"
 	       " -h, --help                 Print help and usage.\n",
 	       PACKAGE_NAME);
-	printf("Actions:\n"
+	printf("\nActions:\n"
 	       " start     Start %s server zone (no-op if running).\n"
 	       " stop      Stop %s server (no-op if not running).\n"
 	       " restart   Stops and then starts %s server.\n"
@@ -75,8 +76,8 @@ void help(int argc, char **argv)
 	       " running   Check if server is running.\n"
 	       " checkconf Check server configuration.\n"
 	       "\n"
-	       " checkzone Check zones (accepts specific zones, f.e. "
-	       "'knotc checkzone example1.com example2.com').\n"
+	       " checkzone Check zones (accepts specific zones, \n"
+	       "           e.g. 'knotc checkzone example1.com example2.com').\n"
 	       " compile   Compile zones (accepts specific zones, see above).\n",
 	       PACKAGE_NAME, PACKAGE_NAME, PACKAGE_NAME, PACKAGE_NAME);
 }
@@ -142,10 +143,15 @@ pid_t wait_cmd(pid_t proc, int *rc)
 	return proc;
 }
 
-pid_t start_cmd(const char *argv[], int argc)
+pid_t start_cmd(const char *argv[], int argc, int flags)
 {
 	pid_t chproc = fork();
 	if (chproc == 0) {
+	
+		/* Alter privileges. */
+		if (flags & F_UNPRIVILEGED) {
+			proc_update_privileges(conf()->uid, conf()->gid);
+		}
 
 		/* Duplicate, it doesn't run from stack address anyway. */
 		char **args = malloc((argc + 1) * sizeof(char*));
@@ -180,7 +186,7 @@ pid_t start_cmd(const char *argv[], int argc)
 int exec_cmd(const char *argv[], int argc)
 {
 	int ret = 0;
-	pid_t proc = start_cmd(argv, argc);
+	pid_t proc = start_cmd(argv, argc, 0);
 	wait_cmd(proc, &ret);
 	return ret;
 }
@@ -292,15 +298,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 	int rc = 0;
 	if (strcmp(action, "start") == 0) {
 		// Check pidfile for w+
-		FILE* chkf = fopen(pidfile, "w+");
-		if (chkf == NULL) {
-			log_server_error("PID file '%s' is not writeable, "
-			                 "refusing to start\n", pidfile);
-			return 1;
-		} else {
-			fclose(chkf);
-			chkf = NULL;
-		}
+		log_server_info("Starting server...\n");
 
 		// Check PID
 		valid_cmd = 1;
@@ -332,7 +330,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 		}
 
 		// Lock configuration
-		conf_read_lock();
+		rcu_read_lock();
 
 		// Prepare command
 		const char *cfg = conf()->filename;
@@ -346,7 +344,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 		};
 
 		// Unlock configuration
-		conf_read_unlock();
+		rcu_read_unlock();
 
 		// Execute command
 		if (has_flag(flags, F_INTERACTIVE)) {
@@ -381,6 +379,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 	if (strcmp(action, "stop") == 0) {
 
 		// Check PID
+		log_server_info("Stopping server...\n");
 		valid_cmd = 1;
 		rc = 0;
 		if (pid <= 0 || !pid_running(pid)) {
@@ -440,7 +439,6 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 			}
 		}
 
-		log_server_info("Restarting server.\n");
 		rc = execute("start", argv, argc, -1, flags, jobs, pidfile);
 	}
 	if (strcmp(action, "reload") == 0) {
@@ -527,7 +525,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 		valid_cmd = 1;
 		
 		// Lock configuration
-		conf_read_lock();
+		rcu_read_lock();
 
 		// Generate databases for all zones
 		node *n = 0;
@@ -604,7 +602,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 			}
 			fflush(stdout);
 			fflush(stderr);
-			pid_t zcpid = start_cmd(args, ac);
+			pid_t zcpid = start_cmd(args, ac, F_UNPRIVILEGED);
 			zctask_add(tasks, jobs, zcpid, zone);
 			++running;
 		}
@@ -617,7 +615,7 @@ int execute(const char *action, char **argv, int argc, pid_t pid,
 		free(tasks);
 
 		// Unlock configuration
-		conf_read_unlock();
+		rcu_read_unlock();
 	}
 	if (!valid_cmd) {
 		log_server_error("Invalid command: '%s'\n", action);
@@ -707,7 +705,7 @@ int main(int argc, char **argv)
 			log_server_error("Couldn't open configuration file "
 			                 "'%s'.\n", config_fn);
 		} else {
-			log_server_error("Failed to parse configuration '%s'.\n",
+			log_server_error("Failed to load configuration '%s'.\n",
 			                 config_fn);
 		}
 		free(default_fn);
@@ -722,7 +720,7 @@ int main(int argc, char **argv)
 		log_levels_add(LOGT_STDOUT, LOG_ANY,
 		               LOG_MASK(LOG_INFO)|LOG_MASK(LOG_DEBUG));
 	}
-
+	
 	// Fetch PID
 	char* pidfile = pid_filename();
 	if (!pidfile) {

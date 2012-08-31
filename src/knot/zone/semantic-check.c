@@ -16,8 +16,7 @@ static char *error_messages[(-ZC_ERR_ALLOC) + 1] = {
 	[-ZC_ERR_ALLOC] = "Memory allocation error!\n",
 
 	[-ZC_ERR_MISSING_SOA] = "SOA record missing in zone!\n",
-	[-ZC_ERR_MISSING_NS_DEL_POINT] = "NS record missing in zone apex or in "
-	                "delegation point!\n",
+	[-ZC_ERR_MISSING_NS_DEL_POINT] = "NS record missing in zone apex!\n",
 
 	[-ZC_ERR_RRSIG_RDATA_TYPE_COVERED] =
 	"RRSIG: Type covered rdata field is wrong!\n",
@@ -169,7 +168,7 @@ int err_handler_handle_error(err_handler_t *handler,
 		return KNOT_EBADARG;
 	}
 
-	/*!< \todo this is so wrong! This should not even return anything. */
+	/*!< \todo #1886 this is so wrong! Should not even return anything. */
 	if (error == ZC_ERR_ALLOC || error == 0) {
 		return KNOT_EBADARG;
 	}
@@ -262,9 +261,11 @@ static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
 	const knot_node_t *next_node = NULL;
 
 	uint i = 0;
-
-	assert(tmp_rdata);
-
+	
+	if (tmp_rdata == NULL) {
+		return KNOT_EOK;
+	}
+	
 	const knot_dname_t *next_dname =
 		knot_rdata_cname_name(tmp_rdata);
 	/* (cname_name == dname_target) */
@@ -330,6 +331,7 @@ static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
 			} else if ((knot_dname_is_fqdn(next_dname_copy) &&
 				knot_dname_label_count(next_dname_copy) == 0)) {
 				knot_dname_free(&next_dname_copy);
+				knot_dname_free(&tmp_chopped);
 				/* Root domain, end of search. */
 				break;
 			}
@@ -367,7 +369,7 @@ static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
 			                                          next_dname);
 		}
 		
-/*!< \todo this might replace some of the code above. */
+/*!< \todo #1887 this might replace some of the code above. */
 //		/* Still NULL, try wildcards. */
 //		if (next_node == NULL && knot_dname_is_wildcard(next_dname)) {
 //			/* We can only use the wildcard so many times. */
@@ -390,7 +392,6 @@ static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
 		knot_dname_t *chopped_next =
 			knot_dname_left_chop(next_dname);
 		if (chopped_next == NULL) {
-			/*!< \todo check. */
 			return KNOT_ERROR;
 		}
 		while (next_node == NULL && chopped_next != NULL) {
@@ -422,7 +423,7 @@ static int check_cname_cycles_in_zone(knot_zone_contents_t *zone,
 		if (next_node != NULL) {
 			next_rrset = knot_node_rrset(next_node,
 						     rrset->type);
-			if (next_rrset != NULL) {
+			if (next_rrset != NULL && next_rrset->rdata != NULL) {
 				next_dname =
 				knot_rdata_cname_name(next_rrset->rdata);
 			} else {
@@ -477,7 +478,6 @@ uint16_t type_covered_from_rdata(const knot_rdata_t *rdata)
 static int check_dnskey_rdata(const knot_rdata_t *rdata)
 {
 	/* check that Zone key bit it set - position 7 in net order */
-	/*! \todo FIXME: endian? I swear I've fixed this already, it was 7 i guesss*/
 	uint16_t mask = 1 << 8; //0b0000000100000000;
 
 	uint16_t flags =
@@ -570,7 +570,6 @@ static int dnskey_to_wire(const knot_rdata_t *rdata, uint8_t **wire,
 
 	/* copy the wire octet by octet */
 
-	/* TODO check if we really have that many items */
 	if (rdata->count < 4) {
 		free(*wire);
 		*wire = NULL;
@@ -754,28 +753,34 @@ static int check_rrsig_in_rrset(const knot_rrset_t *rrset,
 		return ZC_ERR_RRSIG_TTL;
 	}
 
-	/* Check whether all rrsets have their rrsigs */
 	const knot_rdata_t *tmp_rdata = knot_rrset_rdata(rrset);
 	const knot_rdata_t *tmp_rrsig_rdata = knot_rrset_rdata(rrsigs);
-
-	assert(tmp_rdata);
-	assert(tmp_rrsig_rdata);
+	
+	assert(tmp_rrsig_rdata != NULL);
+	if (tmp_rdata == NULL) {
+		/* Only RRSIG, valid, but we can't check anything. */
+		return KNOT_EOK;
+	}
+	
 	int ret = 0;
-	char all_signed = tmp_rdata && tmp_rrsig_rdata;
 	do {
 		if ((ret = check_rrsig_rdata(tmp_rrsig_rdata,
 					     rrset,
 					     dnskey_rrset)) != 0) {
+			/*!< \todo This should go to handler. */
 			return ret;
 		}
-
-		all_signed = tmp_rdata && tmp_rrsig_rdata;
-	} while (((tmp_rdata = knot_rrset_rdata_next(rrset, tmp_rdata))
-		!= NULL) &&
-		((tmp_rrsig_rdata =
-			knot_rrset_rdata_next(rrsigs, tmp_rrsig_rdata))
-		!= NULL));
-
+		tmp_rdata = knot_rrset_rdata_next(rrset, tmp_rdata);
+		tmp_rrsig_rdata = knot_rrset_rdata_next(rrsigs,
+		                                        tmp_rrsig_rdata);
+	} while (tmp_rdata != NULL && tmp_rrsig_rdata != NULL);
+	
+	/*!< \todo JK 03-08-2012 #1972
+	 * This check is not very informative, its output
+	 * does not contain any info about which RRSet is not completely signed.
+	 * A rewrite is needed.
+	 */
+	char all_signed = tmp_rdata == NULL && tmp_rrsig_rdata == NULL;
 	if (!all_signed) {
 		return ZC_ERR_RRSIG_NOT_ALL;
 	}
@@ -992,10 +997,6 @@ static int check_nsec3_node_in_zone(knot_zone_contents_t *zone, knot_node_t *nod
 	/* Directly discard. */
 	knot_dname_free(&next_dname);
 	
-	/*!< \todo These comments are not accurate anymore. */
-	/* This is probably not sufficient, but again, it is covered in
-	 * zone load time */
-
 	uint count;
 	uint16_t *array = NULL;
 	if (rdata_nsec_to_type_array(
@@ -1104,8 +1105,9 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 			}
 		}
 
-		if (knot_rrset_rdata(cname_rrset)->next !=
-		                knot_rrset_rdata(cname_rrset)) {
+		if (knot_rrset_rdata(cname_rrset) &&
+		    knot_rrset_rdata(cname_rrset)->next !=
+		    knot_rrset_rdata(cname_rrset)) {
 			*fatal_error = 1;
 			err_handler_handle_error(handler, node,
 			                         ZC_ERR_CNAME_MULTIPLE);
@@ -1169,7 +1171,7 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 		return KNOT_EOK;
 	}
 	
-	/*!< \todo Good Lord, move this to ist own function. */
+	/*!< \todo #1887 Good Lord, move this to ist own function. */
 
 	/* check for glue records at zone cuts and in apex. */
 	if (knot_node_is_deleg_point(node) || knot_zone_contents_apex(zone) ==
@@ -1184,10 +1186,12 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 		//FIXME this should be an error as well ! (i guess)
 
 		knot_dname_t *ns_dname =
+			knot_dname_deep_copy(
 				knot_rdata_get_item(knot_rrset_rdata
-						      (ns_rrset), 0)->dname;
-
-		assert(ns_dname);
+				                    (ns_rrset), 0)->dname);
+		if (ns_dname == NULL) {
+			return KNOT_ENOMEM;
+		}
 
 		const knot_node_t *glue_node =
 				knot_zone_contents_find_node(zone, ns_dname);
@@ -1199,6 +1203,7 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 				knot_dname_t *wildcard =
 					knot_dname_new_from_str("*", 1, NULL);
 				if (wildcard == NULL) {
+					knot_dname_free(&ns_dname);
 					return KNOT_ENOMEM;
 				}
 				
@@ -1206,6 +1211,7 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 		
 				if (knot_dname_cat(wildcard,
 				                   ns_dname) == NULL) {
+					knot_dname_free(&ns_dname);
 					knot_dname_free(&wildcard);
 					return KNOT_ENOMEM;
 				}
@@ -1236,6 +1242,7 @@ static int semantic_checks_plain(knot_zone_contents_t *zone,
 				}
 			}
 		}
+		knot_dname_free(&ns_dname);
 	}
 	return KNOT_EOK;
 }
@@ -1512,7 +1519,7 @@ void log_cyclic_errors_in_zone(err_handler_t *handler,
 
 		free(next_dname_decoded);
 
-		/*! \todo Free result and dname! */
+		/*! \todo #1887 Free result and dname! */
 		if (knot_dname_cat(next_dname,
 			     knot_node_owner(knot_zone_contents_apex(zone))) ==
 		                NULL) {

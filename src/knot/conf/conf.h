@@ -96,6 +96,7 @@ typedef struct conf_zone_t {
 	int disable_any;          /*!< Disable ANY type queries for AA.*/
 	int notify_retries;       /*!< NOTIFY query retries. */
 	int notify_timeout;       /*!< Timeout for NOTIFY response (s). */
+	int build_diffs;          /*!< Calculate differences from changes. */
 	struct {
 		list xfr_in;      /*!< Remotes accepted for for xfr-in.*/
 		list xfr_out;     /*!< Remotes accepted for xfr-out.*/
@@ -197,6 +198,7 @@ typedef struct conf_t {
 	int notify_timeout; /*!< Timeout for NOTIFY response in seconds. */
 	int dbsync_timeout; /*!< Default interval between syncing to zonefile.*/
 	size_t ixfr_fslimit; /*!< File size limit for IXFR journal. */
+	int build_diffs;     /*!< Calculate differences from changes. */
 
 	/*
 	 * Implementation specifics
@@ -323,22 +325,6 @@ static inline conf_t* conf() {
 	return s_config; // Inline for performance reasons.
 }
 
-/*!
- * \brief Lock configuration for reading.
- *
- * \return Configuration context.
- */
-static inline void conf_read_lock() {
-	rcu_read_lock();
-}
-
-/*!
- * \brief Unlock configuration for reading.
- */
-static inline void conf_read_unlock() {
-	rcu_read_unlock();
-}
-
 /*
  * Utilities.
  */
@@ -362,6 +348,18 @@ char* strcdup(const char *s1, const char *s2);
  * \retval Pointer to normalized path.
  */
 char* strcpath(char *path);
+
+/*! \brief Free zone config. */
+void conf_free_zone(conf_zone_t *zone);
+
+/*! \brief Free TSIG key config. */
+void conf_free_key(conf_key_t *k);
+
+/*! \brief Free interface config. */
+void conf_free_iface(conf_iface_t *iface);
+
+/*! \brief Free log config. */
+void conf_free_log(conf_log_t *log);
 
 #endif /* _KNOTD_CONF_H_ */
 

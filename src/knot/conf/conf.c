@@ -73,74 +73,6 @@ void cf_error(void *scanner, const char *msg)
 	_parser_res = KNOTD_EPARSEFAIL;
 }
 
-/*
- * Config helper functions.
- */
-
-/*! \brief Free TSIG key. */
-static void key_free(conf_key_t *k)
-{
-	/* Secure erase. */
-	if (k->k.secret) {
-		memset(k->k.secret, 0, strlen(k->k.secret));
-	}
-	free(k->k.secret);
-	knot_dname_free(&k->k.name);
-	free(k);
-}
-
-/*! \brief Free config interfaces. */
-static void iface_free(conf_iface_t *iface)
-{
-	if (!iface) {
-		return;
-	}
-
-	free(iface->name);
-	free(iface->address);
-	free(iface);
-}
-
-/*! \brief Free config logs. */
-static void log_free(conf_log_t *log)
-{
-	if (!log) {
-		return;
-	}
-
-	if (log->file) {
-		free(log->file);
-	}
-
-	/* Free loglevel mapping. */
-	node *n = 0, *nxt = 0;
-	WALK_LIST_DELSAFE(n, nxt, log->map) {
-		free((conf_log_map_t*)n);
-	}
-
-	free(log);
-}
-
-/*! \brief Free config zones. */
-static void zone_free(conf_zone_t *zone)
-{
-	if (!zone) {
-		return;
-	}
-
-	/* Free ACL lists. */
-	WALK_LIST_FREE(zone->acl.xfr_in);
-	WALK_LIST_FREE(zone->acl.xfr_out);
-	WALK_LIST_FREE(zone->acl.notify_in);
-	WALK_LIST_FREE(zone->acl.notify_out);
-
-	free(zone->name);
-	free(zone->file);
-	free(zone->db);
-	free(zone->ixfr_db);
-	free(zone);
-}
-
 /*!
  * \brief Call config hooks that need updating.
  *
@@ -214,6 +146,11 @@ static int conf_process(conf_t *conf)
 		if (zone->dbsync_timeout < 0) {
 			zone->dbsync_timeout = conf->dbsync_timeout;
 		}
+		
+		// Default policy for ixfr-from-differences
+		if (zone->build_diffs < 0) {
+			zone->build_diffs = conf->build_diffs;
+		}
 
 		// Default policy for semantic checks
 		if (zone->enable_checks < 0) {
@@ -286,7 +223,12 @@ static int conf_process(conf_t *conf)
 			*dpos = '\0';
 		}
 
+		/* Copy origin and remove bad characters. */
 		memcpy(dpos, zone->name, zname_len + 1);
+		for (int i = 0; i < zname_len; ++i) {
+			if (dpos[i] == '/') dpos[i] = '_';
+		}
+		
 		memcpy(dpos + zname_len, "db", 3);
 		zone->db = dest;
 
@@ -299,16 +241,26 @@ static int conf_process(conf_t *conf)
 			ret = KNOTD_ENOMEM; /* Error report. */
 			continue;
 		}
-		strncpy(dest, conf->storage, stor_len + 1);
+		dpos = dest;
+		memcpy(dpos, conf->storage, stor_len + 1);
+		dpos += stor_len;
 		if (conf->storage[stor_len - 1] != '/') {
-			strncat(dest, "/", 1);
+			*(dpos++) = '/';	
+			*dpos = '\0';
 		}
 
 		const char *dbext = "diff.db";
-		strncat(dest, zone->name, zname_len);
-		strncat(dest, dbext, strlen(dbext));
+		memcpy(dpos, zone->name, zname_len + 1);
+		for (int i = 0; i < zname_len; ++i) {
+			if (dpos[i] == '/') dpos[i] = '_';
+		}
+		memcpy(dpos + zname_len, dbext, strlen(dbext) + 1);
 		zone->ixfr_db = dest;
 	}
+	
+	/* Update UID and GID. */
+	if (conf->uid < 0) conf->uid = getuid();
+	if (conf->gid < 0) conf->gid = getgid();
 
 	return ret;
 }
@@ -475,6 +427,7 @@ conf_t *conf_new(const char* path)
 	c->ixfr_fslimit = -1;
 	c->uid = -1;
 	c->gid = -1;
+	c->build_diffs = 0; /* Disable by default. */
 
 	return c;
 }
@@ -553,33 +506,33 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 
 	// Free keys
 	WALK_LIST_DELSAFE(n, nxt, conf->keys) {
-		key_free((conf_key_t *)n);
+		conf_free_key((conf_key_t *)n);
 	}
 
 	// Free interfaces
 	WALK_LIST_DELSAFE(n, nxt, conf->ifaces) {
-		iface_free((conf_iface_t*)n);
+		conf_free_iface((conf_iface_t*)n);
 	}
 	conf->ifaces_count = 0;
 	init_list(&conf->ifaces);
 
 	// Free logs
 	WALK_LIST_DELSAFE(n, nxt, conf->logs) {
-		log_free((conf_log_t*)n);
+		conf_free_log((conf_log_t*)n);
 	}
 	conf->logs_count = 0;
 	init_list(&conf->logs);
 
 	// Free remotes
 	WALK_LIST_DELSAFE(n, nxt, conf->remotes) {
-		iface_free((conf_iface_t*)n);
+		conf_free_iface((conf_iface_t*)n);
 	}
 	conf->remotes_count = 0;
 	init_list(&conf->remotes);
 
 	// Free zones
 	WALK_LIST_DELSAFE(n, nxt, conf->zones) {
-		zone_free((conf_zone_t*)n);
+		conf_free_zone((conf_zone_t*)n);
 	}
 	conf->zones_count = 0;
 	init_list(&conf->zones);
@@ -782,5 +735,65 @@ char* strcpath(char *path)
 	}
 
 	return path;
+}
+
+void conf_free_zone(conf_zone_t *zone)
+{
+	if (!zone) {
+		return;
+	}
+
+	/* Free ACL lists. */
+	WALK_LIST_FREE(zone->acl.xfr_in);
+	WALK_LIST_FREE(zone->acl.xfr_out);
+	WALK_LIST_FREE(zone->acl.notify_in);
+	WALK_LIST_FREE(zone->acl.notify_out);
+
+	free(zone->name);
+	free(zone->file);
+	free(zone->db);
+	free(zone->ixfr_db);
+	free(zone);
+}
+
+void conf_free_key(conf_key_t *k)
+{
+	/* Secure erase. */
+	if (k->k.secret) {
+		memset(k->k.secret, 0, strlen(k->k.secret));
+	}
+	free(k->k.secret);
+	knot_dname_free(&k->k.name);
+	free(k);
+}
+
+void conf_free_iface(conf_iface_t *iface)
+{
+	if (!iface) {
+		return;
+	}
+
+	free(iface->name);
+	free(iface->address);
+	free(iface);
+}
+
+void conf_free_log(conf_log_t *log)
+{
+	if (!log) {
+		return;
+	}
+
+	if (log->file) {
+		free(log->file);
+	}
+
+	/* Free loglevel mapping. */
+	node *n = 0, *nxt = 0;
+	WALK_LIST_DELSAFE(n, nxt, log->map) {
+		free((conf_log_map_t*)n);
+	}
+
+	free(log);
 }
 

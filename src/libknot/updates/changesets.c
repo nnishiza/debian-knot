@@ -115,23 +115,20 @@ int knot_changeset_add_rr(knot_rrset_t ***rrsets, size_t *count,
 	// try to find the RRSet in the list of RRSets, but search backwards
 	// as it is probable that the last RRSet is the one to which the RR
 	// belongs
-	int i = *count - 1;
-	
-	while (i >= 0 && !knot_changeset_rrsets_match((*rrsets)[i], rr)) {
-		--i;
-	}
 
-	if (i >= 0) {
-		// found RRSet to merge the new one into
-		if (knot_rrset_merge((void **)&(*rrsets)[i],
-		                       (void **)&rr) != KNOT_EOK) {
+	// Just check the last RRSet. If the RR belongs to it, merge it,
+	// otherwise just add the RR to the end of the list
+
+	if (*count > 0
+	    && knot_changeset_rrsets_match((*rrsets)[*count - 1], rr)) {
+		// Create changesets exactly as they came, with possibly
+		// duplicate records
+		if (knot_rrset_merge((void **)&(*rrsets)[*count - 1],
+		                     (void **)&rr) != KNOT_EOK) {
 			return KNOT_ERROR;
 		}
 
-		// remove the RR
-		/*! \todo does this make sense? */
-		knot_rrset_free(&rr); // used to be deep free with all 1's
-
+		knot_rrset_free(&rr);
 		return KNOT_EOK;
 	} else {
 		return knot_changeset_add_rrset(rrsets, count, allocated, rr);
@@ -211,7 +208,7 @@ int knot_changeset_add_soa(knot_changeset_t *changeset, knot_rrset_t *soa,
 int knot_changesets_check_size(knot_changesets_t *changesets)
 {
 	/* Check if allocated is sufficient. */
-	if (changesets->count <= changesets->allocated) {
+	if (changesets->count < changesets->allocated) {
 		return KNOT_EOK;
 	}
 
@@ -243,7 +240,6 @@ int knot_changesets_check_size(knot_changesets_t *changesets)
 
 void knot_free_changeset(knot_changeset_t **changeset)
 {
-	/* XXX XXX investigate wrong frees. */
 	assert((*changeset)->add_allocated >= (*changeset)->add_count);
 	assert((*changeset)->remove_allocated >= (*changeset)->remove_count);
 	assert((*changeset)->allocated >= (*changeset)->size);
@@ -292,7 +288,3 @@ void knot_free_changesets(knot_changesets_t **changesets)
 	free(*changesets);
 	*changesets = NULL;
 }
-
-/*---------------------------------------------------------------------------*/
-
-

@@ -220,6 +220,8 @@ int knot_rdata_item_set_dname(knot_rdata_t *rdata, unsigned int pos,
 int knot_rdata_item_set_raw_data(knot_rdata_t *rdata, unsigned int pos,
                                    uint16_t *raw_data);
 
+int knot_rdata_count(const knot_rdata_t *rdata);
+
 /*!
  * \brief Copies the given RDATA.
  *
@@ -334,6 +336,11 @@ uint32_t knot_rdata_soa_expire(const knot_rdata_t *rdata);
 uint32_t knot_rdata_soa_minimum(const knot_rdata_t *rdata);
 
 uint16_t knot_rdata_rrsig_type_covered(const knot_rdata_t *rdata);
+
+uint8_t knot_rdata_nsec3_algorithm(const knot_rdata_t *rdata);
+uint16_t knot_rdata_nsec3_iterations(const knot_rdata_t *rdata);
+uint8_t knot_rdata_nsec3_salt_length(const knot_rdata_t *rdata);
+const uint8_t *knot_rdata_nsec3_salt(const knot_rdata_t *rdata);
 
 #endif /* _KNOT_RDATA_H */
 

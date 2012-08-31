@@ -27,6 +27,15 @@
 /* Define to 1 if you have the `clock_gettime' function. */
 #undef HAVE_CLOCK_GETTIME
 
+/* Define if FreeBSD-like cpuset_t exists. */
+#undef HAVE_CPUSET_BSD
+
+/* Define if Linux-like cpu_set_t exists. */
+#undef HAVE_CPUSET_LINUX
+
+/* Define if cpuset_t and cpuset(3) exists. */
+#undef HAVE_CPUSET_NETBSD
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
@@ -104,6 +113,9 @@
 
 /* Define to 1 if you have the `pselect' function. */
 #undef HAVE_PSELECT
+
+/* Define to 1 if you have the <pthread_np.h> header file. */
+#undef HAVE_PTHREAD_NP_H
 
 /* Define to 1 if you have the `pthread_setaffinity_np' function. */
 #undef HAVE_PTHREAD_SETAFFINITY_NP
@@ -236,6 +248,9 @@
 
 /* RR debug. */
 #undef KNOT_RR_DEBUG
+
+/* Hash table stash debug. */
+#undef KNOT_STASH_DEBUG
 
 /* XFR debug. */
 #undef KNOT_XFR_DEBUG
