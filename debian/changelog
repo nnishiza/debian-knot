@@ -1,3 +1,11 @@
+knot (1.1.0-4) unstable; urgency=low
+
+  * Disable extra hardening via dpkg-buildflags, which is not needed
+    by debhelper 9, but breaks builds on squeeze
+  * Install man5 and knot.info documentation
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 03 Sep 2012 16:43:26 +0200
+
 knot (1.1.0-3) unstable; urgency=low
 
   * Bump dependency on debhelper >= 9
