@@ -1,4 +1,4 @@
-usr/lib/knot
+usr/lib/knot/knot-zcompile
 usr/sbin/knotc
 usr/sbin/knotd
 usr/share/man/man8
