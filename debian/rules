@@ -16,7 +16,8 @@ override_dh_auto_configure:
 	autoreconf -fi
 	dh_auto_configure -- \
 	  --sysconfdir=/etc/knot \
-	  --localstatedir /var/lib
+	  --localstatedir /var/lib \
+	  -- $(shell dpkg-buildflags --export=configure)
 
 override_dh_strip:
 	dh_strip --dbg-package=knot-dbg
