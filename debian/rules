@@ -17,8 +17,7 @@ override_dh_auto_configure:
 	dh_auto_configure -- \
 	  --sysconfdir=/etc/knot \
 	  --localstatedir=/var/lib \
-	  --libexecdir=/usr/lib/knot \
-	  -- $(shell dpkg-buildflags --export=configure)
+	  --libexecdir=/usr/lib/knot
 
 override_dh_strip:
 	dh_strip --dbg-package=knot-dbg
