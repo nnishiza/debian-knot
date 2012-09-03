@@ -1,3 +1,11 @@
+knot (1.1.0-3) unstable; urgency=low
+
+  * Bump dependency on debhelper >= 9
+  * Bump standards version to 3.9.3
+  * Fix installation of manpages to correct directories
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 03 Sep 2012 16:02:11 +0200
+
 knot (1.1.0-2) unstable; urgency=low
 
   * Disable AM_MAINTAINER_MODE and re-run autoreconf -fi
