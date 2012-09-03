@@ -1,3 +1,13 @@
+knot (1.1.0-2) unstable; urgency=low
+
+  * Disable AM_MAINTAINER_MODE and re-run autoreconf -fi
+  * Enable hardening build by default
+  * Update pidfile patch to 1.1.0
+  * Cope with default MultiArch in dh_compat==9 and don't install
+    unittests* binaries
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 03 Sep 2012 15:32:53 +0200
+
 knot (1.1.0-1) unstable; urgency=low
 
   * Imported Upstream version 1.1.0
