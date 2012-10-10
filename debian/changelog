@@ -1,3 +1,9 @@
+knot (1.1.0-5) unstable; urgency=low
+
+  * Disable SSE2 instruction set, might solve some strange crashes.
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 10 Oct 2012 13:09:54 +0200
+
 knot (1.1.0-4) unstable; urgency=low
 
   * Disable extra hardening via dpkg-buildflags, which is not needed
