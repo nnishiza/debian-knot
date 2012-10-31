@@ -11,12 +11,12 @@
   * Server.
 --- a/src/knot/conf/conf.c
 +++ b/src/knot/conf/conf.c
-@@ -130,7 +130,7 @@ static int conf_process(conf_t *conf)
+@@ -129,7 +129,7 @@ static int conf_process(conf_t *conf)
  
  	// Create PID file
  	if (conf->pidfile == NULL) {
 -		conf->pidfile = strcdup(conf->storage, "/" PID_FILE);
 +		conf->pidfile = strdup(PID_FILE);
  		if (conf->pidfile == NULL) {
- 			return KNOTD_ENOMEM;
+ 			return KNOT_ENOMEM;
  		}

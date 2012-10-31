@@ -1,4 +1,2 @@
 0001-move_pidfile_to_var_run.patch
-0002-get_rid_of_AM_MAINTAINER_MODE.patch
-0003-fix_manpage_section.patch
 0004-disable_SSE2_detection.patch
