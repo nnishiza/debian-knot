@@ -47,6 +47,7 @@
 struct knot_compressed_dnames {
 	const knot_dname_t **dnames;  /*!< Domain names present in packet. */
 	size_t *offsets;          /*!< Offsets of domain names in the packet. */
+	int *to_free;             /*< Indices of dnames to free. */
 	short count;              /*!< Count of items in the previous arrays. */
 	short max;                /*!< Capacity of the structure (allocated). */
 	short default_count;
@@ -233,7 +234,12 @@ enum {
 	/*! \brief Space for other part of the compression table (offsets). */
 	PREALLOC_OFFSETS =
 		DEFAULT_DOMAINS_IN_RESPONSE * sizeof(size_t),
-	PREALLOC_COMPRESSION = PREALLOC_DOMAINS + PREALLOC_OFFSETS,
+
+	PREALLOC_TO_FREE =
+		DEFAULT_DOMAINS_IN_RESPONSE * sizeof(int),
+
+	PREALLOC_COMPRESSION = PREALLOC_DOMAINS + PREALLOC_OFFSETS
+	                       + PREALLOC_TO_FREE,
 
 	PREALLOC_WC_NODES =
 		DEFAULT_WILDCARD_NODES * sizeof(knot_node_t *),
@@ -318,7 +324,7 @@ size_t knot_packet_parsed(const knot_packet_t *packet);
  * \param max_size Maximum size of the packet in bytes.
  *
  * \retval KNOT_EOK
- * \retval KNOT_EBADARG
+ * \retval KNOT_EINVAL
  * \retval KNOT_ENOMEM
  *
  * \todo Needs test.
@@ -530,7 +536,7 @@ int knot_packet_edns_to_wire(knot_packet_t *packet);
  * \param wire_size The size of the packet in wire format will be stored here.
  *
  * \retval KNOT_EOK
- * \retval KNOT_EBADARG
+ * \retval KNOT_EINVAL
  */
 int knot_packet_to_wire(knot_packet_t *packet, uint8_t **wire,
                           size_t *wire_size);

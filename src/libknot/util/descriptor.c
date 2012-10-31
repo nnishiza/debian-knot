@@ -118,7 +118,7 @@ static knot_rrtype_descriptor_t
   	/* 13 */
   	{ KNOT_RRTYPE_HINFO, "HINFO", 2,
   	  { KNOT_RDATA_WF_TEXT_SINGLE, KNOT_RDATA_WF_TEXT_SINGLE },
-	  { KNOT_RDATA_ZF_TEXT, KNOT_RDATA_ZF_TEXT }, true },
+	  { KNOT_RDATA_ZF_TEXT_SINGLE, KNOT_RDATA_ZF_TEXT_SINGLE }, true },
   	/* 14 */
   	{ KNOT_RRTYPE_MINFO, "MINFO", 2,
   	  { KNOT_RDATA_WF_COMPRESSED_DNAME,
@@ -145,11 +145,11 @@ static knot_rrtype_descriptor_t
   	/* 19 */
   	{ KNOT_RRTYPE_X25, "X25", 1,
   	  { KNOT_RDATA_WF_TEXT_SINGLE },
-	  { KNOT_RDATA_ZF_TEXT }, true },
+	  { KNOT_RDATA_ZF_TEXT_SINGLE }, true },
   	/* 20 */
   	{ KNOT_RRTYPE_ISDN, "ISDN", 2,
   	  { KNOT_RDATA_WF_TEXT_SINGLE, KNOT_RDATA_WF_TEXT_SINGLE },
-	  { KNOT_RDATA_ZF_TEXT, KNOT_RDATA_ZF_TEXT }, false },
+	  { KNOT_RDATA_ZF_TEXT_SINGLE, KNOT_RDATA_ZF_TEXT_SINGLE }, false },
   	/* 21 */
   	{ KNOT_RRTYPE_RT, "RT", 2,
   	  { KNOT_RDATA_WF_SHORT, KNOT_RDATA_WF_COMPRESSED_DNAME },
@@ -214,8 +214,9 @@ static knot_rrtype_descriptor_t
   	  { KNOT_RDATA_WF_SHORT, KNOT_RDATA_WF_SHORT, KNOT_RDATA_WF_TEXT_SINGLE,
 	    KNOT_RDATA_WF_TEXT_SINGLE, KNOT_RDATA_WF_TEXT_SINGLE,
 	    KNOT_RDATA_WF_UNCOMPRESSED_DNAME },
-	  { KNOT_RDATA_ZF_SHORT, KNOT_RDATA_ZF_SHORT, KNOT_RDATA_ZF_TEXT, KNOT_RDATA_ZF_TEXT,
-	    KNOT_RDATA_ZF_TEXT, KNOT_RDATA_ZF_DNAME }, true },
+	  { KNOT_RDATA_ZF_SHORT, KNOT_RDATA_ZF_SHORT, KNOT_RDATA_ZF_TEXT_SINGLE,
+	    KNOT_RDATA_ZF_TEXT_SINGLE, KNOT_RDATA_ZF_TEXT_SINGLE,
+	    KNOT_RDATA_ZF_DNAME }, true },
   	/* 36 */
   	{ KNOT_RRTYPE_KX, "KX", 2,
   	  { KNOT_RDATA_WF_SHORT,
@@ -387,12 +388,14 @@ static knot_rrtype_descriptor_t
      /* it is indeed needed, in rrtype_from_string */
 
     /* There's a GNU extension that works like this: [first ... last] = value */
-
+        
+        [53 ... 98] = { 0, NULL, 1, { KNOT_RDATA_WF_BINARY }, { KNOT_RDATA_ZF_UNKNOWN }, true },
   	/* 99 */
 	[99] = { KNOT_RRTYPE_SPF, "SPF", 1,
   	  { KNOT_RDATA_WF_TEXT },
           { KNOT_RDATA_ZF_TEXT }, false },
         /* TSIG pseudo RR. */
+        [100 ... 249] = { 0, NULL, 1, { KNOT_RDATA_WF_BINARY }, { KNOT_RDATA_ZF_UNKNOWN }, true },
         [250] = { KNOT_RRTYPE_TSIG, "TSIG", 7,
 		 { KNOT_RDATA_WF_UNCOMPRESSED_DNAME, KNOT_RDATA_WF_UINT48,
                    KNOT_RDATA_WF_SHORT, KNOT_RDATA_WF_BINARYWITHSHORT,

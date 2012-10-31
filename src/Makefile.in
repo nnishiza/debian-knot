@@ -41,10 +41,10 @@ libexec_PROGRAMS = knot-zcompile$(EXEEXT) unittests$(EXEEXT) \
 	unittests-xfr$(EXEEXT)
 sbin_PROGRAMS = knotc$(EXEEXT) knotd$(EXEEXT)
 subdir = src
-DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
-	$(srcdir)/config.h.in libknotd_la-cf-lex.c \
-	libknotd_la-cf-parse.c libknotd_la-cf-parse.h zlexer.c \
-	zparser.c zparser.h
+DIST_COMMON = $(dist_man_MANS) $(srcdir)/Makefile.am \
+	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
+	libknotd_la-cf-lex.c libknotd_la-cf-parse.c \
+	libknotd_la-cf-parse.h zlexer.c zparser.c zparser.h
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compiler_flags.m4 \
 	$(top_srcdir)/m4/ax_ext.m4 \
@@ -60,31 +60,29 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libknot_la_LIBADD =
-am_libknot_la_OBJECTS = libknot_error.lo utils.lo debug.lo \
-	descriptor.lo tolower.lo query.lo response.lo packet.lo \
-	zone.lo zone-contents.lo zone-tree.lo zonedb.lo node.lo \
-	dname-table.lo zone-diff.lo hash-functions.lo \
-	cuckoo-hash-table.lo universal-system.lo name-server.lo \
-	changesets.lo xfr-in.lo ddns.lo edns.lo rrset.lo dname.lo \
-	rdata.lo nsec3.lo tsig.lo tsig-op.lo
+am_libknot_la_OBJECTS = utils.lo debug.lo descriptor.lo tolower.lo \
+	query.lo response.lo packet.lo zone.lo zone-contents.lo \
+	zone-tree.lo zonedb.lo node.lo dname-table.lo zone-diff.lo \
+	hash-functions.lo cuckoo-hash-table.lo universal-system.lo \
+	name-server.lo changesets.lo xfr-in.lo ddns.lo edns.lo \
+	rrset.lo dname.lo rdata.lo nsec3.lo tsig.lo tsig-op.lo
 libknot_la_OBJECTS = $(am_libknot_la_OBJECTS)
 libknotd_la_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
-am_libknotd_la_OBJECTS = gatherer.lo stat.lo error.lo \
-	libknotd_la-cf-parse.lo libknotd_la-cf-lex.lo conf.lo \
-	logconf.lo process.lo dthreads.lo journal.lo socket.lo \
-	server.lo udp-handler.lo tcp-handler.lo xfr-handler.lo \
-	zones.lo notify.lo zone-load.lo semantic-check.lo zone-dump.lo \
-	zone-dump-text.lo
+am_libknotd_la_OBJECTS = gatherer.lo stat.lo libknotd_la-cf-parse.lo \
+	libknotd_la-cf-lex.lo conf.lo logconf.lo process.lo \
+	dthreads.lo journal.lo socket.lo server.lo udp-handler.lo \
+	tcp-handler.lo xfr-handler.lo zones.lo notify.lo zone-load.lo \
+	semantic-check.lo zone-dump.lo zone-dump-text.lo
 libknotd_la_OBJECTS = $(am_libknotd_la_OBJECTS)
 libknots_la_DEPENDENCIES = @LIBOBJS@
 am_libknots_la_OBJECTS = slab.lo tap.lo mempattern.lo lists.lo \
 	base32.lo base64.lo heap.lo print.lo skip-list.lo base32hex.lo \
 	general-tree.lo evqueue.lo evsched.lo acl.lo sockaddr.lo \
-	ref.lo errors.lo dSFMT.lo prng.lo fdset.lo fdset_poll.lo \
-	fdset_kqueue.lo fdset_epoll.lo log.lo
+	ref.lo errors.lo errcode.lo dSFMT.lo prng.lo fdset.lo \
+	fdset_poll.lo fdset_kqueue.lo fdset_epoll.lo log.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" \
-	"$(DESTDIR)$(man8dir)"
+	"$(DESTDIR)$(man5dir)" "$(DESTDIR)$(man8dir)"
 PROGRAMS = $(libexec_PROGRAMS) $(sbin_PROGRAMS)
 am_knot_zcompile_OBJECTS = zcompile_main.$(OBJEXT) \
 	zcompile-error.$(OBJEXT) zparser.$(OBJEXT) zlexer.$(OBJEXT) \
@@ -156,12 +154,10 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-@MAINTAINER_MODE_FALSE@am__skiplex = test -f $@ ||
 LEXCOMPILE = $(LEX) $(LFLAGS) $(AM_LFLAGS)
 LTLEXCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=compile $(LEX) $(LFLAGS) $(AM_LFLAGS)
 YLWRAP = $(top_srcdir)/ylwrap
-@MAINTAINER_MODE_FALSE@am__skipyacc = test -f $@ ||
 YACCCOMPILE = $(YACC) $(YFLAGS) $(AM_YFLAGS)
 LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=compile $(YACC) $(YFLAGS) $(AM_YFLAGS)
@@ -198,9 +194,10 @@ am__nobase_list = $(am__nobase_strip_setup); \
 am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
+man5dir = $(mandir)/man5
 man8dir = $(mandir)/man8
 NROFF = nroff
-MANS = $(man8_MANS)
+MANS = $(dist_man_MANS)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -245,7 +242,6 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
-MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -325,9 +321,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I ../m4
-MANPAGES = knotc.8 knotd.8 knot.conf.5
-man8_MANS = knotc.8 knotd.8 knot.conf.5
-EXTRA_DIST = $(man8_MANS)
+dist_man_MANS = knot.conf.5 knotc.8 knotd.8
 
 # $(YACC) will generate header file
 AM_CFLAGS = -Wall -Ilibknot -DLIBEXECDIR='"$(libexecdir)"' -DSYSCONFDIR='"$(sysconfdir)"' -DSBINDIR='"$(sbindir)"'
@@ -474,7 +468,6 @@ knotd_SOURCES = \
 
 noinst_LTLIBRARIES = libknot.la libknotd.la libknots.la
 libknot_la_SOURCES = \
-	libknot/util/libknot_error.c		\
 	libknot/util/utils.c			\
 	libknot/util/debug.c			\
 	libknot/util/debug.h			\
@@ -573,6 +566,8 @@ libknots_la_SOURCES = \
 	common/ref.c				\
 	common/errors.h				\
 	common/errors.c				\
+	common/errcode.h			\
+	common/errcode.c			\
         common/dSFMT.h				\
         common/dSFMT-params.h			\
         common/dSFMT-params521.h		\
@@ -597,8 +592,6 @@ libknotd_la_SOURCES = \
 	knot/stat/stat.h				\
 	knot/common.h				\
 	knot/other/debug.h			\
-	knot/other/error.h			\
-	knot/other/error.c			\
 	knot/conf/cf-parse.y			\
 	knot/conf/cf-lex.l			\
 	knot/conf/conf.c			\
@@ -650,7 +643,7 @@ all: $(BUILT_SOURCES) config.h
 
 .SUFFIXES:
 .SUFFIXES: .c .l .lo .o .obj .y
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
+$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -675,9 +668,9 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 
-$(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
+$(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-$(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
+$(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
@@ -690,7 +683,7 @@ config.h: stamp-h1
 stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
 	@rm -f stamp-h1
 	cd $(top_builddir) && $(SHELL) ./config.status src/config.h
-$(srcdir)/config.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure_deps) 
+$(srcdir)/config.h.in:  $(am__configure_deps) 
 	($(am__cd) $(top_srcdir) && $(AUTOHEADER))
 	rm -f stamp-h1
 	touch $@
@@ -863,7 +856,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns_tests_realdata.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/error.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/errcode.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/errors.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/events_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/evqueue.Plo@am__quote@
@@ -880,7 +873,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/knotc_main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libknot_error.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libknot_tests_loader_realdata.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libknotd_la-cf-lex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libknotd_la-cf-parse.Plo@am__quote@
@@ -982,13 +974,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
-
-libknot_error.lo: libknot/util/libknot_error.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libknot_error.lo -MD -MP -MF $(DEPDIR)/libknot_error.Tpo -c -o libknot_error.lo `test -f 'libknot/util/libknot_error.c' || echo '$(srcdir)/'`libknot/util/libknot_error.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/libknot_error.Tpo $(DEPDIR)/libknot_error.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libknot/util/libknot_error.c' object='libknot_error.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libknot_error.lo `test -f 'libknot/util/libknot_error.c' || echo '$(srcdir)/'`libknot/util/libknot_error.c
 
 utils.lo: libknot/util/utils.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils.lo -MD -MP -MF $(DEPDIR)/utils.Tpo -c -o utils.lo `test -f 'libknot/util/utils.c' || echo '$(srcdir)/'`libknot/util/utils.c
@@ -1199,13 +1184,6 @@ stat.lo: knot/stat/stat.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='knot/stat/stat.c' object='stat.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o stat.lo `test -f 'knot/stat/stat.c' || echo '$(srcdir)/'`knot/stat/stat.c
-
-error.lo: knot/other/error.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT error.lo -MD -MP -MF $(DEPDIR)/error.Tpo -c -o error.lo `test -f 'knot/other/error.c' || echo '$(srcdir)/'`knot/other/error.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/error.Tpo $(DEPDIR)/error.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='knot/other/error.c' object='error.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o error.lo `test -f 'knot/other/error.c' || echo '$(srcdir)/'`knot/other/error.c
 
 conf.lo: knot/conf/conf.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT conf.lo -MD -MP -MF $(DEPDIR)/conf.Tpo -c -o conf.lo `test -f 'knot/conf/conf.c' || echo '$(srcdir)/'`knot/conf/conf.c
@@ -1437,6 +1415,13 @@ errors.lo: common/errors.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/errors.c' object='errors.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o errors.lo `test -f 'common/errors.c' || echo '$(srcdir)/'`common/errors.c
+
+errcode.lo: common/errcode.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT errcode.lo -MD -MP -MF $(DEPDIR)/errcode.Tpo -c -o errcode.lo `test -f 'common/errcode.c' || echo '$(srcdir)/'`common/errcode.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/errcode.Tpo $(DEPDIR)/errcode.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='common/errcode.c' object='errcode.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o errcode.lo `test -f 'common/errcode.c' || echo '$(srcdir)/'`common/errcode.c
 
 dSFMT.lo: common/dSFMT.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dSFMT.lo -MD -MP -MF $(DEPDIR)/dSFMT.Tpo -c -o dSFMT.lo `test -f 'common/dSFMT.c' || echo '$(srcdir)/'`common/dSFMT.c
@@ -2162,11 +2147,51 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
-install-man8: $(man8_MANS)
+install-man5: $(dist_man_MANS)
+	@$(NORMAL_INSTALL)
+	test -z "$(man5dir)" || $(MKDIR_P) "$(DESTDIR)$(man5dir)"
+	@list=''; test -n "$(man5dir)" || exit 0; \
+	{ for i in $$list; do echo "$$i"; done; \
+	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.5[a-z]*$$/p'; \
+	} | while read p; do \
+	  if test -f $$p; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; echo "$$p"; \
+	done | \
+	sed -e 'n;s,.*/,,;p;h;s,.*\.,,;s,^[^5][0-9a-z]*$$,5,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,' | \
+	sed 'N;N;s,\n, ,g' | { \
+	list=; while read file base inst; do \
+	  if test "$$base" = "$$inst"; then list="$$list $$file"; else \
+	    echo " $(INSTALL_DATA) '$$file' '$(DESTDIR)$(man5dir)/$$inst'"; \
+	    $(INSTALL_DATA) "$$file" "$(DESTDIR)$(man5dir)/$$inst" || exit $$?; \
+	  fi; \
+	done; \
+	for i in $$list; do echo "$$i"; done | $(am__base_list) | \
+	while read files; do \
+	  test -z "$$files" || { \
+	    echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(man5dir)'"; \
+	    $(INSTALL_DATA) $$files "$(DESTDIR)$(man5dir)" || exit $$?; }; \
+	done; }
+
+uninstall-man5:
+	@$(NORMAL_UNINSTALL)
+	@list=''; test -n "$(man5dir)" || exit 0; \
+	files=`{ for i in $$list; do echo "$$i"; done; \
+	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.5[a-z]*$$/p'; \
+	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^5][0-9a-z]*$$,5,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
+	test -z "$$files" || { \
+	  echo " ( cd '$(DESTDIR)$(man5dir)' && rm -f" $$files ")"; \
+	  cd "$(DESTDIR)$(man5dir)" && rm -f $$files; }
+install-man8: $(dist_man_MANS)
 	@$(NORMAL_INSTALL)
 	test -z "$(man8dir)" || $(MKDIR_P) "$(DESTDIR)$(man8dir)"
-	@list='$(man8_MANS)'; test -n "$(man8dir)" || exit 0; \
+	@list=''; test -n "$(man8dir)" || exit 0; \
 	{ for i in $$list; do echo "$$i"; done; \
+	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.8[a-z]*$$/p'; \
 	} | while read p; do \
 	  if test -f $$p; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; echo "$$p"; \
@@ -2189,8 +2214,10 @@ install-man8: $(man8_MANS)
 
 uninstall-man8:
 	@$(NORMAL_UNINSTALL)
-	@list='$(man8_MANS)'; test -n "$(man8dir)" || exit 0; \
+	@list=''; test -n "$(man8dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
+	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.8[a-z]*$$/p'; \
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^8][0-9a-z]*$$,8,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	test -z "$$files" || { \
@@ -2297,7 +2324,7 @@ check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(MANS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man8dir)"; do \
+	for dir in "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man5dir)" "$(DESTDIR)$(man8dir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -2373,7 +2400,7 @@ install-info: install-info-am
 
 install-info-am:
 
-install-man: install-man8
+install-man: install-man5 install-man8
 
 install-pdf: install-pdf-am
 
@@ -2406,7 +2433,7 @@ ps-am:
 uninstall-am: uninstall-libexecPROGRAMS uninstall-man \
 	uninstall-sbinPROGRAMS
 
-uninstall-man: uninstall-man8
+uninstall-man: uninstall-man5 uninstall-man8
 
 .MAKE: all check install install-am install-strip
 
@@ -2418,13 +2445,14 @@ uninstall-man: uninstall-man8
 	install install-am install-data install-data-am install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
 	install-html-am install-info install-info-am \
-	install-libexecPROGRAMS install-man install-man8 install-pdf \
-	install-pdf-am install-ps install-ps-am install-sbinPROGRAMS \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags uninstall uninstall-am \
-	uninstall-libexecPROGRAMS uninstall-man uninstall-man8 \
+	install-libexecPROGRAMS install-man install-man5 install-man8 \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-sbinPROGRAMS install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags uninstall uninstall-am uninstall-libexecPROGRAMS \
+	uninstall-man uninstall-man5 uninstall-man8 \
 	uninstall-sbinPROGRAMS
 
 

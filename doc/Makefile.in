@@ -128,7 +128,6 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
-MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -222,7 +221,7 @@ all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .dvi .html .info .pdf .ps .texi
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
+$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -247,9 +246,9 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 
-$(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
+$(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-$(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
+$(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
@@ -308,7 +307,7 @@ $(srcdir)/knot.info: knot.texi $(srcdir)/version.texi $(knot_TEXINFOS)
 knot.dvi: knot.texi $(srcdir)/version.texi $(knot_TEXINFOS)
 knot.pdf: knot.texi $(srcdir)/version.texi $(knot_TEXINFOS)
 knot.html: knot.texi $(srcdir)/version.texi $(knot_TEXINFOS)
-$(srcdir)/version.texi: @MAINTAINER_MODE_TRUE@ $(srcdir)/stamp-vti
+$(srcdir)/version.texi:  $(srcdir)/stamp-vti
 $(srcdir)/stamp-vti: knot.texi $(top_srcdir)/configure
 	@(dir=.; test -f ./knot.texi || dir=$(srcdir); \
 	set `$(SHELL) $(srcdir)/mdate-sh $$dir/knot.texi`; \
@@ -326,7 +325,7 @@ mostlyclean-vti:
 	-rm -f vti.tmp
 
 maintainer-clean-vti:
-@MAINTAINER_MODE_TRUE@	-rm -f $(srcdir)/stamp-vti $(srcdir)/version.texi
+	-rm -f $(srcdir)/stamp-vti $(srcdir)/version.texi
 .dvi.ps:
 	TEXINPUTS="$(am__TEXINFO_TEX_DIR)$(PATH_SEPARATOR)$$TEXINPUTS" \
 	$(DVIPS) -o $@ $<
