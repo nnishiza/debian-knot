@@ -1,3 +1,9 @@
+knot (1.1.2-1) unstable; urgency=low
+
+  * Imported Upstream version 1.1.2
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 21 Nov 2012 14:45:34 +0100
+
 knot (1.1.2~rc1-1) unstable; urgency=low
 
   * Imported Upstream version 1.1.2~rc1
