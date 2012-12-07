@@ -1701,7 +1701,7 @@ static inline int ns_referral(const knot_node_t *node,
 			    && knot_query_dnssec_requested(
 			                        knot_packet_query(resp))) {
 				ret = ns_add_rrsigs(ds_rrset, resp, node->owner,
-				              knot_response_add_rrset_authority,
+				              knot_response_add_rrset_answer,
 				              1);
 			}
 		} else {
@@ -1716,6 +1716,9 @@ static inline int ns_referral(const knot_node_t *node,
 			
 			ret = ns_put_authority_soa(zone, resp);
 		}
+
+		// This is an authoritative answer, set AA bit
+		knot_response_set_aa(resp);
 		
 		return ret;
 	}
@@ -2424,6 +2427,8 @@ static int ns_error_response_to_wire(knot_packet_t *resp, uint8_t *wire,
 		short edns_size = knot_edns_to_wire(&resp->opt_rr, wire + rsize,
 		                                    *wire_size - rsize);
 		if (edns_size > 0) {
+			uint16_t ar_count = knot_wire_get_arcount(wire);
+			knot_wire_set_arcount(wire, ar_count + 1);
 			*wire_size = rsize + edns_size;
 		}
 	} else {
