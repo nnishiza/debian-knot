@@ -108,20 +108,16 @@ static int knot_tsig_compute_digest(const uint8_t *wire, size_t wire_len,
 	char decoded_key[B64BUFSIZE];
 	memset(decoded_key, 0, sizeof(decoded_key));
 	
-	size_t decoded_key_size = B64BUFSIZE;
-	int ret = base64_decode(key->secret, strlen(key->secret),
-	                        decoded_key,
-	                        &decoded_key_size);
-	if (ret != 1) {
-		dbg_tsig("TSIG: New decode function failed! (%d)\n", ret);
-		return KNOT_ERROR;
-	}
-	
-	if (decoded_key_size < 0) {
+	int32_t ret = base64_decode((uint8_t *)key->secret, strlen(key->secret),
+	                            (uint8_t *)decoded_key, B64BUFSIZE);
+
+	if (ret < 0) {
 		dbg_tsig("TSIG: Could not decode Base64\n");
 		return KNOT_ERROR;
 	}
 	
+	size_t decoded_key_size = ret;
+
 	dbg_tsig_detail("TSIG: decoded key size: %d\n", decoded_key_size);
 	dbg_tsig_detail("TSIG: decoded key:\n");
 	dbg_tsig_hex_detail(decoded_key, decoded_key_size);
@@ -221,14 +217,14 @@ static int knot_tsig_write_tsig_variables(uint8_t *wire,
 
 	/* Copy class. */
 	knot_wire_write_u16(wire + offset, knot_rrset_class(tsig_rr));
-	dbg_tsig_verb("TSIG: write variables: written CLASS: %u - ",
+	dbg_tsig_verb("TSIG: write variables: written CLASS: %u - \n",
 	               knot_rrset_class(tsig_rr));
 	dbg_tsig_hex_detail(wire + offset, sizeof(uint16_t));
 	offset += sizeof(uint16_t);
 
 	/* Copy TTL - always 0. */
 	knot_wire_write_u32(wire + offset, knot_rrset_ttl(tsig_rr));
-	dbg_tsig_verb("TSIG: write variables: written TTL: %u - ",
+	dbg_tsig_verb("TSIG: write variables: written TTL: %u - \n",
 	              knot_rrset_ttl(tsig_rr));
 	dbg_tsig_hex_detail(wire + offset, sizeof(uint32_t));
 	offset += sizeof(uint32_t);
@@ -816,6 +812,9 @@ static int knot_tsig_check_digest(const knot_rrset_t *tsig_rr,
 
 	memset(wire_to_sign, 0, sizeof(uint8_t) * size);
 	memcpy(wire_to_sign, wire, size);
+	
+	/* Restore message id. */
+	knot_wire_set_id(wire_to_sign, tsig_rdata_orig_id(tsig_rr));
 
 	/* Decrease arcount. */
 	knot_wire_set_arcount(wire_to_sign,
@@ -864,10 +863,10 @@ static int knot_tsig_check_digest(const knot_rrset_t *tsig_rr,
 		return KNOT_TSIG_EBADSIG;
 	}
 
-	dbg_tsig_verb("TSIG: calc digest : ");
+	dbg_tsig_verb("TSIG: calc digest :\n");
 	dbg_tsig_hex_verb(digest_tmp, digest_tmp_len);
 
-	dbg_tsig_verb("TSIG: given digest: ");
+	dbg_tsig_verb("TSIG: given digest:\n");
 	dbg_tsig_hex_verb(tsig_mac, mac_length);
 
 	if (strncasecmp((char *)(tsig_mac), (char *)digest_tmp,

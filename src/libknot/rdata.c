@@ -242,7 +242,7 @@ int knot_rdata_from_wire(knot_rdata_t *rdata, const uint8_t *wire,
 		case KNOT_RDATA_WF_LITERAL_DNAME:
 			pos2 = *pos;
 			dname = knot_dname_parse_from_wire(
-				wire, &pos2, total_size, NULL);
+				wire, &pos2, total_size, NULL, NULL);
 			if (dname == NULL) {
 				free(items);
 				return KNOT_ERROR;
@@ -308,7 +308,7 @@ int knot_rdata_from_wire(knot_rdata_t *rdata, const uint8_t *wire,
 			case 3:
 				pos2 = *pos;
 				dname = knot_dname_parse_from_wire(
-					         wire, &pos2, total_size, NULL);
+					   wire, &pos2, total_size, NULL, NULL);
 				if (dname == NULL) {
 					knot_rdata_free_items(items, i,
 					                      desc->type, 1);
@@ -698,6 +698,18 @@ int64_t knot_rdata_soa_serial(const knot_rdata_t *rdata)
 }
 
 /*---------------------------------------------------------------------------*/
+void knot_rdata_soa_serial_set(knot_rdata_t *rdata, uint32_t serial)
+{
+	if (!rdata || rdata->count < 3) {
+		return;
+	}
+
+	// the number is in network byte order, transform it
+	knot_wire_write_u32((uint8_t *)(rdata->items[2].raw_data + 1),
+	                    serial);
+}
+
+/*---------------------------------------------------------------------------*/
 
 uint32_t knot_rdata_soa_refresh(const knot_rdata_t *rdata)
 {
@@ -815,4 +827,44 @@ const uint8_t *knot_rdata_nsec3_salt(const knot_rdata_t *rdata)
 	}
 	
 	return ((uint8_t *)(rdata->items[3].raw_data + 1)) + 1;
+}
+
+/*----------------------------------------------------------------------------*/
+
+uint8_t knot_rdata_ds_digest_type(const knot_rdata_t *rdata)
+{
+	if (rdata->count < 3) {
+		return 0;
+	}
+
+	return *((uint8_t *)(rdata->items[2].raw_data + 1));
+}
+
+/*----------------------------------------------------------------------------*/
+
+uint16_t knot_rdata_ds_digest_len(const knot_rdata_t *rdata)
+{
+	if (rdata->count < 4) {
+		return 0;
+	}
+
+	return *(rdata->items[3].raw_data);
+}
+
+/*----------------------------------------------------------------------------*/
+
+int knot_rdata_ds_check(const knot_rdata_t *rdata)
+{
+	// Check if the legth of the digest corresponds to the proper size of
+	// the digest according to the given algorithm
+	uint16_t len = knot_rdata_ds_digest_len(rdata);
+	uint8_t type = knot_rdata_ds_digest_type(rdata);
+
+	if (type == 0 || len == 0) {
+		return KNOT_EINVAL;
+	} else if (len != knot_ds_digest_length(type)) {
+		return KNOT_EDSDIGESTLEN;
+	} else {
+		return KNOT_EOK;
+	}
 }

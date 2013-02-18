@@ -215,7 +215,7 @@ int knot_rrset_add_rrsigs(knot_rrset_t *rrset, knot_rrset_t *rrsigs,
 		if (dupl == KNOT_RRSET_DUPL_MERGE) {
 			rc = knot_rrset_merge_no_dupl((void **)&rrset->rrsigs,
 			                              (void **)&rrsigs);
-			if (rc != KNOT_EOK) {
+			if (rc < 0) {
 				return rc;
 			} else {
 				return 1;
@@ -275,6 +275,15 @@ void knot_rrset_set_ttl(knot_rrset_t *rrset, uint32_t ttl)
 {
 	if (rrset) {
 		rrset->ttl = ttl;
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+
+void knot_rrset_set_class(knot_rrset_t *rrset, uint16_t rclass)
+{
+	if (rrset) {
+		rrset->rclass = rclass;
 	}
 }
 
@@ -604,7 +613,7 @@ int knot_rrset_to_wire(const knot_rrset_t *rrset, uint8_t *wire, size_t *size,
 
 /*----------------------------------------------------------------------------*/
 
-int knot_rrset_compare(const knot_rrset_t *r1,
+int knot_rrset_match(const knot_rrset_t *r1,
                        const knot_rrset_t *r2,
                        knot_rrset_compare_type_t cmp)
 {
@@ -838,6 +847,7 @@ dbg_rrset_exec_detail(
 	}
 
 	knot_rdata_t *walk2 = rrset2->rdata;
+	int deleted = 0;
 
 	// no RDATA in RRSet 1
 	if (rrset1->rdata == NULL && rrset2->rdata != NULL) {
@@ -934,6 +944,7 @@ dbg_rrset_exec_detail(
 			knot_rdata_deep_free(&tmp, rrset1->type, 1);
 			assert(tmp == NULL);
 			/* Maybe caller should be warned about this. */
+			++deleted;
 		}
 	}
 	
@@ -954,5 +965,5 @@ dbg_rrset_exec_detail(
 	 */
 	rrset2->rdata = NULL;
 
-	return KNOT_EOK;
+	return deleted;
 }
