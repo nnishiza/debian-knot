@@ -64,6 +64,7 @@ typedef struct zonedata_t
 	acl_t *xfr_out;    /*!< ACL for xfr-out.*/
 	acl_t *notify_in;  /*!< ACL for notify-in.*/
 	acl_t *notify_out; /*!< ACL for notify-out.*/
+	acl_t *update_in; /*!< ACL for notify-out.*/
 
 	/*! \brief XFR-IN scheduler. */
 	struct {
@@ -78,13 +79,11 @@ typedef struct zonedata_t
 		int next_id;             /*!< ID of the next awaited SOA resp.*/
 		uint32_t bootstrap_retry;/*!< AXFR/IN bootstrap retry. */
 		unsigned       scheduled;/*!< Scheduled operations. */ 
+		int has_master;          /*!< True if it has master set. */
 	} xfr_in;
 
 	/*! \brief List of pending NOTIFY events. */
 	list notify_pending;
-	
-	/*! \brief List of fds with pending SOA queries. */
-	int soa_pending;
 
 	/*! \brief Zone IXFR history. */
 	journal_t *ixfr_db;
@@ -138,9 +137,9 @@ int zones_zonefile_sync(knot_zone_t *zone, journal_t *journal);
 /*!
  * \todo Document me.
  */
-int zones_query_check_zone(const knot_zone_t *zone, const sockaddr_t *addr,
-                           knot_key_t **tsig_key, knot_rcode_t *rcode,
-                           uint8_t q_opcode);
+int zones_query_check_zone(const knot_zone_t *zone, uint8_t q_opcode,
+                           const sockaddr_t *addr, knot_key_t **tsig_key,
+                           knot_rcode_t *rcode);
 
 /*!
  * \todo Document me.
@@ -154,6 +153,14 @@ int zones_normal_query_answer(knot_nameserver_t *nameserver,
                               knot_packet_t *query, const sockaddr_t *addr,
                               uint8_t *response_wire, size_t *rsize,
                               knot_ns_transport_t transport);
+
+/*!
+ * \todo Document me.
+ */
+int zones_process_update(knot_nameserver_t *nameserver,
+                         knot_packet_t *query, const sockaddr_t *addr,
+                         uint8_t *resp_wire, size_t *rsize,
+                         int fd, knot_ns_transport_t transport);
 
 /*!
  * \brief Processes normal response packet.
@@ -215,7 +222,7 @@ int zones_ns_conf_hook(const struct conf_t *conf, void *data);
  * \todo Expects the xfr structure to be initialized in some way.
  * \todo Update documentation!!!
  */
-int zones_store_changesets(knot_ns_xfr_t *xfr);
+int zones_store_changesets(knot_zone_t *zone, knot_changesets_t *src);
 
 /*!
  * \brief Begin changesets storing transaction.
@@ -223,7 +230,7 @@ int zones_store_changesets(knot_ns_xfr_t *xfr);
  * \retval pointer to journal if successful
  * \retval NULL on failure.
  */
-journal_t *zones_store_changesets_begin(knot_ns_xfr_t *xfr);
+journal_t *zones_store_changesets_begin(knot_zone_t *zone);
 
 /*!
  * \brief Commit stored changesets.
@@ -289,6 +296,11 @@ int zones_xfr_load_changesets(knot_ns_xfr_t *xfr, uint32_t serial_from,
 int zones_create_and_save_changesets(const knot_zone_t *old_zone,
                                      const knot_zone_t *new_zone);
 
+int zones_store_and_apply_chgsets(knot_changesets_t *chs,
+                                  knot_zone_t *zone,
+                                  knot_zone_contents_t **new_contents,
+                                  const char *msgpref, int type);
+
 /*!
  * \brief Update zone timers.
  *
@@ -319,6 +331,28 @@ int zones_timers_update(knot_zone_t *zone, conf_zone_t *cfzone, evsched_t *sch);
  */
 int zones_cancel_notify(zonedata_t *zd, notify_ev_t *ev);
 
+
+/*!
+ * \brief Processes forwarded UPDATE response packet.
+ * \todo #1291 move to appropriate section (DDNS).
+ */
+int zones_process_update_response(knot_ns_xfr_t *data, uint8_t *rwire, size_t *rsize);
+
+/*!
+ * \brief Verify TSIG in query.
+ *
+ * \param query Query packet.
+ * \param key TSIG key used for this query.
+ * \param rcode Dst for resulting RCODE.
+ * \param tsig_rcode Dst for resulting TSIG RCODE.
+ * \param tsig_prev_time_signed Dst for previout time signed.
+ *
+ * \return KNOT_EOK if verified or error if not.
+ */
+int zones_verify_tsig_query(const knot_packet_t *query,
+                            const knot_key_t *key,
+                            knot_rcode_t *rcode, uint16_t *tsig_rcode,
+                            uint64_t *tsig_prev_time_signed);
 #endif // _KNOTD_ZONES_H_
 
 /*! @} */

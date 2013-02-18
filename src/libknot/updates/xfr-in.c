@@ -267,14 +267,14 @@ static int xfrin_add_orphan_rrsig(xfrin_orphan_rrsig_t **rrsigs,
 	while (last != NULL) {
 		// check if the RRSIG is not similar to the one we want to add
 		assert(last->rrsig != NULL);
-		if (knot_rrset_compare(last->rrsig, rr, 
+		if (knot_rrset_match(last->rrsig, rr, 
 		                       KNOT_RRSET_COMPARE_HEADER) == 1
 		    && knot_rdata_rrsig_type_covered(knot_rrset_rdata(
 		                                     last->rrsig))
 		       == knot_rdata_rrsig_type_covered(knot_rrset_rdata(rr))) {
 			ret = knot_rrset_merge_no_dupl((void **)&last->rrsig,
 			                               (void **)&rr);
-			if (ret != KNOT_EOK) {
+			if (ret < 0) {
 				return ret;
 			} else {
 				return 1;
@@ -955,13 +955,13 @@ int xfrin_process_ixfr_packet(knot_ns_xfr_t *xfr)
 	if (*chs == NULL) {
 		dbg_xfrin_verb("Changesets empty, creating new.\n");
 		
-		ret = knot_changeset_allocate(chs);
+		ret = knot_changeset_allocate(chs, KNOT_CHANGESET_TYPE_IXFR);
 		if (ret != KNOT_EOK) {
 			knot_rrset_deep_free(&rr, 1, 1, 1);
 			knot_packet_free(&packet);
 			return ret;
 		}
-		
+
 		// the first RR must be a SOA
 		if (knot_rrset_type(rr) != KNOT_RRTYPE_SOA) {
 			dbg_xfrin("First RR is not a SOA RR!\n");
@@ -1069,9 +1069,9 @@ int xfrin_process_ixfr_packet(knot_ns_xfr_t *xfr)
 		assert((*chs)->sets[(*chs)->count - 1].soa_from != NULL);
 		
 		if ((*chs)->sets[(*chs)->count - 1].soa_to == NULL) {
-			state = XFRIN_CHANGESET_REMOVE;
+			state = KNOT_CHANGESET_REMOVE;
 		} else {
-			state = XFRIN_CHANGESET_ADD;
+			state = KNOT_CHANGESET_ADD;
 		}
 	}
 	
@@ -1134,17 +1134,17 @@ dbg_xfrin_exec_verb(
 						
 				ret = knot_changeset_add_soa(
 					&(*chs)->sets[(*chs)->count - 1], rr, 
-					XFRIN_CHANGESET_REMOVE);
+					KNOT_CHANGESET_REMOVE);
 				if (ret != KNOT_EOK) {
 					knot_rrset_deep_free(&rr, 1, 1, 1);
 					goto cleanup;
 				}
 				
 				// change state to REMOVE
-				state = XFRIN_CHANGESET_REMOVE;
+				state = KNOT_CHANGESET_REMOVE;
 			}
 			break;
-		case XFRIN_CHANGESET_REMOVE:
+		case KNOT_CHANGESET_REMOVE:
 			// if the next RR is SOA, store it and change state to
 			// ADD
 			if (knot_rrset_type(rr) == KNOT_RRTYPE_SOA) {
@@ -1154,25 +1154,25 @@ dbg_xfrin_exec_verb(
 				
 				ret = knot_changeset_add_soa(
 					&(*chs)->sets[(*chs)->count - 1], rr, 
-					XFRIN_CHANGESET_ADD);
+					KNOT_CHANGESET_ADD);
 				if (ret != KNOT_EOK) {
 					knot_rrset_deep_free(&rr, 1, 1, 1);
 					goto cleanup;
 				}
 				
-				state = XFRIN_CHANGESET_ADD;
+				state = KNOT_CHANGESET_ADD;
 			} else {
 				// just add the RR to the REMOVE part and
 				// continue
 				if ((ret = knot_changeset_add_new_rr(
 				         &(*chs)->sets[(*chs)->count - 1], rr,
-				         XFRIN_CHANGESET_REMOVE)) != KNOT_EOK) {
+				         KNOT_CHANGESET_REMOVE)) != KNOT_EOK) {
 					knot_rrset_deep_free(&rr, 1, 1, 1);
 					goto cleanup;
 				}
 			}
 			break;
-		case XFRIN_CHANGESET_ADD:
+		case KNOT_CHANGESET_ADD:
 			// if the next RR is SOA change to state -1 and do not
 			// parse next RR
 			if (knot_rrset_type(rr) == KNOT_RRTYPE_SOA) {
@@ -1183,7 +1183,7 @@ dbg_xfrin_exec_verb(
 				// just add the RR to the ADD part and continue
 				if ((ret = knot_changeset_add_new_rr(
 				            &(*chs)->sets[(*chs)->count - 1], rr,
-				            XFRIN_CHANGESET_ADD)) != KNOT_EOK) {
+				            KNOT_CHANGESET_ADD)) != KNOT_EOK) {
 					knot_rrset_deep_free(&rr, 1, 1, 1);
 					goto cleanup;
 				}
@@ -1230,137 +1230,6 @@ cleanup:
 /* Applying changesets to zone                                                */
 /*----------------------------------------------------------------------------*/
 
-static int xfrin_changes_check_rrsets(knot_rrset_t ***rrsets,
-                                      int *count, int *allocated, int to_add)
-{
-	if (*count + to_add <= *allocated) {
-		return KNOT_EOK;
-	}
-
-	int new_count = (*allocated == 0) ? 2 : *allocated * 2;
-	while (new_count < *count + to_add) {
-		new_count *= 2;
-	}
-
-	/* Allocate new memory block. */
-	knot_rrset_t **rrsets_new = malloc(new_count * sizeof(knot_rrset_t *));
-	if (rrsets_new == NULL) {
-		return KNOT_ENOMEM;
-	}
-
-	/* Initialize new memory and copy old data. */
-	memset(rrsets_new, 0, new_count * sizeof(knot_rrset_t *));
-	memcpy(rrsets_new, *rrsets, (*allocated) * sizeof(knot_rrset_t *));
-
-	/* Free old nodes and switch pointers. */
-	free(*rrsets);
-	*rrsets = rrsets_new;
-	*allocated = new_count;
-
-	return KNOT_EOK;
-}
-
-/*----------------------------------------------------------------------------*/
-
-static int xfrin_changes_check_nodes(knot_node_t ***nodes,
-                                     int *count, int *allocated)
-{
-	assert(nodes != NULL);
-	assert(count != NULL);
-	assert(allocated != 0);
-
-	if (*count + 2 <= *allocated) {
-		return KNOT_EOK;
-	}
-
-	int new_count = (*allocated == 0) ? 2 : *allocated * 2;
-
-	/* Allocate new memory block. */
-	const size_t node_len = sizeof(knot_node_t *);
-	knot_node_t **nodes_new = malloc(new_count * node_len);
-	if (nodes_new == NULL) {
-		return KNOT_ENOMEM;
-	}
-
-	/* Clear memory block and copy old data. */
-	memset(nodes_new, 0, new_count * node_len);
-	memcpy(nodes_new, *nodes, (*allocated) * node_len);
-
-	/* Free old nodes and switch pointers. */
-	free(*nodes);
-	*nodes = nodes_new;
-	*allocated = new_count;
-
-	return KNOT_EOK;
-}
-
-/*----------------------------------------------------------------------------*/
-
-static int xfrin_changes_check_rdata(knot_rdata_t ***rdatas, uint **types,
-                                     int count, int *allocated, int to_add)
-{
-	if (count + to_add <= *allocated) {
-		return KNOT_EOK;
-	}
-
-	int new_count = (*allocated == 0) ? 2 : *allocated * 2;
-	while (new_count < count + to_add) {
-		new_count *= 2;
-	}
-
-	/* Allocate new memory block. */
-	knot_rdata_t **rdatas_new = malloc(new_count * sizeof(knot_rdata_t *));
-	if (rdatas_new == NULL) {
-		return KNOT_ENOMEM;
-	}
-
-	uint *types_new = malloc(new_count * sizeof(uint));
-	if (types_new == NULL) {
-		free(rdatas_new);
-		return KNOT_ENOMEM;
-	}
-
-	/* Initialize new memory and copy old data. */
-	memset(rdatas_new, 0, new_count * sizeof(knot_rdata_t *));
-	memcpy(rdatas_new, *rdatas, (*allocated) * sizeof(knot_rdata_t *));
-
-	memset(types_new, 0, new_count * sizeof(uint));
-	memcpy(types_new, *types, (*allocated) * sizeof(uint));
-
-	/* Free old rdatas and switch pointers. */
-	free(*rdatas);
-	free(*types);
-	*rdatas = rdatas_new;
-	*types = types_new;
-	*allocated = new_count;
-
-	return KNOT_EOK;
-}
-
-/*----------------------------------------------------------------------------*/
-
-static void xfrin_changes_add_rdata(knot_rdata_t **rdatas, uint *types,
-                                    int *count, knot_rdata_t *rdata, uint type)
-{
-	if (rdata == NULL) {
-		return;
-	}
-
-	// Add all RDATAs from the chain!!
-
-	knot_rdata_t *r = rdata;
-	do {
-		dbg_xfrin_detail("Adding RDATA to RDATA list: %p\n", r);
-		rdatas[*count] = r;
-		types[*count] = type;
-		++*count;
-
-		r = r->next;
-	} while (r != NULL && r != rdata);
-}
-
-/*----------------------------------------------------------------------------*/
-
 static void xfrin_zone_contents_free(knot_zone_contents_t **contents)
 {
 	/*! \todo This should be all in some API!! */
@@ -1386,7 +1255,8 @@ static void xfrin_zone_contents_free(knot_zone_contents_t **contents)
 /*----------------------------------------------------------------------------*/
 
 static knot_rdata_t *xfrin_remove_rdata(knot_rrset_t *from,
-                                        const knot_rrset_t *what)
+                                        const knot_rrset_t *what,
+                                        int ddns_check)
 {
 	knot_rdata_t *old = NULL;
 	knot_rdata_t *old_actual = NULL;
@@ -1396,6 +1266,20 @@ static knot_rdata_t *xfrin_remove_rdata(knot_rrset_t *from,
 	while (rdata != NULL) {
 		// rdata - the RDATA to be removed
 		// old_actual - removed RDATA
+
+		/*
+		 * DDNS special handling - last apex NS should remain in the
+		 * zone.
+		 *
+		 * TODO: this is not correct, the last NS from the 'what' RRSet
+		 * may not even be in the zone.
+		 */
+		if (ddns_check
+		    && knot_rrset_rdata_next(what, rdata) == NULL) {
+			assert(knot_rrset_type(from) == KNOT_RRTYPE_NS);
+			return old;
+		}
+
 		old_actual = knot_rrset_remove_rdata(from, rdata);
 		if (old_actual != NULL) {
 			old_actual->next = old;
@@ -1410,8 +1294,8 @@ static knot_rdata_t *xfrin_remove_rdata(knot_rrset_t *from,
 
 /*----------------------------------------------------------------------------*/
 
-static int xfrin_copy_old_rrset(knot_rrset_t *old, knot_rrset_t **copy,
-                                knot_changes_t *changes)
+int xfrin_copy_old_rrset(knot_rrset_t *old, knot_rrset_t **copy,
+                         knot_changes_t *changes, int save_new)
 {
 	dbg_xfrin_detail("Copying old RRSet: %p\n", old);
 	// create new RRSet by copying the old one
@@ -1420,57 +1304,65 @@ static int xfrin_copy_old_rrset(knot_rrset_t *old, knot_rrset_t **copy,
 		dbg_xfrin("Failed to create RRSet copy.\n");
 		return KNOT_ENOMEM;
 	}
+	
+	int count = 0;
 
 	// add the RRSet to the list of new RRSets
 	// create place also for RRSIGs
-	ret = xfrin_changes_check_rrsets(&changes->new_rrsets,
-	                                 &changes->new_rrsets_count,
-	                                 &changes->new_rrsets_allocated, 2);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to add new RRSet to list.\n");
-		knot_rrset_deep_free(copy, 1, 1, 1);
-		return ret;
-	}
+	if (save_new) {
+		ret = knot_changes_rrsets_reserve(&changes->new_rrsets,
+						  &changes->new_rrsets_count,
+						  &changes->new_rrsets_allocated,
+		                                  2);
+		if (ret != KNOT_EOK) {
+			dbg_xfrin("Failed to add new RRSet to list.\n");
+			knot_rrset_deep_free(copy, 1, 1, 1);
+			return ret;
+		}
 
-	int count = knot_rrset_rdata_rr_count(*copy);
-	count += knot_rrset_rdata_rr_count((*copy)->rrsigs);
+		count = knot_rrset_rdata_rr_count(*copy);
+		count += knot_rrset_rdata_rr_count((*copy)->rrsigs);
+	
+		// add the copied RDATA to the list of new RDATA
+		ret = knot_changes_rdata_reserve(&changes->new_rdata,
+						 &changes->new_rdata_types,
+						 changes->new_rdata_count,
+						 &changes->new_rdata_allocated, 
+		                                 count);
+		if (ret != KNOT_EOK) {
+			dbg_xfrin("Failed to add new RRSet to list.\n");
+			knot_rrset_deep_free(copy, 1, 1, 1);
+			return ret;
+		}
+	
+		changes->new_rrsets[changes->new_rrsets_count++] = *copy;
+	
+		dbg_xfrin_detail("Adding RDATA from the RRSet copy to new RDATA list."
+				 "\n");
+		knot_changes_add_rdata(changes->new_rdata, 
+		                       changes->new_rdata_types,
+					&changes->new_rdata_count,
+					knot_rrset_get_rdata(*copy),
+					knot_rrset_type(*copy));
 
-	// add the copied RDATA to the list of new RDATA
-	ret = xfrin_changes_check_rdata(&changes->new_rdata,
-	                                &changes->new_rdata_types,
-	                                changes->new_rdata_count,
-	                                &changes->new_rdata_allocated, count);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to add new RRSet to list.\n");
-		knot_rrset_deep_free(copy, 1, 1, 1);
-		return ret;
-	}
-
-	changes->new_rrsets[changes->new_rrsets_count++] = *copy;
-
-	dbg_xfrin_detail("Adding RDATA from the RRSet copy to new RDATA list."
-	                 "\n");
-	xfrin_changes_add_rdata(changes->new_rdata, changes->new_rdata_types,
-	                        &changes->new_rdata_count,
-	                        knot_rrset_get_rdata(*copy),
-	                        knot_rrset_type(*copy));
-
-	if ((*copy)->rrsigs != NULL) {
-		assert(old->rrsigs != NULL);
-		changes->new_rrsets[changes->new_rrsets_count++] =
-		                (*copy)->rrsigs;
-
-		dbg_xfrin_detail("Adding RDATA from RRSIG of the RRSet copy to "
-		                 "new RDATA list.\n");
-		xfrin_changes_add_rdata(changes->new_rdata,
-		                        changes->new_rdata_types,
-		                        &changes->new_rdata_count,
-		                        knot_rrset_get_rdata((*copy)->rrsigs),
-		                        KNOT_RRTYPE_RRSIG);
+		if ((*copy)->rrsigs != NULL) {
+			assert(old->rrsigs != NULL);
+			changes->new_rrsets[changes->new_rrsets_count++] =
+					(*copy)->rrsigs;
+	
+			dbg_xfrin_detail("Adding RDATA from RRSIG of the RRSet copy to "
+					 "new RDATA list.\n");
+			knot_changes_add_rdata(changes->new_rdata,
+						changes->new_rdata_types,
+						&changes->new_rdata_count,
+						knot_rrset_get_rdata(
+			                               (*copy)->rrsigs),
+						KNOT_RRTYPE_RRSIG);
+		}
 	}
 
 	// add the old RRSet to the list of old RRSets
-	ret = xfrin_changes_check_rrsets(&changes->old_rrsets,
+	ret = knot_changes_rrsets_reserve(&changes->old_rrsets,
 	                                 &changes->old_rrsets_count,
 	                                 &changes->old_rrsets_allocated, 2);
 	if (ret != KNOT_EOK) {
@@ -1482,7 +1374,7 @@ static int xfrin_copy_old_rrset(knot_rrset_t *old, knot_rrset_t **copy,
 	count += knot_rrset_rdata_rr_count(old->rrsigs);
 
 	// and old RDATA to the list of old RDATA
-	ret = xfrin_changes_check_rdata(&changes->old_rdata,
+	ret = knot_changes_rdata_reserve(&changes->old_rdata,
 	                                &changes->old_rdata_types,
 	                                changes->old_rdata_count,
 	                                &changes->old_rdata_allocated, count);
@@ -1494,7 +1386,7 @@ static int xfrin_copy_old_rrset(knot_rrset_t *old, knot_rrset_t **copy,
 	changes->old_rrsets[changes->old_rrsets_count++] = old;
 
 	dbg_xfrin_detail("Adding RDATA from old RRSet to old RDATA list.\n");
-	xfrin_changes_add_rdata(changes->old_rdata, changes->old_rdata_types,
+	knot_changes_add_rdata(changes->old_rdata, changes->old_rdata_types,
 	                        &changes->old_rdata_count, old->rdata,
 	                        knot_rrset_type(old));
 
@@ -1504,7 +1396,7 @@ static int xfrin_copy_old_rrset(knot_rrset_t *old, knot_rrset_t **copy,
 
 		dbg_xfrin_detail("Adding RDATA from RRSIG of the old RRSet to "
 		                 "old RDATA list.\n");
-		xfrin_changes_add_rdata(changes->old_rdata,
+		knot_changes_add_rdata(changes->old_rdata,
 		                        changes->old_rdata_types,
 		                        &changes->old_rdata_count,
 		                        old->rrsigs->rdata,
@@ -1516,8 +1408,9 @@ static int xfrin_copy_old_rrset(knot_rrset_t *old, knot_rrset_t **copy,
 
 /*----------------------------------------------------------------------------*/
 
-static int xfrin_copy_rrset(knot_node_t *node, knot_rr_type_t type,
-                            knot_rrset_t **rrset, knot_changes_t *changes)
+int xfrin_copy_rrset(knot_node_t *node, knot_rr_type_t type,
+                     knot_rrset_t **rrset, knot_changes_t *changes,
+                     int save_new)
 {
 dbg_xfrin_exec_detail(
 	char *name = knot_dname_to_str(knot_node_owner(node));
@@ -1536,7 +1429,7 @@ dbg_xfrin_exec_detail(
 		return 1;
 	}
 
-	int ret = xfrin_copy_old_rrset(old, rrset, changes);
+	int ret = xfrin_copy_old_rrset(old, rrset, changes, save_new);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -1591,7 +1484,7 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 		
 		// copy the rrset
 		dbg_xfrin_detail("Copying RRSet that carries the RRSIGs.\n");
-		ret = xfrin_copy_rrset(node, type, rrset, changes);
+		ret = xfrin_copy_rrset(node, type, rrset, changes, 1);
 		if (ret != KNOT_EOK) {
 			dbg_xfrin("Failed to copy rrset from changeset.\n");
 			return ret;
@@ -1616,7 +1509,7 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 			dbg_xfrin_verb("Using RRSIG from previous iteration\n");
 			rrsigs = *rrsigs_old;
 		} else {
-			ret = xfrin_copy_old_rrset(old, &rrsigs, changes);
+			ret = xfrin_copy_old_rrset(old, &rrsigs, changes, 1);
 			if (ret != KNOT_EOK) {
 				return ret;
 			}
@@ -1640,7 +1533,7 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 	// now in '*rrset' we have a copy of the RRSet which holds the RRSIGs 
 	// and in 'rrsigs' we have the copy of the RRSIGs
 	
-	knot_rdata_t *rdata = xfrin_remove_rdata(rrsigs, remove);
+	knot_rdata_t *rdata = xfrin_remove_rdata(rrsigs, remove, 0);
 	if (rdata == NULL) {
 		dbg_xfrin("Failed to remove RDATA from RRSet: %s.\n",
 		          knot_strerror(ret));
@@ -1650,7 +1543,7 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 
 	int count = knot_rdata_count(rdata);
 	// connect the RDATA to the list of old RDATA
-	ret = xfrin_changes_check_rdata(&changes->old_rdata,
+	ret = knot_changes_rdata_reserve(&changes->old_rdata,
 	                                &changes->old_rdata_types,
 	                                changes->old_rdata_count,
 	                                &changes->old_rdata_allocated, count);
@@ -1658,7 +1551,7 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 		return ret;
 	}
 
-	xfrin_changes_add_rdata(changes->old_rdata, changes->old_rdata_types,
+	knot_changes_add_rdata(changes->old_rdata, changes->old_rdata_types,
 	                        &changes->old_rdata_count, rdata,
 	                        knot_rrset_type(remove));
 	
@@ -1670,7 +1563,7 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 		knot_rrset_set_rrsigs(*rrset, NULL);
 		
 		// add RRSet to the list of old RRSets
-		ret = xfrin_changes_check_rrsets(&changes->old_rrsets,
+		ret = knot_changes_rrsets_reserve(&changes->old_rrsets,
 		                                 &changes->old_rrsets_count,
 		                                 &changes->old_rrsets_allocated,
 		                                 1);
@@ -1695,7 +1588,7 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 			                             knot_rrset_type(*rrset));
 			assert(tmp == *rrset);
 			
-			ret = xfrin_changes_check_rrsets(&changes->old_rrsets,
+			ret = knot_changes_rrsets_reserve(&changes->old_rrsets,
 			                        &changes->old_rrsets_count,
 			                        &changes->old_rrsets_allocated,
 			                        1);
@@ -1720,7 +1613,8 @@ static int xfrin_apply_remove_rrsigs(knot_changes_t *changes,
 static int xfrin_apply_remove_normal(knot_changes_t *changes,
                                      const knot_rrset_t *remove,
                                      knot_node_t *node,
-                                     knot_rrset_t **rrset)
+                                     knot_rrset_t **rrset,
+                                     uint32_t chflags)
 {
 	assert(changes != NULL);
 	assert(remove != NULL);
@@ -1731,7 +1625,18 @@ static int xfrin_apply_remove_normal(knot_changes_t *changes,
 	
 	dbg_xfrin_detail("Removing RRSet: \n");
 	knot_rrset_dump(remove, 0);
-	
+
+	int is_apex = knot_node_rrset(node, KNOT_RRTYPE_SOA) != NULL;
+
+	/*
+	 * First handle the special case of DDNS - do not remove SOA from apex.
+	 */
+	if ((chflags & KNOT_CHANGESET_TYPE_DDNS) && is_apex
+	    && knot_rrset_type(remove) == KNOT_RRTYPE_SOA) {
+		dbg_xfrin_verb("Ignoring SOA removal in UPDATE.\n");
+		return KNOT_EOK;
+	}
+
 	// now we have the copy of the node, so lets get the right RRSet
 	// check if we do not already have it
 	if (*rrset
@@ -1748,7 +1653,7 @@ static int xfrin_apply_remove_normal(knot_changes_t *changes,
 		 *       probably not cause problems. TEST!!
 		 */
 		ret = xfrin_copy_rrset(node,
-			knot_rrset_type(remove), rrset, changes);
+			knot_rrset_type(remove), rrset, changes, 1);
 		if (ret != KNOT_EOK) {
 			return ret;
 		}
@@ -1769,8 +1674,12 @@ dbg_xfrin_exec_detail(
 );
 
 	// remove the specified RRs from the RRSet (de facto difference of sets)
-	knot_rdata_t *rdata = xfrin_remove_rdata(*rrset, remove);
-	if (rdata == NULL) {
+	int ddns_remove_ns_from_apex =
+	                ((chflags & KNOT_CHANGESET_TYPE_DDNS) && is_apex
+	                 && knot_rrset_type(*rrset) == KNOT_RRTYPE_NS);
+	knot_rdata_t *rdata = xfrin_remove_rdata(*rrset, remove,
+	                                         ddns_remove_ns_from_apex);
+	if (rdata == NULL && !ddns_remove_ns_from_apex) {
 		dbg_xfrin_verb("Failed to remove RDATA from RRSet\n");
 		// In this case, the RDATA was not found in the RRSet
 		return 1;
@@ -1788,25 +1697,32 @@ dbg_xfrin_exec_detail(
 	}
 );
 
-	int count = knot_rdata_count(rdata);
-	// connect the RDATA to the list of old RDATA
-	ret = xfrin_changes_check_rdata(&changes->old_rdata,
-	                                &changes->old_rdata_types,
-	                                changes->old_rdata_count,
-	                                &changes->old_rdata_allocated, count);
-	if (ret != KNOT_EOK) {
-		return ret;
-	}
+	if (rdata != NULL) {
+		int count = knot_rdata_count(rdata);
+		// connect the RDATA to the list of old RDATA
+		ret = knot_changes_rdata_reserve(&changes->old_rdata,
+		                                &changes->old_rdata_types,
+		                                changes->old_rdata_count,
+		                                &changes->old_rdata_allocated,
+		                                count);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
 
-	xfrin_changes_add_rdata(changes->old_rdata, changes->old_rdata_types,
-	                        &changes->old_rdata_count, rdata,
-	                        knot_rrset_type(remove));
+		knot_changes_add_rdata(changes->old_rdata,
+		                        changes->old_rdata_types,
+		                        &changes->old_rdata_count, rdata,
+		                        knot_rrset_type(remove));
+	}
 	
 	// if the RRSet is empty, remove from node and add to old RRSets
 	// check if there is no RRSIGs; if there are, leave the RRSet
 	// there; it may be eventually removed when the RRSIGs are removed
 	if (knot_rrset_rdata(*rrset) == NULL
 	    && knot_rrset_rrsigs(*rrset) == NULL) {
+		// The RRSet should not be empty if we were removing NSs from
+		// apex in case of DDNS
+		assert(!ddns_remove_ns_from_apex);
 		
 		knot_rrset_t *tmp = knot_node_remove_rrset(node,
 		                                     knot_rrset_type(*rrset));
@@ -1815,7 +1731,7 @@ dbg_xfrin_exec_detail(
 		// add the removed RRSet to list of old RRSets
 		
 		assert(tmp == *rrset);
-		ret = xfrin_changes_check_rrsets(&changes->old_rrsets,
+		ret = knot_changes_rrsets_reserve(&changes->old_rrsets,
 		                                 &changes->old_rrsets_count,
 		                                 &changes->old_rrsets_allocated,
 		                                 1);
@@ -1836,43 +1752,124 @@ dbg_xfrin_exec_detail(
 /*----------------------------------------------------------------------------*/
 /*! \todo Needs review - RRs may not be merged into RRSets. */
 static int xfrin_apply_remove_all_rrsets(knot_changes_t *changes,
-                                         knot_node_t *node, uint16_t type)
+                                         knot_node_t *node, uint16_t type,
+                                         uint32_t chflags)
 {
-	int ret;
+	int ret = KNOT_EOK;
+	knot_rrset_t **rrsets = NULL;
+	unsigned rrsets_count = 0;
+	int is_apex = knot_node_rrset(node, KNOT_RRTYPE_SOA) != NULL;
 
+dbg_xfrin_exec_verb(
+	char *name = knot_dname_to_str(knot_node_owner(node));
+	dbg_xfrin_verb("Removing all RRSets from node %s of type %s. "
+		       "Is apex: %d, changeset flags: %u\n",
+		       name, knot_rrtype_to_string(type), is_apex, chflags);
+	free(name);
+);
+
+	/*! \todo ref #937 is it OK to modify nodes at this point?
+	 * shouldn't it be after the zones are switched? */
+	
+	/* Assemble RRSets to remove. */
 	if (type == KNOT_RRTYPE_ANY) {
-		// put all the RRSets to the changes structure
-		ret = xfrin_changes_check_rrsets(&changes->old_rrsets,
-		                                 &changes->old_rrsets_count,
-		                                 &changes->old_rrsets_allocated,
-		                                 knot_node_rrset_count(node));
-		if (ret != KNOT_EOK) {
-			dbg_xfrin("Failed to check changeset rrsets.\n");
-			return ret;
+		/* Remove all RRSets from the node. */
+		/* If removing from zone apex in an UPDATE, NS and SOA records
+		 * should be left unchanged.
+		 * We might either remove all RRSets and then return SOA and
+		 * NS RRSets to the node. Or find all existing types in the node
+		 * and remove all except NS and SOA. The first approach is
+		 * IMHO faster.
+		 */
+
+		rrsets = knot_node_get_rrsets(node);
+		short rr_count = knot_node_rrset_count(node);
+		if (rr_count > 0) {
+			rrsets_count = (unsigned)rr_count;
 		}
-
-		knot_rrset_t **rrsets = knot_node_get_rrsets(node);
-		knot_rrset_t **place = changes->old_rrsets
-		                       + changes->old_rrsets_count;
-		/*! \todo Test this!!! */
-		memcpy(place, rrsets, knot_node_rrset_count(node)
-		       * sizeof(knot_rrset_t *));
-
-		// remove all RRSets from the node
 		knot_node_remove_all_rrsets(node);
+
+		/*
+		 * If apex, return SOA and NS RRSets to the node and remove
+		 * them from the list (so they are not deleted later).
+		 *
+		 * This function is called only when processing DDNS, but one
+		 * never knows, so we'll rather check it
+		 */
+		if (is_apex && (chflags & KNOT_CHANGESET_TYPE_DDNS)) {
+			dbg_xfrin_detail("DDNS: returning SOA and NS to the "
+			                 "node.\n");
+			for (unsigned i = 0; i < rrsets_count; ++i) {
+				if (knot_rrset_type(rrsets[i])
+				       == KNOT_RRTYPE_SOA
+				    || knot_rrset_type(rrsets[i])
+				       == KNOT_RRTYPE_NS) {
+					dbg_xfrin_detail("Returning...\n");
+					knot_node_add_rrset(node, rrsets[i], 0);
+					rrsets[i] = NULL;
+				}
+			}
+		}
 	} else {
-		ret = xfrin_changes_check_rrsets(&changes->old_rrsets,
-		                                 &changes->old_rrsets_count,
-		                                 &changes->old_rrsets_allocated,
-		                                 1);
+		/* Remove only the RRSet with given type. */
+		/* First we must check if we're not removing NS or SOA from
+		 * apex. This change should be ignored.
+		 *
+		 * This function is called only when processing DDNS, but one
+		 * never knows, so we'll rather check it
+		 */
+		if (is_apex && (chflags & KNOT_CHANGESET_TYPE_DDNS)
+		    && (type == KNOT_RRTYPE_SOA || type == KNOT_RRTYPE_NS)) {
+			dbg_xfrin_detail("DDNS: ignoring SOA or NS removal.\n");
+			return KNOT_EOK;
+		}
+
+		rrsets = malloc(sizeof(knot_rrset_t*));
+		if (rrsets) {
+			*rrsets = knot_node_remove_rrset(node, type);
+			rrsets_count = 1;
+		}
+	}
+	
+	ret = knot_changes_rrsets_reserve(&changes->old_rrsets,
+					 &changes->old_rrsets_count,
+					 &changes->old_rrsets_allocated,
+					 rrsets_count);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to reserve changes rrsets.\n");
+		free(rrsets);
+		return ret;
+	}
+	
+	/* Mark RRsets and RDATA for removal. */
+	for (unsigned i = 0; i < rrsets_count; ++i) {
+		if (rrsets[i] == NULL) {
+			continue;
+		}
+
+		changes->old_rrsets[changes->old_rrsets_count++] = rrsets[i];
+	
+		/* Remove old RDATA. */
+		int rdata_count = knot_rrset_rdata_rr_count(rrsets[i]);
+		ret = knot_changes_rdata_reserve(&changes->old_rdata,
+						&changes->old_rdata_types,
+						changes->old_rdata_count,
+						&changes->old_rdata_allocated,
+						rdata_count);
 		if (ret != KNOT_EOK) {
-			dbg_xfrin("Failed to check changeset rrsets.\n");
+			dbg_xfrin("Failed to reserve changes rdata.\n");
+			free(rrsets);
 			return ret;
 		}
-		// remove only RRSet with the given type
-		knot_rrset_t *rrset = knot_node_remove_rrset(node, type);
-		changes->old_rrsets[changes->old_rrsets_count++] = rrset;
+		
+		knot_changes_add_rdata(changes->old_rdata,
+					changes->old_rdata_types,
+					&changes->old_rdata_count,
+					knot_rrset_get_rdata(rrsets[i]),
+					knot_rrset_type(rrsets[i]));
 	}
+	
+	free(rrsets);
 
 	return KNOT_EOK;
 }
@@ -1917,11 +1914,179 @@ static knot_node_t *xfrin_add_new_node(knot_zone_contents_t *contents,
 
 /*----------------------------------------------------------------------------*/
 
+int xfrin_replace_rrset_in_node(knot_node_t *node,
+                                       knot_rrset_t *rrset_new,
+                                       knot_changes_t *changes,
+                                       knot_zone_contents_t *contents)
+{
+	knot_rr_type_t type = knot_rrset_type(rrset_new);
+	// remove RRSet of the proper type from the node
+	dbg_xfrin_verb("Removing RRSet of type: %s.\n",
+	               knot_rrtype_to_string(type));
+	knot_rrset_t *rrset_old = knot_node_remove_rrset(node, type);
+	assert(rrset_old != NULL);
+
+	// add the old RRSet to the list of old RRSets
+	int ret = knot_changes_rrsets_reserve(&changes->old_rrsets,
+	                                     &changes->old_rrsets_count,
+	                                     &changes->old_rrsets_allocated, 1);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to add old RRSet to list.\n");
+		return ret;
+	}
+
+	// save also the RDATA, because RDATA are not deleted with the RRSet
+	// The count should be 1, but just to be sure....
+	int count = knot_rrset_rdata_rr_count(rrset_old);
+	ret = knot_changes_rdata_reserve(&changes->old_rdata,
+	                                &changes->old_rdata_types,
+	                                changes->old_rdata_count,
+	                                &changes->old_rdata_allocated, count);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to add old RDATA to list.\n");
+		return ret;
+	}
+
+	// save the new RRSet to the new RRSet, so that it is deleted if the
+	// apply fails
+	ret = knot_changes_rrsets_reserve(&changes->new_rrsets,
+	                                 &changes->new_rrsets_count,
+	                                 &changes->new_rrsets_allocated, 1);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to add new RRSet to list.\n");
+		return ret;
+	}
+
+	// The count should be 1, but just to be sure....
+	count = knot_rrset_rdata_rr_count(rrset_new);
+	// save the new RDATA
+	ret = knot_changes_rdata_reserve(&changes->new_rdata,
+	                                &changes->new_rdata_types,
+	                                changes->new_rdata_count,
+	                                &changes->new_rdata_allocated, count);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to add new RDATA to list.\n");
+		return ret;
+	}
+
+	changes->old_rrsets[changes->old_rrsets_count++] = rrset_old;
+
+	dbg_xfrin_verb("Adding RDATA from old RRSet to the list of old RDATA."
+	               "\n");
+	knot_changes_add_rdata(changes->old_rdata, changes->old_rdata_types,
+	                        &changes->old_rdata_count,
+	                        knot_rrset_get_rdata(rrset_old), type);
+
+	// store RRSIGs from the old RRSet to the new
+	knot_rrset_set_rrsigs(rrset_new, knot_rrset_get_rrsigs(rrset_old));
+
+	// insert the new RRSet to the node
+	dbg_xfrin_verb("Adding new RRSet.\n");
+	ret = knot_zone_contents_add_rrset(contents, rrset_new, &node,
+	                                   KNOT_RRSET_DUPL_SKIP, 1);
+
+	if (ret < 0) {
+		dbg_xfrin("Failed to add RRSet to node.\n");
+		return KNOT_ERROR;
+	}
+	assert(ret == 0);
+
+	changes->new_rrsets[changes->new_rrsets_count++] = rrset_new;
+
+	dbg_xfrin_verb("Adding RDATA from new RRSet to the list of new RDATA."
+	               "\n");
+	knot_changes_add_rdata(changes->new_rdata, changes->new_rdata_types,
+	                        &changes->new_rdata_count,
+	                        knot_rrset_get_rdata(rrset_new), type);
+
+	return KNOT_EOK;
+}
+
+/*----------------------------------------------------------------------------*/
+
+static int xfrin_apply_add_normal_ddns(knot_changes_t *changes,
+                                       knot_rrset_t *add, knot_node_t *node,
+                                       knot_zone_contents_t *contents)
+{
+	int ret;
+
+	/* 1) Adding SOA. */
+	if (knot_rrset_type(add) == KNOT_RRTYPE_SOA) {
+		/* a) If trying to add SOA to non-apex node, or the
+		 *    serial is less than the current serial, ignore.
+		 */
+		if (knot_node_rrset(node, KNOT_RRTYPE_SOA) == NULL
+		    || ns_serial_compare(knot_rdata_soa_serial(
+		           knot_rrset_rdata(
+		               knot_node_rrset(node, KNOT_RRTYPE_SOA))),
+		           knot_rdata_soa_serial(knot_rrset_rdata(add)
+		       )) > 0
+		    ) {
+			dbg_ddns_verb("DDNS: Ignoring SOA.\n");
+			return KNOT_EOK;
+		} else {
+			dbg_ddns_verb("DDNS: replacing SOA (old serial: %u,"
+			              " new serial: %u.\n",
+			              knot_rdata_soa_serial(knot_rrset_rdata(
+			                  knot_node_rrset(node,
+			                                  KNOT_RRTYPE_SOA))),
+			              knot_rdata_soa_serial(knot_rrset_rdata(
+			                                            add)));
+			/* b) Otherwise, replace the current SOA. */
+			ret = xfrin_replace_rrset_in_node(node, add,
+			                                      changes,
+			                                      contents);
+			/* In this case we must however remove the ADD RRSet
+			 * from the changeset, so that it is not deleted
+			 * afterwards.
+			 */
+			if (ret == KNOT_EOK) {
+				return 3;
+			} else {
+				return ret;
+			}
+		}
+	} else if (knot_rrset_type(add) == KNOT_RRTYPE_CNAME) {
+		/* 2) Adding CNAME... */
+		if (knot_node_rrset(node, KNOT_RRTYPE_CNAME) != NULL) {
+			dbg_ddns_verb("DDNS: replacing CNAME.\n");
+			/* a) ... to a CNAME node => replace. */
+			ret = xfrin_replace_rrset_in_node(node, add, changes,
+			                                  contents);
+			/* In this case we must however remove the ADD RRSet
+			 * from the changeset, so that it is not deleted
+			 * afterwards.
+			 */
+			if (ret == KNOT_EOK) {
+				return 3;
+			} else {
+				return ret;
+			}
+		} else if (knot_node_rrset_count(node) > 0) {
+			dbg_ddns_verb("DDNS: ignoring CNAME (non-empty node)\n");
+			/* b) ... to a non-empty node => ignore. */
+			return KNOT_EOK;
+		}
+		/* c) ... to an empty node => process normally. */
+	} else if (knot_node_rrset(node, KNOT_RRTYPE_CNAME) != NULL) {
+		/* 3) Adding other RRSets to CNAME node => ignore. */
+		dbg_ddns_verb("DDNS: ignoring RRSet (CNAME node)\n");
+		// handled in previous case
+		assert(knot_rrset_type(add) != KNOT_RRTYPE_CNAME);
+		return KNOT_EOK;
+	}
+
+	return 1;  // Continue normal processing
+}
+
+/*----------------------------------------------------------------------------*/
+
 static int xfrin_apply_add_normal(knot_changes_t *changes,
                                   knot_rrset_t *add,
                                   knot_node_t *node,
                                   knot_rrset_t **rrset,
-                                  knot_zone_contents_t *contents)
+                                  knot_zone_contents_t *contents,
+                                  uint32_t chflags)
 {
 	assert(changes != NULL);
 	assert(add != NULL);
@@ -1935,6 +2100,15 @@ dbg_xfrin_exec_detail(
 	dbg_xfrin_detail("applying rrset:\n");
 	knot_rrset_dump(add, 0);
 );
+
+	/* DDNS special cases. */
+	if (chflags & KNOT_CHANGESET_TYPE_DDNS) {
+		ret = xfrin_apply_add_normal_ddns(changes, add, node, contents);
+		/* Continue only if return value is 1. */
+		if (ret != 1) {
+			return ret;
+		}
+	}
 	
 	int copied = 0;
 	/*! \note Reusing RRSet from previous function caused it not to be
@@ -1955,7 +2129,7 @@ dbg_xfrin_exec_detail(
 		knot_rrset_t *old = *rrset;
 
 		if (*rrset != NULL) {
-			ret = xfrin_copy_old_rrset(old, rrset, changes);
+			ret = xfrin_copy_old_rrset(old, rrset, changes, 1);
 			if (ret != KNOT_EOK) {
 				return ret;
 			}
@@ -1995,7 +2169,7 @@ dbg_xfrin_exec_detail(
 
 		if (ret < 0) {
 			dbg_xfrin("Failed to add RRSet to node.\n");
-			return KNOT_ERROR;
+			return ret;
 		}
 
 		assert(ret == 0);
@@ -2021,6 +2195,7 @@ dbg_xfrin_exec_detail(
 	 *
 	 * TODO: add the 'add' rrset to list of old RRSets?
 	 */
+
 	dbg_xfrin_detail("Merging RRSets with owners: %s, %s types: %s, %s\n",
 	                 (*rrset)->owner->name, add->owner->name,
 	                 knot_rrtype_to_string((*rrset)->type),
@@ -2039,7 +2214,7 @@ dbg_xfrin_exec_detail(
 	}
 
 	ret = knot_rrset_merge_no_dupl((void **)rrset, (void **)&add);
-	if (ret != KNOT_EOK) {
+	if (ret < 0) {
 		dbg_xfrin("Failed to merge changeset RRSet.\n");
 		return ret;
 	}
@@ -2103,7 +2278,7 @@ dbg_xfrin_exec_verb(
 		dbg_xfrin_verb("Using RRSet from previous iteration.\n");
 	} else {
 		// copy the rrset
-		ret = xfrin_copy_rrset(node, type, rrset, changes);
+		ret = xfrin_copy_rrset(node, type, rrset, changes, 1);
 		if (ret < 0) {
 			return ret;
 		} else if (ret != KNOT_EOK) {
@@ -2128,7 +2303,7 @@ dbg_xfrin_exec_verb(
 		dbg_xfrin_detail("Created new RRSet for RRSIG: %p.\n", *rrset);
 
 		// add the RRset to the list of new RRsets
-		ret = xfrin_changes_check_rrsets(
+		ret = knot_changes_rrsets_reserve(
 			&changes->new_rrsets,
 			&changes->new_rrsets_count,
 			&changes->new_rrsets_allocated, 1);
@@ -2183,7 +2358,8 @@ dbg_xfrin_exec_detail(
 				dbg_xfrin_verb("Using RRSIG from previous iteration\n");
 				rrsig = *rrsigs_old;
 			} else {
-				ret = xfrin_copy_old_rrset(old, &rrsig, changes);
+				ret = xfrin_copy_old_rrset(old, &rrsig, changes,
+				                           1);
 				if (ret != KNOT_EOK) {
 					return ret;
 				}
@@ -2202,7 +2378,7 @@ dbg_xfrin_exec_detail(
 		// merge the changeset RRSet to the copy
 		dbg_xfrin_detail("Merging RRSIG to the one in the RRSet.\n");
 		ret = knot_rrset_merge_no_dupl((void **)&rrsig, (void **)&add);
-		if (ret != KNOT_EOK) {
+		if (ret < 0) {
 			dbg_xfrin("Failed to merge changeset RRSIG to copy: %s"
 			          ".\n", knot_strerror(ret));
 			return KNOT_ERROR;
@@ -2535,10 +2711,14 @@ dbg_xfrin_exec_detail(
 		                knot_rrset_rdata(chset->remove[i]))
 		            == KNOT_RRTYPE_NSEC3))
 		{
+			dbg_xfrin_verb("Removed RRSet belongs to NSEC3 tree.\n");
 			is_nsec3 = 1;
 		}
 
 		// check if the old node is not the one we should use
+		dbg_xfrin_verb("Node:%p Owner: %p Node owner: %p\n",
+			       node, knot_rrset_owner(chset->remove[i]),
+			       knot_node_owner(node));
 		if (!node || knot_rrset_owner(chset->remove[i])
 		             != knot_node_owner(node)) {
 			if (is_nsec3) {
@@ -2559,10 +2739,12 @@ dbg_xfrin_exec_detail(
 		assert(node != NULL);
 
 		// first check if all RRSets should be removed
+		dbg_xfrin_verb("RRSet class to be removed=%u\n",
+			       knot_rrset_class(chset->remove[i]));
 		if (knot_rrset_class(chset->remove[i]) == KNOT_CLASS_ANY) {
 			ret = xfrin_apply_remove_all_rrsets(
 				changes, node,
-				knot_rrset_type(chset->remove[i]));
+				knot_rrset_type(chset->remove[i]), chset->flags);
 		} else if (knot_rrset_type(chset->remove[i])
 		           == KNOT_RRTYPE_RRSIG) {
 			// this should work also for UPDATE
@@ -2573,7 +2755,8 @@ dbg_xfrin_exec_detail(
 			// this should work also for UPDATE
 			ret = xfrin_apply_remove_normal(changes,
 			                                chset->remove[i],
-			                                node, &rrset);
+			                                node, &rrset,
+			                                chset->flags);
 		}
 
 		dbg_xfrin_detail("xfrin_apply_remove() ret = %d\n", ret);
@@ -2594,7 +2777,7 @@ static int xfrin_apply_add(knot_zone_contents_t *contents,
                            knot_changeset_t *chset,
                            knot_changes_t *changes)
 {
-	int ret = 0;
+	int ret = KNOT_EOK;
 	knot_node_t *node = NULL;
 	knot_rrset_t *rrset = NULL;
 	knot_rrset_t *rrsigs = NULL;
@@ -2661,22 +2844,27 @@ dbg_xfrin_exec_detail(
 			ret = xfrin_apply_add_rrsig(changes, chset->add[i],
 			                            node, &rrset, &rrsigs,
 			                            contents);
+			assert(ret != KNOT_EOK);
 		} else {
 			ret = xfrin_apply_add_normal(changes, chset->add[i],
-			                             node, &rrset, contents);
+			                             node, &rrset, contents,
+			                             chset->flags);
+			assert(ret <= 3);
 		}
 
-		assert(ret != KNOT_EOK);
+		// Not correct anymore, add_normal() returns KNOT_EOK if the
+		// changeset RR should be removed
+		//assert(ret != KNOT_EOK);
 
-		dbg_xfrin_detail("xfrin_apply_..() returned %s, rrset: %p\n",
-		                 knot_strerror(ret), rrset);
+		dbg_xfrin_detail("xfrin_apply_..() returned %d, rrset: %p\n",
+		                 ret, rrset);
 
 		if (ret > 0) {
 			if (ret == 1) {
 				// the ADD RRSet was used, i.e. it should be
 				// removed from the changeset and saved in the
 				// list of new RRSets
-				ret = xfrin_changes_check_rrsets(
+				ret = knot_changes_rrsets_reserve(
 					&changes->new_rrsets,
 					&changes->new_rrsets_count,
 					&changes->new_rrsets_allocated, 1);
@@ -2694,7 +2882,7 @@ dbg_xfrin_exec_detail(
 				                        chset->add[i]);
 
 				// connect the RDATA to the list of new RDATA
-				int res = xfrin_changes_check_rdata(
+				int res = knot_changes_rdata_reserve(
 					&changes->new_rdata,
 					&changes->new_rdata_types,
 					changes->new_rdata_count,
@@ -2703,7 +2891,7 @@ dbg_xfrin_exec_detail(
 					return res;
 				}
 
-				xfrin_changes_add_rdata(changes->new_rdata,
+				knot_changes_add_rdata(changes->new_rdata,
 				            changes->new_rdata_types,
 				            &changes->new_rdata_count,
 				            knot_rrset_get_rdata(chset->add[i]),
@@ -2721,6 +2909,11 @@ dbg_xfrin_exec_detail(
 				// stored in the list of new RDATA, because
 				// it is joined to the copy of RDATA, that is
 				// already stored there
+			} else if (ret == 3) {
+				// the RRSet was used and both RRSet and RDATA
+				// were properly stored. Just clear the place
+				// in the changeset
+				chset->add[i] = NULL;
 			} else {
 				assert(0);
 			}
@@ -2743,97 +2936,18 @@ static int xfrin_apply_replace_soa(knot_zone_contents_t *contents,
 	knot_node_t *node = knot_zone_contents_get_apex(contents);
 	assert(node != NULL);
 
-	int ret = 0;
-
 	assert(node != NULL);
 
-	// set the node copy as the apex of the contents
-	contents->apex = node;
 
-	// remove the SOA RRSet from the apex
-	dbg_xfrin_verb("Removing SOA.\n");
-	knot_rrset_t *rrset = knot_node_remove_rrset(node, KNOT_RRTYPE_SOA);
-	assert(rrset != NULL);
-
-	// add the old RRSet to the list of old RRSets
-	ret = xfrin_changes_check_rrsets(&changes->old_rrsets,
-	                                 &changes->old_rrsets_count,
-	                                 &changes->old_rrsets_allocated, 1);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to add old RRSet to list.\n");
-		return ret;
+	int ret = xfrin_replace_rrset_in_node(node, chset->soa_to, changes,
+	                                      contents);
+	if (ret == KNOT_EOK) {
+		// remove the SOA from the changeset, so it will not be deleted
+		// after successful apply
+		chset->soa_to = NULL;
 	}
 
-	// save also the SOA RDATA, because RDATA are not deleted with the
-	// RRSet
-	ret = xfrin_changes_check_rdata(&changes->old_rdata,
-	                                &changes->old_rdata_types,
-	                                changes->old_rdata_count,
-	                                &changes->old_rdata_allocated, 1);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to add old RDATA to list.\n");
-		return ret;
-	}
-
-	// save the SOA to the new RRSet, so that it is deleted if the
-	// apply fails
-	ret = xfrin_changes_check_rrsets(&changes->new_rrsets,
-	                                 &changes->new_rrsets_count,
-	                                 &changes->new_rrsets_allocated, 1);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to add new RRSet to list.\n");
-		return ret;
-	}
-
-	int count = knot_rrset_rdata_rr_count(rrset);
-	count += knot_rrset_rdata_rr_count(chset->soa_to);
-	// save the new SOA RDATA
-	ret = xfrin_changes_check_rdata(&changes->new_rdata,
-	                                &changes->new_rdata_types,
-	                                changes->new_rdata_count,
-	                                &changes->new_rdata_allocated, count);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to add new RDATA to list.\n");
-		return ret;
-	}
-
-	changes->old_rrsets[changes->old_rrsets_count++] = rrset;
-
-	/*! \todo Maybe check if the SOA does not have more RDATA? */
-	dbg_xfrin_verb("Adding RDATA from old SOA to the list of old RDATA.\n");
-	xfrin_changes_add_rdata(changes->old_rdata, changes->old_rdata_types,
-	                        &changes->old_rdata_count, rrset->rdata,
-	                        KNOT_RRTYPE_SOA);
-
-	// store RRSIGs from the old SOA to the new SOA
-	knot_rrset_set_rrsigs(chset->soa_to, knot_rrset_get_rrsigs(rrset));
-
-	// insert the new SOA RRSet to the node
-	dbg_xfrin_verb("Adding SOA.\n");
-	//ret = knot_node_add_rrset(node, chset->soa_to, 0);
-	ret = knot_zone_contents_add_rrset(contents, chset->soa_to, &node,
-	                                   KNOT_RRSET_DUPL_SKIP, 1);
-
-	if (ret < 0) {
-		dbg_xfrin("Failed to add RRSet to node.\n");
-		return KNOT_ERROR;
-	}
-	assert(ret == 0);
-
-	changes->new_rrsets[changes->new_rrsets_count++] = chset->soa_to;
-
-	dbg_xfrin_verb("Adding RDATA from new SOA to the list of new RDATA.\n");
-	xfrin_changes_add_rdata(changes->new_rdata,
-	                        changes->new_rdata_types,
-	                        &changes->new_rdata_count,
-	                        knot_rrset_get_rdata(chset->soa_to),
-	                        knot_rrset_type(chset->soa_to));
-
-	// remove the SOA from the changeset, so it will not be deleted after
-	// successful apply
-	chset->soa_to = NULL;
-
-	return KNOT_EOK;
+	return ret;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2885,7 +2999,7 @@ static void xfrin_mark_empty(knot_node_t *node, void *data)
 
 	if (knot_node_rrset_count(node) == 0
 	    && knot_node_children(node) == 0) {
-		int ret = xfrin_changes_check_nodes(&changes->old_nodes,
+		int ret = knot_changes_nodes_reserve(&changes->old_nodes,
 		                                 &changes->old_nodes_count,
 		                                 &changes->old_nodes_allocated);
 		if (ret != KNOT_EOK) {
@@ -2919,7 +3033,7 @@ static void xfrin_mark_empty_nsec3(knot_node_t *node, void *data)
 
 	if (knot_node_rrset_count(node) == 0
 	    && knot_node_children(node) == 0) {
-		int ret = xfrin_changes_check_nodes(&changes->old_nsec3,
+		int ret = knot_changes_nodes_reserve(&changes->old_nsec3,
 		                                 &changes->old_nsec3_count,
 		                                 &changes->old_nsec3_allocated);
 		if (ret != KNOT_EOK) {
@@ -3069,22 +3183,15 @@ static int xfrin_check_contents_copy(knot_zone_contents_t *old_contents)
 
 /*----------------------------------------------------------------------------*/
 
-int xfrin_apply_changesets(knot_zone_t *zone,
-                           knot_changesets_t *chsets,
-                           knot_zone_contents_t **new_contents)
+int xfrin_prepare_zone_copy(knot_zone_contents_t *old_contents,
+                            knot_zone_contents_t **new_contents,
+                            knot_changes_t **changes)
 {
-	if (zone == NULL || chsets == NULL || chsets->count == 0
-	    || new_contents == NULL) {
+	if (old_contents == NULL || new_contents == NULL || changes == NULL) {
 		return KNOT_EINVAL;
 	}
 
-	knot_zone_contents_t *old_contents = knot_zone_get_contents(zone);
-	if (!old_contents) {
-		dbg_xfrin("Cannot apply changesets to empty zone.\n");
-		return KNOT_EINVAL;
-	}
-
-	dbg_xfrin("Applying changesets to zone...\n");
+	dbg_xfrin("Preparing zone copy...\n");
 
 	/*
 	 * Ensure that the zone generation is set to 0.
@@ -3116,15 +3223,15 @@ int xfrin_apply_changesets(knot_zone_t *zone,
 		return ret;
 	}
 
-	knot_changes_t *changes = (knot_changes_t *)malloc(
+	knot_changes_t *chgs = (knot_changes_t *)malloc(
 	                        sizeof(knot_changes_t));
-	if (changes == NULL) {
+	if (chgs == NULL) {
 		dbg_xfrin("Failed to allocate structure for changes!\n");
-		xfrin_rollback_update(old_contents, &contents_copy, &changes);
+		xfrin_rollback_update(old_contents, &contents_copy, &chgs);
 		return KNOT_ENOMEM;
 	}
 
-	memset(changes, 0, sizeof(knot_changes_t));
+	memset(chgs, 0, sizeof(knot_changes_t));
 
 	/*!
 	 * \todo Check if all nodes have their copy.
@@ -3132,7 +3239,7 @@ int xfrin_apply_changesets(knot_zone_t *zone,
 	ret = xfrin_check_contents_copy(old_contents);
 	if (ret != KNOT_EOK) {
 		dbg_xfrin("Contents copy check failed!\n");
-		xfrin_rollback_update(old_contents, &contents_copy, &changes);
+		xfrin_rollback_update(old_contents, &contents_copy, &chgs);
 		return ret;
 	}
 
@@ -3145,6 +3252,95 @@ int xfrin_apply_changesets(knot_zone_t *zone,
 	dbg_xfrin("Switching ptrs pointing to old nodes to the new nodes.\n");
 	ret = xfrin_switch_nodes(contents_copy);
 	assert(knot_zone_contents_apex(contents_copy) != NULL);
+	
+	*new_contents = contents_copy;
+	*changes = chgs;
+	
+	return KNOT_EOK;
+}
+
+/*----------------------------------------------------------------------------*/
+
+int xfrin_finalize_updated_zone(knot_zone_contents_t *contents_copy,
+                                knot_changes_t *changes,
+                                knot_zone_contents_t *old_contents)
+{
+	if (contents_copy == NULL || changes == NULL || old_contents == NULL) {
+		return KNOT_EINVAL;
+	}
+	
+	/*
+	 * Finalize the new zone contents:
+	 * - delete empty nodes
+	 * - parse NSEC3PARAM
+	 * - do adjusting of nodes and RDATA
+	 * - ???
+	 */
+
+	/*
+	 * Select and remove empty nodes from zone trees. Do not free them right
+	 * away as they may be referenced by some domain names.
+	 */
+	int ret = xfrin_remove_empty_nodes(contents_copy, changes);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to remove empty nodes: %s\n",
+		          knot_strerror(ret));
+//		xfrin_rollback_update(old_contents, &contents_copy, &changes);
+		return ret;
+	}
+
+	dbg_xfrin("Adjusting zone contents.\n");
+	dbg_xfrin_verb("Old contents apex: %p, new apex: %p\n",
+	               old_contents->apex, contents_copy->apex);
+	ret = knot_zone_contents_adjust(contents_copy);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to finalize zone contents: %s\n",
+		          knot_strerror(ret));
+//		xfrin_rollback_update(old_contents, &contents_copy, &changes);
+		return ret;
+	}
+	assert(knot_zone_contents_apex(contents_copy) != NULL);
+
+	dbg_xfrin("Checking zone for CNAME loops.\n");
+	ret = knot_zone_contents_check_loops(contents_copy);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("CNAME loop check failed: %s\n", knot_strerror(ret));
+//		xfrin_rollback_update(old_contents, &contents_copy, &changes);
+		return ret;
+	}
+	
+	return KNOT_EOK;
+}
+
+/*----------------------------------------------------------------------------*/
+
+int xfrin_apply_changesets(knot_zone_t *zone,
+                           knot_changesets_t *chsets,
+                           knot_zone_contents_t **new_contents)
+{
+	if (zone == NULL || chsets == NULL || chsets->count == 0
+	    || new_contents == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	knot_zone_contents_t *old_contents = knot_zone_get_contents(zone);
+	if (!old_contents) {
+		dbg_xfrin("Cannot apply changesets to empty zone.\n");
+		return KNOT_EINVAL;
+	}
+
+	dbg_xfrin("Applying changesets to zone...\n");
+
+	dbg_xfrin_verb("Creating shallow copy of the zone...\n");
+	knot_zone_contents_t *contents_copy = NULL;
+	knot_changes_t *changes = NULL;
+	int ret = xfrin_prepare_zone_copy(old_contents, &contents_copy,
+	                                  &changes);
+	if (ret != KNOT_EOK) {
+		dbg_xfrin("Failed to prepare zone copy: %s\n",
+		          knot_strerror(ret));
+		return ret;
+	}
 
 	/*
 	 * Apply the changesets.
@@ -3169,42 +3365,11 @@ int xfrin_apply_changesets(knot_zone_t *zone,
 	 * \todo Test failure of IXFR.
 	 */
 
-	/*
-	 * Finalize the new zone contents:
-	 * - delete empty nodes
-	 * - parse NSEC3PARAM
-	 * - do adjusting of nodes and RDATA
-	 * - ???
-	 */
-
-	/*
-	 * Select and remove empty nodes from zone trees. Do not free them right
-	 * away as they may be referenced by some domain names.
-	 */
-	ret = xfrin_remove_empty_nodes(contents_copy, changes);
+	dbg_xfrin_verb("Finalizing updated zone...\n");
+	ret = xfrin_finalize_updated_zone(contents_copy, changes, old_contents);
 	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to remove empty nodes: %s\n",
+		dbg_xfrin("Failed to finalize updated zone: %s\n",
 		          knot_strerror(ret));
-		xfrin_rollback_update(old_contents, &contents_copy, &changes);
-		return ret;
-	}
-
-	dbg_xfrin("Adjusting zone contents.\n");
-	dbg_xfrin_verb("Old contents apex: %p, new apex: %p\n",
-	               old_contents->apex, contents_copy->apex);
-	ret = knot_zone_contents_adjust(contents_copy);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("Failed to finalize zone contents: %s\n",
-		          knot_strerror(ret));
-		xfrin_rollback_update(old_contents, &contents_copy, &changes);
-		return ret;
-	}
-	assert(knot_zone_contents_apex(contents_copy) != NULL);
-
-	dbg_xfrin("Checking zone for CNAME loops.\n");
-	ret = knot_zone_contents_check_loops(contents_copy);
-	if (ret != KNOT_EOK) {
-		dbg_xfrin("CNAME loop check failed: %s\n", knot_strerror(ret));
 		xfrin_rollback_update(old_contents, &contents_copy, &changes);
 		return ret;
 	}
@@ -3237,7 +3402,7 @@ int xfrin_switch_zone(knot_zone_t *zone,
 	               old, (old) ? old->apex : NULL, new_contents->apex);
 
 	// switch pointers in domain names, now only the new zone is used
-	if (transfer_type == XFR_TYPE_IIN) {
+	if (transfer_type == XFR_TYPE_IIN || transfer_type == XFR_TYPE_UPDATE) {
 		// Traverse also the dname table and change the node pointers
 		// in dnames
 		int ret = knot_zone_contents_dname_table_apply(

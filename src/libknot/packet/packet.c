@@ -291,22 +291,25 @@ static int knot_packet_parse_question(const uint8_t *wire, size_t *pos,
 	dbg_packet_verb("Parsing dname starting on position %zu and "
 	                      "%zu bytes long.\n", *pos, i - *pos + 1);
 	dbg_packet_verb("Alloc: %d\n", alloc);
+	size_t bp = *pos;
 	if (alloc) {
-		question->qname = knot_dname_new_from_wire(
-				wire + *pos, i - *pos + 1, NULL);
+		question->qname = knot_dname_parse_from_wire(wire, pos,
+		                                             i + 1,
+		                                             NULL, NULL);
 		if (question->qname == NULL) {
 			return KNOT_ENOMEM;
 		}
 	} else {
-		int res = knot_dname_from_wire(wire + *pos, i - *pos + 1,
-	                                         NULL, question->qname);
-		if (res != KNOT_EOK) {
-			assert(res != KNOT_EINVAL);
-			return res;
+		void *parsed = knot_dname_parse_from_wire(wire, pos,
+		                                     i + 1,
+	                                             NULL, question->qname);
+		if (!parsed) {
+			return KNOT_EMALF;
 		}
 	}
-
-	*pos = i + 1;
+	if (*pos != i + 1) {
+		dbg_packet("Parsed dname expected len=%zu, parsed=%zu.\n", i+1-bp, *pos-bp);
+	}
 	question->qtype = knot_wire_read_u16(wire + i + 1);
 	question->qclass = knot_wire_read_u16(wire + i + 3);
 	*pos += 4;
@@ -386,7 +389,7 @@ static knot_rrset_t *knot_packet_parse_rr(const uint8_t *wire, size_t *pos,
 	           *pos, size);
 
 	knot_dname_t *owner = knot_dname_parse_from_wire(wire, pos, size,
-	                                                     NULL);
+	                                                     NULL, NULL);
 	dbg_packet_detail("Created owner: %p, actual position: %zu\n", owner,
 	                  *pos);
 	if (owner == NULL) {
@@ -512,7 +515,7 @@ dbg_packet_exec_detail(
 			free(name);
 );
 
-			if (knot_rrset_compare((*rrsets)[i], rrset,
+			if (knot_rrset_match((*rrsets)[i], rrset,
 			                         KNOT_RRSET_COMPARE_HEADER)) {
 				/*! \todo Test this!!! */
 				// no duplicate checking here, the packet should
@@ -1257,7 +1260,7 @@ const knot_rrset_t *knot_packet_answer_rrset(
 /*----------------------------------------------------------------------------*/
 
 const knot_rrset_t *knot_packet_authority_rrset(
-	knot_packet_t *packet, short pos)
+	const knot_packet_t *packet, short pos)
 {
 	if (packet == NULL || pos > packet->ns_rrsets) {
 		return NULL;
@@ -1269,7 +1272,7 @@ const knot_rrset_t *knot_packet_authority_rrset(
 /*----------------------------------------------------------------------------*/
 
 const knot_rrset_t *knot_packet_additional_rrset(
-    knot_packet_t *packet, short pos)
+    const knot_packet_t *packet, short pos)
 {
 	if (packet == NULL || pos > packet->ar_rrsets) {
 		return NULL;
@@ -1289,19 +1292,19 @@ int knot_packet_contains(const knot_packet_t *packet,
 	}
 
 	for (int i = 0; i < packet->an_rrsets; ++i) {
-		if (knot_rrset_compare(packet->answer[i], rrset, cmp)) {
+		if (knot_rrset_match(packet->answer[i], rrset, cmp)) {
 			return 1;
 		}
 	}
 
 	for (int i = 0; i < packet->ns_rrsets; ++i) {
-		if (knot_rrset_compare(packet->authority[i], rrset, cmp)) {
+		if (knot_rrset_match(packet->authority[i], rrset, cmp)) {
 			return 1;
 		}
 	}
 
 	for (int i = 0; i < packet->ar_rrsets; ++i) {
-		if (knot_rrset_compare(packet->additional[i], rrset, cmp)) {
+		if (knot_rrset_match(packet->additional[i], rrset, cmp)) {
 			return 1;
 		}
 	}
@@ -1390,7 +1393,7 @@ void knot_packet_header_to_wire(const knot_header_t *header,
 
 int knot_packet_question_to_wire(knot_packet_t *packet)
 {
-	if (packet == NULL) {
+	if (packet == NULL || packet->question.qname == NULL) {
 		return KNOT_EINVAL;
 	}
 
@@ -1551,6 +1554,10 @@ void knot_packet_dump(const knot_packet_t *packet)
 	       knot_wire_flags_get_ra(packet->header.flags2) ? "ra" : "",
 	       knot_wire_flags_get_ad(packet->header.flags2) ? "ad" : "",
 	       knot_wire_flags_get_cd(packet->header.flags2) ? "cd" : "");
+	dbg_packet("  RCODE: %u\n", knot_wire_flags_get_rcode(
+	                   packet->header.flags2));
+	dbg_packet("  OPCODE: %u\n", knot_wire_flags_get_opcode(
+	                   packet->header.flags1));
 	dbg_packet("  QDCOUNT: %u\n", packet->header.qdcount);
 	dbg_packet("  ANCOUNT: %u\n", packet->header.ancount);
 	dbg_packet("  NSCOUNT: %u\n", packet->header.nscount);

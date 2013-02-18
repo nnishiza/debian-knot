@@ -68,7 +68,7 @@ BLANK [ \t\n]
 [\!\$\%\^\&\*\(\)\/\+\-\@\{\}\;\,] { return yytext[0]; }
 system          { lval.t = yytext;  return SYSTEM; }
 identity        { lval.t = yytext; return IDENTITY; }
-version         { lval.t = yytext; return VERSION; }
+version         { lval.t = yytext; return SVERSION; }
 nsid            { lval.t = yytext; return NSID; }
 storage         { lval.t = yytext; return STORAGE; }
 key             { lval.t = yytext; return KEY; }
@@ -85,17 +85,25 @@ zonefile-sync   { lval.t = yytext; return DBSYNC_TIMEOUT; }
 ixfr-fslimit    { lval.t = yytext; return IXFR_FSLIMIT; }
 xfr-in          { lval.t = yytext; return XFR_IN; }
 xfr-out         { lval.t = yytext; return XFR_OUT; }
+update-in       { lval.t = yytext; return UPDATE_IN; }
 notify-in       { lval.t = yytext; return NOTIFY_IN; }
 notify-out      { lval.t = yytext; return NOTIFY_OUT; }
 workers         { lval.t = yytext; return WORKERS; }
 user            { lval.t = yytext; return USER; }
 pidfile         { lval.t = yytext; return PIDFILE; }
 ixfr-from-differences { lval.t = yytext; return BUILD_DIFFS; }
+max-conn-idle   { lval.t = yytext; return MAX_CONN_IDLE; }
+max-conn-handshake { lval.t = yytext; return MAX_CONN_HS; }
+max-conn-reply  { lval.t = yytext; return MAX_CONN_REPLY; }
 
 interfaces      { lval.t = yytext; return INTERFACES; }
 address         { lval.t = yytext; return ADDRESS; }
 port            { lval.t = yytext; return PORT; }
 via             { lval.t = yytext; return VIA; }
+
+control         { lval.t = yytext; return CONTROL; }
+allow           { lval.t = yytext; return ALLOW; }
+listen-on       { lval.t = yytext; return LISTEN_ON; }
 
 log             { lval.t = yytext; return LOG; }
 

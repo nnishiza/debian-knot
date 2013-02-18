@@ -635,7 +635,8 @@ int server_refresh(server_t *server)
 		if (zd->xfr_in.timer) {
 			evsched_cancel(sch, zd->xfr_in.timer);
 			evsched_schedule(sch, zd->xfr_in.timer,
-			                 tls_rand() * 1000);
+			                 tls_rand() * 500 + i*200);
+			/* Cumulative delay. */
 		}
 	}
 	
@@ -643,6 +644,35 @@ int server_refresh(server_t *server)
 	rcu_read_unlock();
 	free(zones);
 	return KNOT_EOK;
+}
+
+int server_reload(server_t *server, const char *cf)
+{
+	if (!server || !cf) {
+		return KNOT_EINVAL;
+	}
+	
+	log_server_info("Reloading configuration...\n");
+	int cf_ret = conf_open(cf);
+	switch (cf_ret) {
+	case KNOT_EOK:
+		log_server_info("Configuration "
+				"reloaded.\n");
+		break;
+	case KNOT_ENOENT:
+		log_server_error("Configuration "
+				 "file '%s' "
+				 "not found.\n",
+				 conf()->filename);
+		break;
+	default:
+		log_server_error("Configuration "
+				 "reload failed.\n");
+		break;
+	}
+	
+	/*! \todo Close and bind to new remote control. */
+	return cf_ret;
 }
 
 void server_stop(server_t *server)
