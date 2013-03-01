@@ -135,6 +135,9 @@
 /* Define to 1 if you have the `setgroups' function. */
 #undef HAVE_SETGROUPS
 
+/* Define to 1 if you have the <signal.h> header file. */
+#undef HAVE_SIGNAL_H
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
