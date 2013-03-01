@@ -1,3 +1,12 @@
+knot (1.2.0~rc3-1) unstable; urgency=low
+
+  * Imported Upstream version 1.2.0~rc3
+    + New functionality: Response Rate Limiting as a response to
+      reflection DNS DDoS attacks in the wild
+    + Add missing RRSIG in ANY queries
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 01 Mar 2013 13:24:28 +0100
+
 knot (1.2~rc2-1) unstable; urgency=low
 
   * Imported Upstream version 1.2~rc2
