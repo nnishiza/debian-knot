@@ -351,12 +351,20 @@ static int server_bind_handlers(server_t *server)
 	WALK_LIST(n, *server->ifaces) {
 
 		iface_t *iface = (iface_t*)n;
+		assert(iface);
 
 		/* Create UDP handlers. */
 		dt_unit_t *unit = 0;
 		if (!iface->handler[UDP_ID]) {
 			unit = dt_create_coherent(thr_count, &udp_master, 0);
+			if (!unit) {
+				continue;
+			}
 			h = server_create_handler(server, iface->fd[UDP_ID], unit);
+			if (!h) {
+				dt_delete(&unit);
+				continue;
+			}
 			h->type = iface->type[UDP_ID];
 			h->iface = iface;
 
@@ -370,7 +378,14 @@ static int server_bind_handlers(server_t *server)
 		/* Create TCP handlers. */
 		if (!iface->handler[TCP_ID]) {
 			unit = dt_create(tcp_unit_size);
+			if (!unit) {
+				continue;
+			}
 			h = server_create_handler(server, iface->fd[TCP_ID], unit);
+			if (!h) {
+				dt_delete(&unit);
+				continue;
+			}
 			tcp_loop_unit(h, unit);
 			h->type = iface->type[TCP_ID];
 			h->iface = iface;
@@ -397,6 +412,7 @@ server_t *server_create()
 		ERR_ALLOC_FAILED;
 		return NULL;
 	}
+	memset(server, 0, sizeof(server_t));
 
 	server->state = ServerIdle;
 	init_list(&server->handlers);
@@ -408,6 +424,7 @@ server_t *server_create()
 	server->sched = evsched_new();
 	dt_unit_t *unit = dt_create_coherent(1, evsched_run, 0);
 	iohandler_t *h = server_create_handler(server, -1, unit);
+	
 	h->data = server->sched;
 
 	// Create name server
@@ -738,6 +755,9 @@ void server_destroy(server_t **server)
 
 	// Delete event scheduler
 	evsched_delete(&(*server)->sched);
+	
+	/* Delete rate limiting table. */
+	rrl_destroy((*server)->rrl);
 
 	free(*server);
 
@@ -752,6 +772,23 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 
 	if (!server) {
 		return KNOT_EINVAL;
+	}
+	
+	/* Rate limiting. */
+	if (!server->rrl && conf->rrl > 0) {
+		server->rrl = rrl_create(conf->rrl_size);
+		if (!server->rrl) {
+			log_server_error("Couldn't init rate limiting table.\n");
+		} else {
+			rrl_setlocks(server->rrl, RRL_LOCK_GRANULARITY);
+		}
+	}
+	if (server->rrl) {
+		if (rrl_rate(server->rrl) != conf->rrl) {
+			rrl_setrate(server->rrl, conf->rrl);
+			log_server_info("Rate limiting set to %u responses/sec.\n",
+			                conf->rrl);
+		} /* At this point, old buckets will converge to new rate. */
 	}
 
 	/* Update bound sockets. */
