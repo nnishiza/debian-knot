@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.2.0-rc3], [knot-dns@labs.nic.cz])
+AC_INIT([knot], [1.2.0-rc4], [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnu -Wall -Werror])
 AC_CONFIG_SRCDIR([src/knot/main.c])
 AC_CONFIG_HEADERS([src/config.h])
@@ -103,22 +103,32 @@ AC_ARG_ENABLE([debuglevel],
         ;;
     esac], [])
     
+AX_MSG_WAITFORONE
 # recvmmsg() (valgrind doesn't support it, so disable for debugging)
 AC_ARG_ENABLE([recvmmsg],
     AS_HELP_STRING([--enable-recvmmsg=yes|no], [enable recvmmsg() network API under Linux (kernel support required) (set to 'no' if you have trouble running server under valgrind) [default=yes]]),
     [case "${enableval}" in
       yes)
-         AC_DEFINE([ENABLE_RECVMMSG], [1], [recvmmsg enabled])
-         ;;
+	  if test "$ax_cv_have_msg_waitforone" = "yes"; then
+	      AC_DEFINE([ENABLE_RECVMMSG], [1], [recvmmsg enabled])
+	      recvmmsg=true
+	  else
+	      recvmmsg=false
+	  fi
+          ;;
       no)
-         recvmmsg=false
-         ;;
+          recvmmsg=false
+          ;;
       *) 
-         AC_MSG_ERROR([bad value ${enableval} for --enable-recvmmsg])
-         ;;
+          AC_MSG_ERROR([bad value ${enableval} for --enable-recvmmsg])
+          ;;
     esac], [
-    AC_DEFINE([ENABLE_RECVMMSG], [1], [recvmmsg enabled])
-    recvmmsg=true
+    if test "$ax_cv_have_msg_waitforone" = "yes"; then
+        AC_DEFINE([ENABLE_RECVMMSG], [1], [recvmmsg enabled])
+        recvmmsg=true
+    else
+        recvmmsg=false
+    fi
     ])
 
 # Check for link time optimizations support and predictive commoning
@@ -128,8 +138,7 @@ AC_ARG_ENABLE([lto],
       yes) AX_CHECK_COMPILER_FLAGS("-flto", [CFLAGS="$CFLAGS -flto"], []) ;;
       no) ;;
       *)  AC_MSG_ERROR([bad value ${enableval} for --enable-lto]) ;;
-    esac], [
-    ])
+    esac])
 
 AX_CHECK_COMPILER_FLAGS("-fpredictive-commoning", [CFLAGS="$CFLAGS -fpredictive-commoning"], [])
 
