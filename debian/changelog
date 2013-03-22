@@ -1,3 +1,14 @@
+knot (1.2.0~rc4-1) unstable; urgency=low
+
+  * Imported Upstream version 1.2.0~rc4
+   + knotc 'zonestatus' command
+   + Changing logfile ownership before dropping privileges
+   + knotc respects 'control' section from configuration
+   + RRL: resolved bucket collisions
+   + RRL: updated bucket mapping to conform RRL technical memo
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 22 Mar 2013 15:35:50 +0100
+
 knot (1.2.0~rc3-1) unstable; urgency=low
 
   * Imported Upstream version 1.2.0~rc3
