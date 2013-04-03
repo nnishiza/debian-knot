@@ -1,3 +1,9 @@
+v1.2.0 - Mar 29, 2013
+---------------------
+
+Bugfixes:
+	* Memory leaks
+
 v1.2.0-rc4 - Mar 22, 2013
 -------------------------
 
@@ -5,6 +11,7 @@ Features:
 	* knotc 'zonestatus' command
 
 Bugfixes:
+	* Check for broken recvmmsg() implementation
 	* Changing logfile ownership before dropping privileges
 	* knotc respects 'control' section from configuration
 	* RRL: resolved bucket collisions
