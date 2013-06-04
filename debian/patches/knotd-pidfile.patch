@@ -1,5 +1,5 @@
---- a/src/knot/ctl/knotc_main.c
-+++ b/src/knot/ctl/knotc_main.c
+--- knot.orig/src/knot/ctl/knotc_main.c
++++ knot/src/knot/ctl/knotc_main.c
 @@ -774,10 +774,6 @@ static int cmd_start(int argc, char *arg
  		return 1;
  	}
@@ -28,7 +28,15 @@
  	}
  	
  	/* Recompile zones if needed. */
-@@ -875,11 +861,7 @@ static int cmd_stop(int argc, char *argv
+@@ -840,7 +826,6 @@ static int cmd_start(int argc, char *arg
+ 		fflush(stdout);
+ 	}
+ 	if ((rc = cmd_exec(args, args_c)) < 0) {
+-		pid_remove(pidfile);
+ 		rc = 1;
+ 	}
+ 	fflush(stderr);
+@@ -875,11 +860,7 @@ static int cmd_stop(int argc, char *argv
  		                 "continue.\n");
  		return 1;
  	}
@@ -41,8 +49,8 @@
  	/* Fetch PID. */
  	char *pidfile = pid_filename();
  	pid_t pid = pid_read(pidfile);
---- a/src/knot/ctl/process.c
-+++ b/src/knot/ctl/process.c
+--- knot.orig/src/knot/ctl/process.c
++++ knot/src/knot/ctl/process.c
 @@ -25,6 +25,7 @@
  #include <unistd.h>
  #include <assert.h>
@@ -94,8 +102,8 @@
  }
  
  pid_t pid_wait(pid_t proc, int *rc)
---- a/src/knot/ctl/process.h
-+++ b/src/knot/ctl/process.h
+--- knot.orig/src/knot/ctl/process.h
++++ knot/src/knot/ctl/process.h
 @@ -89,8 +89,10 @@ int pid_running(pid_t pid);
   * \param uid New user ID.
   * \param gid New group ID.
@@ -108,19 +116,42 @@
  
  /*!
   * \brief Wait for process to finish.
---- a/src/knot/main.c
-+++ b/src/knot/main.c
-@@ -249,7 +249,20 @@ int main(int argc, char **argv)
+--- knot.orig/src/knot/main.c
++++ knot/src/knot/main.c
+@@ -20,6 +20,7 @@
+ #include <unistd.h>
+ #include <getopt.h>
+ #include <limits.h>
++#include <sys/stat.h>
  
- 	/* Alter privileges. */
- 	log_update_privileges(conf()->uid, conf()->gid);
--	proc_update_privileges(conf()->uid, conf()->gid);
-+	if (proc_update_privileges(conf()->uid, conf()->gid) != KNOT_EOK) {
+ #ifdef HAVE_CAP_NG_H
+ #include <cap-ng.h>
+@@ -247,10 +248,51 @@ int main(int argc, char **argv)
+ 	}
+ 	log_server_info("\n");
+ 
++	/* Check PID. */
++	struct stat st;
++	unsigned do_start = 0;
++	char* pidfile = pid_filename();
++	int pid = pid_read(pidfile);
++	if (pid > 0 && pid_running(pid)) {
++		log_server_error("Server PID found, already running.\n");
++	} else if (stat(pidfile, &st) == 0) {
++		log_server_warning("PID file '%s' exists, another process "
++		                   "is starting or PID file is stale.\n",
++		                   pidfile);
++	} else {
++		do_start = 1;
++	}
++	if (!do_start) {
++		free(pidfile);
++		server_wait(server);
++		server_destroy(&server);
 +		return 1;
 +	}
 +
 +	/* Create empty PID file. */
-+	char* pidfile = pid_filename();
 +	FILE *f = fopen(pidfile, "w");
 +	if (f == NULL) {
 +		log_server_warning("PID file '%s' is not writeable.\n",
@@ -129,10 +160,27 @@
 +		return 1;
 +	}
 +	fclose(f);
- 	
++
++	/* Alter PID file privileges. */
++	if (chown(pidfile, conf()->uid, conf()->gid) < 0) {
++		log_server_warning("Cannot change PID file ownership\n");
++		pid_remove(pidfile);
++		free(pidfile);
++		return 1;
++	}
++
+ 	/* Alter privileges. */
+ 	log_update_privileges(conf()->uid, conf()->gid);
+-	proc_update_privileges(conf()->uid, conf()->gid);
+-	
++	if (proc_update_privileges(conf()->uid, conf()->gid) != KNOT_EOK) {
++		return 1;
++	}
++
  	/* Load zones and add hook. */
  	zones_ns_conf_hook(conf(), server->nameserver);
-@@ -258,7 +271,6 @@ int main(int argc, char **argv)
+ 	conf_add_hook(conf(), CONF_ALL, zones_ns_conf_hook, server->nameserver);
+@@ -258,7 +300,6 @@ int main(int argc, char **argv)
  	// Run server
  	int res = 0;
  	int has_pid = 0;
