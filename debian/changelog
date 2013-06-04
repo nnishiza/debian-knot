@@ -4,6 +4,8 @@ knot (1.2.0-2) unstable; urgency=low
     /etc/init.d/knotd (Closes: #707683)
   * Pull upstream fix for pidfile creation before dropping priviledges
     (Closes: #707685)
+  * Enable SSE2 support again (we will simply not support anything older
+    than Pentium M)
 
  -- Ondřej Surý <ondrej@debian.org>  Mon, 13 May 2013 13:53:31 +0200
 
