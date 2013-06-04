@@ -1,3 +1,2 @@
 0001-move_pidfile_to_var_run.patch
-0004-disable_SSE2_detection.patch
 knotd-pidfile.patch
