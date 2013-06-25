@@ -7,7 +7,7 @@ knot (1.2.0-2) unstable; urgency=low
   * Enable SSE2 support again (we will simply not support anything older
     than Pentium M)
 
- -- Ondřej Surý <ondrej@debian.org>  Mon, 13 May 2013 13:53:31 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 25 Jun 2013 13:51:49 +0200
 
 knot (1.2.0-1) unstable; urgency=low
 
