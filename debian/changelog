@@ -1,3 +1,10 @@
+knot (1.2.0-3) unstable; urgency=low
+
+  * Move PIDFILE to /run/knot/knot.pid and run under knot:knot by default
+  * Install minimal example configuration file as /etc/knot/knot.conf
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 26 Jun 2013 14:41:23 +0200
+
 knot (1.2.0-2) unstable; urgency=low
 
   * /etc/init.d/knot now sources /etc/default/knot instead of
@@ -7,7 +14,7 @@ knot (1.2.0-2) unstable; urgency=low
   * Enable SSE2 support again (we will simply not support anything older
     than Pentium M)
 
- -- Ondřej Surý <ondrej@debian.org>  Tue, 25 Jun 2013 13:51:49 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 26 Jun 2013 14:41:04 +0200
 
 knot (1.2.0-1) unstable; urgency=low
 
