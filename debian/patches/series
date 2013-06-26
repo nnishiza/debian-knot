@@ -1,2 +1,3 @@
 0001-move_pidfile_to_var_run.patch
 knotd-pidfile.patch
+run-as-knot.knot.patch

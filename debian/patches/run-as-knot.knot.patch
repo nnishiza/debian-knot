@@ -1,0 +1,26 @@
+--- knot.orig/samples/knot.sample.conf.in
++++ knot/samples/knot.sample.conf.in
+@@ -1,16 +1,19 @@
+ system {
+   identity "@package@ @version@";
+   storage "@localstatedir@/@package@";
++  user knot.knot;
++  pidfile "/run/knot/knotd.pid";
+ }
+ 
+ interfaces {
+-  my-iface { address 127.0.0.1@5353; }
++  v4-interface { address 127.0.0.1@53; }
++  # v6-interface { address ::1@53; }
+ }
+ 
+ zones {
+-  example.com {
+-    file "@sysconfdir@/example.com.zone";
+-  }
++#  example.com {
++#    file "@sysconfdir@/example.com.zone";
++#  }
+ }
+ 
+ log {
