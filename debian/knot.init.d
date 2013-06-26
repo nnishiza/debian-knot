@@ -17,7 +17,8 @@ DESC="Knot DNS server" # Introduce a short description here
 NAME=knotd             # Introduce the short server's name here
 DAEMON=/usr/sbin/$NAME # Introduce the server's location here
 DAEMON_ARGS="-d"             # Arguments to run the daemon with
-PIDFILE=/var/run/$NAME.pid
+RUNDIR=/run/knot
+PIDFILE=${RUNDIR}/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
 # Exit if the package is not installed
@@ -32,6 +33,17 @@ SCRIPTNAME=/etc/init.d/$NAME
 # Define LSB log_* functions.
 # Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
 . /lib/lsb/init-functions
+
+# Don't run if we are running upstart
+if init_is_upstart; then
+    exit 1
+fi
+
+check_rundir()
+{
+    [ -d "${RUNDIR}" ] && mkdir "${RUNDIR}"
+    [ -n "${KNOT_USER}" -a -n "${KNOT_GROUP}" ] && chown ${KNOT_USER}:${KNOT_GROUP} "${RUNDIR}"
+}
 
 #
 # Function that starts the daemon/service
