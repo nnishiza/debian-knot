@@ -1,2 +1,4 @@
 /usr/bin/kdig /usr/bin/dig
 /usr/bin/knsupdate /usr/bin/nsupdate
+/usr/share/man/man1/kdig.1.gz /usr/share/man/man1/dig.1.gz
+/usr/share/man/man1/knsupdate.1.gz /usr/share/man/man1/nsupdate.1.gz
