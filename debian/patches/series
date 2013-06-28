@@ -1,2 +1,3 @@
 run-as-knot.knot.patch
 DESTDIR_is_your_friend.patch
+fix_manpages_sections.patch
