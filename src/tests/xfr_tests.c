@@ -21,14 +21,15 @@
  *    binary that an integrity check should be done
 */
 
-#include <time.h>
 #include <config.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <assert.h>
 
-#include "knot/common.h"
+#include "knot/knot.h"
 #include "knot/server/server.h"
 #include "knot/ctl/process.h"
 #include "knot/conf/conf.h"
@@ -64,7 +65,7 @@ void interrupt_handle(int s)
 			exit(1);
 		}
 	}
-	
+
 	// Start zone integrity check
 	if (s == SIGUSR1) {
 		sig_integrity_check = 1;
@@ -93,9 +94,9 @@ int main(int argc, char **argv)
 	int c = 0, li = 0;
 	int verbose = 0;
 	int daemonize = 0;
-	char* config_fn = NULL;
+	char *config_fn = NULL;
 	char *zone = NULL;
-	
+
 	/* Long options. */
 	struct option opts[] = {
 		{"config",    required_argument, 0, 'c'},
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
 		{"help",      no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
-	
+
 	while ((c = getopt_long(argc, argv, "c:z:dvVh", opts, &li)) != -1) {
 		switch (c)
 		{
@@ -123,7 +124,11 @@ int main(int argc, char **argv)
 			printf("%s, version %s\n", "Knot DNS", PACKAGE_VERSION);
 			return 0;
 		case 'z':
-			zone = strdup(optarg);
+			if (optarg[strlen(optarg) - 1] != '.') {
+				zone = strcdup(optarg, ".");
+			} else {
+				zone = strdup(optarg);
+			}
 			break;
 		case 'h':
 		case '?':
@@ -135,7 +140,7 @@ int main(int argc, char **argv)
 
 	// Now check if we want to daemonize
 	if (daemonize) {
-		if (daemon(1, 0) != 0) { 
+		if (daemon(1, 0) != 0) {
 			free(zone);
 			free(config_fn);
 			fprintf(stderr, "Daemonization failed, "
@@ -315,6 +320,7 @@ int main(int argc, char **argv)
 			if (sig_integrity_check) {
 				log_server_info("Starting integrity check of zone: %s\n", zone);
 				knot_dname_t* zdn = knot_dname_new_from_str(zone, strlen(zone), NULL);
+				assert(zdn);
 				knot_zone_t *z = knot_zonedb_find_zone(server->nameserver->zone_db, zdn);
 				int ic_ret = knot_zone_contents_integrity_check(z->contents);
 				log_server_info("Integrity check: %d errors discovered.\n", ic_ret);
@@ -376,4 +382,3 @@ int main(int argc, char **argv)
 
 	return res;
 }
-

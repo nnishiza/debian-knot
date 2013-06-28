@@ -14,6 +14,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,10 +22,11 @@
 #include <time.h>
 #include <sys/time.h>
 #include <config.h>
-#ifdef HAVE_MEMALIGN
-#include <malloc.h>
+#ifdef HAVE_POSIX_MEMALIGN
+#include <stdlib.h>
 #endif
 
+#include "common.h"
 #include "prng.h"
 #include "dSFMT.h"
 
@@ -40,18 +42,19 @@ static void tls_prng_deinit(void *ptr)
 static void tls_prng_deinit_main()
 {
 	tls_prng_deinit(pthread_getspecific(tls_prng_key));
+	UNUSED(pthread_setspecific(tls_prng_key, NULL));
 }
 
 static void tls_prng_init()
 {
-	(void) pthread_key_create(&tls_prng_key, tls_prng_deinit);
+	UNUSED(pthread_key_create(&tls_prng_key, tls_prng_deinit));
 	atexit(tls_prng_deinit_main); // Main thread cleanup
 }
 
 double tls_rand()
 {
 	/* Setup PRNG state for current thread. */
-	(void)pthread_once(&tls_prng_once, tls_prng_init);
+	UNUSED(pthread_once(&tls_prng_once, tls_prng_init));
 
 	/* Create PRNG state if not exists. */
 	dsfmt_t* s = pthread_getspecific(tls_prng_key);
@@ -83,19 +86,19 @@ double tls_rand()
 		}
 
 		/* Initialize PRNG state. */
-#ifdef HAVE_MEMALIGN
-		s = memalign(16, sizeof(dsfmt_t));
-#else
-		s = malloc(sizeof(dsfmt_t));
-#endif
-		if (s == NULL) {
+#ifdef HAVE_POSIX_MEMALIGN
+		if (posix_memalign((void **)&s, 16, sizeof(dsfmt_t)) != 0) {
 			fprintf(stderr, "error: PRNG: not enough memory\n");
 			return .0;
-		} else {
-			dsfmt_init_gen_rand(s, seed);
-			(void)pthread_setspecific(tls_prng_key, s);
 		}
-		
+#else
+		if ((s = malloc(sizeof(dsfmt_t))) == NULL) {
+			fprintf(stderr, "error: PRNG: not enough memory\n");
+			return .0;
+		}
+#endif
+		dsfmt_init_gen_rand(s, seed);
+		UNUSED(pthread_setspecific(tls_prng_key, s));
 	}
 
 	return dsfmt_genrand_close_open(s);

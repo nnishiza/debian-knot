@@ -30,7 +30,7 @@
 #include <pthread_np.h>
 #endif /* HAVE_PTHREAD_NP_H */
 
-#include "knot/common.h"
+#include "knot/knot.h"
 #include "knot/server/dthreads.h"
 #include "common/log.h"
 
@@ -138,7 +138,7 @@ static void *thread_ep(void *data)
 	rcu_register_thread();
 
 	dbg_dt("dthreads: [%p] entered ep\n", thread);
-	
+
 	/* Drop capabilities except FS access. */
 #ifdef HAVE_CAP_NG_H
 	if (capng_have_capability(CAPNG_EFFECTIVE, CAP_SETPCAP)) {
@@ -444,178 +444,6 @@ void dt_delete(dt_unit_t **unit)
 	*unit = 0;
 }
 
-int dt_resize(dt_unit_t *unit, int size)
-{
-	// Check input
-	if (unit == 0 || size <= 0) {
-		return KNOT_EINVAL;
-	}
-
-	// Evaluate delta
-	int delta = unit->size - size;
-
-	// Same size
-	if (delta == 0) {
-		return 0;
-	}
-
-	// Unit expansion
-	if (delta < 0) {
-
-		// Lock unit
-		pthread_mutex_lock(&unit->_notify_mx);
-		dt_unit_lock(unit);
-
-		// Realloc threads
-		dbg_dt("dthreads: growing from %d to %d threads\n",
-		       unit->size, size);
-
-		dthread_t **threads = realloc(unit->threads,
-		                              size * sizeof(dthread_t *));
-		if (threads == NULL) {
-			dt_unit_unlock(unit);
-			pthread_mutex_unlock(&unit->_notify_mx);
-			return -1;
-		}
-
-		// Reassign
-		unit->threads = threads;
-
-		// Create new threads
-		for (int i = unit->size; i < size; ++i) {
-			threads[i] = dt_create_thread(unit);
-		}
-
-		// Update unit
-		unit->size = size;
-		dt_unit_unlock(unit);
-		pthread_mutex_unlock(&unit->_notify_mx);
-		return 0;
-	}
-
-
-	// Unit shrinking
-	int remaining = size;
-	dbg_dt("dthreads: shrinking from %d to %d threads\n",
-	       unit->size, size);
-
-	// New threads vector
-	dthread_t **threads = malloc(size * sizeof(dthread_t *));
-	if (threads == 0) {
-		return KNOT_ENOMEM;
-	}
-
-	// Lock unit
-	pthread_mutex_lock(&unit->_notify_mx);
-	dt_unit_lock(unit);
-
-	// Iterate while there is space in new unit
-	memset(threads, 0, size * sizeof(dthread_t *));
-	int threshold = ThreadActive;
-	for (;;) {
-
-		// Find threads matching given criterias
-		int inspected = 0;
-		for (int i = 0; i < unit->size; ++i) {
-
-			// Get thread
-			dthread_t *thread = unit->threads[i];
-			if (thread == 0) {
-				continue;
-			}
-
-			// Count thread as inspected
-			++inspected;
-
-			lock_thread_rw(thread);
-
-			// Populate with matching threads
-			if ((remaining > 0) &&
-			    (!threshold || (thread->state & threshold))) {
-
-				// Append to new vector
-				threads[size - remaining] = thread;
-				--remaining;
-
-				// Invalidate in old vector
-				unit->threads[i] = 0;
-				dbg_dt_verb("dthreads: [%p] dt_resize: elected\n",
-				            thread);
-
-			} else if (remaining <= 0) {
-
-				// Not enough space, delete thread
-				if (thread->state & ThreadDead) {
-					unlock_thread_rw(thread);
-					--inspected;
-					continue;
-				}
-
-				// Signalize thread to stop
-				thread->state = ThreadDead | ThreadCancelled;
-				dt_signalize(thread, SIGALRM);
-				dbg_dt_verb("dthreads: [%p] dt_resize: "
-				            "is discarded\n", thread);
-			}
-
-			// Unlock thread and continue
-			unlock_thread_rw(thread);
-		}
-
-		// Finished inspecting running threads
-		if (inspected == 0) {
-			break;
-		}
-
-		// Lower threshold
-		switch (threshold) {
-		case ThreadActive:
-			threshold = ThreadIdle;
-			break;
-		case ThreadIdle:
-			threshold = ThreadDead;
-			break;
-		default:
-			threshold = ThreadJoined;
-			break;
-		}
-	}
-
-	// Notify idle threads to wake up
-	pthread_cond_broadcast(&unit->_notify);
-	pthread_mutex_unlock(&unit->_notify_mx);
-
-	// Join discarded threads
-	for (int i = 0; i < unit->size; ++i) {
-
-		// Get thread
-		dthread_t *thread = unit->threads[i];
-		if (thread == 0) {
-			continue;
-		}
-
-		pthread_join(thread->_thr, 0);
-		/* Thread is already joined and flagged, but anyway... */
-		lock_thread_rw(thread);
-		thread->state = ThreadJoined;
-		unlock_thread_rw(thread);
-
-		// Delete thread
-		dt_delete_thread(&thread);
-		unit->threads[i] = 0;
-	}
-
-	// Reassign unit threads vector
-	unit->size = size;
-	free(unit->threads);
-	unit->threads = threads;
-
-	// Unlock unit
-	dt_unit_unlock(unit);
-
-	return 0;
-}
-
 int dt_start(dt_unit_t *unit)
 {
 	// Check input
@@ -645,7 +473,7 @@ int dt_start(dt_unit_t *unit)
 	dt_unit_unlock(unit);
 	pthread_cond_broadcast(&unit->_notify);
 	pthread_mutex_unlock(&unit->_notify_mx);
-	return 0;
+	return KNOT_EOK;
 }
 
 int dt_start_id(dthread_t *thread)
@@ -825,55 +653,16 @@ int dt_stop(dt_unit_t *unit)
 	return KNOT_EOK;
 }
 
-//int dt_setprio(dthread_t *thread, int prio)
-//{
-//	// Check input
-//	if (thread == 0) {
-//		return KNOT_EINVAL;
-//	}
-
-//	// Clamp priority
-//	int policy = SCHED_FIFO;
-//	prio = MIN(MAX(sched_get_priority_min(policy), prio),
-//		   sched_get_priority_max(policy));
-
-//	// Update scheduler policy
-//	int ret = pthread_attr_setschedpolicy(&thread->_attr, policy);
-
-//	// Update priority
-//	if (ret == 0) {
-//		struct sched_param sp;
-//		sp.sched_priority = prio;
-//		ret = pthread_attr_setschedparam(&thread->_attr, &sp);
-//	}
-
-//	/* Map error codes. */
-//	if (ret != 0) {
-//		dbg_dt("dthreads: [%p] %s(%d): failed",
-//		       thread, __func__, prio);
-
-//		/* Map "not supported". */
-//		if (errno == ENOTSUP) {
-//			return KNOT_ENOTSUP;
-//		}
-
-//		return KNOT_EINVAL;
-//	}
-
-//	return KNOT_EOK;
-//}
-
-
 
 int dt_setaffinity(dthread_t *thread, unsigned* cpu_id, size_t cpu_count)
 {
 	if (thread == NULL) {
 		return KNOT_EINVAL;
 	}
-	
+
 #ifdef HAVE_PTHREAD_SETAFFINITY_NP
 	int ret = -1;
-	
+
 /* Linux, FreeBSD interface. */
 #if defined(HAVE_CPUSET_LINUX) || defined(HAVE_CPUSET_BSD)
 	cpu_set_t set;
@@ -890,7 +679,7 @@ int dt_setaffinity(dthread_t *thread, unsigned* cpu_id, size_t cpu_count)
 	}
 	cpuset_zero(set);
 	for (unsigned i = 0; i < cpu_count; ++i) {
-		cpuset_set(cpu_id[i], &set);
+		cpuset_set(cpu_id[i], set);
 	}
 	ret = pthread_setaffinity_np(thread->_thr, cpuset_size(set), set);
 	cpuset_destroy(set);
@@ -903,7 +692,7 @@ int dt_setaffinity(dthread_t *thread, unsigned* cpu_id, size_t cpu_count)
 #else /* HAVE_PTHREAD_SETAFFINITY_NP */
 	return KNOT_ENOTSUP;
 #endif
-	
+
 	return KNOT_EOK;
 }
 
@@ -1040,15 +829,10 @@ int dt_optimal_size()
 	if (ret > 0) {
 		return ret + CPU_ESTIMATE_MAGIC;
 	}
-	
+
 	dbg_dt("dthreads: failed to fetch the number of online CPUs.");
 	return DEFAULT_THR_COUNT;
 }
-
-/*!
- * \note Use memory barriers or asynchronous read-only access, locking
- *       poses a thread performance decrease by 1.31%.
- */
 
 int dt_is_cancelled(dthread_t *thread)
 {
@@ -1057,10 +841,7 @@ int dt_is_cancelled(dthread_t *thread)
 		return 0;
 	}
 
-	lock_thread_rw(thread);
-	int ret = thread->state & ThreadCancelled;
-	unlock_thread_rw(thread);
-	return ret;
+	return thread->state & ThreadCancelled; /* No need to be locked. */
 }
 
 unsigned dt_get_id(dthread_t *thread)
@@ -1070,12 +851,12 @@ unsigned dt_get_id(dthread_t *thread)
 	}
 
 	dt_unit_t *unit = thread->unit;
-	for(unsigned tid = 0; tid < unit->size; ++tid) {
+	for(int tid = 0; tid < unit->size; ++tid) {
 		if (thread == unit->threads[tid]) {
 			return tid;
 		}
 	}
-	
+
 	return 0;
 }
 

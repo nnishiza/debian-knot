@@ -25,17 +25,14 @@
 #include "zone/zone.h"
 #include "zone/node.h"
 #include "dname.h"
-#include "util/descriptor.h"
-#include "nsec3.h"
 #include "util/debug.h"
 #include "util/utils.h"
-#include "hash/cuckoo-hash-table.h"
 #include "zone/zone-contents.h"
 
 /*! \brief Adaptor for knot_zone_deep_free() */
 static void knot_zone_dtor(struct ref_t *p) {
 	knot_zone_t *z = (knot_zone_t *)p;
-	knot_zone_deep_free(&z, 0);
+	knot_zone_deep_free(&z);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -60,20 +57,19 @@ knot_zone_t *knot_zone_new_empty(knot_dname_t *name)
 	// save the zone name
 	dbg_zone("Setting zone name.\n");
 	zone->name = name;
-	
+
 	/* Initialize reference counting. */
 	ref_init(&zone->ref, knot_zone_dtor);
-	
+
 	/* Set reference counter to 1, caller should release it after use. */
 	knot_zone_retain(zone);
-	
+
 	return zone;
 }
 
 /*----------------------------------------------------------------------------*/
 
-knot_zone_t *knot_zone_new(knot_node_t *apex, uint node_count,
-                               int use_domain_table)
+knot_zone_t *knot_zone_new(knot_node_t *apex)
 {
 	knot_zone_t *zone = knot_zone_new_empty(
 			knot_dname_deep_copy(knot_node_owner(apex)));
@@ -82,8 +78,7 @@ knot_zone_t *knot_zone_new(knot_node_t *apex, uint node_count,
 	}
 
 	dbg_zone("Creating zone contents.\n");
-	zone->contents = knot_zone_contents_new(apex, node_count,
-	                                          use_domain_table, zone);
+	zone->contents = knot_zone_contents_new(apex, zone);
 	if (zone->contents == NULL) {
 		knot_dname_release(zone->name);
 		free(zone);
@@ -205,7 +200,7 @@ void knot_zone_free(knot_zone_t **zone)
 
 	dbg_zone("zone_free().\n");
 
-	if ((*zone)->contents 
+	if ((*zone)->contents
 	    && !knot_zone_contents_gen_is_old((*zone)->contents)) {
 		// zone is in the middle of an update, report
 		dbg_zone("Destroying zone that is in the middle of an "
@@ -228,12 +223,12 @@ void knot_zone_free(knot_zone_t **zone)
 
 /*----------------------------------------------------------------------------*/
 
-void knot_zone_deep_free(knot_zone_t **zone, int destroy_dname_table)
+void knot_zone_deep_free(knot_zone_t **zone)
 {
 	if (zone == NULL || *zone == NULL) {
 		return;
 	}
-	
+
 	if ((*zone)->contents
 	    && !knot_zone_contents_gen_is_old((*zone)->contents)) {
 		// zone is in the middle of an update, report
@@ -254,7 +249,7 @@ dbg_zone_exec(
 		(*zone)->dtor(*zone);
 	}
 
-	knot_zone_contents_deep_free(&(*zone)->contents, destroy_dname_table);
+	knot_zone_contents_deep_free(&(*zone)->contents);
 	free(*zone);
 	*zone = NULL;
 }

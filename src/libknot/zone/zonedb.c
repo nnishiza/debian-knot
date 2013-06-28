@@ -26,41 +26,10 @@
 #include "dname.h"
 #include "zone/node.h"
 #include "util/debug.h"
-#include "common/general-tree.h"
 
 /*----------------------------------------------------------------------------*/
 /* Non-API functions                                                          */
 /*----------------------------------------------------------------------------*/
-/*!
- * \brief Compares the two arguments interpreted as zone names (domain names).
- *
- * Use this function with generic data structures (such as the skip list).
- *
- * \param d1 First zone name.
- * \param d2 Second zone name.
- *
- * \retval 0 if the two zone names are equal.
- * \retval < 0 if \a d1 is before \a d2 in canonical order.
- * \retval > 0 if \a d1 is after \a d2 in canonical order.
- */
-static int knot_zonedb_compare_zone_names(void *p1, void *p2)
-{
-	const knot_zone_t *zone1 = (const knot_zone_t *)p1;
-	const knot_zone_t *zone2 = (const knot_zone_t *)p2;
-
-	int ret = knot_dname_compare(zone1->name, zone2->name);
-
-dbg_zonedb_exec_detail(
-	char *name1 = knot_dname_to_str(zone1->name);
-	char *name2 = knot_dname_to_str(zone2->name);
-	dbg_zonedb_detail("Compared names %s and %s, result: %d.\n",
-	                  name1, name2, ret);
-	free(name1);
-	free(name2);
-);
-
-	return (ret);
-}
 
 /*----------------------------------------------------------------------------*/
 /* API functions                                                              */
@@ -72,12 +41,12 @@ knot_zonedb_t *knot_zonedb_new()
 		(knot_zonedb_t *)malloc(sizeof(knot_zonedb_t));
 	CHECK_ALLOC_LOG(db, NULL);
 
-	db->zone_tree = gen_tree_new(knot_zonedb_compare_zone_names);
+	db->zone_tree = hattrie_create();
 	if (db->zone_tree == NULL) {
 		free(db);
 		return NULL;
 	}
-	
+
 	db->zone_count = 0;
 
 	return db;
@@ -101,17 +70,19 @@ dbg_zonedb_exec(
 		ret = knot_zone_contents_load_nsec3param(
 				knot_zone_get_contents(zone));
 		if (ret != KNOT_EOK) {
+			log_zone_error("NSEC3 signed zone has invalid or no "
+			               "NSEC3PARAM record.\n");
 			return ret;
 		}
 	}
 
-	ret = gen_tree_add(db->zone_tree, zone, NULL);
+	/* Ordered lookup is not required, no dname conversion. */
+	const char *key = (const char*)knot_dname_name(zone->name);
+	size_t klen = knot_dname_size(zone->name);
+	*hattrie_get(db->zone_tree, key, klen) = zone;
+	db->zone_count++;
 
-	if (ret == 0) {
-		db->zone_count++;
-	}
-
-	return (ret != 0) ? KNOT_ERROR : KNOT_EOK;
+	return ret;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -119,24 +90,20 @@ dbg_zonedb_exec(
 knot_zone_t *knot_zonedb_remove_zone(knot_zonedb_t *db,
                                      const knot_dname_t *zone_name)
 {
-	knot_zone_t dummy_zone;
-	memset(&dummy_zone, 0, sizeof(knot_zone_t));
-	dummy_zone.name = (knot_dname_t *)zone_name;
+	/* Fetch if exists. */
+	knot_zone_t *oldzone = knot_zonedb_find_zone(db, zone_name);
+	if (oldzone == NULL) return NULL;
 
-	// add some lock to avoid multiple removals
-	knot_zone_t *z = (knot_zone_t *)gen_tree_find(db->zone_tree,
-	                                                  &dummy_zone);
-
-	if (z == NULL) {
+	/* Remove from db. */
+	const char *key = (const char*)knot_dname_name(zone_name);
+	size_t klen = knot_dname_size(zone_name);
+	int ret = hattrie_del(db->zone_tree, key, klen);
+	if (ret < 0) {
 		return NULL;
 	}
 
-	// remove the zone from the skip list, but do not destroy it
-	gen_tree_remove(db->zone_tree, &dummy_zone);
-
-	db->zone_count--;
-
-	return z;
+	--db->zone_count;
+	return oldzone;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -144,9 +111,11 @@ knot_zone_t *knot_zonedb_remove_zone(knot_zonedb_t *db,
 knot_zone_t *knot_zonedb_find_zone(const knot_zonedb_t *db,
                                        const knot_dname_t *zone_name)
 {
-	knot_zone_t dummy_zone;
-	dummy_zone.name = (knot_dname_t *)zone_name;
-	return (knot_zone_t *)gen_tree_find(db->zone_tree, &dummy_zone);
+	const char *key = (const char*)knot_dname_name(zone_name);
+	size_t klen = knot_dname_size(zone_name);
+	value_t *val = hattrie_tryget(db->zone_tree, key, klen);
+	if (!val) return NULL;
+	return (knot_zone_t *)*val;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -158,31 +127,31 @@ const knot_zone_t *knot_zonedb_find_zone_for_name(knot_zonedb_t *db,
 		return NULL;
 	}
 
-	knot_zone_t dummy_zone;
-	dummy_zone.name = knot_dname_deep_copy(dname);
-	void *found = NULL;
+	knot_zone_t *zone = NULL;
+	const char *name = (const char*)dname->name;
+	size_t len = dname->size;
 
-	found = gen_tree_find(db->zone_tree, &dummy_zone);
-	while (found == NULL && knot_dname_label_count(dummy_zone.name) > 0) {
-		knot_dname_left_chop_no_copy(dummy_zone.name);
-		found = gen_tree_find(db->zone_tree, &dummy_zone);
+	while (len > 0) {
+		value_t *found = hattrie_tryget(db->zone_tree, name, len);
+		if (found) {
+			zone = (knot_zone_t *)*found;
+			break;
+		} else {
+			/* Take label len + 1 and skip it.
+			 * ..from \x04lake\x03com\x00
+			 * ..to           \x03com\x00
+			 */
+			uint8_t to_chop = name[0] + 1;
+			len -= to_chop;
+			name += to_chop;
+		}
 	}
 
-	knot_zone_t *zone = (found) ? (knot_zone_t *)found : NULL;
-	
 dbg_zonedb_exec(
-	char *name = knot_dname_to_str(dname);
-	dbg_zonedb("Found zone for name %s: %p\n", name, zone);
-	free(name);
+	char *zname = knot_dname_to_str(dname);
+	dbg_zonedb("Found zone for name %s: %p\n", zname, zone);
+	free(zname);
 );
-	if (zone != NULL && zone->contents != NULL
-	    && knot_dname_compare(zone->contents->apex->owner, dname) != 0
-	    && !knot_dname_is_subdomain(dname, zone->contents->apex->owner)) {
-		zone = NULL;
-	}
-
-	knot_dname_free(&dummy_zone.name);
-
 	return zone;
 }
 
@@ -213,7 +182,7 @@ knot_zonedb_t *knot_zonedb_copy(const knot_zonedb_t *db)
 		(knot_zonedb_t *)malloc(sizeof(knot_zonedb_t));
 	CHECK_ALLOC_LOG(db_new, NULL);
 
-	db_new->zone_tree = gen_tree_shallow_copy(db->zone_tree);
+	db_new->zone_tree = hattrie_dup(db->zone_tree, NULL);
 	if (db_new->zone_tree == NULL) {
 		free(db_new);
 		return NULL;
@@ -256,7 +225,13 @@ const knot_zone_t **knot_zonedb_zones(const knot_zonedb_t *db)
 	args.count = 0;
 	CHECK_ALLOC_LOG(args.zones, NULL);
 
-	gen_tree_apply_inorder(db->zone_tree, save_zone_to_array, &args);
+	hattrie_iter_t *i = hattrie_iter_begin(db->zone_tree, 1);
+	while(!hattrie_iter_finished(i)) {
+		save_zone_to_array(*hattrie_iter_val(i), &args);
+		hattrie_iter_next(i);
+	}
+	hattrie_iter_free(i);
+
 	assert(db->zone_count == args.count);
 
 	return args.zones;
@@ -266,29 +241,31 @@ const knot_zone_t **knot_zonedb_zones(const knot_zonedb_t *db)
 
 void knot_zonedb_free(knot_zonedb_t **db)
 {
-	gen_tree_destroy(&((*db)->zone_tree), NULL ,NULL);
+	hattrie_free((*db)->zone_tree);
 	free(*db);
 	*db = NULL;
 }
 
 /*----------------------------------------------------------------------------*/
 
-static void delete_zone_from_db(void *node, void *data)
+static void delete_zone_from_db(value_t *node, void *data)
 {
 	UNUSED(data);
-	knot_zone_t *zone = (knot_zone_t *)node;
-	assert(zone);
+	assert(node);
+	if (*node == NULL) return;
+
+	knot_zone_t *zone = (knot_zone_t *)(*node);
 	synchronize_rcu();
 	knot_zone_set_flag(zone, KNOT_ZONE_DISCARDED, 1);
 	knot_zone_release(zone);
-	zone = NULL;
+	*node = NULL;
 }
 
 void knot_zonedb_deep_free(knot_zonedb_t **db)
 {
 	dbg_zonedb("Deleting zone db (%p).\n", *db);
-	gen_tree_destroy(&((*db)->zone_tree), delete_zone_from_db, NULL);
-	assert((*db)->zone_tree == NULL);
+	hattrie_apply_rev((*db)->zone_tree, delete_zone_from_db, NULL);
+	hattrie_free((*db)->zone_tree);
 	free(*db);
 	*db = NULL;
 }

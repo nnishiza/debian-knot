@@ -36,7 +36,6 @@
 #ifndef _KNOTD_SERVER_H_
 #define _KNOTD_SERVER_H_
 
-#include "knot/common.h"
 #include "libknot/nameserver/name-server.h"
 #include "knot/server/xfr-handler.h"
 #include "knot/server/socket.h"
@@ -48,23 +47,23 @@
 
 /* Forwad declarations. */
 struct iface_t;
-struct iohandler_t;
 struct server_t;
 struct conf_t;
 
+typedef struct iostate {
+	volatile unsigned s;
+	struct iohandler* h;
+} iostate_t;
+
 /*! \brief I/O handler structure.
   */
-typedef struct iohandler_t {
-	struct node *next, *prev;
-	int                fd;      /*!< I/O filedescriptor */
-	int                type;    /*!< Descriptor type/family. */
-	unsigned           state;   /*!< Handler state */
+typedef struct iohandler {
+	struct node        n;
 	dt_unit_t          *unit;   /*!< Threading unit */
-	struct iface_t     *iface;  /*!< Reference to associated interface. */
 	struct server_t    *server; /*!< Reference to server */
 	void               *data;   /*!< Persistent data for I/O handler. */
-	void (*interrupt)(struct iohandler_t *h); /*!< Interrupt handler. */
-
+	iostate_t          *state;
+	void (*dtor)(void *data); /*!< Data destructor. */
 } iohandler_t;
 
 /*! \brief Round-robin mechanism of switching.
@@ -76,24 +75,33 @@ typedef struct iohandler_t {
  */
 typedef enum {
 	ServerIdle    = 0 << 0, /*!< Server is idle. */
-	ServerRunning = 1 << 0  /*!< Server is running. */
+	ServerRunning = 1 << 0, /*!< Server is running. */
+	ServerReload  = 1 << 1  /*!< Server reload requested. */
 } server_state;
 
 /*!
  * \brief Server interface structure.
  */
 typedef struct iface_t {
-	struct node *next, *prev;
-	int fd[2];   /*!< \brief Socket filedescriptors (UDP, TCP). */
-	int type[2]; /*!< \brief Socket type. */
+	struct node n;
+	int fd[2];
+	int type;
 	int port;    /*!< \brief Socket port. */
 	char* addr;  /*!< \brief Socket address. */
-	iohandler_t* handler[2]; /*!< \brief Associated I/O handlers. */
 } iface_t;
 
-/* Interface indexes. */
-#define UDP_ID 0
-#define TCP_ID 1
+/* Handler types. */
+#define IO_COUNT 2
+enum {
+	IO_UDP    = 0,
+	IO_TCP    = 1
+};
+
+typedef struct ifacelist {
+	ref_t ref;
+	list l;
+	list u;
+} ifacelist_t;
 
 /*!
  * \brief Main server structure.
@@ -108,18 +116,18 @@ typedef struct server_t {
 	/*! \brief Reference to the name server structure. */
 	knot_nameserver_t *nameserver;
 
-	/*! \brief XFR handler. */
-	xfrhandler_t *xfr_h;
+	/*! \brief I/O handlers. */
+	unsigned tu_size;
+	xfrhandler_t *xfr;
+	iohandler_t h[IO_COUNT];
 
 	/*! \brief Event scheduler. */
+	dt_unit_t *iosched;
 	evsched_t *sched;
 
-	/*! \brief I/O handlers list. */
-	list handlers;
-
 	/*! \brief List of interfaces. */
-	list* ifaces;
-	
+	ifacelist_t* ifaces;
+
 	/*! \brief Rate limiting. */
 	rrl_table_t *rrl;
 
@@ -136,30 +144,27 @@ typedef struct server_t {
 server_t *server_create();
 
 /*!
- * \brief Create and bind handler to given filedescriptor.
+ * \brief Create I/O handler.
  *
- * Pointer to handler instance is used as native unique identifier.
- * This requests instance not to be reallocated.
- *
- * \param server Server structure to be used for operation.
- * \param fd I/O filedescriptor.
- * \param unit Threading unit to serve given filedescriptor.
+ * \param h Initialized handler.
+ * \param s Server structure to be used for operation.
+ * \param u Threading unit to serve given filedescriptor.
+ * \param d Handler data.
  *
  * \retval Handler instance if successful.
  * \retval NULL If an error occured.
  */
-iohandler_t *server_create_handler(server_t *server, int fd, dt_unit_t *unit);
+int server_init_handler(iohandler_t * h, server_t *s, dt_unit_t *u, void *d);
 
 /*!
  * \brief Delete handler.
  *
- * \param server Server structure to be used for operation.
- * \param ref I/O handler instance.
+  * \param ref I/O handler instance.
  *
  * \retval KNOT_EOK on success.
  * \retval KNOT_EINVAL on invalid parameters.
  */
-int server_remove_handler(server_t *server, iohandler_t *ref);
+int server_free_handler(iohandler_t *h);
 
 /*!
  * \brief Starts the server.
@@ -197,7 +202,7 @@ int server_refresh(server_t *server);
  *
  * \param server Server instance.
  * \param cf Config file path.
- * \return 
+ * \return
  */
 int server_reload(server_t *server, const char *cf);
 
@@ -226,6 +231,16 @@ void server_destroy(server_t **server);
  * \retval KNOT_ERROR unspecified error.
  */
 int server_conf_hook(const struct conf_t *conf, void *data);
+
+/*!
+ * \brief Update fdsets from current interfaces list.
+ * \param s Server.
+ * \param fds Filedescriptor set.
+ * \param count Number of ifaces (will be set to N).
+ * \param type I/O type (UDP/TCP).
+ * \return new interface list
+ */
+ref_t *server_set_ifaces(server_t *s, fdset_t **fds, int *count, int type);
 
 #endif // _KNOTD_SERVER_H_
 
