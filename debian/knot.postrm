@@ -1,10 +1,6 @@
 #!/bin/sh
 set -e
 
-unset_perms() {
-    
-}
-
 if test "$1" = "purge"; then
     spool=/var/lib/knot
     rm -f $spool/*.db $spool/*.db.crc
