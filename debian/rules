@@ -22,6 +22,12 @@ override_dh_auto_configure:
 	  --with-storage=/var/lib/knot \
 	  --disable-silent-rules
 
+override_dh_auto_make:
+	dh_auto_make -- info pdf html
+
+override_dh_auto_install:
+	dh_auto_install -- install-info install-pdf install-html
+
 override_dh_strip:
 	dh_strip --dbg-package=knot-dbg
 
