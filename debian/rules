@@ -25,4 +25,4 @@ override_dh_strip:
 override_dh_install:
 	mv $(CURDIR)/debian/tmp/etc/knot/knot.sample.conf $(CURDIR)/debian/tmp/knot/knot.conf
 	rm $(CURDIR)/debian/tmp/etc/knot/example.com.zone
-	dh_install --list-missing
+	dh_install --fail-missing
