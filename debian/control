@@ -85,3 +85,12 @@ Description: Version of 'host' bundled with Knot DNS
  This package provides the 'host' program in the form that is bundled
  with the Knot DNS.  The 'host' command is designed to be 1:1
  compatible with BIND 9.x 'host' program.
+
+Package: knot-doc
+Architecture: all
+Depends: ${misc:Depends}
+Section: doc
+Priority: optional
+Description: Documentation for Knot DNS
+ This package provides various documents that are useful for
+ maintaining a working Knot DNS installation.
