@@ -1,9 +1,22 @@
-knot (1.2.0-3) unstable; urgency=low
+knot (1.3.0~rc3-1) unstable; urgency=low
 
-  * Move PIDFILE to /run/knot/knot.pid and run under knot:knot by default
-  * Install minimal example configuration file as /etc/knot/knot.conf
+  * New upstream version 1.3.0~rc3
+  * Packaging changes:
+    + Use --fail-missing to check for all new files
+    + Remove obsolete patches and update installed conffile with latest
+      options
+    + Don't install knot-zcompile as it is no more
+    + Install minimal example configuration file as /etc/knot/knot.conf
+    + Add --disable-silent-rules to configure invocation
+    + Add patch to fix missing $(DESTDIR) in src/Makefile.am
+    + Set --with-rundir and --with-storage to correct locations
+    + Run under knot:knot by default (create and delete knot user)
+    + Add knot-dnsutils and knot-host packages
+    + Add patch to move knot-{host,dnsutils} manpages to correct location
+    + Add samples/knot.{full,keys}.conf and example zone to examples.
+  * Add knot-doc package with generated documentation (PDF and HTML)
 
- -- Ondřej Surý <ondrej@debian.org>  Wed, 26 Jun 2013 14:41:23 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 28 Jun 2013 10:03:53 +0200
 
 knot (1.2.0-2) unstable; urgency=low
 
