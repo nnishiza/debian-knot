@@ -16,7 +16,7 @@ knot (1.3.0~rc3-1) unstable; urgency=low
     + Add samples/knot.{full,keys}.conf and example zone to examples.
   * Add knot-doc package with generated documentation (PDF and HTML)
 
- -- Ondřej Surý <ondrej@debian.org>  Fri, 28 Jun 2013 10:03:53 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 28 Jun 2013 12:59:55 +0200
 
 knot (1.2.0-2) unstable; urgency=low
 
