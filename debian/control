@@ -11,6 +11,7 @@ Build-Depends: debhelper (>= 9),
 	       libssl-dev,
 	       flex,
 	       bison,
+	       pkg-config,
 	       texinfo
 Standards-Version: 3.9.3
 Homepage: http://www.knot-dns.cz/
