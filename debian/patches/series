@@ -1,1 +1,2 @@
 run-as-knot.knot.patch
+DESTDIR_is_your_friend.patch
