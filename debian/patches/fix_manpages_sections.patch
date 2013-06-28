@@ -1,7 +1,7 @@
 --- /dev/null
 +++ knot/man/kdig.1
 @@ -0,0 +1,195 @@
-+.TH "kdig" "8" "April 2013" "CZ.NIC Labs" "Knot DNS, version 1.3.0-rc3"
++.TH "kdig" "1" "April 2013" "CZ.NIC Labs" "Knot DNS, version 1.3.0-rc3"
 +.SH NAME
 +.B kdig
 +\- Advanced DNS lookup utility (libknot equivalent of ISC dig)
@@ -397,7 +397,7 @@
 --- /dev/null
 +++ knot/man/khost.1
 @@ -0,0 +1,89 @@
-+.TH "khost" "8" "April 2013" "CZ.NIC Labs" "Knot DNS, version 1.3.0-rc3"
++.TH "khost" "1" "April 2013" "CZ.NIC Labs" "Knot DNS, version 1.3.0-rc3"
 +.SH NAME
 +.B khost
 +\- Simple DNS lookup utility (libknot equivalent of ISC host)
@@ -581,7 +581,7 @@
 --- /dev/null
 +++ knot/man/knsupdate.1
 @@ -0,0 +1,147 @@
-+.TH "knsupdate" "8" "April 2013" "CZ.NIC Labs" "Knot DNS, version 1.3.0-rc3"
++.TH "knsupdate" "1" "April 2013" "CZ.NIC Labs" "Knot DNS, version 1.3.0-rc3"
 +.SH NAME
 +.TP 10
 +.B knsupdate
