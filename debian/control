@@ -19,7 +19,7 @@ Vcs-Git: git://git.debian.org/users/ondrej/knot.git
 
 Package: knot
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
  full and open source name server.
