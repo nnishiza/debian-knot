@@ -14,13 +14,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
 
 #include "edns.h"
 #include "common.h"
-#include "util/descriptor.h"
+#include "common/descriptor.h"
 #include "util/debug.h"
 
 /*! \brief Various EDNS constatns. */
@@ -62,7 +63,7 @@ int knot_edns_new_from_wire(knot_opt_rr_t *opt_rr, const uint8_t *wire,
 		return KNOT_EINVAL;
 	}
 
-	if (max_size < KNOT_EDNS_MIN_SIZE) {
+	if ((int)max_size < KNOT_EDNS_MIN_SIZE) {
 		dbg_edns("Not enough data to parse OPT RR header.\n");
 		return KNOT_EFEWDATA;
 	}
@@ -164,18 +165,13 @@ int knot_edns_new_from_rr(knot_opt_rr_t *opt_rr,
 
 	int rc = 0;
 	dbg_edns_verb("Parsing options.\n");
-	const knot_rdata_t *rdata = knot_rrset_rdata(rrset);
+	uint8_t *raw = knot_rrset_get_rdata(rrset, 0);
+	uint16_t size = rrset_rdata_item_size(rrset, 0);
 
-	// in OPT RR, all RDATA are in one RDATA item stored as BINARY data,
-	// i.e. preceded by their length
-	if (rdata != NULL) {
-		assert(knot_rdata_item_count(rdata) == 1);
-		uint16_t size = knot_rdata_item(rdata, 0)->raw_data[0];
-		const uint8_t *raw = (const uint8_t *)
-		                      knot_rdata_item(rdata, 0)->raw_data;
-		int pos = 2;
+	if (raw != NULL) {
+		size_t pos = 0;
 		assert(size > 0);
-		while (pos - 2 < size) {
+		while (pos < size) {
 			// ensure there is enough data to parse the OPTION CODE
 			// and OPTION LENGTH
 			if (size - pos + 2 < 4) {
@@ -187,10 +183,10 @@ int knot_edns_new_from_rr(knot_opt_rr_t *opt_rr,
 
 			// there should be enough data for parsing the OPTION
 			// data
-			if (size - pos - 2 < opt_size) {
+			if (size - pos < opt_size) {
 				dbg_edns("Not enough data to parse options: "
-				         "size - pos - 2=%d, opt_size=%d\n",
-				         size - pos - 2, opt_size);
+				         "size - pos=%zu, opt_size=%d\n",
+				         size - pos, opt_size);
 				return KNOT_EMALF;
 			}
 			rc = knot_edns_add_option(opt_rr, opt_code, opt_size,
@@ -202,8 +198,8 @@ int knot_edns_new_from_rr(knot_opt_rr_t *opt_rr,
 			pos += 4 + opt_size;
 		}
 	}
-	
-	
+
+
 	dbg_edns_verb("EDNS created.\n");
 
 	return KNOT_EOK;
@@ -359,9 +355,9 @@ short knot_edns_to_wire(const knot_opt_rr_t *opt_rr, uint8_t *wire,
 		return KNOT_EINVAL;
 	}
 
-	assert(KNOT_EDNS_MIN_SIZE <= max_size);
+	assert(KNOT_EDNS_MIN_SIZE <= (int)max_size);
 
-	if (max_size < opt_rr->size) {
+	if ((int)max_size < opt_rr->size) {
 		dbg_edns("Not enough place for OPT RR wire format.\n");
 		return KNOT_ESPACE;
 	}
@@ -428,9 +424,7 @@ void knot_edns_free_options(knot_opt_rr_t *opt_rr)
 		/* Free the option data, if any. */
 		for (int i = 0; i < opt_rr->option_count; i++) {
 			knot_opt_option_t *option = &(opt_rr->options[i]);
-			if (option->data != NULL) {
-				free(option->data);
-			}
+			free(option->data);
 		}
 		free(opt_rr->options);
 	}

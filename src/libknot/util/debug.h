@@ -1,5 +1,5 @@
 /*!
- * \file debug.h
+ * \file libknot/util/debug.h
  *
  * \author Jan Kadlec <jan.kadlec.@nic.cz>
  * \author Lubos Slovak <lubos.slovak@nic.cz>
@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "config.h" /* autoconf generated */
 #include "common/log.h"
 
 /*
@@ -74,25 +73,11 @@
 /* KNOT_DNAME_DEBUG -- in configure.ac */
 /* #define KNOT_DDNS_DEBUG -- \todo Use this or delete. */
 
-#include "rdata.h"
 #include "rrset.h"
 #include "zone/node.h"
 #include "zone/zone.h"
 #include "util/utils.h"
 #include "common/print.h"
-
-/*!
- * \brief Dumps RDATA of the given type.
- *
- * This function is empty if neither KNOT_ZONE_DEBUG nor KNOT_RDATA_DEBUG
- * is defined.
- *
- * \param rdata RDATA to dump.
- * \param type Type of the RDATA (needed to properly parse the RDATA).
- * \param loaded_zone Set to <> 0 if the RDATA is part of a zone loaded into
- *                    the server. Set to 0 otherwise.
- */
-void knot_rdata_dump(knot_rdata_t *rdata, uint32_t type, char loaded_zone);
 
 /*!
  * \brief Dumps RRSet.
@@ -104,7 +89,7 @@ void knot_rdata_dump(knot_rdata_t *rdata, uint32_t type, char loaded_zone);
  * \param loaded_zone Set to <> 0 if the RRSet is part of a zone loaded into
  *                    the server. Set to 0 otherwise.
  */
-void knot_rrset_dump(const knot_rrset_t *rrset, char loaded_zone);
+void knot_rrset_dump(const knot_rrset_t *rrset);
 
 /*!
  * \brief Dumps zone node.
@@ -116,7 +101,7 @@ void knot_rrset_dump(const knot_rrset_t *rrset, char loaded_zone);
  * \param loaded_zone Set to <> 0 if the node is part of a zone loaded into
  *                    the server. Set to 0 otherwise.
  */
-void knot_node_dump(knot_node_t *node, void *loaded_zone);
+void knot_node_dump(knot_node_t *node);
 
 /*!
  * \brief Dumps the whole zone.
@@ -127,7 +112,7 @@ void knot_node_dump(knot_node_t *node, void *loaded_zone);
  * \param loaded_zone Set to <> 0 if the node is part of a zone loaded into
  *                    the server. Set to 0 otherwise.
  */
-void knot_zone_contents_dump(knot_zone_contents_t *zone, char loaded_zone);
+void knot_zone_contents_dump(knot_zone_contents_t *zone);
 
 /******************************************************************************/
 

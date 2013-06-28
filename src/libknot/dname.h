@@ -30,7 +30,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include "common/ref.h"
 
 struct knot_node;
 
@@ -43,19 +42,12 @@ struct knot_node;
  * \todo Consider restricting to FQDN only (see knot_dname_new_from_str()).
  */
 struct knot_dname {
-	ref_t ref;     /*!< Reference counting. */
-	uint8_t *name;	/*!< Wire format of the domain name. */
-	uint8_t *labels;
-	struct knot_node *node; /*!< Zone node the domain name belongs to. */
-	unsigned int id; /*!< ID of domain name used in zone dumping. */
-
-	/*!
-	 * \brief Size of the domain name in octets.
-	 * \todo Is this needed? Every dname should end with \0 or pointer.
-	 */
-	unsigned int size;
-
-	unsigned short label_count;
+	uint8_t *name;		/*!< Wire format of the domain name. */
+	uint8_t *labels;	/*!< Array of labels positions in name. */
+	struct knot_node *node;	/*!< Zone node the domain name belongs to. */
+	uint32_t count;		/*!< Reference counter. */
+	uint8_t size;		/*!< Length of the domain name. */
+	uint8_t label_count;	/*!< Number of labels. */
 };
 
 typedef struct knot_dname knot_dname_t;
@@ -94,6 +86,20 @@ knot_dname_t *knot_dname_new();
  */
 knot_dname_t *knot_dname_new_from_str(const char *name, unsigned int size,
                                           struct knot_node *node);
+
+/*!
+ * \brief Creates a dname structure from domain name possibly given in
+ *        non-presentation format.
+ *
+ * Works the same as knot_dname_new_from_str but makes sure, that the name
+ * is terminated with a dot.
+ *
+ * \see knot_dname_new_from_str
+ *
+ */
+knot_dname_t *knot_dname_new_from_nonfqdn_str(const char *name,
+                                              unsigned int size,
+                                              struct knot_node *node);
 
 /*!
  * \brief Creates a dname structure from domain name given in wire format.
@@ -142,32 +148,6 @@ knot_dname_t *knot_dname_parse_from_wire(const uint8_t *wire,
                                          knot_dname_t *dname);
 
 /*!
- * \brief Initializes domain name by the name given in wire format.
- *
- * \note The name is copied into the structure.
- * \note If there is any name in the structure, it will be replaced.
- * \note If the given name is not a FQDN, the result will be neither.
- *
- * \param name Domain name in wire format.
- * \param size Size of the domain name in octets.
- * \param node Zone node the domain name belongs to. Set to NULL if not
- *             applicable.
- * \param target Domain name structure to initialize.
- *
- * \retval KNOT_EOK on success.
- * \retval KNOT_ENOMEM if allocation of labels info failed.
- * \retval KNOT_EINVAL if name or target is null.
- *
- * \todo This function does not check if the given data is in correct wire
- *       format at all. It thus creates a invalid domain name, which if passed
- *       e.g. to knot_dname_to_str() may result in crash. Decide whether it
- *       is OK to retain this and check the data in other functions before
- *       calling this one, or if it should verify the given data.
- */
-int knot_dname_from_wire(const uint8_t *name, unsigned int size,
-                           struct knot_node *node, knot_dname_t *target);
-
-/*!
  * \brief Duplicates the given domain name.
  *
  * \note Copied dname referense count is reset to 1, caller is responsible
@@ -193,7 +173,7 @@ char *knot_dname_to_str(const knot_dname_t *dname);
 
 int knot_dname_to_lower(knot_dname_t *dname);
 
-int knot_dname_to_lower_copy(const knot_dname_t *dname, char *name, 
+int knot_dname_to_lower_copy(const knot_dname_t *dname, char *name,
                              size_t size);
 
 /*!
@@ -213,8 +193,6 @@ const uint8_t *knot_dname_name(const knot_dname_t *dname);
  * \return Size of the domain name in wire format in octets.
  */
 unsigned int knot_dname_size(const knot_dname_t *dname);
-
-unsigned int knot_dname_id(const knot_dname_t *dname);
 
 /*!
  * \brief Returns size of a part of domain name.
@@ -377,6 +355,8 @@ int knot_dname_compare(const knot_dname_t *d1, const knot_dname_t *d2);
  * \retval 0 if the domain names are identical.
  */
 int knot_dname_compare_cs(const knot_dname_t *d1, const knot_dname_t *d2);
+int knot_dname_compare_non_canon(const knot_dname_t *d1,
+                                 const knot_dname_t *d2);
 
 /*!
  * \brief Concatenates two domain names.
@@ -391,10 +371,6 @@ int knot_dname_compare_cs(const knot_dname_t *d1, const knot_dname_t *d2);
  */
 knot_dname_t *knot_dname_cat(knot_dname_t *d1, const knot_dname_t *d2);
 
-void knot_dname_set_id(knot_dname_t *dname, unsigned int id);
-
-unsigned int knot_dname_get_id(const knot_dname_t *dname);
-
 /*!
  * \brief Increment reference counter for dname.
  *
@@ -404,15 +380,9 @@ unsigned int knot_dname_get_id(const knot_dname_t *dname);
  */
 static inline void knot_dname_retain(knot_dname_t *dname) {
 	if (dname) {
-		ref_retain(&dname->ref);
+		__sync_add_and_fetch(&dname->count, 1);
 	}
 }
-
-/*#define knot_dname_retain(d) \
-	knot_dname_retain_((d));\
-	if ((d))\
-	fprintf(stderr, "dname_retain: %s() at %s:%d, %p refcount=%zu\n",\
-	__func__, __FILE__, __LINE__, d, (d)->ref.count) */
 
 /*!
  * \brief Decrement reference counter for dname.
@@ -421,15 +391,11 @@ static inline void knot_dname_retain(knot_dname_t *dname) {
  */
 static inline void knot_dname_release(knot_dname_t *dname) {
 	if (dname) {
-		ref_release(&dname->ref);
+		if (__sync_sub_and_fetch(&dname->count, 1) == 0) {
+			knot_dname_free(&dname);
+		}
 	}
 }
-
-/*#define knot_dname_release(d) \
-	if ((d))\
-	fprintf(stderr, "dname_release: %s() at %s:%d, %p refcount=%zu\n",\
-	__func__, __FILE__, __LINE__, d, (d)->ref.count-1);\
-	knot_dname_release_((d)) */
 
 #endif /* _KNOT_DNAME_H_ */
 

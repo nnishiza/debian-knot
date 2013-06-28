@@ -26,6 +26,7 @@
 
 #define _BIRD_LISTS_C_
 
+#include <config.h>
 #include <stdlib.h>
 #include <string.h>
 #include "common/lists.h"
@@ -157,4 +158,22 @@ void list_dup(list *dst, list *src, size_t itemsz)
 		memcpy(i, n, itemsz);
 		add_tail(dst, i);
 	}
+}
+
+/**
+ * list_size - gets number of nodes
+ * @l: list
+ *
+ * This function counts nodes in list @l and returns this number.
+ */
+size_t list_size(const list *l)
+{
+	size_t count = 0;
+
+	node *n = 0;
+	WALK_LIST(n, *l) {
+		count++;
+	}
+
+	return count;
 }

@@ -27,8 +27,6 @@
 #ifndef _KNOTD_DEBUG_H_
 #define _KNOTD_DEBUG_H_
 
-#include "config.h" /* autoconf generated */
-
 #ifdef KNOTD_SERVER_DEBUG
   #define KNOTD_THREADS_DEBUG
   #define KNOTD_JOURNAL_DEBUG
@@ -478,7 +476,7 @@
 #define dbg_zload_exec_detail(cmds)
 #endif
 
-#ifdef KNOTD_COMPILER_DEBUG
+#ifdef KNOTD_COMPILE_DEBUG
 
 /* Brief messages. */
 #ifdef DEBUG_ENABLE_BRIEF

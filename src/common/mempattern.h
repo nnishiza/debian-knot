@@ -27,6 +27,29 @@
 #ifndef _KNOTD_COMMON_MALLOC_H_
 #define _KNOTD_COMMON_MALLOC_H_
 
+#include <stddef.h>
+
+/* Memory allocation function prototypes. */
+typedef void* (*mm_alloc_t)(void* ctx, size_t len);
+typedef void (*mm_free_t)(void *p);
+typedef void (*mm_flush_t)(void *p);
+
+/* Memory allocation context. */
+typedef struct mm_ctx {
+	void *ctx; /* \note Must be first */
+	mm_alloc_t alloc;
+	mm_free_t free;
+} mm_ctx_t;
+
+/*! \brief Initialize default memory allocation context. */
+void mm_ctx_init(mm_ctx_t *mm);
+
+/*! \brief Allocate memory or die. */
+void* xmalloc(size_t l);
+
+/*! \brief Reallocate memory or die. */
+void *xrealloc(void *p, size_t l);
+
 /*!
  * \brief Reserve new or trim excessive memory.
  *
@@ -63,6 +86,17 @@ int mreserve(char **p, size_t tlen, size_t min, size_t allow, size_t *reserved);
  * \return formatted message or NULL.
  */
 char* sprintf_alloc(const char *fmt, ...);
+
+/*!
+ * \brief Create new string from a concatenation of s1 and s2.
+ *
+ * \param s1 First string.
+ * \param s2 Second string.
+ *
+ * \retval Newly allocated string on success.
+ * \retval NULL on error.
+ */
+char* strcdup(const char *s1, const char *s2);
 
 /*! \brief Print usage statistics.
  *

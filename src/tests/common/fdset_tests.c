@@ -14,6 +14,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/time.h>
@@ -83,7 +84,9 @@ void* thr_action(void *arg)
 
 	/* Write pattern. */
 	char pattern = WRITE_PATTERN;
-	(void)write(*fd, &pattern, WRITE_PATTERN_LEN);
+	if (write(*fd, &pattern, WRITE_PATTERN_LEN) == -1) {
+		// Error.
+	}
 
 	return NULL;
 }

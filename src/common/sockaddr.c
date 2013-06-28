@@ -14,10 +14,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include "common/sockaddr.h"
@@ -26,7 +28,6 @@ int sockaddr_init(sockaddr_t *addr, int af)
 {
 	/* Reset pointer. */
 	memset(addr, 0, sizeof(sockaddr_t));
-	addr->family = -1;
 
 	/* Initialize address size. */
 	switch(af) {
@@ -44,42 +45,21 @@ int sockaddr_init(sockaddr_t *addr, int af)
 		return -1;
 	}
 
-	/* Update pointer. */
-	addr->family = af;
-	return sockaddr_update(addr);
+	return 0;
 }
 
 int sockaddr_isvalid(sockaddr_t *addr)
 {
-	return addr && addr->family > -1;
+	return addr && (addr->len > 0);
 }
 
 int sockaddr_copy(sockaddr_t *dst, const sockaddr_t *src)
 {
 	if (memcpy(dst, src, sizeof(sockaddr_t)) != NULL) {
-		return sockaddr_update(dst);
+		return 0;
 	}
-	
+
 	return -1;
-}
-
-int sockaddr_update(sockaddr_t *addr)
-{
-	/* Update internal pointer. */
-	switch(addr->len) {
-	case sizeof(struct sockaddr_in):
-		addr->ptr = (struct sockaddr*)&addr->addr4;
-		break;
-#ifndef DISABLE_IPV6
-	case sizeof(struct sockaddr_in6):
-		addr->ptr = (struct sockaddr*)&addr->addr6;
-		break;
-#endif
-	default:
-		return -1;
-	}
-
-	return 0;
 }
 
 int sockaddr_set(sockaddr_t *dst, int family, const char* addr, int port)
@@ -89,8 +69,6 @@ int sockaddr_set(sockaddr_t *dst, int family, const char* addr, int port)
 	}
 
 	/* Initialize. */
-	dst->family = -1;
-	dst->ptr = 0;
 	dst->len = 0;
 	sockaddr_init(dst, family);
 
@@ -127,7 +105,7 @@ int sockaddr_setprefix(sockaddr_t *dst, int prefix)
 	if (dst == NULL || prefix < 0) {
 		return -1;
 	}
-	
+
 	return dst->prefix = prefix;
 }
 
@@ -141,11 +119,7 @@ int sockaddr_tostr(const sockaddr_t *addr, char *dst, size_t size)
 	size_t minlen = INET_ADDRSTRLEN;
 
 	/* Check unsupported IPv6. */
-#ifdef DISABLE_IPV6
-	if (addr->family == AF_INET6) {
-		return -1;
-	}
-#else
+#ifndef DISABLE_IPV6
 	minlen = INET6_ADDRSTRLEN;
 #endif
 
@@ -159,15 +133,13 @@ int sockaddr_tostr(const sockaddr_t *addr, char *dst, size_t size)
 	dst[0] = '\0';
 #else
 	/* Load IPv6 addr if default. */
-	if (addr->family == AF_INET6) {
-		inet_ntop(addr->family, &addr->addr6.sin6_addr,
-			  dst, size);
+	if (addr->len == sizeof(struct sockaddr_in6)) {
+		inet_ntop(AF_INET6, &addr->addr6.sin6_addr, dst, size);
 	}
 #endif
 	/* Load IPv4 if set. */
-	if (addr->family == AF_INET) {
-		inet_ntop(addr->family, &addr->addr4.sin_addr,
-			  dst, size);
+	if (addr->len == sizeof(struct sockaddr_in)) {
+		inet_ntop(AF_INET, &addr->addr4.sin_addr, dst, size);
 	}
 
 	return 0;
@@ -179,16 +151,16 @@ int sockaddr_portnum(const sockaddr_t *addr)
 		return -1;
 	}
 
-	switch(addr->family) {
+	switch(addr->len) {
 
 	/* IPv4 */
-	case AF_INET:
+	case sizeof(struct sockaddr_in):
 		return ntohs(addr->addr4.sin_port);
 		break;
 
 	/* IPv6 */
 #ifndef DISABLE_IPV6
-	case AF_INET6:
+	case sizeof(struct sockaddr_in6):
 		return ntohs(addr->addr6.sin6_port);
 		break;
 #endif
@@ -198,4 +170,24 @@ int sockaddr_portnum(const sockaddr_t *addr)
 		return -1;
 		break;
 	}
+}
+
+int sockaddr_family(const sockaddr_t *addr)
+{
+	switch(addr->len) {
+	case sizeof(struct sockaddr_in):  return AF_INET; break;
+#ifndef DISABLE_IPV6
+	case sizeof(struct sockaddr_in6): return AF_INET6; break;
+#endif
+	default: return 0; break;
+	}
+}
+
+void sockaddr_prep(sockaddr_t *addr)
+{
+#ifndef DISABLE_IPV6
+	addr->len = sizeof(struct sockaddr_in6);
+#else
+	addr->len = sizeof(struct sockaddr_in);
+#endif
 }

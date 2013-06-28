@@ -14,12 +14,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include "tests/common/base32hex_tests.h"
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
+#include "common/errcode.h"
 #include "common/base32hex.h"
 
 #define BUF_LEN 256
@@ -51,10 +53,14 @@ static int base32hex_tests_run(int argc, char *argv[])
 	ref_len = strlen((char *)ref);
 	ret = base32hex_encode(in, in_len, out, BUF_LEN);
 	cmp_ok(ret, "==", ref_len, "1. test vector - ENC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out, ref, ret) == 0, "1. test vector - ENC output content");
+	endskip;
 	ret = base32hex_decode(out, ret, out2, BUF_LEN);
 	cmp_ok(ret, "==", in_len, "1. test vector - DEC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out2, in, ret) == 0, "1. test vector - DEC output content");
+	endskip;
 
 	// 2. test vector -> ENC -> DEC
 	strcpy((char *)in, "f");
@@ -63,10 +69,14 @@ static int base32hex_tests_run(int argc, char *argv[])
 	ref_len = strlen((char *)ref);
 	ret = base32hex_encode(in, in_len, out, BUF_LEN);
 	cmp_ok(ret, "==", ref_len, "2. test vector - ENC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out, ref, ret) == 0, "2. test vector - ENC output content");
+	endskip;
 	ret = base32hex_decode(out, ret, out2, BUF_LEN);
 	cmp_ok(ret, "==", in_len, "2. test vector - DEC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out2, in, ret) == 0, "2. test vector - DEC output content");
+	endskip;
 
 	// 3. test vector -> ENC -> DEC
 	strcpy((char *)in, "fo");
@@ -75,10 +85,14 @@ static int base32hex_tests_run(int argc, char *argv[])
 	ref_len = strlen((char *)ref);
 	ret = base32hex_encode(in, in_len, out, BUF_LEN);
 	cmp_ok(ret, "==", ref_len, "3. test vector - ENC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out, ref, ret) == 0, "3. test vector - ENC output content");
+	endskip;
 	ret = base32hex_decode(out, ret, out2, BUF_LEN);
 	cmp_ok(ret, "==", in_len, "3. test vector - DEC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out2, in, ret) == 0, "3. test vector - DEC output content");
+	endskip;
 
 	// 4. test vector -> ENC -> DEC
 	strcpy((char *)in, "foo");
@@ -87,10 +101,14 @@ static int base32hex_tests_run(int argc, char *argv[])
 	ref_len = strlen((char *)ref);
 	ret = base32hex_encode(in, in_len, out, BUF_LEN);
 	cmp_ok(ret, "==", ref_len, "4. test vector - ENC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out, ref, ret) == 0, "4. test vector - ENC output content");
+	endskip;
 	ret = base32hex_decode(out, ret, out2, BUF_LEN);
 	cmp_ok(ret, "==", in_len, "4. test vector - DEC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out2, in, ret) == 0, "4. test vector - DEC output content");
+	endskip;
 
 	// 5. test vector -> ENC -> DEC
 	strcpy((char *)in, "foob");
@@ -99,10 +117,14 @@ static int base32hex_tests_run(int argc, char *argv[])
 	ref_len = strlen((char *)ref);
 	ret = base32hex_encode(in, in_len, out, BUF_LEN);
 	cmp_ok(ret, "==", ref_len, "5. test vector - ENC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out, ref, ret) == 0, "5. test vector - ENC output content");
+	endskip;
 	ret = base32hex_decode(out, ret, out2, BUF_LEN);
 	cmp_ok(ret, "==", in_len, "5. test vector - DEC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out2, in, ret) == 0, "5. test vector - DEC output content");
+	endskip;
 
 	// 6. test vector -> ENC -> DEC
 	strcpy((char *)in, "fooba");
@@ -111,10 +133,14 @@ static int base32hex_tests_run(int argc, char *argv[])
 	ref_len = strlen((char *)ref);
 	ret = base32hex_encode(in, in_len, out, BUF_LEN);
 	cmp_ok(ret, "==", ref_len, "6. test vector - ENC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out, ref, ret) == 0, "6. test vector - ENC output content");
+	endskip;
 	ret = base32hex_decode(out, ret, out2, BUF_LEN);
 	cmp_ok(ret, "==", in_len, "6. test vector - DEC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out2, in, ret) == 0, "6. test vector - DEC output content");
+	endskip;
 
 	// 7. test vector -> ENC -> DEC
 	strcpy((char *)in, "foobar");
@@ -123,44 +149,48 @@ static int base32hex_tests_run(int argc, char *argv[])
 	ref_len = strlen((char *)ref);
 	ret = base32hex_encode(in, in_len, out, BUF_LEN);
 	cmp_ok(ret, "==", ref_len, "7. test vector - ENC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out, ref, ret) == 0, "7. test vector - ENC output content");
+	endskip;
 	ret = base32hex_decode(out, ret, out2, BUF_LEN);
 	cmp_ok(ret, "==", in_len, "7. test vector - DEC output length");
+	skip(ret < 0, 1);
 	ok(memcmp(out2, in, ret) == 0, "7. test vector - DEC output content");
+	endskip;
 
 	// Bad paddings
         ret = base32hex_decode((uint8_t *)"AAAAAA==", 8, out, BUF_LEN);
-        cmp_ok(ret, "==", -2, "Bad padding length 2");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ECHAR, "Bad padding length 2");
         ret = base32hex_decode((uint8_t *)"AAA=====", 8, out, BUF_LEN);
-        cmp_ok(ret, "==", -2, "Bad padding length 5");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ECHAR, "Bad padding length 5");
         ret = base32hex_decode((uint8_t *)"A======", 8, out, BUF_LEN);
-        cmp_ok(ret, "==", -2, "Bad padding length 7");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ECHAR, "Bad padding length 7");
         ret = base32hex_decode((uint8_t *)"=======", 8, out, BUF_LEN);
-        cmp_ok(ret, "==", -2, "Bad padding length 8");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ECHAR, "Bad padding length 8");
 
 	// Bad data length
         ret = base32hex_decode((uint8_t *)"A", 1, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 1");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 1");
         ret = base32hex_decode((uint8_t *)"AA", 2, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 2");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 2");
         ret = base32hex_decode((uint8_t *)"AAA", 3, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 3");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 3");
         ret = base32hex_decode((uint8_t *)"AAAA", 4, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 4");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 4");
         ret = base32hex_decode((uint8_t *)"AAAAA", 5, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 5");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 5");
         ret = base32hex_decode((uint8_t *)"AAAAAA", 6, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 6");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 6");
         ret = base32hex_decode((uint8_t *)"AAAAAAA", 7, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 7");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 7");
         ret = base32hex_decode((uint8_t *)"AAAAAAAAA", 9, out, BUF_LEN);
-        cmp_ok(ret, "==", -1, "Bad data length 9");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ESIZE, "Bad data length 9");
 
 	// Bad data character
         ret = base32hex_decode((uint8_t *)"AAAAAAA$", 8, out, BUF_LEN);
-        cmp_ok(ret, "==", -2, "Bad data character dollar");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ECHAR, "Bad data character dollar");
         ret = base32hex_decode((uint8_t *)"AAAAAAA ", 8, out, BUF_LEN);
-        cmp_ok(ret, "==", -2, "Bad data character space");
+        cmp_ok(ret, "==", KNOT_BASE32HEX_ECHAR, "Bad data character space");
 
 	return 0;
 }

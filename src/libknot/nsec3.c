@@ -14,6 +14,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <stdint.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -24,7 +25,7 @@
 
 #include "nsec3.h"
 #include "common.h"
-#include "util/descriptor.h"
+#include "common/descriptor.h"
 #include "util/utils.h"
 #include "util/tolower.h"
 #include "util/debug.h"
@@ -34,24 +35,18 @@
 int knot_nsec3_params_from_wire(knot_nsec3_params_t *params,
                                   const knot_rrset_t *nsec3param)
 {
-	if (params == NULL || nsec3param == NULL) {
+	if (params == NULL || nsec3param == NULL ||
+	    knot_rrset_rdata_rr_count(nsec3param) == 0) {
 		return KNOT_EINVAL;
 	}
 
 	assert(knot_rrset_type(nsec3param) == KNOT_RRTYPE_NSEC3PARAM);
-	const knot_rdata_t *rdata = knot_rrset_rdata(nsec3param);
 
-	assert(rdata->count == 4);
-
-	params->algorithm = *(uint8_t *)
-	                     (&knot_rdata_item(rdata, 0)->raw_data[1]);
-	params->flags = *(uint8_t *)
-			(&knot_rdata_item(rdata, 1)->raw_data[1]);
-	params->iterations = knot_wire_read_u16(
-			(uint8_t *)(knot_rdata_item(rdata, 2)->raw_data + 1));
-
+	params->algorithm = knot_rrset_rdata_nsec3param_algorithm(nsec3param);
+	params->iterations = knot_rrset_rdata_nsec3param_iterations(nsec3param);
+	params->flags = knot_rrset_rdata_nsec3param_flags(nsec3param);
 	params->salt_length =
-		((uint8_t *)knot_rdata_item(rdata, 3)->raw_data)[2];
+		knot_rrset_rdata_nsec3param_salt_length(nsec3param);
 
 	if (params->salt_length > 0) {
 		/* It is called also on reload, so we need to free if exists. */
@@ -60,19 +55,19 @@ int knot_nsec3_params_from_wire(knot_nsec3_params_t *params,
 			params->salt = NULL;
 		}
 		params->salt = (uint8_t *)malloc(params->salt_length);
-		CHECK_ALLOC_LOG(params->salt, -1);
+		CHECK_ALLOC_LOG(params->salt, KNOT_ENOMEM);
 		memcpy(params->salt,
-		       (uint8_t *)knot_rdata_item(rdata, 3)->raw_data + 3,
+		       knot_rrset_rdata_nsec3param_salt(nsec3param),
 		       params->salt_length);
 	} else {
 		params->salt = NULL;
 	}
 
 	dbg_nsec3("Parsed NSEC3PARAM:\n");
-	dbg_nsec3("Algorithm: %hu\n", params->algorithm);
-	dbg_nsec3("Flags: %hu\n", params->flags);
-	dbg_nsec3("Iterations: %hu\n", params->iterations);
-	dbg_nsec3("Salt length: %hu\n", params->salt_length);
+	dbg_nsec3("Algorithm: %u\n", params->algorithm);
+	dbg_nsec3("Flags: %u\n", params->flags);
+	dbg_nsec3("Iterations: %u\n", params->iterations);
+	dbg_nsec3("Salt length: %u\n", params->salt_length);
 	dbg_nsec3("Salt: \n");
 	if (params->salt != NULL) {
 		dbg_nsec3_hex((char *)params->salt,
@@ -90,7 +85,7 @@ static uint8_t *knot_nsec3_to_lowercase(const uint8_t *data, size_t size)
 	uint8_t *out = (uint8_t *)malloc(size);
 	CHECK_ALLOC_LOG(out, NULL);
 
-	for (int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		out[i] = knot_tolower(data[i]);
 	}
 
@@ -194,7 +189,7 @@ int knot_nsec3_sha1(const knot_nsec3_params_t *params,
 	uint16_t iterations = params->iterations;
 
 	dbg_nsec3_verb("Hashing: \n");
-	dbg_nsec3_verb("  Data: %.*s \n", size, data);
+	dbg_nsec3_verb("  Data: %.*s \n", (int)size, data);
 	dbg_nsec3_hex_verb((const char *)data, size);
 	dbg_nsec3_verb(" (size %d)\n  Iterations: %u\n", (int)size, iterations);
 	dbg_nsec3_verb("  Salt length: %u\n", salt_length);
@@ -250,7 +245,7 @@ int knot_nsec3_sha1(const knot_nsec3_params_t *params,
 
 	*digest_size = SHA_DIGEST_LENGTH;
 
-	dbg_nsec3_verb("Hash: %.*s\n", *digest_size, *digest);
+	dbg_nsec3_verb("Hash: %.*s\n", (int)*digest_size, *digest);
 	dbg_nsec3_hex_verb((const char *)*digest, *digest_size);
 	dbg_nsec3_verb("\n");
 
@@ -263,7 +258,5 @@ int knot_nsec3_sha1(const knot_nsec3_params_t *params,
 
 void knot_nsec3_params_free(knot_nsec3_params_t *params)
 {
-	if (params->salt != NULL) {
-		free(params->salt);
-	}
+	free(params->salt);
 }
