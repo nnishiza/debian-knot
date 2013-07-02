@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+dpkg-maintscript-helper rm_conffile /etc/default/knot 1.3.0~rc3-2~ -- "$@"
+
 if test "$1" = "purge"; then
     spool=/var/lib/knot
     rm -f $spool/*.db $spool/*.db.crc

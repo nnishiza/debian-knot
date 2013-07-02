@@ -5,3 +5,4 @@ usr/share/man/man8/knotc.8
 usr/share/man/man8/knotd.8
 usr/share/info
 etc/knot/knot.conf
+usr/lib/knot/prepare-environment
