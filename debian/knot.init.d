@@ -107,19 +107,19 @@ do_reload() {
 
 case "$1" in
     start)
-	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC " "$NAME"
+	log_daemon_msg "Starting $DESC " "$NAME"
 	do_start
 	case "$?" in
-	    0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-	    2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	    0|1) log_end_msg 0 ;;
+	    2) log_end_msg 1 ;;
 	esac
 	;;
     stop)
-	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	log_daemon_msg "Stopping $DESC" "$NAME"
 	do_stop
 	case "$?" in
-	    0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-	    2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	    0|1) log_end_msg 0 ;;
+	    2) log_end_msg 1 ;;
 	esac
 	;;
     status)
@@ -133,9 +133,9 @@ case "$1" in
 	exit $RETVAL
 	;;
     reload|force-reload)
-	[ "$VERBOSE" != no ] && log_daemon_msg "Reloading $DESC" "$NAME"
+	log_daemon_msg "Reloading $DESC" "$NAME"
 	do_reload
-	[ "$VERBOSE" != no ] && log_end_msg $?
+	log_end_msg $?
 	;;
     restart)
 	log_daemon_msg "Restarting $DESC" "$NAME"
