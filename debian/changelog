@@ -1,3 +1,18 @@
+knot (1.3.0~rc3-2) unstable; urgency=low
+
+  * Add proper support for upstart and systemd along with sysvinit
+  * Add /usr/lib/knot/prepare-environment script which will parse
+    knot configuration file and properly create rundir and set
+    correct permissions to configured values in /etc/knot/knot.conf
+  * Remove /etc/default/knot since the values are now parsed
+    directly from the configuration file
+  * Add /var/lib/knot to knot.dirs, so it gets created on package
+    install
+  * Drop checking for $VERBOSE variable and properly log start/stop from
+    sysvinit script
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 02 Jul 2013 13:08:33 +0200
+
 knot (1.3.0~rc3-1) unstable; urgency=low
 
   * New upstream version 1.3.0~rc3
