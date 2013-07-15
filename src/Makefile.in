@@ -118,10 +118,9 @@ am_libknots_la_OBJECTS = common/slab/slab.lo common/libtap/tap.lo \
 	common/evsched.lo common/acl.lo common/sockaddr.lo \
 	common/ref.lo common/errors.lo common/errcode.lo \
 	common/dSFMT.lo common/prng.lo common/fdset.lo \
-	common/fdset_poll.lo common/fdset_kqueue.lo \
-	common/fdset_epoll.lo common/getline.lo common/log.lo \
-	common/mempool.lo common/hattrie/ahtable.lo \
-	common/hattrie/hat-trie.lo common/hattrie/murmurhash3.lo
+	common/getline.lo common/log.lo common/mempool.lo \
+	common/hattrie/ahtable.lo common/hattrie/hat-trie.lo \
+	common/hattrie/murmurhash3.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
 libzscanner_la_DEPENDENCIES = @LIBOBJS@
 am_libzscanner_la_OBJECTS = zscanner/file_loader.lo \
@@ -326,6 +325,7 @@ PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 RAGEL = @RAGEL@
 RANLIB = @RANLIB@
+RELEASE_DATE = @RELEASE_DATE@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -353,6 +353,7 @@ build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
 builddir = @builddir@
+config_dir = @config_dir@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
@@ -398,8 +399,8 @@ noinst_LTLIBRARIES = libknot.la libknotd.la libknots.la libzscanner.la
 
 # $(YACC) will generate header file
 AM_CPPFLAGS = -I$(top_srcdir)/src/libknot -DSYSCONFDIR='"$(sysconfdir)"' \
-	-DSBINDIR='"$(sbindir)"' -DSTORAGE_DIR='"${storage_dir}"' \
-	-DRUN_DIR='"${run_dir}"'
+	-DSBINDIR='"$(sbindir)"' -DCONFIG_DIR='"${config_dir}"' \
+	-DSTORAGE_DIR='"${storage_dir}"' -DRUN_DIR='"${run_dir}"'
 
 AM_YFLAGS = -d
 libknotd_la_YFLAGS = -pcf_ -d
@@ -595,12 +596,6 @@ libknots_la_SOURCES = \
 	common/prng.c				\
 	common/fdset.h				\
 	common/fdset.c				\
-	common/fdset_poll.h			\
-	common/fdset_poll.c			\
-	common/fdset_kqueue.h			\
-	common/fdset_kqueue.c			\
-	common/fdset_epoll.h			\
-	common/fdset_epoll.c			\
 	common/getline.h			\
 	common/getline.c			\
 	common/log.c				\
@@ -992,12 +987,6 @@ common/prng.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/fdset.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
-common/fdset_poll.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/fdset_kqueue.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/fdset_epoll.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
 common/getline.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/log.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
@@ -1282,12 +1271,6 @@ mostlyclean-compile:
 	-rm -f common/evsched.lo
 	-rm -f common/fdset.$(OBJEXT)
 	-rm -f common/fdset.lo
-	-rm -f common/fdset_epoll.$(OBJEXT)
-	-rm -f common/fdset_epoll.lo
-	-rm -f common/fdset_kqueue.$(OBJEXT)
-	-rm -f common/fdset_kqueue.lo
-	-rm -f common/fdset_poll.$(OBJEXT)
-	-rm -f common/fdset_poll.lo
 	-rm -f common/getline.$(OBJEXT)
 	-rm -f common/getline.lo
 	-rm -f common/hattrie/ahtable.$(OBJEXT)
@@ -1467,9 +1450,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/evqueue.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/evsched.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/fdset.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/fdset_epoll.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/fdset_kqueue.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/fdset_poll.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/getline.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/heap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/lists.Plo@am__quote@
@@ -2009,6 +1989,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-sbinPROGRAMS
 
 # Create storage and run-time directories
 install-data-hook:
+	$(INSTALL) -d $(DESTDIR)/@config_dir@
 	$(INSTALL) -d $(DESTDIR)/@run_dir@
 	$(INSTALL) -d $(DESTDIR)/@storage_dir@
 
