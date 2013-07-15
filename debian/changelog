@@ -2,8 +2,9 @@ knot (1.3.0~rc4-1) unstable; urgency=low
 
   * New upstream version 1.3.0~rc4
   * Add upstream patch to honour CONFIG_DIR
+  * Remove now obsolete patch to run as knot:knot
 
- -- Ondřej Surý <ondrej@debian.org>  Mon, 15 Jul 2013 15:12:57 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 15 Jul 2013 15:15:05 +0200
 
 knot (1.3.0~rc3-2) unstable; urgency=low
 
