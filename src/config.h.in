@@ -15,9 +15,6 @@
 /* microseconds in log messages */
 #undef ENABLE_MICROSECONDS_LOG
 
-/* recvmmsg enabled */
-#undef ENABLE_RECVMMSG
-
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
@@ -83,6 +80,9 @@
 
 /* Define to 1 if you have the `pthread_setaffinity_np' function. */
 #undef HAVE_PTHREAD_SETAFFINITY_NP
+
+/* Define if struct mmsghdr and recvmmsg() exists. */
+#undef HAVE_RECVMMSG
 
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
