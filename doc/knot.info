@@ -1,7 +1,7 @@
 This is ./knot.info, produced by makeinfo version 4.8 from ./knot.texi.
 
-This manual is for Knot DNS (version 1.3.0-rc5, 29 July 2013), which is
-a high-performance authoritative-only DNS server.
+This manual is for Knot DNS (version 1.3.0, 5 August 2013), which is a
+high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
 
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.3.0-rc5, 29 July 2013).
+This manual is for Knot DNS (version 1.3.0, 5 August 2013).
 
 * Menu:
 
@@ -1308,7 +1308,6 @@ Statement Index
 * group_id:                              group_id.              (line 6)
 * groups:                                groups.                (line 6)
 * groups_remote_id:                      groups_remote_id.      (line 6)
-* hostname:                              hostname.              (line 6)
 * identity:                              identity.              (line 6)
 * include:                               include.               (line 6)
 * interface_id:                          interface_id.          (line 6)
@@ -1395,10 +1394,9 @@ A.1.1 `system' Syntax
 ---------------------
 
      `system' `{'
-       [ `identity' `"'string`";' ]
-       [ `version' `"'string`";' ]
-       [ `hostname' `"'string`";' ]
-       [ `nsid' ( `"'string`"' | hex_string )`;' ]
+       [ `identity' ( `on' | `"'string`"' )`;' ]
+       [ `version' ( `on' | `"'string`"' )`;' ]
+       [ `nsid' ( `on' | `"'string`"' | hex_string )`;' ]
        [ `storage' `"'string`";' ]
        [ `rundir' `"'string`";' ]
        [ `pidfile' `"'string`";' ]
@@ -1423,7 +1421,6 @@ A.1.2 Statement Definition and Usage
 
 * identity::
 * version::
-* hostname::
 * nsid::
 * storage::
 * rundir::
@@ -1445,66 +1442,58 @@ A.1.2.1 identity
 ................
 
 Identity of the server returned in a response for the query for TXT
-record `id.server.' in the CHAOS class (see RFC 4892
-(http://tools.ietf.org/html/rfc4892)).
+record `id.server.' or `hostname.bind.' in the CHAOS class (see RFC
+4892 (http://tools.ietf.org/html/rfc4892)).
 
-If not specified or empty, the server returns REFUSED status code.
+If not specified or empty, the server returns REFUSED status code.  If
+a boolean value of `on' is used, FQDN hostname is used as a default.
 
      system {
-       identity "Knot DNS";
+       identity "ns01.example.com";
+       identity on;
      }
 
 
-File: knot.info,  Node: version,  Next: hostname,  Prev: identity,  Up: system Statement Definition and Usage
+File: knot.info,  Node: version,  Next: nsid,  Prev: identity,  Up: system Statement Definition and Usage
 
 A.1.2.2 version
 ...............
 
 Version of the server software returned in a response for the query for
-TXT record `version.server.' in the CHAOS class (see RFC 4892
-(http://tools.ietf.org/html/rfc4892)).
+TXT record `version.server.' or `version.bind.' in the CHAOS class (see
+RFC 4892 (http://tools.ietf.org/html/rfc4892)).
 
-If not specified or empty, the server returns REFUSED status code.
+Option allows a boolean value `on|off', if `on', automatic version
+string is set as a default. If not specified or empty, the server
+returns REFUSED status code.
 
      system {
-       version "1.3.0";
+       version "Knot DNS 1.3.0";
+       version on; # Reports current version
      }
 
 
-File: knot.info,  Node: hostname,  Next: nsid,  Prev: version,  Up: system Statement Definition and Usage
+File: knot.info,  Node: nsid,  Next: storage,  Prev: version,  Up: system Statement Definition and Usage
 
-A.1.2.3 hostname
-................
-
-Host name of the server returned in a response for the query for TXT
-record `hostname.server.' in the CHAOS class (see RFC 4892
-(http://tools.ietf.org/html/rfc4892)).
-
-If not specified or empty, the server returns REFUSED status code.
-
-     system {
-       hostname "a.ns.example.com";
-     }
-
-
-File: knot.info,  Node: nsid,  Next: storage,  Prev: hostname,  Up: system Statement Definition and Usage
-
-A.1.2.4 nsid
+A.1.2.3 nsid
 ............
 
 DNS Name Server Identifier (see RFC 5001
 (http://tools.ietf.org/html/rfc5001)).
 
-Use a string format "text" or a hexstring (e.g. 0x01ab00)
+Use a string format "text" or a hexstring (e.g. 0x01ab00) If a boolean
+value of `on' is used, FQDN hostname is used as a default.
 
      system {
        nsid 0x00cafe;
+       nsid "cafe";
+       nsid on;
      }
 
 
 File: knot.info,  Node: storage,  Next: rundir,  Prev: nsid,  Up: system Statement Definition and Usage
 
-A.1.2.5 storage
+A.1.2.4 storage
 ...............
 
 The working directory of Knot DNS, it is used to store zone files and
@@ -1518,7 +1507,7 @@ journal files.  Default: `${localstatedir}/lib/knot', configured with
 
 File: knot.info,  Node: rundir,  Next: pidfile,  Prev: storage,  Up: system Statement Definition and Usage
 
-A.1.2.6 rundir
+A.1.2.5 rundir
 ..............
 
 Path for storing run-time data, for example PID file and unix sockets.
@@ -1532,7 +1521,7 @@ Default: `${localstatedir}/run/knot', configured with
 
 File: knot.info,  Node: pidfile,  Next: workers,  Prev: rundir,  Up: system Statement Definition and Usage
 
-A.1.2.7 pidfile
+A.1.2.6 pidfile
 ...............
 
 Specifies a custom PID file location.
@@ -1546,7 +1535,7 @@ Default value: `knot.pid' in `rundir' directory.
 
 File: knot.info,  Node: workers,  Next: user,  Prev: pidfile,  Up: system Statement Definition and Usage
 
-A.1.2.8 workers
+A.1.2.7 workers
 ...............
 
 Number of workers (threads) per server interface.  This option is used
@@ -1562,7 +1551,7 @@ online CPUs)
 
 File: knot.info,  Node: user,  Next: max-conn-idle,  Prev: workers,  Up: system Statement Definition and Usage
 
-A.1.2.9 user
+A.1.2.8 user
 ............
 
 System `user' or `user'.`group' under which the Knot DNS is run after
@@ -1579,8 +1568,8 @@ Default value: `root.root'
 
 File: knot.info,  Node: max-conn-idle,  Next: max-conn-hs,  Prev: user,  Up: system Statement Definition and Usage
 
-A.1.2.10 max-conn-idle
-......................
+A.1.2.9 max-conn-idle
+.....................
 
 Maximum idle time between requests on a TCP connection.  This also
 limits receiving of a single query, each query must be received in this
@@ -1589,7 +1578,7 @@ time limit.
 
 File: knot.info,  Node: max-conn-hs,  Next: max-conn-reply,  Prev: max-conn-idle,  Up: system Statement Definition and Usage
 
-A.1.2.11 max-conn-hs
+A.1.2.10 max-conn-hs
 ....................
 
 Maximum time between newly accepted TCP connection and first query.
@@ -1599,7 +1588,7 @@ connection that already made at least 1 meaningful query.
 
 File: knot.info,  Node: max-conn-reply,  Next: transfers,  Prev: max-conn-hs,  Up: system Statement Definition and Usage
 
-A.1.2.12 max-conn-reply
+A.1.2.11 max-conn-reply
 .......................
 
 Maximum time to wait for a reply to an issued SOA query.
@@ -1607,7 +1596,7 @@ Maximum time to wait for a reply to an issued SOA query.
 
 File: knot.info,  Node: transfers,  Next: rate-limit,  Prev: max-conn-reply,  Up: system Statement Definition and Usage
 
-A.1.2.13 transfers
+A.1.2.12 transfers
 ..................
 
 Maximum parallel transfers, including pending SOA queries.  Lowest
@@ -1616,7 +1605,7 @@ possible number is the number of CPUs.  Default is 10.
 
 File: knot.info,  Node: rate-limit,  Next: rate-limit-size,  Prev: transfers,  Up: system Statement Definition and Usage
 
-A.1.2.14 rate-limit
+A.1.2.13 rate-limit
 ...................
 
 Rate limiting is based on a token bucket scheme, rate basically
@@ -1633,7 +1622,7 @@ Default value: `0 (disabled)'
 
 File: knot.info,  Node: rate-limit-size,  Next: rate-limit-slip,  Prev: rate-limit,  Up: system Statement Definition and Usage
 
-A.1.2.15 rate-limit-size
+A.1.2.14 rate-limit-size
 ........................
 
 Option controls the size of a hashtable of buckets. The larger the
@@ -1649,7 +1638,7 @@ Default value: `393241'
 
 File: knot.info,  Node: rate-limit-slip,  Prev: rate-limit-size,  Up: system Statement Definition and Usage
 
-A.1.2.16 rate-limit-slip
+A.1.2.15 rate-limit-slip
 ........................
 
 As attacks using DNS/UDP are usually based on a forged source address,
@@ -1668,8 +1657,8 @@ A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.3.0-rc5";
-       version "1.3.0-rc5";
+       identity "Knot DNS 1.3.0";
+       version "1.3.0";
        nsid    "amaterasu";
        storage "/var/lib/knot";
        rundir "/var/run/knot";
@@ -2590,130 +2579,129 @@ A.9.2 Examples
 
 
 Tag Table:
-Node: Top1043
-Node: Introduction4052
-Node: What is Knot DNS4350
-Node: Knot DNS features4868
-Node: Scope of this document5889
-Node: Knot DNS Resource Requirements6151
-Node: Hardware requirements6449
-Node: CPU requirements7089
-Node: Memory requirements7474
-Node: Supported operating system8190
-Node: Knot DNS Installation8658
-Node: Required build environment8965
-Node: Required libraries9589
-Node: Userspace RCU10394
-Node: Installation from the sources11346
-Node: Configuring and generating Makefiles11931
-Node: Compilation13589
-Node: Installation14165
-Node: Installation from packages14672
-Node: Installing Knot DNS packages on Debian15196
-Node: Installing Knot DNS packages on Ubuntu16174
-Node: Adding official PPA repository for Knot DNS17088
-Node: Installing Knot DNS packages on Fedora17716
-Node: Installing Knot DNS from ports on FreeBSD19115
-Node: Knot DNS Configuration19462
-Node: Minimal configuration20033
-Node: Slave configuration22046
-Node: Master configuration24042
-Node: Configuring multiple interfaces25088
-Node: Using DNS UPDATE25573
-Node: Remote control interface27140
-Node: Enabling zone semantic checks28232
-Node: Creating IXFR differences from zone file changes28699
-Node: Using Response Rate Limiting29272
-Node: Running Knot DNS30703
-Node: Running a slave server34321
-Node: Running a master server35617
-Node: Controlling running daemon36598
-Node: Troubleshooting37769
-Node: Submitting a bugreport38177
-Node: Generating backtrace39347
-Node: Debug messages40349
-Node: Enabling debug messages in server41019
-Node: Debug messages Example42579
-Node: Statement Index42778
-Node: Knot DNS Configuration Reference46601
-Node: system46967
-Node: system Syntax47328
-Node: system Statement Definition and Usage48207
-Node: identity48640
-Node: version49050
-Node: hostname49484
-Node: nsid49922
-Node: storage50242
-Node: rundir50599
-Node: pidfile50940
-Node: workers51239
-Node: user51624
-Node: max-conn-idle52058
-Node: max-conn-hs52375
-Node: max-conn-reply52736
-Node: transfers52967
-Node: rate-limit53252
-Node: rate-limit-size53994
-Node: rate-limit-slip54665
-Node: system Example55249
-Node: keys55614
-Node: keys Syntax55921
-Node: keys Statement Definition and Usage56150
-Node: key_id56356
-Node: Example57318
-Node: interfaces57552
-Node: interfaces Syntax57887
-Node: interfaces Statement Definition and Usage58225
-Node: interface_id58467
-Node: interfaces Examples58831
-Node: remotes59310
-Node: remotes Syntax59909
-Node: remotes Statement Definition and Grammar60348
-Node: remote_id60618
-Node: address60818
-Node: port61037
-Node: key61291
-Node: via61506
-Node: remotes Examples61736
-Node: groups62262
-Node: groups Syntax62952
-Node: groups Statement Definition and Grammar63170
-Node: group_id63428
-Node: groups_remote_id63635
-Node: groups Examples63882
-Node: control64288
-Node: control Syntax64825
-Node: control Statement Definition and Grammar65193
-Node: control Examples65776
-Node: zones66258
-Node: zones Syntax66602
-Node: zones Statement Definition and Grammar67562
-Node: zone_id67994
-Node: file68382
-Node: xfr-in68726
-Node: xfr-out69065
-Node: notify-in69410
-Node: notify-out69658
-Node: update-in69913
-Node: semantic-checks70256
-Node: ixfr-from-differences70675
-Node: disable-any71232
-Node: notify-timeout71619
-Node: notify-retries71964
-Node: zonefile-sync72283
-Node: ixfr-fslimit72993
-Node: zones Example73399
-Node: zones List of zone semantic checks74221
-Node: log76021
-Node: log Syntax76244
-Node: log Statement Definition and Grammar76568
-Node: log_name77278
-Node: category77607
-Node: severity78074
-Node: log_file78816
-Node: log Example79071
-Node: include79454
-Node: include Syntax79923
-Node: include Examples80061
+Node: Top1040
+Node: Introduction4046
+Node: What is Knot DNS4344
+Node: Knot DNS features4862
+Node: Scope of this document5883
+Node: Knot DNS Resource Requirements6145
+Node: Hardware requirements6443
+Node: CPU requirements7083
+Node: Memory requirements7468
+Node: Supported operating system8184
+Node: Knot DNS Installation8652
+Node: Required build environment8959
+Node: Required libraries9583
+Node: Userspace RCU10388
+Node: Installation from the sources11340
+Node: Configuring and generating Makefiles11925
+Node: Compilation13583
+Node: Installation14159
+Node: Installation from packages14666
+Node: Installing Knot DNS packages on Debian15190
+Node: Installing Knot DNS packages on Ubuntu16168
+Node: Adding official PPA repository for Knot DNS17082
+Node: Installing Knot DNS packages on Fedora17710
+Node: Installing Knot DNS from ports on FreeBSD19109
+Node: Knot DNS Configuration19456
+Node: Minimal configuration20027
+Node: Slave configuration22040
+Node: Master configuration24036
+Node: Configuring multiple interfaces25082
+Node: Using DNS UPDATE25567
+Node: Remote control interface27134
+Node: Enabling zone semantic checks28226
+Node: Creating IXFR differences from zone file changes28693
+Node: Using Response Rate Limiting29266
+Node: Running Knot DNS30697
+Node: Running a slave server34315
+Node: Running a master server35611
+Node: Controlling running daemon36592
+Node: Troubleshooting37763
+Node: Submitting a bugreport38171
+Node: Generating backtrace39341
+Node: Debug messages40343
+Node: Enabling debug messages in server41013
+Node: Debug messages Example42573
+Node: Statement Index42772
+Node: Knot DNS Configuration Reference46522
+Node: system46888
+Node: system Syntax47249
+Node: system Statement Definition and Usage48125
+Node: identity48545
+Node: version49076
+Node: nsid49674
+Node: storage50101
+Node: rundir50458
+Node: pidfile50799
+Node: workers51098
+Node: user51483
+Node: max-conn-idle51917
+Node: max-conn-hs52232
+Node: max-conn-reply52593
+Node: transfers52824
+Node: rate-limit53109
+Node: rate-limit-size53851
+Node: rate-limit-slip54522
+Node: system Example55106
+Node: keys55463
+Node: keys Syntax55770
+Node: keys Statement Definition and Usage55999
+Node: key_id56205
+Node: Example57167
+Node: interfaces57401
+Node: interfaces Syntax57736
+Node: interfaces Statement Definition and Usage58074
+Node: interface_id58316
+Node: interfaces Examples58680
+Node: remotes59159
+Node: remotes Syntax59758
+Node: remotes Statement Definition and Grammar60197
+Node: remote_id60467
+Node: address60667
+Node: port60886
+Node: key61140
+Node: via61355
+Node: remotes Examples61585
+Node: groups62111
+Node: groups Syntax62801
+Node: groups Statement Definition and Grammar63019
+Node: group_id63277
+Node: groups_remote_id63484
+Node: groups Examples63731
+Node: control64137
+Node: control Syntax64674
+Node: control Statement Definition and Grammar65042
+Node: control Examples65625
+Node: zones66107
+Node: zones Syntax66451
+Node: zones Statement Definition and Grammar67411
+Node: zone_id67843
+Node: file68231
+Node: xfr-in68575
+Node: xfr-out68914
+Node: notify-in69259
+Node: notify-out69507
+Node: update-in69762
+Node: semantic-checks70105
+Node: ixfr-from-differences70524
+Node: disable-any71081
+Node: notify-timeout71468
+Node: notify-retries71813
+Node: zonefile-sync72132
+Node: ixfr-fslimit72842
+Node: zones Example73248
+Node: zones List of zone semantic checks74070
+Node: log75870
+Node: log Syntax76093
+Node: log Statement Definition and Grammar76417
+Node: log_name77127
+Node: category77456
+Node: severity77923
+Node: log_file78665
+Node: log Example78920
+Node: include79303
+Node: include Syntax79772
+Node: include Examples79910
 
 End Tag Table
