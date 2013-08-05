@@ -30,8 +30,8 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-#ifndef YY_CF_Y_TAB_H_INCLUDED
-# define YY_CF_Y_TAB_H_INCLUDED
+#ifndef YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED
+# define YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED
 /* Enabling traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -170,7 +170,7 @@ extern int cf_debug;
 typedef union YYSTYPE
 {
 /* Line 2053 of yacc.c  */
-#line 386 "knot/conf/cf-parse.y"
+#line 421 "knot/conf/cf-parse.y"
 
     struct {
        char *t;
@@ -203,4 +203,4 @@ int cf_parse ();
 #endif
 #endif /* ! YYPARSE_PARAM */
 
-#endif /* !YY_CF_Y_TAB_H_INCLUDED  */
+#endif /* !YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED  */
