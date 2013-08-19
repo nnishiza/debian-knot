@@ -1,6 +1,6 @@
 [Unit]
 Description=Knot DNS server
-After=syslog.target network.target
+After=network.target
 
 [Service]
 Environment=CONFFILE=/etc/knot/knot.conf
