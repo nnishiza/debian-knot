@@ -1257,6 +1257,8 @@ static int ns_put_nsec_nsec3_nodata(const knot_zone_contents_t *zone,
 			dbg_ns_detail("Putting the RRSet to Authority\n");
 			ret = knot_response_add_rrset_authority(resp, rrset, 1,
 			                                        0, 1);
+		} else {
+			return KNOT_ENONODE;
 		}
 	} else {
 		dbg_ns_verb("Adding NSEC for NODATA\n");
@@ -1739,10 +1741,12 @@ static inline int ns_referral(const knot_node_t *node,
 		node = knot_node_parent(node);
 	}
 
+	int at_deleg = !knot_dname_compare(qname, knot_node_owner(node));
+
 	int ret = KNOT_EOK;
 
 	// Special handling of DS queries
-	if (qtype == KNOT_RRTYPE_DS) {
+	if (qtype == KNOT_RRTYPE_DS && at_deleg) {
 		knot_rrset_t *ds_rrset = knot_node_get_rrset(node,
 		                                             KNOT_RRTYPE_DS);
 
@@ -1762,7 +1766,15 @@ static inline int ns_referral(const knot_node_t *node,
 
 			dbg_ns_verb("Adding NSEC/NSEC3 for NODATA.\n");
 			ret = ns_put_nsec_nsec3_nodata(zone, node, resp);
-			if (ret != KNOT_EOK) {
+
+			if (ret == KNOT_ENONODE) {
+				// No NSEC3 node => Opt-out
+				const knot_node_t *closest_encloser = node;
+				ret = ns_put_nsec3_closest_encloser_proof(zone,
+				                              &closest_encloser,
+				                              qname, resp);
+
+			} else if (ret != KNOT_EOK) {
 				return ret;
 			}
 
@@ -2180,7 +2192,7 @@ dbg_ns_exec_verb(
 		dbg_ns_verb(" and previous node: (nil).\n");
 	}
 );
-	if (find_ret == KNOT_EBADZONE) {
+	if (find_ret == KNOT_EOUTOFZONE) {
 		// possible only if we followed CNAME or DNAME
 		assert(cname != 0);
 		knot_response_set_rcode(resp, KNOT_RCODE_NOERROR);
@@ -3135,7 +3147,6 @@ knot_nameserver_t *knot_ns_create()
 
 	ns->identity = NULL;
 	ns->version = NULL;
-	ns->hostname = NULL;
 
 	knot_packet_free(&err);
 

@@ -9,6 +9,8 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+DEB_HOST_ARCH        ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+
 %:
 	dh $@ --with autoreconf,systemd
 
@@ -26,6 +28,13 @@ override_dh_auto_make:
 
 override_dh_auto_install:
 	dh_auto_install -- install-info install-pdf install-html
+
+override_dh_auto_test:
+ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),armel mips powerpc s390 s390x sparc))
+	:
+else
+	dh_auto_test
+endif
 
 override_dh_strip:
 	dh_strip --dbg-package=knot-dbg

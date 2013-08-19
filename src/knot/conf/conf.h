@@ -50,7 +50,7 @@
 #define CONFIG_REPLY_WD 10 /*!< SOA/NOTIFY query timeout [s]. */
 #define CONFIG_HANDSHAKE_WD 10 /*!< [secs] for connection to make a request.*/
 #define CONFIG_IDLE_WD  60 /*!< [secs] of allowed inactivity between requests */
-#define CONFIG_RRL_SLIP 2 /*!< Default slip value. */
+#define CONFIG_RRL_SLIP 1 /*!< Default slip value. */
 #define CONFIG_RRL_SIZE 393241 /*!< Htable default size. */
 #define CONFIG_XFERS 10
 
@@ -190,9 +190,8 @@ typedef struct conf_t {
 	 * System
 	 */
 	char *filename; /*!< Name of the config file. */
-	char *identity; /*!< Identity to return on CH TXT id.server. */
-	char *hostname; /*!< Host name to return on CH TXT hostname.{bind,server} */
-	char *version;  /*!< Version for CH TXT version.{bind|server} */
+	char *identity; /*!< Identity to return on CH TXT id.server. or hostname.bind. */
+	char *version;  /*!< Version for CH TXT version.{bind|server}. */
 	char *storage;  /*!< Persistent storage path for databases and such. */
 	char *rundir;   /*!< Run-time directory path. */
 	char *pidfile;  /*!< PID file location. */

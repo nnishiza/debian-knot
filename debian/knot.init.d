@@ -31,9 +31,6 @@ KNOT_RUNDIR=$(sed -ne "s/#.*$//;s/.*rundir \"*\([^\";]*\\).*/\\1/p;" $DAEMON_CON
 
 PIDFILE=${KNOT_RUNDIR}/knot.pid
 
-# Load the VERBOSE setting and other rcS variables
-. /lib/init/vars.sh
-
 # Define LSB log_* functions.
 # Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
 . /lib/lsb/init-functions

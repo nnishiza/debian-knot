@@ -573,6 +573,8 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 		return KNOT_EINVAL;
 	}
 
+	log_server_info("Knot DNS %s starting.\n", PACKAGE_VERSION);
+
 	/* Estimate number of threads/manager. */
 	int ret = KNOT_EOK;
 	int tu_size = conf->workers;
@@ -592,7 +594,10 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 		if (udp_size < 2) udp_size = 2;
 		dt_unit_t *tu = dt_create_coherent(udp_size, &udp_master, NULL);
 		server_init_handler(server->h + IO_UDP, server, tu, NULL);
-		tu = dt_create(tu_size * 2);
+
+		/* Create at least CONFIG_XFERS threads for TCP for faster
+		 * processing of massive bootstrap queries. */
+		tu = dt_create(MAX(tu_size * 2, CONFIG_XFERS));
 		server_init_handler(server->h + IO_TCP, server, tu, NULL);
 		tcp_loop_unit(server->h + IO_TCP, tu);
 		if (server->state & ServerRunning) {
@@ -614,9 +619,16 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 	}
 	if (server->rrl) {
 		if (rrl_rate(server->rrl) != (uint32_t)conf->rrl) {
+			/* We cannot free it, threads may use it.
+			 * Setting it to <1 will disable rate limiting. */
+			if (conf->rrl < 1) {
+				log_server_info("Rate limiting disabled.\n");
+			} else {
+				log_server_info("Rate limiting set to %u "
+				                "responses/sec.\n", conf->rrl);
+			}
 			rrl_setrate(server->rrl, conf->rrl);
-			log_server_info("Rate limiting set to %u responses/sec.\n",
-			                conf->rrl);
+
 		} /* At this point, old buckets will converge to new rate. */
 	}
 

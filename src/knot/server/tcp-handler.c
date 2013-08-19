@@ -25,6 +25,9 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAVE_SYS_UIO_H			// struct iovec (OpenBSD)
+#include <sys/uio.h>
+#endif // HAVE_SYS_UIO_H
 #ifdef HAVE_CAP_NG_H
 #include <cap-ng.h>
 #endif /* HAVE_CAP_NG_H */
@@ -403,44 +406,22 @@ static void tcp_loop_free(void *data)
 
 int tcp_send(int fd, uint8_t *msg, size_t msglen)
 {
+	/* Create iovec for gathered write. */
+	struct iovec iov[2];
+	uint16_t pktsize = htons(msglen);
+	iov[0].iov_base = &pktsize;
+	iov[0].iov_len = sizeof(uint16_t);
+	iov[1].iov_base = msg;
+	iov[1].iov_len = msglen;
 
-	/*! \brief TCP corking.
-	 *  \see http://vger.kernel.org/~acme/unbehaved.txt
-	 */
-#ifdef TCP_CORK
-	int cork = 1;
-	int uncork = setsockopt(fd, SOL_TCP, TCP_CORK, &cork, sizeof(cork));
-#endif
-
-	/* Flags. */
-	int flags = 0;
-#ifdef MSG_NOSIGNAL
-	flags |= MSG_NOSIGNAL;
-#endif
-
-	/* Send message size. */
-	unsigned short pktsize = htons(msglen);
-	int sent = send(fd, &pktsize, sizeof(pktsize), flags);
-	if (sent < 0) {
+	/* Send. */
+	int total_len = iov[0].iov_len + iov[1].iov_len;
+	int sent = writev(fd, iov, 2);
+	if (sent != total_len) {
 		return KNOT_ERROR;
 	}
 
-	/* Send message data. */
-	sent = send(fd, msg, msglen, flags);
-	if (sent < 0) {
-		return KNOT_ERROR;
-	}
-
-#ifdef TCP_CORK
-	/* Uncork only if corked successfuly. */
-	if (uncork == 0) {
-		cork = 0;
-		if (setsockopt(fd, SOL_TCP, TCP_CORK, &cork, sizeof(cork)) < 0) {
-			dbg_net("tcp: failed to uncork socket\n");
-		}
-	}
-#endif
-	return sent;
+	return msglen; /* Do not count the size prefix. */
 }
 
 int tcp_recv(int fd, uint8_t *buf, size_t len, sockaddr_t *addr)
@@ -542,22 +523,36 @@ int tcp_loop_master(dthread_t *thread)
 			break;
 		}
 
-		for (unsigned i = 0; nfds > 0 && i < set.n; ++i) {
-			/* Skip inactive. */
-			if (!(set.pfd[i].revents & POLLIN))
+		unsigned i = 0;
+		while (nfds > 0 && i < set.n && !dt_is_cancelled(thread)) {
+
+			/* Error events. */
+			if (set.pfd[i].revents & (POLLERR|POLLHUP|POLLNVAL)) {
+				socket_close(set.pfd[i].fd);
+				fdset_remove(&set, i);
+				--nfds;   /* Treat error event as activity. */
+				continue; /* Stay on the same index. */
+			} else if (!(set.pfd[i].revents & POLLIN)) {
+				/* Inactive sockets. */
+				++i;
 				continue;
+			}
 
 			/* Accept client. */
 			--nfds; /* One less active event. */
 			int client = tcp_accept(set.pfd[i].fd);
-			if (client < 0)
-				continue;
+			if (client >= 0) {
+				/* Add to worker in RR fashion. */
+				id = get_next_rr(id, unit->size - 1);
+				ret = write(workers[id]->pipe[1], &client,
+				            sizeof(int));
+				if (ret < 0) {
+					close(client);
+				}
+			}
 
-			/* Add to worker in RR fashion. */
-			id = get_next_rr(id, unit->size - 1);
-			ret = write(workers[id]->pipe[1], &client, sizeof(int));
-			if (ret < 0)
-				close(client);
+			/* Next socket. */
+			++i;
 		}
 	}
 
@@ -609,19 +604,25 @@ int tcp_loop_worker(dthread_t *thread)
 
 		/* Process incoming events. */
 		unsigned i = 0;
-		while (nfds > 0 && i < set->n) {
+		while (nfds > 0 && i < set->n && !dt_is_cancelled(thread)) {
 
-			if (!(set->pfd[i].revents & set->pfd[i].events)) {
+			/* Terminate faulty connections. */
+			int fd = set->pfd[i].fd;
+			if (set->pfd[i].revents & (POLLERR|POLLHUP|POLLNVAL)) {
+				fdset_remove(set, i);
+				close(fd);
+				--nfds;   /* Treat error event as activity. */
+				continue; /* Stay on the same index. */
+			} else if (!(set->pfd[i].revents & set->pfd[i].events)) {
 				/* Skip inactive. */
 				++i;
 				continue;
-			} else {
-				/* One less active event. */
-				--nfds;
 			}
 
+			/* One less active event. */
+			--nfds;
+
 			/* Register new TCP client or process a query. */
-			int fd = set->pfd[i].fd;
 			if (fd == w->pipe[0]) {
 				tcp_loop_assign(fd, set);
 			} else {

@@ -321,14 +321,17 @@ static int xfr_task_close(knot_ns_xfr_t *rq)
 
 	/* Reschedule failed bootstrap. */
 	if (rq->type == XFR_TYPE_AIN && !knot_zone_contents(rq->zone)) {
-		int tmr_s = AXFR_BOOTSTRAP_RETRY * tls_rand();
+		/* Progressive retry interval up to AXFR_RETRY_MAXTIME */
+		zd->xfr_in.bootstrap_retry += AXFR_BOOTSTRAP_RETRY * tls_rand();
+		if (zd->xfr_in.bootstrap_retry > AXFR_RETRY_MAXTIME)
+			zd->xfr_in.bootstrap_retry = AXFR_RETRY_MAXTIME;
 		event_t *ev = zd->xfr_in.timer;
 		if (ev) {
 			evsched_cancel(ev->parent, ev);
-			evsched_schedule(ev->parent, ev, tmr_s);
+			evsched_schedule(ev->parent, ev, zd->xfr_in.bootstrap_retry);
 		}
 		log_zone_notice("%s Bootstrap failed, next attempt in %d seconds.\n",
-		                rq->msg, tmr_s / 1000);
+		                rq->msg, zd->xfr_in.bootstrap_retry / 1000);
 	}
 
 	/* Close socket and free task. */
@@ -1101,21 +1104,23 @@ int xfr_worker(dthread_t *thread)
 		unsigned i = 0;
 		while (nfds > 0 && i < set.n && !dt_is_cancelled(thread)) {
 
-			if (!(set.pfd[i].revents & set.pfd[i].events)) {
-				/* Skip inactive. */
-				++i;
-				continue;
-			} else {
+			knot_ns_xfr_t *rq = (knot_ns_xfr_t *)set.ctx[i];
+			if (set.pfd[i].revents & (POLLERR|POLLHUP|POLLNVAL)) {
+				/* Error events. */
+				--nfds;           /* Treat error event as activity. */
+				ret = KNOT_ECONN; /* Force disconnect */
+			} else if (set.pfd[i].revents & set.pfd[i].events) {
 				/* One less active event. */
 				--nfds;
-			}
-
-			/* Process pending tasks. */
-			knot_ns_xfr_t *rq = (knot_ns_xfr_t *)set.ctx[i];
-			if (rq->flags & XFR_FLAG_CONNECTING) {
-				ret = xfr_async_finish(&set, i);
+				/* Process pending tasks. */
+				if (rq->flags & XFR_FLAG_CONNECTING)
+					ret = xfr_async_finish(&set, i);
+				else
+					ret = xfr_process_event(w, rq);
 			} else {
-				ret = xfr_process_event(w, rq);
+				/* Inactive connection. */
+				++i;
+				continue;
 			}
 
 			/* Check task state. */
@@ -1126,6 +1131,9 @@ int xfr_worker(dthread_t *thread)
 				socket_close(set.pfd[i].fd);
 				fdset_remove(&set, i);
 				continue; /* Stay on the same index. */
+			} else {
+				/* Connection is active, update watchdog. */
+				fdset_set_watchdog(&set, i, conf()->max_conn_idle);
 			}
 
 			/* Next active. */
