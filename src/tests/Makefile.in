@@ -84,8 +84,6 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp $(top_srcdir)/test-driver
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
-	$(top_srcdir)/m4/ax_ext.m4 \
-	$(top_srcdir)/m4/ax_gcc_x86_cpuid.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
 	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/visibility.m4 \
@@ -101,11 +99,10 @@ am_unittests_OBJECTS = common/acl_tests.$(OBJEXT) \
 	common/base32hex_tests.$(OBJEXT) common/base64_tests.$(OBJEXT) \
 	common/descriptor_tests.$(OBJEXT) \
 	common/events_tests.$(OBJEXT) common/fdset_tests.$(OBJEXT) \
-	common/skiplist_tests.$(OBJEXT) common/hattrie_tests.$(OBJEXT) \
-	common/slab_tests.$(OBJEXT) knot/conf_tests.$(OBJEXT) \
-	knot/dthreads_tests.$(OBJEXT) knot/journal_tests.$(OBJEXT) \
-	knot/server_tests.$(OBJEXT) knot/rrl_tests.$(OBJEXT) \
-	zscanner/zscanner_tests.$(OBJEXT) \
+	common/hattrie_tests.$(OBJEXT) common/slab_tests.$(OBJEXT) \
+	knot/conf_tests.$(OBJEXT) knot/dthreads_tests.$(OBJEXT) \
+	knot/journal_tests.$(OBJEXT) knot/server_tests.$(OBJEXT) \
+	knot/rrl_tests.$(OBJEXT) zscanner/zscanner_tests.$(OBJEXT) \
 	libknot/dname_tests.$(OBJEXT) libknot/ztree_tests.$(OBJEXT) \
 	libknot/wire_tests.$(OBJEXT) libknot/rrset_tests.$(OBJEXT) \
 	libknot/sign_tests.$(OBJEXT) unittests_main.$(OBJEXT)
@@ -453,7 +450,6 @@ RELEASE_DATE = @RELEASE_DATE@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
-SIMD_FLAGS = @SIMD_FLAGS@
 STRIP = @STRIP@
 VERSION = @VERSION@
 YACC = @YACC@
@@ -544,8 +540,6 @@ unittests_SOURCES = \
 	common/events_tests.h		\
 	common/fdset_tests.c		\
 	common/fdset_tests.h		\
-	common/skiplist_tests.c		\
-	common/skiplist_tests.h		\
 	common/hattrie_tests.c		\
 	common/hattrie_tests.h		\
 	common/slab_tests.c		\
@@ -637,8 +631,6 @@ common/events_tests.$(OBJEXT): common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/fdset_tests.$(OBJEXT): common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
-common/skiplist_tests.$(OBJEXT): common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
 common/hattrie_tests.$(OBJEXT): common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/slab_tests.$(OBJEXT): common/$(am__dirstamp) \
@@ -706,7 +698,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/events_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/fdset_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/hattrie_tests.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/skiplist_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/slab_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/$(DEPDIR)/conf_tests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/$(DEPDIR)/dthreads_tests.Po@am__quote@

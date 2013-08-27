@@ -92,8 +92,6 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
-	$(top_srcdir)/m4/ax_ext.m4 \
-	$(top_srcdir)/m4/ax_gcc_x86_cpuid.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
 	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/visibility.m4 \
@@ -143,13 +141,12 @@ libknots_la_DEPENDENCIES = libzscanner.la @LIBOBJS@
 am_libknots_la_OBJECTS = common/slab/slab.lo common/libtap/tap.lo \
 	common/mempattern.lo common/descriptor.lo common/lists.lo \
 	common/base64.lo common/heap.lo common/print.lo \
-	common/skip-list.lo common/base32hex.lo common/evqueue.lo \
-	common/evsched.lo common/acl.lo common/sockaddr.lo \
-	common/ref.lo common/errors.lo common/errcode.lo \
-	common/dSFMT.lo common/prng.lo common/fdset.lo \
-	common/getline.lo common/log.lo common/mempool.lo \
-	common/hattrie/ahtable.lo common/hattrie/hat-trie.lo \
-	common/hattrie/murmurhash3.lo
+	common/base32hex.lo common/evqueue.lo common/evsched.lo \
+	common/acl.lo common/sockaddr.lo common/ref.lo \
+	common/errors.lo common/errcode.lo common/dSFMT.lo \
+	common/prng.lo common/fdset.lo common/getline.lo common/log.lo \
+	common/mempool.lo common/hattrie/ahtable.lo \
+	common/hattrie/hat-trie.lo common/hattrie/murmurhash3.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
 libzscanner_la_DEPENDENCIES = @LIBOBJS@
 am_libzscanner_la_OBJECTS = zscanner/file_loader.lo \
@@ -392,7 +389,6 @@ RELEASE_DATE = @RELEASE_DATE@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
-SIMD_FLAGS = @SIMD_FLAGS@
 STRIP = @STRIP@
 VERSION = @VERSION@
 YACC = @YACC@
@@ -632,9 +628,7 @@ libknots_la_SOURCES = \
 	common/heap.c				\
 	common/print.c				\
 	common/print.h				\
-	common/skip-list.c			\
 	common/base32hex.c			\
-	common/skip-list.h			\
 	common/base32hex.h			\
 	common/evqueue.h			\
 	common/evqueue.c			\
@@ -1032,8 +1026,6 @@ common/heap.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/print.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
-common/skip-list.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
 common/base32hex.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/evqueue.lo: common/$(am__dirstamp) \
@@ -1395,7 +1387,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/print.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/prng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/ref.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/skip-list.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/sockaddr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/hattrie/$(DEPDIR)/ahtable.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/hattrie/$(DEPDIR)/hat-trie.Plo@am__quote@
