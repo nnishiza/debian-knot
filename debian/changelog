@@ -1,3 +1,14 @@
+knot (1.3.1-1) unstable; urgency=low
+
+  * New upstream version 1.3.1
+  * Add new debian/watch file (Courtesy of Debian QA)
+  * Bump standards to 3.9.4
+  * Stop using /lib/init/vars.sh, we don't use $VERBOSE anymore anyway
+  * Drop syslog.target as it is not needed anymore
+  * Remove SSE detection patch as it was merged upstream
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 27 Aug 2013 14:27:44 +0200
+
 knot (1.3.0-2) unstable; urgency=low
 
   * Disable SSE detection in the packaged version of Knot DNS
