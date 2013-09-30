@@ -21,6 +21,7 @@ override_dh_auto_configure:
 	  --libexecdir=/usr/lib/knot \
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
+	  --enable-lto \
 	  --disable-silent-rules
 
 override_dh_auto_make:
