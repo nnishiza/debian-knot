@@ -18,6 +18,9 @@
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
+/* Define to 1 if you have the `be64toh' function. */
+#undef HAVE_BE64TOH
+
 /* Define to 1 if you have the <cap-ng.h> header file. */
 #undef HAVE_CAP_NG_H
 
@@ -175,6 +178,9 @@
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
 
 /* Name of package */
 #undef PACKAGE

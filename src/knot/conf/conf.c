@@ -70,17 +70,24 @@ static void cf_print_error(void *scanner, const char *msg)
 	int lineno = -1;
 	char *text = "?";
 	char *filename = NULL;
+	conf_include_t *inc = NULL;
+
 	if (scanner) {
 		extra = cf_get_extra(scanner);
 		lineno = cf_get_lineno(scanner);
-		text = cf_get_text(scanner);
-		filename = conf_includes_top(extra->includes);
-
+		inc = conf_includes_top(extra->includes);
 		extra->error = true;
 	}
 
-	if (!filename)
+	if (extra && lineno != 0) {
+		text = cf_get_text(scanner);
+	}
+
+	if (inc && inc->filename) {
+		filename = inc->filename;
+	} else {
 		filename = new_config->filename;
+	}
 
 	log_server_error("Config error in '%s' (line %d token '%s') - %s\n",
 			 filename, lineno, text, msg);
@@ -524,6 +531,7 @@ conf_t *conf_new(const char* path)
 	c->notify_retries = CONFIG_NOTIFY_RETRIES;
 	c->notify_timeout = CONFIG_NOTIFY_TIMEOUT;
 	c->dbsync_timeout = CONFIG_DBSYNC_TIMEOUT;
+	c->max_udp_payload = EDNS_MAX_UDP_PAYLOAD;
 	c->ixfr_fslimit = -1;
 	c->uid = -1;
 	c->gid = -1;

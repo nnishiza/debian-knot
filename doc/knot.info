@@ -1,7 +1,7 @@
-This is ./knot.info, produced by makeinfo version 4.8 from ./knot.texi.
+This is knot.info, produced by makeinfo version 4.13 from knot.texi.
 
-This manual is for Knot DNS (version 1.3.1, 9 August 2013), which is a
-high-performance authoritative-only DNS server.
+This manual is for Knot DNS (version 1.3.2, 30 September 2013), which
+is a high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
 
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.3.1, 9 August 2013).
+This manual is for Knot DNS (version 1.3.2, 30 September 2013).
 
 * Menu:
 
@@ -502,7 +502,7 @@ For example:
      $ ./configure --enable-debug=server,packet --enable-debuglevel=brief
      $ ./configure --enable-debug=server,packet --enable-debuglevel=verbose
 
-For more detailed information, see *Note Debug messages::.
+For more detailed information, see *note Debug messages::.
 
 In most simple case you can just run configure without any options.
 
@@ -732,14 +732,14 @@ can be used as a base for your Knot DNS setup.
 Now let's go step by step through this minimal configuration file:
 
   1. In `system' statement we have configured `storage' directory where
-     Knot DNS will store slave zones and journal files.  (See *Note
-     system:: and *Note storage::)
+     Knot DNS will store slave zones and journal files.  (See *note
+     system:: and *note storage::)
 
   2. The `interfaces' statement defines interfaces where Knot DNS will
      listen for incoming connections. We have defined two interfaces:
      one IPv4 called `my_interface' explicitly listening on port 53 and
      second IPv6 called `second_int' also listening on port 53, which
-     is the default port for the DNS. See *Note interfaces::.
+     is the default port for the DNS. See *note interfaces::.
 
   3. The `log' statement defines the log facilities for Knot DNS.  In
      this example we told Knot DNS to send its log messages with the
@@ -747,7 +747,7 @@ Now let's go step by step through this minimal configuration file:
      you omit this sections, all severities will printed to either
      `stdout' or `stderr', and the severities from the `warning' and
      more serious to syslog. You can find all possible combinations in
-     the *Note log::.
+     the *note log::.
 
   4. The `zones' statement is probably the most important one, because
      it defines the zones that Knot DNS will serve.  In its most simple
@@ -766,7 +766,7 @@ the zone master. If `update-in' is set and zone has a master, any
 accepted DNS UPDATE will be forwarded to master.  Also note that you
 need to explicitly allow incoming NOTIFY, otherwise the daemon would
 reject them.  Also, you can specify paths, relative to the storage
-directory.  See *Note zones:: and *Note storage::.  If the zone file
+directory.  See *note zones:: and *note storage::.  If the zone file
 doesn't exist and `xfr-in' is set, it will be bootstrapped over AXFR.
 
      remotes {
@@ -788,7 +788,7 @@ configure a TSIG key and assign it to a remote.  Supported algorithms
 for TSIG key are:
 `hmac-md5, hmac-sha1, hmac-sha224, hmac-sha256, hmac-sha384,
 hmac-sha512'
-Key secret is written in a base64 encoded format. See *Note keys::.
+Key secret is written in a base64 encoded format. See *note keys::.
 
      keys {
        key0 hmac-md5 "Wg=="; # keyname algorithm secret
@@ -929,7 +929,7 @@ File: knot.info,  Node: Enabling zone semantic checks,  Next: Creating IXFR diff
 =================================
 
 You can turn on more detailed semantic checks of zone file in this
-`zones' statement (*note zones::). Refer to *Note zones List of zone
+`zones' statement (*note zones::). Refer to *note zones List of zone
 semantic checks:: to see which checks are enabled by default and which
 are optional.
 
@@ -941,9 +941,9 @@ File: knot.info,  Node: Creating IXFR differences from zone file changes,  Next:
 
 If Knot is being run as a master server, experimental feature
 `ixfr-from-differences' can be enabled to create IXFR differences from
-changes made to the master zone file.  See *Note Controlling running
+changes made to the master zone file.  See *note Controlling running
 daemon:: for more information. For more about `zones' statement see
-*Note zones::.
+*note zones::.
 
 
 File: knot.info,  Node: Using Response Rate Limiting,  Prev: Creating IXFR differences from zone file changes,  Up: Knot DNS Configuration
@@ -959,13 +959,13 @@ could then exploit DNS server responding to every query, potentially
 flooding the victim with a large unsolicited DNS responses.
 
 As of Knot DNS version 1.2.0, RRL is compiled in, but disabled by
-default.  You can enable it with the *Note rate-limit:: option in the
-*Note system:: section.  Setting to a value greater than `0' means that
+default.  You can enable it with the *note rate-limit:: option in the
+*note system:: section.  Setting to a value greater than `0' means that
 every flow is allowed N responses per second, (i.e. `rate-limit 50;'
 means `50' responses per second).  It is also possible to configure
 SLIP interval, which causes every Nth blocked response to be slipped as
 a truncated response. Not that some error responses cannot be truncated
-and are slipped as-is.  For more information, refer to *Note
+and are slipped as-is.  For more information, refer to *note
 rate-limit-slip::.  It is advisable to not set slip interval to a value
 larger than 1.
 
@@ -1088,7 +1088,7 @@ foreground mode, PID file will be created in `rundir' directory.
      $ knotd -d -c slave.conf # start the daemon
      $ knotc -c slave.conf stop # stop the daemon
 
-When the server is running, you can control the daemon, see *Note
+When the server is running, you can control the daemon, see *note
 Controlling running daemon::.
 
 
@@ -1128,7 +1128,7 @@ restarting the server. This can be done with the `knotc reload' action.
      $ knotc -c master.conf reload  # reconfigure and load updated zones
 
 If you want _IXFR-out_ differences created from changes you make to a
-zone file, enable *Note ixfr-from-differences:: in `zones' statement,
+zone file, enable *note ixfr-from-differences:: in `zones' statement,
 then reload your server as seen above.  If _SOA_'s _serial_ is not
 changed no differences will be created. Please note that this feature
 is in _experimental_ stage and should be used with care.  If you
@@ -1323,6 +1323,7 @@ Statement Index
 * max-conn-hs:                           max-conn-hs.           (line 6)
 * max-conn-idle:                         max-conn-idle.         (line 6)
 * max-conn-reply:                        max-conn-reply.        (line 6)
+* max-udp-payload:                       max-udp-payload.       (line 6)
 * notify-in:                             notify-in.             (line 6)
 * notify-out:                            notify-out.            (line 6)
 * notify-retries:                        notify-retries.        (line 6)
@@ -1409,6 +1410,7 @@ A.1.1 `system' Syntax
        [ `rate-limit' integer`;' ]
        [ `rate-limit-size' integer`;' ]
        [ `rate-limit-slip' integer`;' ]
+       [ `max-udp-payload' integer`;' ]
      `}'
 
 
@@ -1434,6 +1436,7 @@ A.1.2 Statement Definition and Usage
 * rate-limit::
 * rate-limit-size::
 * rate-limit-slip::
+* max-udp-payload::
 
 
 File: knot.info,  Node: identity,  Next: version,  Up: system Statement Definition and Usage
@@ -1636,7 +1639,7 @@ is to select a prime near `1.2 * maximum_qps'.
 Default value: `393241'
 
 
-File: knot.info,  Node: rate-limit-slip,  Prev: rate-limit-size,  Up: system Statement Definition and Usage
+File: knot.info,  Node: rate-limit-slip,  Next: max-udp-payload,  Prev: rate-limit-size,  Up: system Statement Definition and Usage
 
 A.1.2.15 rate-limit-slip
 ........................
@@ -1651,14 +1654,24 @@ responses can't be truncated (f.e. SERVFAIL).
 Default value: `1'
 
 
+File: knot.info,  Node: max-udp-payload,  Prev: rate-limit-slip,  Up: system Statement Definition and Usage
+
+A.1.2.16 max-udp-payload
+........................
+
+Maximum EDNS0 UDP payload size.
+
+Default value: `4096'
+
+
 File: knot.info,  Node: system Example,  Prev: system Statement Definition and Usage,  Up: system
 
 A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.3.1";
-       version "1.3.1";
+       identity "Knot DNS 1.3.2";
+       version "1.3.2";
        nsid    "amaterasu";
        storage "/var/lib/knot";
        rundir "/var/run/knot";
@@ -1960,10 +1973,10 @@ A.5 `groups' Statement
 ======================
 
 The `groups' statement is used to create groups of remote machines
-defined in *Note remotes:: statement. The group can substitute multiple
+defined in *note remotes:: statement. The group can substitute multiple
 machines specification anywhere in the configuration where the list of
-remotes is allowed to be used (namely `allow' in *Note control::
-section and ACLs in *Note zones:: section).
+remotes is allowed to be used (namely `allow' in *note control::
+section and ACLs in *note zones:: section).
 
 The remotes definitions must exist prior to using them in group
 definitions.  One remote can be a member of multiple groups.
@@ -2011,7 +2024,7 @@ A.5.2.2 `remote_id'
 ...................
 
 `remote_id' contains a symbolic name for a remote server as specified in
-*Note remotes:: section.
+*note remotes:: section.
 
 
 File: knot.info,  Node: groups Examples,  Prev: groups Statement Definition and Grammar,  Up: groups
@@ -2080,7 +2093,7 @@ A.6.2 Statement Definition and Grammar
 --------------------------------------
 
 Control interface `listen-on' either defines a UNIX socket or an
-IPv4/IPv6 `interface' definition as in *Note interfaces::.  Default
+IPv4/IPv6 `interface' definition as in *note interfaces::.  Default
 port for IPv4/v6 control interface is `5533', however UNIX socket is
 preferred.  UNIX socket address is relative to `rundir' if not
 specified as an absolute path. Without any configuration, the socket
@@ -2252,7 +2265,7 @@ A.7.2.8 semantic-checks
 .......................
 
 `semantic-checks' statement turns on optional semantic checks for this
-particular zone.  See *Note zones List of zone semantic checks:: for
+particular zone.  See *note zones List of zone semantic checks:: for
 more information.
 
 Possible values are `on' and `off'.  Most checks are disabled by
@@ -2267,7 +2280,7 @@ A.7.2.9 ixfr-from-differences
 EXPERIMENTAL: option `ixfr-from-differences' is only relevant if you
 are running Knot DNS as a master for this zone.  By turning the feature
 on you tell Knot to create differences from changes you made to a zone
-file upon server reload.  See *Note Controlling running daemon:: for
+file upon server reload.  See *note Controlling running daemon:: for
 more information.
 
 Possible values are `on' and `off'. Disabled by default.
@@ -2309,7 +2322,7 @@ A.7.2.13 zonefile-sync
 
 `zonefile-sync' is only relevant in a slave server scenario and only
 after receiving IXFR. It is a time in seconds after which current zone
-in memory will be synced to its file on a disk (as set in *Note
+in memory will be synced to its file on a disk (as set in *note
 file::). Knot DNS will serve the latest zone even after restart, but
 zone file on a disk will only be synced after `zonefile-sync' time has
 expired. Possible values are 1 to INT_MAX, optionally suffixed by unit
@@ -2579,129 +2592,135 @@ A.9.2 Examples
 
 
 Tag Table:
-Node: Top1040
-Node: Introduction4046
-Node: What is Knot DNS4344
-Node: Knot DNS features4862
-Node: Scope of this document5883
-Node: Knot DNS Resource Requirements6145
-Node: Hardware requirements6443
-Node: CPU requirements7083
-Node: Memory requirements7468
-Node: Supported operating system8184
-Node: Knot DNS Installation8652
-Node: Required build environment8959
-Node: Required libraries9583
-Node: Userspace RCU10388
-Node: Installation from the sources11340
-Node: Configuring and generating Makefiles11925
-Node: Compilation13583
-Node: Installation14159
-Node: Installation from packages14666
-Node: Installing Knot DNS packages on Debian15190
-Node: Installing Knot DNS packages on Ubuntu16168
-Node: Adding official PPA repository for Knot DNS17082
-Node: Installing Knot DNS packages on Fedora17710
-Node: Installing Knot DNS from ports on FreeBSD19109
-Node: Knot DNS Configuration19456
-Node: Minimal configuration20027
-Node: Slave configuration22040
-Node: Master configuration24036
-Node: Configuring multiple interfaces25082
-Node: Using DNS UPDATE25567
-Node: Remote control interface27134
-Node: Enabling zone semantic checks28226
-Node: Creating IXFR differences from zone file changes28693
-Node: Using Response Rate Limiting29266
-Node: Running Knot DNS30697
-Node: Running a slave server34315
-Node: Running a master server35611
-Node: Controlling running daemon36592
-Node: Troubleshooting37763
-Node: Submitting a bugreport38171
-Node: Generating backtrace39341
-Node: Debug messages40343
-Node: Enabling debug messages in server41013
-Node: Debug messages Example42573
-Node: Statement Index42772
-Node: Knot DNS Configuration Reference46522
-Node: system46888
-Node: system Syntax47249
-Node: system Statement Definition and Usage48125
-Node: identity48545
-Node: version49076
-Node: nsid49674
-Node: storage50101
-Node: rundir50458
-Node: pidfile50799
-Node: workers51098
-Node: user51483
-Node: max-conn-idle51917
-Node: max-conn-hs52232
-Node: max-conn-reply52593
-Node: transfers52824
-Node: rate-limit53109
-Node: rate-limit-size53851
-Node: rate-limit-slip54522
-Node: system Example55106
-Node: keys55463
-Node: keys Syntax55770
-Node: keys Statement Definition and Usage55999
-Node: key_id56205
-Node: Example57167
-Node: interfaces57401
-Node: interfaces Syntax57736
-Node: interfaces Statement Definition and Usage58074
-Node: interface_id58316
-Node: interfaces Examples58680
-Node: remotes59159
-Node: remotes Syntax59758
-Node: remotes Statement Definition and Grammar60197
-Node: remote_id60467
-Node: address60667
-Node: port60886
-Node: key61140
-Node: via61355
-Node: remotes Examples61585
-Node: groups62111
-Node: groups Syntax62801
-Node: groups Statement Definition and Grammar63019
-Node: group_id63277
-Node: groups_remote_id63484
-Node: groups Examples63731
-Node: control64137
-Node: control Syntax64674
-Node: control Statement Definition and Grammar65042
-Node: control Examples65625
-Node: zones66107
-Node: zones Syntax66451
-Node: zones Statement Definition and Grammar67411
-Node: zone_id67843
-Node: file68231
-Node: xfr-in68575
-Node: xfr-out68914
-Node: notify-in69259
-Node: notify-out69507
-Node: update-in69762
-Node: semantic-checks70105
-Node: ixfr-from-differences70524
-Node: disable-any71081
-Node: notify-timeout71468
-Node: notify-retries71813
-Node: zonefile-sync72132
-Node: ixfr-fslimit72842
-Node: zones Example73248
-Node: zones List of zone semantic checks74070
-Node: log75870
-Node: log Syntax76093
-Node: log Statement Definition and Grammar76417
-Node: log_name77127
-Node: category77456
-Node: severity77923
-Node: log_file78665
-Node: log Example78920
-Node: include79303
-Node: include Syntax79772
-Node: include Examples79910
+Node: Top1041
+Node: Introduction4051
+Node: What is Knot DNS4349
+Node: Knot DNS features4867
+Node: Scope of this document5888
+Node: Knot DNS Resource Requirements6150
+Node: Hardware requirements6448
+Node: CPU requirements7088
+Node: Memory requirements7473
+Node: Supported operating system8189
+Node: Knot DNS Installation8657
+Node: Required build environment8964
+Node: Required libraries9588
+Node: Userspace RCU10393
+Node: Installation from the sources11345
+Node: Configuring and generating Makefiles11930
+Node: Compilation13588
+Node: Installation14164
+Node: Installation from packages14671
+Node: Installing Knot DNS packages on Debian15195
+Node: Installing Knot DNS packages on Ubuntu16173
+Node: Adding official PPA repository for Knot DNS17087
+Node: Installing Knot DNS packages on Fedora17715
+Node: Installing Knot DNS from ports on FreeBSD19114
+Node: Knot DNS Configuration19461
+Node: Minimal configuration20032
+Node: Slave configuration22045
+Node: Master configuration24041
+Node: Configuring multiple interfaces25087
+Node: Using DNS UPDATE25572
+Node: Remote control interface27139
+Node: Enabling zone semantic checks28231
+Node: Creating IXFR differences from zone file changes28698
+Node: Using Response Rate Limiting29271
+Node: Running Knot DNS30702
+Node: Running a slave server34320
+Node: Running a master server35616
+Node: Controlling running daemon36597
+Node: Troubleshooting37768
+Node: Submitting a bugreport38176
+Node: Generating backtrace39346
+Node: Debug messages40348
+Node: Enabling debug messages in server41018
+Node: Debug messages Example42578
+Node: Statement Index42777
+Node: Knot DNS Configuration Reference46600
+Node: system46966
+Node: system Syntax47327
+Node: system Statement Definition and Usage48243
+Node: identity48683
+Node: version49214
+Node: nsid49812
+Node: storage50239
+Node: rundir50596
+Node: pidfile50937
+Node: workers51236
+Node: user51621
+Node: max-conn-idle52055
+Node: max-conn-hs52370
+Node: max-conn-reply52731
+Node: transfers52962
+Node: rate-limit53247
+Node: rate-limit-size53989
+Node: rate-limit-slip54660
+Node: max-udp-payload55268
+Node: system Example55486
+Node: keys55843
+Node: keys Syntax56150
+Node: keys Statement Definition and Usage56379
+Node: key_id56585
+Node: Example57547
+Node: interfaces57781
+Node: interfaces Syntax58116
+Node: interfaces Statement Definition and Usage58454
+Node: interface_id58696
+Node: interfaces Examples59060
+Node: remotes59539
+Node: remotes Syntax60138
+Node: remotes Statement Definition and Grammar60577
+Node: remote_id60847
+Node: address61047
+Node: port61266
+Node: key61520
+Node: via61735
+Node: remotes Examples61965
+Node: groups62491
+Node: groups Syntax63181
+Node: groups Statement Definition and Grammar63399
+Node: group_id63657
+Node: groups_remote_id63864
+Node: groups Examples64111
+Node: control64517
+Node: control Syntax65054
+Node: control Statement Definition and Grammar65422
+Node: control Examples66005
+Node: zones66487
+Node: zones Syntax66831
+Node: zones Statement Definition and Grammar67791
+Node: zone_id68223
+Node: file68611
+Node: xfr-in68955
+Node: xfr-out69294
+Node: notify-in69639
+Node: notify-out69887
+Node: update-in70142
+Node: semantic-checks70485
+Node: ixfr-from-differences70904
+Node: disable-any71461
+Node: notify-timeout71848
+Node: notify-retries72193
+Node: zonefile-sync72512
+Node: ixfr-fslimit73222
+Node: zones Example73628
+Node: zones List of zone semantic checks74450
+Node: log76250
+Node: log Syntax76473
+Node: log Statement Definition and Grammar76797
+Node: log_name77507
+Node: category77836
+Node: severity78303
+Node: log_file79045
+Node: log Example79300
+Node: include79683
+Node: include Syntax80152
+Node: include Examples80290
 
 End Tag Table
+
+
+Local Variables:
+coding: utf-8
+End:
