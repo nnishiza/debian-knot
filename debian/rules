@@ -11,6 +11,15 @@
 
 DEB_HOST_ARCH        ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
 
+GCC_VERSION=$(shell gcc --version | head -1 | sed -e 's/.* //' |cut -f 1-2 -d .)
+
+ifeq (,$(findstring $(GCC_VERSION),"4.4 4.5"))
+	LTO := --enable-lto
+else
+	LTO :=
+endif
+
+
 %:
 	dh $@ --with autoreconf
 
@@ -21,7 +30,7 @@ override_dh_auto_configure:
 	  --libexecdir=/usr/lib/knot \
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
-	  --enable-lto \
+	  $(LTO) \
 	  --disable-silent-rules
 
 override_dh_auto_make:
