@@ -21,7 +21,11 @@ override_dh_auto_configure:
 	  --libexecdir=/usr/lib/knot \
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
-	  $(LTO) \
+ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),hurd-i386))
+	  --enable-recvmmsg=no \
+else
+	  --enable-recvmmsg=yes \
+endif
 	  --disable-silent-rules
 
 override_dh_auto_make:
