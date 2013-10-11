@@ -26,6 +26,7 @@ ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),hurd-i386))
 else
 	  --enable-recvmmsg=yes \
 endif
+	  --enable-fastparser \
 	  --disable-silent-rules
 
 override_dh_auto_make:

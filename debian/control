@@ -8,6 +8,7 @@ Build-Depends: debhelper (>= 9),
 	       libssl-dev,
 	       flex,
 	       bison,
+	       ragel,
 	       pkg-config,
 	       texinfo,
 	       texlive
