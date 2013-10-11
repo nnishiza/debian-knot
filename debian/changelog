@@ -1,3 +1,12 @@
+knot (1.3.2-3) unstable; urgency=low
+
+  * Add ufw applications.d rule for Knot DNS
+  * Disable recvmmsg on GNU Hurd (since recvmmsg is not implemented on GNU
+    Hurd and will always fail)
+  * Enable fastparser (requires Ragel)
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 11 Oct 2013 17:23:35 +0200
+
 knot (1.3.2-2) unstable; urgency=low
 
   * Define #PATH_MAX to make GNU Hurd happy
