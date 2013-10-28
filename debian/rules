@@ -11,6 +11,12 @@
 
 DEB_HOST_ARCH        ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
 
+ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),hurd-i386))
+  RECVMMSG:=--enable-recvmmsg=no
+else
+  RECVMMSG:=--enable-recvmmsg=yes
+endif
+
 %:
 	dh $@ --with autoreconf
 
@@ -21,11 +27,7 @@ override_dh_auto_configure:
 	  --libexecdir=/usr/lib/knot \
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
-ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),hurd-i386))
-	  --enable-recvmmsg=no \
-else
-	  --enable-recvmmsg=yes \
-endif
+	  $(RECVMMSG) \
 	  --enable-fastparser \
 	  --disable-silent-rules
 
