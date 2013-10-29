@@ -26,7 +26,8 @@
 #include <cap-ng.h>
 #endif /* HAVE_CAP_NG_H */
 
-#include "common.h"
+#include "libknot/common.h"
+#include "libknot/dnssec/cleanup.h"
 #include "common/evqueue.h"
 #include "knot/knot.h"
 #include "knot/server/server.h"
@@ -99,6 +100,8 @@ void help(void)
 
 int main(int argc, char **argv)
 {
+	atexit(knot_dnssec_cleanup);
+
 	// Parse command line arguments
 	int c = 0, li = 0;
 	int verbose = 0;
@@ -383,9 +386,7 @@ int main(int argc, char **argv)
 				log_server_info("Starting integrity check of "
 				                "zone: %s\n", zone);
 				knot_dname_t *zdn =
-					knot_dname_new_from_str(zone,
-					                        strlen(zone),
-					                        NULL);
+					knot_dname_from_str(zone, strlen(zone));
 				knot_zone_t *z =
 					knot_zonedb_find_zone(server->nameserver->zone_db,
 					                      zdn);

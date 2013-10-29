@@ -1,7 +1,7 @@
 This is knot.info, produced by makeinfo version 4.13 from knot.texi.
 
-This manual is for Knot DNS (version 1.3.3, 29 October 2013), which is
-a high-performance authoritative-only DNS server.
+This manual is for Knot DNS (version 1.4.0-beta, 29 October 2013),
+which is a high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
 
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.3.3, 29 October 2013).
+This manual is for Knot DNS (version 1.4.0-beta, 29 October 2013).
 
 * Menu:
 
@@ -693,6 +693,7 @@ meaning of individual configuration options.
 * Enabling zone semantic checks::
 * Creating IXFR differences from zone file changes::
 * Using Response Rate Limiting::
+* Automatic DNSSEC signing (experimental)::
 
 
 File: knot.info,  Node: Minimal configuration,  Next: Slave configuration,  Up: Knot DNS Configuration
@@ -946,7 +947,7 @@ daemon:: for more information. For more about `zones' statement see
 *note zones::.
 
 
-File: knot.info,  Node: Using Response Rate Limiting,  Prev: Creating IXFR differences from zone file changes,  Up: Knot DNS Configuration
+File: knot.info,  Node: Using Response Rate Limiting,  Next: Automatic DNSSEC signing (experimental),  Prev: Creating IXFR differences from zone file changes,  Up: Knot DNS Configuration
 
 4.9 Using Response Rate Limiting
 ================================
@@ -974,6 +975,115 @@ Example configuration:
      	rate-limit 200;    # Each flow is allowed to 200 resp. per second
      	rate-limit-slip 1; # Every response is slipped (default)
      }
+
+
+File: knot.info,  Node: Automatic DNSSEC signing (experimental),  Prev: Using Response Rate Limiting,  Up: Knot DNS Configuration
+
+4.10 Automatic DNSSEC signing (experimental)
+============================================
+
+Knot DNS 1.4 is the first release to include automatic DNSSEC signing
+feature.  Automatic DNSSEC signing is currently highly experimental and
+there is a lot of issues we are working on and limitations we will try
+to eliminate. By all means, anything in the current implementation can
+change including configuration options. We have no intention to
+maintain backward compatibility.
+
+4.10.1 Example configuration
+----------------------------
+
+The example configuration enables automatic signing for all zones using
+*note dnssec-enable:: option in the `zones' section, but the signing is
+explicitly disabled for zone `example.dev' using the same option
+directly in zone configuration. The location of directory with signing
+keys is set globally by option *note dnssec-keydir::.
+
+
+     zones {
+       dnssec-enable on;
+       dnssec-keydir "/var/lib/knot/keys";
+
+       example.com {
+         file "example.com.zone";
+       }
+
+       example.dev {
+         file "example.dev.zone";
+         dnssec-enable off;
+       }
+     }
+
+4.10.2 Signing keys
+-------------------
+
+The signing keys can be generated using ISC `dnssec-keygen' tool only
+and there are some limitations:
+
+   * Keys for all zones must be placed in one directory.
+
+   * Algorithms based on RSA, DSA, and ECDSA are supported, support for
+     GOST algorithm is not finished yet.
+
+   * Only key activation and inactivation time stamps are utilized and
+     defined times are used both for key publication and signing. Other
+     timestamps are ignored.
+
+   * It is required, that both `.private' and `.key' files for each key
+     are available in the key directory in order to use the keys (even
+     for verification only).
+
+   * There cannot be more than eight active keys per zone.
+
+
+
+Example how to generate NSEC3 capable zone signing key (ZSK) and key
+signing key (KSK) for zone `example.com':
+
+
+     $ cd /var/lib/knot/keys
+     $ dnssec-keygen -3 example.com
+     $ dnssec-keygen -3 -f KSK example.com
+
+4.10.3 Signing policy
+---------------------
+
+Currently the signing policy is not configurable, except for signature
+lifetime.
+
+   * Signature lifetime can be set in configuration globally for all
+     zones and for each zone in particular. *Note signature-lifetime::.
+     If not set, the default value is 30 days.
+
+   * Signature is refreshed 2 hours before expiration. The signature
+     lifetime must thus be set to more than 2 hours.
+
+4.10.4 Zone signing
+-------------------
+
+The signing process consists of the following steps:
+
+   * Fixing `NSEC' or `NSEC3' records. This is determined by
+     `NSEC3PARAM' record presence in unsigned zone.
+
+   * Updating `DNSKEY' records. This also means adding DNSKEY records
+     for any keys that are present in keydir, but missing in zone file.
+
+   * Removing expired signatures, invalid signatures, signatures
+     expiring in a short time, and signatures with unknown key.
+
+   * Creating any missing signatures. `DNSKEY' records are signed by
+     both ZSK and KSK keys, other records are signed only by ZSK keys.
+
+   * SOA record is updated and resigned if any changes were performed.
+
+
+
+The zone signing is performed when the zone is loaded into server, on
+zone reload, before any signature is expiring, and after DDNS update.
+The signing can be also forced using `signzone' command issued by
+`knotc', in this case all signatures are recreated. After each zone
+signing, a new signing event is planned. User can view the time of this
+event by using the `knotc zonestatus' command.
 
 
 File: knot.info,  Node: Running Knot DNS,  Next: Troubleshooting,  Prev: Knot DNS Configuration,  Up: Top
@@ -1304,6 +1414,8 @@ Statement Index
 * address:                               address.               (line 6)
 * category:                              category.              (line 6)
 * disable-any:                           disable-any.           (line 6)
+* dnssec-enable:                         dnssec-enable.         (line 6)
+* dnssec-keydir:                         dnssec-keydir.         (line 6)
 * file:                                  file.                  (line 6)
 * group_id:                              group_id.              (line 6)
 * groups:                                groups.                (line 6)
@@ -1339,6 +1451,7 @@ Statement Index
 * rundir:                                rundir.                (line 6)
 * semantic-checks:                       semantic-checks.       (line 6)
 * severity:                              severity.              (line 6)
+* signature-lifetime:                    signature-lifetime.    (line 6)
 * storage:                               storage.               (line 6)
 * system:                                system.                (line 6)
 * transfers:                             transfers.             (line 6)
@@ -1670,13 +1783,14 @@ A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.3.3";
-       version "1.3.3";
+       identity "Knot DNS 1.4.0-beta";
+       version "1.4.0-beta";
        nsid    "amaterasu";
        storage "/var/lib/knot";
        rundir "/var/run/knot";
        workers 16;
        user knot.knot;
+       max-udp-payload 4096;
      }
 
 
@@ -2145,6 +2259,7 @@ A.7.1 Syntax
 
      `zones' `{'
        [ zone_options ]
+       [ `dnssec-keydir' `"'string`"'`;' ]
        zone_id `{'
          `file' `"'string`";'
          [ `xfr-in' remote_id [, remote_id, ... ]`;' ]
@@ -2165,6 +2280,8 @@ A.7.1 Syntax
        [ `zonefile-sync' ( integer | integer(`s' | `m' | `h' | `d')`;' ) ]
        [ `ixfr-fslimit' ( integer | integer(`k' | `M' | `G') )`;' ]
        [ `ixfr-from-differences' boolean`;' ]
+       [ `dnssec-enable' ( `on' | `off' )`;' ]
+       [ `signature-lifetime' ( integer | integer(`s' | `m' | `h' | `d')`;' ) ]
 
 
 File: knot.info,  Node: zones Statement Definition and Grammar,  Next: zones Example,  Prev: zones Syntax,  Up: zones
@@ -2188,6 +2305,9 @@ A.7.2 Statement Definition and Grammar
 * notify-retries::
 * zonefile-sync::
 * ixfr-fslimit::
+* dnssec-enable::
+* dnssec-keydir::
+* signature-lifetime::
 
 
 File: knot.info,  Node: zone_id,  Next: file,  Up: zones Statement Definition and Grammar
@@ -2330,7 +2450,7 @@ size (s/m/h/d) - _1s_ is one second, _1m_ one minute, _1h_ one hour and
 _1d_ one day with default value set to _1h_.
 
 
-File: knot.info,  Node: ixfr-fslimit,  Prev: zonefile-sync,  Up: zones Statement Definition and Grammar
+File: knot.info,  Node: ixfr-fslimit,  Next: dnssec-enable,  Prev: zonefile-sync,  Up: zones Statement Definition and Grammar
 
 A.7.2.14 ixfr-fslimit
 .....................
@@ -2339,6 +2459,43 @@ A.7.2.14 ixfr-fslimit
 Possible values are 1 to INT_MAX, with optional suffixes k, m and G.
 I.e. _1k_, _1m_ and _1G_ with default value not being set, meaning that
 journal file can grow without limitations.
+
+
+File: knot.info,  Node: dnssec-enable,  Next: dnssec-keydir,  Prev: ixfr-fslimit,  Up: zones Statement Definition and Grammar
+
+A.7.2.15 dnssec-enable
+......................
+
+EXPERIMENTAL: Enable automatic DNSSEC signing for the zone.
+
+Default value (in `zones' section): on if `dnssec-keydir' is set
+
+Default value (in `zone' config): inherited from `zones' section
+
+
+File: knot.info,  Node: dnssec-keydir,  Next: signature-lifetime,  Prev: dnssec-enable,  Up: zones Statement Definition and Grammar
+
+A.7.2.16 dnssec-keydir
+......................
+
+Location of DNSSEC signing keys.
+
+Default value: not set
+
+
+File: knot.info,  Node: signature-lifetime,  Prev: dnssec-keydir,  Up: zones Statement Definition and Grammar
+
+A.7.2.17 signature-lifetime
+...........................
+
+Specifies how long should the automatically generated DNSSEC signatures
+be valid. Expiration will thus be set as current time (in the moment of
+signing) + `signature-lifetime'.  Possible values are from 7201 to
+INT_MAX. The lower limit is because the server will trigger resign when
+any of the signatures expires in 7200 seconds or less. For information
+about zone expiration date, invoke the `knotc zonestatus' command.
+
+Default value: `30d' (`2592000')
 
 
 File: knot.info,  Node: zones Example,  Next: zones List of zone semantic checks,  Prev: zones Statement Definition and Grammar,  Up: zones
@@ -2356,6 +2513,9 @@ A.7.3 zones Example
        notify-retries 5;
        zonefile-sync 1h;
        ixfr-fslimit 1G;
+       dnssec-enable on;
+       dnssec-keydir "keys";
+       signature-lifetime 60d;
        example.com {
          file "samples/example.com.zone";
          ixfr-from-differences off; #experimental
@@ -2364,6 +2524,8 @@ A.7.3 zones Example
          notify-timeout 60;
          notify-retries 5;
          zonefile-sync 1h;
+         dnssec-enable off;
+         signature-lifetime 30d;
          xfr-in server0;
          xfr-out server0, server1;
          notify-in server0;
@@ -2592,131 +2754,135 @@ A.9.2 Examples
 
 
 Tag Table:
-Node: Top1039
-Node: Introduction4047
-Node: What is Knot DNS4345
-Node: Knot DNS features4863
-Node: Scope of this document5884
-Node: Knot DNS Resource Requirements6146
-Node: Hardware requirements6444
-Node: CPU requirements7084
-Node: Memory requirements7469
-Node: Supported operating system8185
-Node: Knot DNS Installation8653
-Node: Required build environment8960
-Node: Required libraries9584
-Node: Userspace RCU10389
-Node: Installation from the sources11341
-Node: Configuring and generating Makefiles11926
-Node: Compilation13584
-Node: Installation14160
-Node: Installation from packages14667
-Node: Installing Knot DNS packages on Debian15191
-Node: Installing Knot DNS packages on Ubuntu16169
-Node: Adding official PPA repository for Knot DNS17083
-Node: Installing Knot DNS packages on Fedora17711
-Node: Installing Knot DNS from ports on FreeBSD19110
-Node: Knot DNS Configuration19457
-Node: Minimal configuration20028
-Node: Slave configuration22041
-Node: Master configuration24037
-Node: Configuring multiple interfaces25083
-Node: Using DNS UPDATE25568
-Node: Remote control interface27135
-Node: Enabling zone semantic checks28227
-Node: Creating IXFR differences from zone file changes28694
-Node: Using Response Rate Limiting29267
-Node: Running Knot DNS30698
-Node: Running a slave server34316
-Node: Running a master server35612
-Node: Controlling running daemon36593
-Node: Troubleshooting37764
-Node: Submitting a bugreport38172
-Node: Generating backtrace39342
-Node: Debug messages40344
-Node: Enabling debug messages in server41014
-Node: Debug messages Example42574
-Node: Statement Index42773
-Node: Knot DNS Configuration Reference46596
-Node: system46962
-Node: system Syntax47323
-Node: system Statement Definition and Usage48239
-Node: identity48679
-Node: version49210
-Node: nsid49808
-Node: storage50235
-Node: rundir50592
-Node: pidfile50933
-Node: workers51232
-Node: user51617
-Node: max-conn-idle52051
-Node: max-conn-hs52366
-Node: max-conn-reply52727
-Node: transfers52958
-Node: rate-limit53243
-Node: rate-limit-size53985
-Node: rate-limit-slip54656
-Node: max-udp-payload55264
-Node: system Example55482
-Node: keys55839
-Node: keys Syntax56146
-Node: keys Statement Definition and Usage56375
-Node: key_id56581
-Node: Example57543
-Node: interfaces57777
-Node: interfaces Syntax58112
-Node: interfaces Statement Definition and Usage58450
-Node: interface_id58692
-Node: interfaces Examples59056
-Node: remotes59535
-Node: remotes Syntax60134
-Node: remotes Statement Definition and Grammar60573
-Node: remote_id60843
-Node: address61043
-Node: port61262
-Node: key61516
-Node: via61731
-Node: remotes Examples61961
-Node: groups62487
-Node: groups Syntax63177
-Node: groups Statement Definition and Grammar63395
-Node: group_id63653
-Node: groups_remote_id63860
-Node: groups Examples64107
-Node: control64513
-Node: control Syntax65050
-Node: control Statement Definition and Grammar65418
-Node: control Examples66001
-Node: zones66483
-Node: zones Syntax66827
-Node: zones Statement Definition and Grammar67787
-Node: zone_id68219
-Node: file68607
-Node: xfr-in68951
-Node: xfr-out69290
-Node: notify-in69635
-Node: notify-out69883
-Node: update-in70138
-Node: semantic-checks70481
-Node: ixfr-from-differences70900
-Node: disable-any71457
-Node: notify-timeout71844
-Node: notify-retries72189
-Node: zonefile-sync72508
-Node: ixfr-fslimit73218
-Node: zones Example73624
-Node: zones List of zone semantic checks74446
-Node: log76246
-Node: log Syntax76469
-Node: log Statement Definition and Grammar76795
-Node: log_name77505
-Node: category77834
-Node: severity78301
-Node: log_file79043
-Node: log Example79298
-Node: include79681
-Node: include Syntax80150
-Node: include Examples80288
+Node: Top1044
+Node: Introduction4057
+Node: What is Knot DNS4355
+Node: Knot DNS features4873
+Node: Scope of this document5894
+Node: Knot DNS Resource Requirements6156
+Node: Hardware requirements6454
+Node: CPU requirements7094
+Node: Memory requirements7479
+Node: Supported operating system8195
+Node: Knot DNS Installation8663
+Node: Required build environment8970
+Node: Required libraries9594
+Node: Userspace RCU10399
+Node: Installation from the sources11351
+Node: Configuring and generating Makefiles11936
+Node: Compilation13594
+Node: Installation14170
+Node: Installation from packages14677
+Node: Installing Knot DNS packages on Debian15201
+Node: Installing Knot DNS packages on Ubuntu16179
+Node: Adding official PPA repository for Knot DNS17093
+Node: Installing Knot DNS packages on Fedora17721
+Node: Installing Knot DNS from ports on FreeBSD19120
+Node: Knot DNS Configuration19467
+Node: Minimal configuration20082
+Node: Slave configuration22095
+Node: Master configuration24091
+Node: Configuring multiple interfaces25137
+Node: Using DNS UPDATE25622
+Node: Remote control interface27189
+Node: Enabling zone semantic checks28281
+Node: Creating IXFR differences from zone file changes28748
+Node: Using Response Rate Limiting29321
+Node: Automatic DNSSEC signing (experimental)30800
+Node: Running Knot DNS34524
+Node: Running a slave server38142
+Node: Running a master server39438
+Node: Controlling running daemon40419
+Node: Troubleshooting41590
+Node: Submitting a bugreport41998
+Node: Generating backtrace43168
+Node: Debug messages44170
+Node: Enabling debug messages in server44840
+Node: Debug messages Example46400
+Node: Statement Index46599
+Node: Knot DNS Configuration Reference50641
+Node: system51007
+Node: system Syntax51368
+Node: system Statement Definition and Usage52284
+Node: identity52724
+Node: version53255
+Node: nsid53853
+Node: storage54280
+Node: rundir54637
+Node: pidfile54978
+Node: workers55277
+Node: user55662
+Node: max-conn-idle56096
+Node: max-conn-hs56411
+Node: max-conn-reply56772
+Node: transfers57003
+Node: rate-limit57288
+Node: rate-limit-size58030
+Node: rate-limit-slip58701
+Node: max-udp-payload59309
+Node: system Example59527
+Node: keys59923
+Node: keys Syntax60230
+Node: keys Statement Definition and Usage60459
+Node: key_id60665
+Node: Example61627
+Node: interfaces61861
+Node: interfaces Syntax62196
+Node: interfaces Statement Definition and Usage62534
+Node: interface_id62776
+Node: interfaces Examples63140
+Node: remotes63619
+Node: remotes Syntax64218
+Node: remotes Statement Definition and Grammar64657
+Node: remote_id64927
+Node: address65127
+Node: port65346
+Node: key65600
+Node: via65815
+Node: remotes Examples66045
+Node: groups66571
+Node: groups Syntax67261
+Node: groups Statement Definition and Grammar67479
+Node: group_id67737
+Node: groups_remote_id67944
+Node: groups Examples68191
+Node: control68597
+Node: control Syntax69134
+Node: control Statement Definition and Grammar69502
+Node: control Examples70085
+Node: zones70567
+Node: zones Syntax70911
+Node: zones Statement Definition and Grammar72041
+Node: zone_id72532
+Node: file72920
+Node: xfr-in73264
+Node: xfr-out73603
+Node: notify-in73948
+Node: notify-out74196
+Node: update-in74451
+Node: semantic-checks74794
+Node: ixfr-from-differences75213
+Node: disable-any75770
+Node: notify-timeout76157
+Node: notify-retries76502
+Node: zonefile-sync76821
+Node: ixfr-fslimit77531
+Node: dnssec-enable77959
+Node: dnssec-keydir78328
+Node: signature-lifetime78568
+Node: zones Example79194
+Node: zones List of zone semantic checks80162
+Node: log81962
+Node: log Syntax82185
+Node: log Statement Definition and Grammar82511
+Node: log_name83221
+Node: category83550
+Node: severity84017
+Node: log_file84759
+Node: log Example85014
+Node: include85397
+Node: include Syntax85866
+Node: include Examples86004
 
 End Tag Table
 

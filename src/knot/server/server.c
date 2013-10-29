@@ -35,6 +35,7 @@
 #include "libknot/nameserver/name-server.h"
 #include "libknot/zone/zonedb.h"
 #include "libknot/dname.h"
+#include "libknot/dnssec/cleanup.h"
 
 /*! \brief Event scheduler loop. */
 static int evsched_run(dthread_t *thread)
@@ -70,6 +71,13 @@ static int evsched_run(dthread_t *thread)
 		}
 	}
 
+	return KNOT_EOK;
+}
+
+/*! \brief Event scheduler thread destructor. */
+static int evsched_destruct(dthread_t *thread)
+{
+	knot_dnssec_thread_cleanup();
 	return KNOT_EOK;
 }
 
@@ -249,7 +257,7 @@ static int server_bind_sockets(server_t *s)
 	}
 
 	/* Update bound interfaces. */
-	node *n = 0;
+	node_t *n = 0;
 	WALK_LIST(n, conf()->ifaces) {
 
 		/* Find already matching interface. */
@@ -267,7 +275,7 @@ static int server_bind_sockets(server_t *s)
 
 		/* Found already bound interface. */
 		if (found_match) {
-			rem_node((node *)m);
+			rem_node((node_t *)m);
 		} else {
 			log_server_info("Binding to interface %s port %d.\n",
 			                cfg_if->address, cfg_if->port);
@@ -282,7 +290,7 @@ static int server_bind_sockets(server_t *s)
 
 		/* Move to new list. */
 		if (m) {
-			add_tail(&newlist->l, (node *)m);
+			add_tail(&newlist->l, (node_t *)m);
 			++bound;
 		}
 	}
@@ -334,7 +342,8 @@ server_t *server_create()
 	// Create event scheduler
 	dbg_server("server: creating event scheduler\n");
 	server->sched = evsched_new();
-	server->iosched = dt_create_coherent(1, evsched_run, server->sched);
+	server->iosched = dt_create_coherent(1, evsched_run, evsched_destruct,
+	                                     server->sched);
 
 	// Create name server
 	dbg_server("server: creating Name Server structure\n");
@@ -561,7 +570,6 @@ void server_destroy(server_t **server)
 	dt_delete(&(*server)->iosched);
 	rrl_destroy((*server)->rrl);
 	free(*server);
-	EVP_cleanup();
 	*server = NULL;
 }
 
@@ -594,7 +602,8 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 		/* Initialize I/O handlers. */
 		size_t udp_size = tu_size;
 		if (udp_size < 2) udp_size = 2;
-		dt_unit_t *tu = dt_create_coherent(udp_size, &udp_master, NULL);
+		dt_unit_t *tu = dt_create_coherent(udp_size, &udp_master,
+		                                   &udp_master_destruct, NULL);
 		server_init_handler(server->h + IO_UDP, server, tu, NULL);
 
 		/* Create at least CONFIG_XFERS threads for TCP for faster

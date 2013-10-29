@@ -50,6 +50,7 @@
 #include "libknot/packet/packet.h"
 #include "knot/server/zones.h"
 #include "knot/server/notify.h"
+#include "libknot/dnssec/cleanup.h"
 
 /* FD_COPY macro compat. */
 #ifndef FD_COPY
@@ -159,7 +160,7 @@ int udp_handle(struct answer_ctx *ans, int fd,
 	return KNOT_EOK;
 #endif
 
-	knot_packet_t *packet = knot_packet_new_mm(KNOT_PACKET_PREALLOC_QUERY, ans->mm);
+	knot_packet_t *packet = knot_packet_new_mm(ans->mm);
 	if (packet == NULL) {
 		dbg_net("udp: failed to create packet\n");
 		int ret = knot_ns_error_response_from_query_wire(ns, qbuf, qbuflen,
@@ -227,7 +228,7 @@ int udp_handle(struct answer_ctx *ans, int fd,
 		rrl_req_t rrl_rq;
 		memset(&rrl_rq, 0, sizeof(rrl_req_t));
 		rrl_rq.w = qbuf; /* Wire */
-		rrl_rq.qst = &packet->question;
+		rrl_rq.query = packet;
 
 		rcu_read_lock();
 		rrl_rq.flags = packet->flags;
@@ -542,7 +543,7 @@ int udp_reader(iohandler_t *h, dthread_t *thread)
 	mm_ctx_t mm;
 	mm.ctx = pool;
 	mm.alloc = (mm_alloc_t)mp_alloc;
-	mm.free = NULL;
+	mm.free = mm_nofree;
 
 	/* Create UDP answering context. */
 	struct answer_ctx ans_ctx;
@@ -638,4 +639,10 @@ int udp_master(dthread_t *thread)
 	if (!st) return KNOT_EINVAL;
 	iohandler_t *h = st->h;
 	return udp_reader(h, thread);
+}
+
+int udp_master_destruct(dthread_t *thread)
+{
+	knot_dnssec_thread_cleanup();
+	return KNOT_EOK;
 }

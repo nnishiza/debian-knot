@@ -30,11 +30,16 @@
 #define _KNOT_ZONE_TREE_H_
 
 #include "common/hattrie/hat-trie.h"
-#include "zone/node.h"
+#include "libknot/zone/node.h"
 
 /*----------------------------------------------------------------------------*/
 
 typedef hattrie_t knot_zone_tree_t;
+
+/*!
+ * \brief Signature of callback for zone apply functions.
+ */
+typedef int (*knot_zone_tree_apply_cb_t)(knot_node_t **node, void *data);
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -50,6 +55,15 @@ knot_zone_tree_t* knot_zone_tree_create();
  * \return number of nodes in tree.
  */
 size_t knot_zone_tree_weight(knot_zone_tree_t* tree);
+
+/*!
+ * \brief Checks if the zone tree is empty.
+ *
+ * \param tree Zone tree to check.
+ *
+ * \return Nonzero if the zone tree is empty.
+ */
+int knot_zone_tree_is_empty(knot_zone_tree_t *tree);
 
 /*!
  * \brief Inserts the given node into the zone tree.
@@ -176,8 +190,7 @@ int knot_zone_tree_remove(knot_zone_tree_t *tree,
  * \retval KNOT_EINVAL
  */
 int knot_zone_tree_apply_inorder(knot_zone_tree_t *tree,
-                                 void (*function)(knot_node_t **node,
-                                                  void *data),
+                                 knot_zone_tree_apply_cb_t function,
                                  void *data);
 
 /*!
@@ -194,10 +207,8 @@ int knot_zone_tree_apply_inorder(knot_zone_tree_t *tree,
  * \retval KNOT_EINVAL
  */
 int knot_zone_tree_apply_recursive(knot_zone_tree_t *tree,
-                                           void (*function)(
-                                                  knot_node_t **node,
-                                                  void *data),
-                                           void *data);
+                                   knot_zone_tree_apply_cb_t function,
+                                   void *data);
 
 /*!
  * \brief Applies the given function to each node in the zone.
@@ -210,7 +221,7 @@ int knot_zone_tree_apply_recursive(knot_zone_tree_t *tree,
  * \retval KNOT_EINVAL
  */
 int knot_zone_tree_apply(knot_zone_tree_t *tree,
-                         void (*function)(knot_node_t **node, void *data),
+                         knot_zone_tree_apply_cb_t function,
                          void *data);
 
 /*!
