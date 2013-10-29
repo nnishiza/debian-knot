@@ -20,17 +20,19 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "util/utils.h"
-#include "util/debug.h"
+#include "libknot/util/utils.h"
+#include "libknot/util/debug.h"
 #include "libknot/rrset.h"
 #include "common/descriptor.h"
 #include "common/print.h"
 
 #if defined(KNOT_ZONE_DEBUG)
-static void knot_node_dump_from_tree(knot_node_t *node, void *data)
+static int knot_node_dump_from_tree(knot_node_t *node, void *data)
 {
 	UNUSED(data);
 	knot_node_dump(node);
+
+	return KNOT_EOK;
 }
 #endif
 
@@ -44,10 +46,7 @@ void knot_node_dump(knot_node_t *node)
 	name = knot_dname_to_str(node->owner);
 	dbg_node_detail("owner: %s\n", name);
 	free(name);
-	dbg_node_detail("labels: ");
-	hex_print(node->owner->labels, node->owner->label_count);
 	dbg_node_detail("node: %p\n", node);
-	dbg_node_detail("node (in node's owner): %p\n", node->owner->node);
 
 	if (knot_node_is_deleg_point(node)) {
 		dbg_node_detail("delegation point\n");

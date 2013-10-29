@@ -82,19 +82,22 @@
      RATE_LIMIT_SIZE = 300,
      RATE_LIMIT_SLIP = 301,
      TRANSFERS = 302,
-     INTERFACES = 303,
-     ADDRESS = 304,
-     PORT = 305,
-     IPA = 306,
-     IPA6 = 307,
-     VIA = 308,
-     CONTROL = 309,
-     ALLOW = 310,
-     LISTEN_ON = 311,
-     LOG = 312,
-     LOG_DEST = 313,
-     LOG_SRC = 314,
-     LOG_LEVEL = 315
+     DNSSEC_ENABLE = 303,
+     DNSSEC_KEYDIR = 304,
+     SIGNATURE_LIFETIME = 305,
+     INTERFACES = 306,
+     ADDRESS = 307,
+     PORT = 308,
+     IPA = 309,
+     IPA6 = 310,
+     VIA = 311,
+     CONTROL = 312,
+     ALLOW = 313,
+     LISTEN_ON = 314,
+     LOG = 315,
+     LOG_DEST = 316,
+     LOG_SRC = 317,
+     LOG_LEVEL = 318
    };
 #endif
 /* Tokens.  */
@@ -143,19 +146,22 @@
 #define RATE_LIMIT_SIZE 300
 #define RATE_LIMIT_SLIP 301
 #define TRANSFERS 302
-#define INTERFACES 303
-#define ADDRESS 304
-#define PORT 305
-#define IPA 306
-#define IPA6 307
-#define VIA 308
-#define CONTROL 309
-#define ALLOW 310
-#define LISTEN_ON 311
-#define LOG 312
-#define LOG_DEST 313
-#define LOG_SRC 314
-#define LOG_LEVEL 315
+#define DNSSEC_ENABLE 303
+#define DNSSEC_KEYDIR 304
+#define SIGNATURE_LIFETIME 305
+#define INTERFACES 306
+#define ADDRESS 307
+#define PORT 308
+#define IPA 309
+#define IPA6 310
+#define VIA 311
+#define CONTROL 312
+#define ALLOW 313
+#define LISTEN_ON 314
+#define LOG 315
+#define LOG_DEST 316
+#define LOG_SRC 317
+#define LOG_LEVEL 318
 
 
 
@@ -165,7 +171,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 422 "cf-parse.y"
+#line 430 "cf-parse.y"
 
     struct {
        char *t;
@@ -177,7 +183,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 181 "knot/conf/libknotd_la-cf-parse.h"
+#line 187 "knot/conf/libknotd_la-cf-parse.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

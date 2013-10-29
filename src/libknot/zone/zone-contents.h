@@ -27,11 +27,11 @@
 #ifndef _KNOT_ZONE_CONTENTS_H_
 #define _KNOT_ZONE_CONTENTS_H_
 
-#include "zone/node.h"
-#include "dname.h"
-#include "nsec3.h"
+#include "libknot/zone/node.h"
+#include "libknot/dname.h"
+#include "libknot/dnssec/nsec3.h"
 
-#include "zone-tree.h"
+#include "libknot/zone/zone-tree.h"
 
 struct knot_zone;
 
@@ -74,6 +74,11 @@ typedef struct cname_chain {
 	const knot_node_t *node;
 	struct cname_chain *next;
 } cname_chain_t;
+
+/*!
+ * \brief Signature of callback for zone contents apply functions.
+ */
+typedef int (*knot_zone_contents_apply_cb_t)(knot_node_t *node, void *data);
 
 /*----------------------------------------------------------------------------*/
 
@@ -152,9 +157,8 @@ int knot_zone_contents_create_node(knot_zone_contents_t *contents,
  * \retval KNOT_EOUTOFZONE
  */
 int knot_zone_contents_add_rrset(knot_zone_contents_t *contents,
-                          knot_rrset_t *rrset,
-                          knot_node_t **node,
-                          knot_rrset_dupl_handling_t dupl);
+                                 knot_rrset_t *rrset, knot_node_t **node,
+                                 knot_rrset_dupl_handling_t dupl);
 
 int knot_zone_contents_add_rrsigs(knot_zone_contents_t *contents,
                            knot_rrset_t *rrsigs,
@@ -398,9 +402,9 @@ const knot_nsec3_params_t *knot_zone_contents_nsec3params(
  * \param function Function to be applied to each node of the zone.
  * \param data Arbitrary data to be passed to the function.
  */
-int knot_zone_contents_tree_apply_inorder(knot_zone_contents_t *contents,
-			      void (*function)(knot_node_t *node, void *data),
-                              void *data);
+int knot_zone_contents_tree_apply_inorder(knot_zone_contents_t *zone,
+                                        knot_zone_contents_apply_cb_t function,
+                                        void *data);
 
 /*!
  * \brief Applies the given function to each regular node in the zone.
@@ -416,9 +420,9 @@ int knot_zone_contents_tree_apply_inorder(knot_zone_contents_t *contents,
  * \param function Function to be applied to each node of the zone.
  * \param data Arbitrary data to be passed to the function.
  */
-int knot_zone_contents_tree_apply_inorder_reverse(
-	knot_zone_contents_t *contents,
-	void (*function)(knot_node_t *node, void *data), void *data);
+int knot_zone_contents_tree_apply_inorder_reverse(knot_zone_contents_t *zone,
+                                        knot_zone_contents_apply_cb_t function,
+                                        void *data);
 
 /*!
  * \brief Applies the given function to each NSEC3 node in the zone.
@@ -435,9 +439,9 @@ int knot_zone_contents_tree_apply_inorder_reverse(
  * \param function Function to be applied to each node of the zone.
  * \param data Arbitrary data to be passed to the function.
  */
-int knot_zone_contents_nsec3_apply_inorder(knot_zone_contents_t *contents,
-			      void (*function)(knot_node_t *node, void *data),
-                              void *data);
+int knot_zone_contents_nsec3_apply_inorder(knot_zone_contents_t *zone,
+                                        knot_zone_contents_apply_cb_t function,
+                                        void *data);
 
 /*!
  * \brief Applies the given function to each NSEC3 node in the zone.
@@ -454,20 +458,15 @@ int knot_zone_contents_nsec3_apply_inorder(knot_zone_contents_t *contents,
  * \param function Function to be applied to each node of the zone.
  * \param data Arbitrary data to be passed to the function.
  */
-int knot_zone_contents_nsec3_apply_inorder_reverse(
-	knot_zone_contents_t *contents,
-	void (*function)(knot_node_t *node, void *data), void *data);
+int knot_zone_contents_nsec3_apply_inorder_reverse(knot_zone_contents_t *zone,
+                                        knot_zone_contents_apply_cb_t function,
+                                        void *data);
 
 knot_zone_tree_t *knot_zone_contents_get_nodes(
 		knot_zone_contents_t *contents);
 
 knot_zone_tree_t *knot_zone_contents_get_nsec3_nodes(
 		knot_zone_contents_t *contents);
-
-int knot_zone_contents_dname_table_apply(knot_zone_contents_t *contents,
-                                           void (*function)(knot_dname_t *,
-                                                            void *),
-                                           void *data);
 
 /*!
  * \brief Creates a shallow copy of the zone (no stored data are copied).
@@ -496,33 +495,6 @@ void knot_zone_contents_free(knot_zone_contents_t **contents);
 void knot_zone_contents_deep_free(knot_zone_contents_t **contents);
 
 int knot_zone_contents_integrity_check(const knot_zone_contents_t *contents);
-
-const knot_dname_t *knot_zone_contents_find_dname_in_rdata(
-	const knot_zone_contents_t *zone,
-	const knot_dname_t *dname);
-
-/*!
- * \brief Creates a NSEC3 hashed name for the given domain name.
- *
- * \note The zone's NSEC3PARAM record must be parsed prior to calling this
- *       function (see knot_zone_load_nsec3param()).
- *
- * \param zone Zone from which to take the NSEC3 parameters.
- * \param name Domain name to hash.
- * \param nsec3_name Hashed name.
- *
- * \retval KNOT_EOK
- * \retval KNOT_ENSEC3PAR
- * \retval KNOT_ECRYPTO
- * \retval KNOT_ERROR if an error occured while creating a new domain name
- *                      from the hash or concatenating it with the zone name.
- */
-int knot_zone_contents_nsec3_name(const knot_zone_contents_t *zone,
-                                           const knot_dname_t *name,
-                                           knot_dname_t **nsec3_name);
-
-void knot_zone_contents_insert_dname_into_table(knot_dname_t **in_dname,
-                                                hattrie_t *lookup_tree);
 
 /*!
  * \brief Fetch zone serial.
