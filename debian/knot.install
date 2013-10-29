@@ -1,8 +1,10 @@
 usr/sbin/knotc
 usr/sbin/knotd
+usr/bin/knsec3hash
 usr/share/man/man5/knot.conf.5
 usr/share/man/man8/knotc.8
 usr/share/man/man8/knotd.8
+usr/share/man/man1/knsec3hash.1
 usr/share/info
 etc/knot/knot.conf
 usr/lib/knot/prepare-environment
