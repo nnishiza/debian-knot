@@ -1,7 +1,7 @@
 #!/bin/sh
 
-TESTS_DIR="/home/lubos/Development/knot/releases/knot-1.3.2/src/zscanner/test/cases"
-OUTS_DIR="/home/lubos/Development/knot/releases/knot-1.3.2/src/zscanner/test/.out"
+TESTS_DIR="/home/ondrej/Projects/knot/src/zscanner/test/cases"
+OUTS_DIR="/home/ondrej/Projects/knot/src/zscanner/test/.out"
 TEST_BIN="./../zscanner-tool -m 2"
 
 # Delete temporary output directory at exit.

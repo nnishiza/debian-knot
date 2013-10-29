@@ -343,7 +343,7 @@ static int zones_refresh_ev(event_t *e)
 	}
 
 	/* Create XFR request. */
-	knot_ns_xfr_t *rq = xfr_task_create(zone, XFR_TYPE_SOA, XFR_FLAG_UDP);
+	knot_ns_xfr_t *rq = xfr_task_create(zone, XFR_TYPE_SOA, XFR_FLAG_TCP);
 	rcu_read_unlock(); /* rq now holds a reference to zone */
 	if (!rq) {
 		return KNOT_EINVAL;
@@ -551,14 +551,11 @@ static int zones_load_zone(knot_zone_t **dst, const char *zone_name,
 
 	/* Open zone file for parsing. */
 	switch(knot_zload_open(&zl, source, zone_name, enable_checks)) {
-	case KNOT_EOK: /* OK */ break;
+	case KNOT_EOK: /* OK */
+		break;
 	case KNOT_EACCES:
-		log_server_error("Failed to open zone file '%s' "
-				 "(Permission denied).\n", source);
-		knot_zload_close(zl);
-		return KNOT_EZONEINVAL;
-	case KNOT_ENOENT:
-		log_server_error("Couldn't find zone file '%s'\n", source);
+		log_server_error("No access/permission to zone file '%s'.\n",
+		                 source);
 		knot_zload_close(zl);
 		return KNOT_EZONEINVAL;
 	default:
@@ -1418,17 +1415,6 @@ dbg_zones_exec(
                                        "from database.\n", name);
 			free(name);
 );
-			/* Invalidate ACLs - since we would need to copy each
-			 * remote data and keep ownership, I think it's no harm
-			 * to drop all ACLs for the discarded zone.
-			 * refs #1976 */
-			zonedata_t *zd = (zonedata_t*)knot_zone_data(old_zone);
-			conf_zone_t *zconf = zd->conf;
-			WALK_LIST_FREE(zconf->acl.xfr_in);
-			WALK_LIST_FREE(zconf->acl.xfr_out);
-			WALK_LIST_FREE(zconf->acl.notify_in);
-			WALK_LIST_FREE(zconf->acl.notify_out);
-			WALK_LIST_FREE(zconf->acl.update_in);
 
 			/* Remove from zone db. */
 			knot_zone_t * rm = knot_zonedb_remove_zone(db_old,

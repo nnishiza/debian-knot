@@ -2,4 +2,4 @@ $ORIGIN .
 $TTL	1
 
 ; KO
-$INCLUDE /home/lubos/Development/knot/releases/knot-1.3.2/src/zscanner/test/cases/		; Given file is a directory
+$INCLUDE /home/ondrej/Projects/knot/src/zscanner/test/cases/		; Given file is a directory

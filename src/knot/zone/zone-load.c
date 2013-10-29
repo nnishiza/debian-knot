@@ -163,6 +163,7 @@ static knot_node_t *create_node(knot_zone_contents_t *zone,
 	if (ret != KNOT_EOK) {
 		log_zone_warning("Node could not be added (%s).\n",
 		                 knot_strerror(ret));
+		knot_node_free(&node);
 		return NULL;
 	}
 
@@ -517,6 +518,9 @@ static void process_rr(const scanner_t *scanner)
 			                 zone_name, name);
 			free(name);
 			free(zone_name);
+			/* This is already deprecated in 1.4, won't create a new API. */
+			hattrie_del(parser->lookup_tree, current_owner->name, current_owner->size);
+			knot_rrset_deep_free(&current_rrset, 1, 1);
 			return;
 		}
 	}
@@ -587,9 +591,8 @@ int knot_zload_open(zloader_t **dst, const char *source, const char *origin,
 	*dst = NULL;
 
 	/* Check zone file. */
-	struct stat st;
-	if (stat(source, &st) < 0) {
-		return knot_map_errno(errno);
+	if (access(source, F_OK | R_OK) != 0) {
+		return KNOT_EACCES;
 	}
 
 	/* Create context. */
@@ -623,7 +626,7 @@ int knot_zload_open(zloader_t **dst, const char *source, const char *origin,
 	                                           process_rr, process_error,
 	                                           context);
 	if (loader == NULL) {
-		dbg_zload("Could not create file loader.\n");
+		dbg_zload("Could not initialize zone parser.\n");
 		hattrie_free(context->lookup_tree);
 		free(context);
 		return KNOT_ERROR;
