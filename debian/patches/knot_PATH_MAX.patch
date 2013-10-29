@@ -1,7 +1,7 @@
 --- knot.orig/src/libknot/common.h
 +++ knot/src/libknot/common.h
-@@ -38,6 +38,10 @@ typedef unsigned int uint; /*!< \brief U
- #define UINT_DEFINED
+@@ -42,6 +42,10 @@ typedef unsigned int uint; /*!< \brief U
+ #define PATH_MAX 4096
  #endif
  
 +#ifndef PATH_MAX
