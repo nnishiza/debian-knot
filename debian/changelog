@@ -3,8 +3,9 @@ knot (1.4.0~beta-1) experimental; urgency=low
   * New upstream version 1.4.0~beta
   * Update patches for 1.4.0~beta release
   * Disable fastparser since the ragel is broken in one test
+  * Add knsec3hash to knot package
 
- -- Ondřej Surý <ondrej@debian.org>  Tue, 29 Oct 2013 12:09:16 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 29 Oct 2013 12:25:49 +0100
 
 knot (1.3.3-1) unstable; urgency=low
 
