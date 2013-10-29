@@ -931,6 +931,10 @@ int cf_get_lineno (yyscan_t yyscanner );
 
 void cf_set_lineno (int line_number ,yyscan_t yyscanner );
 
+int cf_get_column  (yyscan_t yyscanner );
+
+void cf_set_column (int column_no ,yyscan_t yyscanner );
+
 YYSTYPE * cf_get_lval (yyscan_t yyscanner );
 
 void cf_set_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
@@ -1078,7 +1082,7 @@ YY_DECL
 
 #line 87 "cf-lex.l"
 
-#line 1082 "knot/conf/libknotd_la-cf-lex.c"
+#line 1086 "knot/conf/libknotd_la-cf-lex.c"
 
     yylval = yylval_param;
 
@@ -1761,7 +1765,7 @@ YY_RULE_SETUP
 #line 351 "cf-lex.l"
 ECHO;
 	YY_BREAK
-#line 1765 "knot/conf/libknotd_la-cf-lex.c"
+#line 1769 "knot/conf/libknotd_la-cf-lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
