@@ -1,3 +1,10 @@
+knot (1.4.0~rc1-1) experimental; urgency=low
+
+  * Disable tests on GNU Hurd
+  * New upstream version 1.4.0~rc1
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 25 Nov 2013 16:19:27 +0100
+
 knot (1.4.0~beta-1) experimental; urgency=low
 
   * New upstream version 1.4.0~beta
