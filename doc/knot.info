@@ -1,7 +1,7 @@
 This is knot.info, produced by makeinfo version 4.13 from knot.texi.
 
-This manual is for Knot DNS (version 1.4.0-beta, 29 October 2013),
-which is a high-performance authoritative-only DNS server.
+This manual is for Knot DNS (version 1.4.0-rc1, 8 November 2013), which
+is a high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
 
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.4.0-beta, 29 October 2013).
+This manual is for Knot DNS (version 1.4.0-rc1, 8 November 2013).
 
 * Menu:
 
@@ -150,7 +150,7 @@ Statement Definition and Usage
 * workers::
 * user::
 * max-conn-idle::
-* max-conn-hs::
+* max-conn-handshake::
 * max-conn-reply::
 * rate-limit::
 * rate-limit-size::
@@ -392,8 +392,6 @@ Knot DNS build system relies on these standard tools:
 
    * bison >= 2.3
 
-   * ragel >= 6.7 (only required for fast zone parsing)
-
 
 File: knot.info,  Node: Required libraries,  Next: Installation from the sources,  Prev: Required build environment,  Up: Knot DNS Installation
 
@@ -481,10 +479,6 @@ For all available configure options run:
 
 If you have trouble with unknown syscalls under valgrind, disable
 recvmmsg by adding a parameter `--enable-recvmmsg=no' to configure.
-
-If you want to load huge zone files quickly, enable fast zone parser by
-adding a parameter `--enable-fastparser' to configure. In this case
-Ragel compiler is required.
 
 Knot DNS has also support for link time optimizations.  You can enable
 it by the configure parameter `./configure --enable-lto=yes'.  It is
@@ -1024,15 +1018,15 @@ and there are some limitations:
    * Algorithms based on RSA, DSA, and ECDSA are supported, support for
      GOST algorithm is not finished yet.
 
-   * Only key activation and inactivation time stamps are utilized and
-     defined times are used both for key publication and signing. Other
-     timestamps are ignored.
+   * Only key publication, activation, inactivation, and removal time
+     stamps are utilized. Other time stamps are ignored.
 
    * It is required, that both `.private' and `.key' files for each key
      are available in the key directory in order to use the keys (even
      for verification only).
 
-   * There cannot be more than eight active keys per zone.
+   * There cannot be more than eight keys per zone. Keys which are not
+     published are not included in this number.
 
 
 
@@ -1432,7 +1426,7 @@ Statement Index
 * log:                                   log.                   (line 6)
 * log_file:                              log_file.              (line 6)
 * log_name:                              log_name.              (line 6)
-* max-conn-hs:                           max-conn-hs.           (line 6)
+* max-conn-handshake:                    max-conn-handshake.    (line 6)
 * max-conn-idle:                         max-conn-idle.         (line 6)
 * max-conn-reply:                        max-conn-reply.        (line 6)
 * max-udp-payload:                       max-udp-payload.       (line 6)
@@ -1517,7 +1511,7 @@ A.1.1 `system' Syntax
        [ `workers' integer`;' ]
        [ `user' string[`.'string]`;' ]
        [ `max-conn-idle' ( integer | integer(`s' | `m' | `h' | `d')`;' ) ]
-       [ `max-conn-hs' ( integer | integer(`s' | `m' | `h' | `d')`;' ) ]
+       [ `max-conn-handshake' ( integer | integer(`s' | `m' | `h' | `d')`;' ) ]
        [ `max-conn-reply' ( integer | integer(`s' | `m' | `h' | `d')`;' ) ]
        [ `transfers' integer`;' ]
        [ `rate-limit' integer`;' ]
@@ -1543,7 +1537,7 @@ A.1.2 Statement Definition and Usage
 * workers::
 * user::
 * max-conn-idle::
-* max-conn-hs::
+* max-conn-handshake::
 * max-conn-reply::
 * transfers::
 * rate-limit::
@@ -1682,7 +1676,7 @@ Default value: `root.root'
      }
 
 
-File: knot.info,  Node: max-conn-idle,  Next: max-conn-hs,  Prev: user,  Up: system Statement Definition and Usage
+File: knot.info,  Node: max-conn-idle,  Next: max-conn-handshake,  Prev: user,  Up: system Statement Definition and Usage
 
 A.1.2.9 max-conn-idle
 .....................
@@ -1692,17 +1686,17 @@ limits receiving of a single query, each query must be received in this
 time limit.
 
 
-File: knot.info,  Node: max-conn-hs,  Next: max-conn-reply,  Prev: max-conn-idle,  Up: system Statement Definition and Usage
+File: knot.info,  Node: max-conn-handshake,  Next: max-conn-reply,  Prev: max-conn-idle,  Up: system Statement Definition and Usage
 
-A.1.2.10 max-conn-hs
-....................
+A.1.2.10 max-conn-handshake
+...........................
 
 Maximum time between newly accepted TCP connection and first query.
 This is useful to disconnect inactive connections faster, than
 connection that already made at least 1 meaningful query.
 
 
-File: knot.info,  Node: max-conn-reply,  Next: transfers,  Prev: max-conn-hs,  Up: system Statement Definition and Usage
+File: knot.info,  Node: max-conn-reply,  Next: transfers,  Prev: max-conn-handshake,  Up: system Statement Definition and Usage
 
 A.1.2.11 max-conn-reply
 .......................
@@ -1783,8 +1777,8 @@ A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.4.0-beta";
-       version "1.4.0-beta";
+       identity "Knot DNS 1.4.0-rc1";
+       version "1.4.0-rc1";
        nsid    "amaterasu";
        storage "/var/lib/knot";
        rundir "/var/run/knot";
@@ -2468,7 +2462,7 @@ A.7.2.15 dnssec-enable
 
 EXPERIMENTAL: Enable automatic DNSSEC signing for the zone.
 
-Default value (in `zones' section): on if `dnssec-keydir' is set
+Default value (in `zones' section): off
 
 Default value (in `zone' config): inherited from `zones' section
 
@@ -2754,135 +2748,135 @@ A.9.2 Examples
 
 
 Tag Table:
-Node: Top1044
-Node: Introduction4057
-Node: What is Knot DNS4355
-Node: Knot DNS features4873
-Node: Scope of this document5894
-Node: Knot DNS Resource Requirements6156
-Node: Hardware requirements6454
-Node: CPU requirements7094
-Node: Memory requirements7479
-Node: Supported operating system8195
-Node: Knot DNS Installation8663
-Node: Required build environment8970
-Node: Required libraries9594
-Node: Userspace RCU10399
-Node: Installation from the sources11351
-Node: Configuring and generating Makefiles11936
-Node: Compilation13594
-Node: Installation14170
-Node: Installation from packages14677
-Node: Installing Knot DNS packages on Debian15201
-Node: Installing Knot DNS packages on Ubuntu16179
-Node: Adding official PPA repository for Knot DNS17093
-Node: Installing Knot DNS packages on Fedora17721
-Node: Installing Knot DNS from ports on FreeBSD19120
-Node: Knot DNS Configuration19467
-Node: Minimal configuration20082
-Node: Slave configuration22095
-Node: Master configuration24091
-Node: Configuring multiple interfaces25137
-Node: Using DNS UPDATE25622
-Node: Remote control interface27189
-Node: Enabling zone semantic checks28281
-Node: Creating IXFR differences from zone file changes28748
-Node: Using Response Rate Limiting29321
-Node: Automatic DNSSEC signing (experimental)30800
-Node: Running Knot DNS34524
-Node: Running a slave server38142
-Node: Running a master server39438
-Node: Controlling running daemon40419
-Node: Troubleshooting41590
-Node: Submitting a bugreport41998
-Node: Generating backtrace43168
-Node: Debug messages44170
-Node: Enabling debug messages in server44840
-Node: Debug messages Example46400
-Node: Statement Index46599
-Node: Knot DNS Configuration Reference50641
-Node: system51007
-Node: system Syntax51368
-Node: system Statement Definition and Usage52284
-Node: identity52724
-Node: version53255
-Node: nsid53853
-Node: storage54280
-Node: rundir54637
-Node: pidfile54978
-Node: workers55277
-Node: user55662
-Node: max-conn-idle56096
-Node: max-conn-hs56411
-Node: max-conn-reply56772
-Node: transfers57003
-Node: rate-limit57288
-Node: rate-limit-size58030
-Node: rate-limit-slip58701
-Node: max-udp-payload59309
-Node: system Example59527
-Node: keys59923
-Node: keys Syntax60230
-Node: keys Statement Definition and Usage60459
-Node: key_id60665
-Node: Example61627
-Node: interfaces61861
-Node: interfaces Syntax62196
-Node: interfaces Statement Definition and Usage62534
-Node: interface_id62776
-Node: interfaces Examples63140
-Node: remotes63619
-Node: remotes Syntax64218
-Node: remotes Statement Definition and Grammar64657
-Node: remote_id64927
-Node: address65127
-Node: port65346
-Node: key65600
-Node: via65815
-Node: remotes Examples66045
-Node: groups66571
-Node: groups Syntax67261
-Node: groups Statement Definition and Grammar67479
-Node: group_id67737
-Node: groups_remote_id67944
-Node: groups Examples68191
-Node: control68597
-Node: control Syntax69134
-Node: control Statement Definition and Grammar69502
-Node: control Examples70085
-Node: zones70567
-Node: zones Syntax70911
-Node: zones Statement Definition and Grammar72041
-Node: zone_id72532
-Node: file72920
-Node: xfr-in73264
-Node: xfr-out73603
-Node: notify-in73948
-Node: notify-out74196
-Node: update-in74451
-Node: semantic-checks74794
-Node: ixfr-from-differences75213
-Node: disable-any75770
-Node: notify-timeout76157
-Node: notify-retries76502
-Node: zonefile-sync76821
-Node: ixfr-fslimit77531
-Node: dnssec-enable77959
-Node: dnssec-keydir78328
-Node: signature-lifetime78568
-Node: zones Example79194
-Node: zones List of zone semantic checks80162
-Node: log81962
-Node: log Syntax82185
-Node: log Statement Definition and Grammar82511
-Node: log_name83221
-Node: category83550
-Node: severity84017
-Node: log_file84759
-Node: log Example85014
-Node: include85397
-Node: include Syntax85866
-Node: include Examples86004
+Node: Top1043
+Node: Introduction4062
+Node: What is Knot DNS4360
+Node: Knot DNS features4878
+Node: Scope of this document5899
+Node: Knot DNS Resource Requirements6161
+Node: Hardware requirements6459
+Node: CPU requirements7099
+Node: Memory requirements7484
+Node: Supported operating system8200
+Node: Knot DNS Installation8668
+Node: Required build environment8975
+Node: Required libraries9542
+Node: Userspace RCU10347
+Node: Installation from the sources11299
+Node: Configuring and generating Makefiles11884
+Node: Compilation13373
+Node: Installation13949
+Node: Installation from packages14456
+Node: Installing Knot DNS packages on Debian14980
+Node: Installing Knot DNS packages on Ubuntu15958
+Node: Adding official PPA repository for Knot DNS16872
+Node: Installing Knot DNS packages on Fedora17500
+Node: Installing Knot DNS from ports on FreeBSD18899
+Node: Knot DNS Configuration19246
+Node: Minimal configuration19861
+Node: Slave configuration21874
+Node: Master configuration23870
+Node: Configuring multiple interfaces24916
+Node: Using DNS UPDATE25401
+Node: Remote control interface26968
+Node: Enabling zone semantic checks28060
+Node: Creating IXFR differences from zone file changes28527
+Node: Using Response Rate Limiting29100
+Node: Automatic DNSSEC signing (experimental)30579
+Node: Running Knot DNS34318
+Node: Running a slave server37936
+Node: Running a master server39232
+Node: Controlling running daemon40213
+Node: Troubleshooting41384
+Node: Submitting a bugreport41792
+Node: Generating backtrace42962
+Node: Debug messages43964
+Node: Enabling debug messages in server44634
+Node: Debug messages Example46194
+Node: Statement Index46393
+Node: Knot DNS Configuration Reference50435
+Node: system50801
+Node: system Syntax51162
+Node: system Statement Definition and Usage52085
+Node: identity52532
+Node: version53063
+Node: nsid53661
+Node: storage54088
+Node: rundir54445
+Node: pidfile54786
+Node: workers55085
+Node: user55470
+Node: max-conn-idle55904
+Node: max-conn-handshake56226
+Node: max-conn-reply56608
+Node: transfers56846
+Node: rate-limit57131
+Node: rate-limit-size57873
+Node: rate-limit-slip58544
+Node: max-udp-payload59152
+Node: system Example59370
+Node: keys59764
+Node: keys Syntax60071
+Node: keys Statement Definition and Usage60300
+Node: key_id60506
+Node: Example61468
+Node: interfaces61702
+Node: interfaces Syntax62037
+Node: interfaces Statement Definition and Usage62375
+Node: interface_id62617
+Node: interfaces Examples62981
+Node: remotes63460
+Node: remotes Syntax64059
+Node: remotes Statement Definition and Grammar64498
+Node: remote_id64768
+Node: address64968
+Node: port65187
+Node: key65441
+Node: via65656
+Node: remotes Examples65886
+Node: groups66412
+Node: groups Syntax67102
+Node: groups Statement Definition and Grammar67320
+Node: group_id67578
+Node: groups_remote_id67785
+Node: groups Examples68032
+Node: control68438
+Node: control Syntax68975
+Node: control Statement Definition and Grammar69343
+Node: control Examples69926
+Node: zones70408
+Node: zones Syntax70752
+Node: zones Statement Definition and Grammar71882
+Node: zone_id72373
+Node: file72761
+Node: xfr-in73105
+Node: xfr-out73444
+Node: notify-in73789
+Node: notify-out74037
+Node: update-in74292
+Node: semantic-checks74635
+Node: ixfr-from-differences75054
+Node: disable-any75611
+Node: notify-timeout75998
+Node: notify-retries76343
+Node: zonefile-sync76662
+Node: ixfr-fslimit77372
+Node: dnssec-enable77800
+Node: dnssec-keydir78144
+Node: signature-lifetime78384
+Node: zones Example79010
+Node: zones List of zone semantic checks79978
+Node: log81778
+Node: log Syntax82001
+Node: log Statement Definition and Grammar82327
+Node: log_name83037
+Node: category83366
+Node: severity83833
+Node: log_file84575
+Node: log Example84830
+Node: include85213
+Node: include Syntax85682
+Node: include Examples85820
 
 End Tag Table
 

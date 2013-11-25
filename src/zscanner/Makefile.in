@@ -51,8 +51,6 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@HAVE_RAGEL_TRUE@am__append_1 = scanner.c
-@HAVE_RAGEL_TRUE@am__append_2 = scanner.c scanner.c.in
 DIST_COMMON = $(dist_check_SCRIPTS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/tests/Makefile.inc
 check_PROGRAMS = tests/runtests$(EXEEXT) tests/zscanner-tool$(EXEEXT)
@@ -85,7 +83,7 @@ am_tests_tap_libtap_a_OBJECTS =  \
 tests_tap_libtap_a_OBJECTS = $(am_tests_tap_libtap_a_OBJECTS)
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libzscanner_la_DEPENDENCIES = @LIBOBJS@
-am_libzscanner_la_OBJECTS = error.lo file_loader.lo scanner.lo \
+am_libzscanner_la_OBJECTS = scanner.lo error.lo file_loader.lo \
 	scanner_functions.lo
 nodist_libzscanner_la_OBJECTS = descriptor.lo
 libzscanner_la_OBJECTS = $(am_libzscanner_la_OBJECTS) \
@@ -273,31 +271,30 @@ top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I $(top_srcdir)/m4
 AM_CFLAGS = -I$(top_srcdir)/src
 noinst_LTLIBRARIES = libzscanner.la
-EXTRA_DIST = scanner.rl scanner_body.rl tests/TESTS \
-	tests/zscanner-TESTS tests/data tests/tap/libtap.sh
-BUILT_SOURCES = descriptor.h descriptor.c $(am__append_1)
-CLEANFILES = descriptor.h descriptor.c $(am__append_2)
+EXTRA_DIST = scanner.rl scanner_body.rl scanner.c.g2 scanner.c.t0 \
+	tests/TESTS tests/zscanner-TESTS tests/data \
+	tests/tap/libtap.sh
+BUILT_SOURCES = descriptor.h descriptor.c scanner.c
+CLEANFILES = descriptor.h descriptor.c scanner.c
 nodist_libzscanner_la_SOURCES = descriptor.h descriptor.c
 libzscanner_la_SOURCES = \
 	zscanner.h			\
+	scanner.h			\
+	scanner.c			\
 	error.h				\
 	error.c				\
 	file_loader.h			\
 	file_loader.c			\
-	scanner.h			\
-	scanner.c			\
 	scanner_functions.h		\
 	scanner_functions.c
 
 libzscanner_la_LIBADD = @LIBOBJS@
 dist_check_SCRIPTS = \
-	tests/zscanner
+	tests/zscanner.sh
 
 check_LIBRARIES = tests/tap/libtap.a
 AM_CPPFLAGS = \
-	-I$(top_srcdir)/src \
-	-DSYSCONFDIR='"$(sysconfdir)"' \
-	-DSBINDIR='"$(sbindir)"'
+	-I$(top_srcdir)/src
 
 tests_runtests_CPPFLAGS = \
 	-DSOURCE='"$(abs_srcdir)/tests"' \
@@ -730,8 +727,14 @@ descriptor.c: $(top_srcdir)/src/common/descriptor.c
 	cp $(top_srcdir)/src/common/descriptor.c $@
 
 @HAVE_RAGEL_TRUE@scanner.c: scanner.rl scanner_body.rl
-@HAVE_RAGEL_TRUE@	$(RAGEL) $(FSM_TYPE) -s -o $@.in $(srcdir)/scanner.rl
-@HAVE_RAGEL_TRUE@	sed '/#line/d' $@.in > $@
+@HAVE_RAGEL_TRUE@	$(RAGEL) $(FSM_TYPE) -o $@ $(srcdir)/scanner.rl
+
+@G2_PARSER_TRUE@@HAVE_RAGEL_FALSE@scanner.c: scanner.c.g2
+@G2_PARSER_TRUE@@HAVE_RAGEL_FALSE@	cp $@.g2 $@
+@G2_PARSER_TRUE@@HAVE_RAGEL_FALSE@	@echo "NOTE: Compilation of scanner.c can take several minutes!"
+
+@HAVE_RAGEL_FALSE@@T0_PARSER_TRUE@scanner.c: scanner.c.t0
+@HAVE_RAGEL_FALSE@@T0_PARSER_TRUE@	cp $@.t0 $@
 
 check-local: $(check_PROGRAMS)
 	cd tests && ./runtests -l $(abs_srcdir)/tests/TESTS

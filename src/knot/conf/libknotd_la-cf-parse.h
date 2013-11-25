@@ -171,14 +171,14 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 430 "cf-parse.y"
+#line 438 "cf-parse.y"
 
-    struct {
-       char *t;
-       long i;
-       size_t l;
-       knot_tsig_algorithm_t alg;
-    } tok;
+	struct {
+		char *t;
+		long i;
+		size_t l;
+		knot_tsig_algorithm_t alg;
+	} tok;
 
 
 
