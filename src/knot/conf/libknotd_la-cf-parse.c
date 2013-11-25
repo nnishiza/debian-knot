@@ -76,8 +76,9 @@
 /* Line 268 of yacc.c  */
 #line 23 "cf-parse.y"
 
-/* Headers */
+
 #include <config.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -102,23 +103,37 @@ static conf_log_t *this_log = 0;
 static conf_log_map_t *this_logmap = 0;
 //#define YYERROR_VERBOSE 1
 
+#define SET_NUM(out, in, min, max, name)				\
+{									\
+	if (in < min || in > max) {					\
+		cf_error(scanner, "'%s' is out of range (%u-%u)",	\
+		         name, min, max);				\
+	} else {							\
+		out = in;						\
+	}								\
+}
+
+#define SET_UINT16(out, in, name) SET_NUM(out, in, 0, UINT16_MAX, name);
+#define SET_INT(out, in, name) SET_NUM(out, in, 0, INT_MAX, name);
+#define SET_SIZE(out, in, name) SET_NUM(out, in, 0, SIZE_MAX, name);
+
 static void conf_init_iface(void *scanner, char* ifname, int port)
 {
-   this_iface = malloc(sizeof(conf_iface_t));
-   if (this_iface == NULL) {
-      cf_error(scanner, "not enough memory when allocating interface");
-      return;
-   }
-   memset(this_iface, 0, sizeof(conf_iface_t));
-   this_iface->name = ifname;
-   this_iface->port = port;
+	this_iface = malloc(sizeof(conf_iface_t));
+	if (this_iface == NULL) {
+		cf_error(scanner, "not enough memory when allocating interface");
+		return;
+	}
+	memset(this_iface, 0, sizeof(conf_iface_t));
+	this_iface->name = ifname;
+	this_iface->port = port;
 }
 
 static void conf_start_iface(void *scanner, char* ifname)
 {
-   conf_init_iface(scanner, ifname, -1);
-   add_tail(&new_config->ifaces, &this_iface->n);
-   ++new_config->ifaces_count;
+	conf_init_iface(scanner, ifname, -1);
+	add_tail(&new_config->ifaces, &this_iface->n);
+	++new_config->ifaces_count;
 }
 
 static conf_iface_t *conf_get_remote(const char *name)
@@ -135,40 +150,40 @@ static conf_iface_t *conf_get_remote(const char *name)
 
 static void conf_start_remote(void *scanner, char *remote)
 {
-   if (conf_get_remote(remote) != NULL) {
-      cf_error(scanner, "remote '%s' already defined", remote);
-      return;
-   }
+	if (conf_get_remote(remote) != NULL) {
+		cf_error(scanner, "remote '%s' already defined", remote);
+		return;
+	}
 
-   this_remote = malloc(sizeof(conf_iface_t));
-   if (this_remote == NULL) {
-      cf_error(scanner, "not enough memory when allocating remote");
-      return;
-   }
+	this_remote = malloc(sizeof(conf_iface_t));
+	if (this_remote == NULL) {
+		cf_error(scanner, "not enough memory when allocating remote");
+		return;
+	}
 
-   memset(this_remote, 0, sizeof(conf_iface_t));
-   this_remote->name = remote;
-   add_tail(&new_config->remotes, &this_remote->n);
-   sockaddr_init(&this_remote->via, -1);
-   ++new_config->remotes_count;
+	memset(this_remote, 0, sizeof(conf_iface_t));
+	this_remote->name = remote;
+	add_tail(&new_config->remotes, &this_remote->n);
+	sockaddr_init(&this_remote->via, -1);
+	++new_config->remotes_count;
 }
 
 static void conf_remote_set_via(void *scanner, char *item) {
-   /* Find existing node in interfaces. */
-   node_t* r = 0; conf_iface_t* found = 0;
-   WALK_LIST (r, new_config->ifaces) {
-      if (strcmp(((conf_iface_t*)r)->name, item) == 0) {
-         found = (conf_iface_t*)r;
-         break;
-      }
-   }
+	/* Find existing node in interfaces. */
+	node_t* r = 0; conf_iface_t* found = 0;
+	WALK_LIST (r, new_config->ifaces) {
+		if (strcmp(((conf_iface_t*)r)->name, item) == 0) {
+			found = (conf_iface_t*)r;
+			break;
+		}
+	}
 
-   /* Check */
-   if (!found) {
-      cf_error(scanner, "interface '%s' is not defined", item);
-   } else {
-      sockaddr_set(&this_remote->via, found->family, found->address, 0);
-   }
+	/* Check */
+	if (!found) {
+		cf_error(scanner, "interface '%s' is not defined", item);
+	} else {
+		sockaddr_set(&this_remote->via, found->family, found->address, 0);
+	}
 }
 
 static conf_group_t *conf_get_group(const char *name)
@@ -318,126 +333,119 @@ static void conf_acl_item(void *scanner, char *item)
 
 static int conf_key_exists(void *scanner, char *item)
 {
-    /* Find existing node in keys. */
-    knot_dname_t *sample = knot_dname_from_str(item, strlen(item));
-    knot_dname_to_lower(sample);
-    conf_key_t* r = 0;
-    WALK_LIST (r, new_config->keys) {
-        if (knot_dname_cmp(r->k.name, sample) == 0) {
-           cf_error(scanner, "key '%s' is already defined", item);
-	   knot_dname_free(&sample);
-           return 1;
-        }
-    }
+	/* Find existing node in keys. */
+	knot_dname_t *sample = knot_dname_from_str(item);
+	knot_dname_to_lower(sample);
+	conf_key_t* r = 0;
+	WALK_LIST (r, new_config->keys) {
+		if (knot_dname_cmp(r->k.name, sample) == 0) {
+			cf_error(scanner, "key '%s' is already defined", item);
+			knot_dname_free(&sample);
+			return 1;
+		}
+	}
 
-    knot_dname_free(&sample);
-    return 0;
+	knot_dname_free(&sample);
+	return 0;
 }
 
 static int conf_key_add(void *scanner, knot_tsig_key_t **key, char *item)
 {
-    /* Reset */
-    *key = 0;
+	/* Reset */
+	*key = 0;
 
-    /* Find in keys */
-    knot_dname_t *sample = knot_dname_from_str(item, strlen(item));
-    knot_dname_to_lower(sample);
+	/* Find in keys */
+	knot_dname_t *sample = knot_dname_from_str(item);
+	knot_dname_to_lower(sample);
 
-    conf_key_t* r = 0;
-    WALK_LIST (r, new_config->keys) {
-        if (knot_dname_cmp(r->k.name, sample) == 0) {
-           *key = &r->k;
-           knot_dname_free(&sample);
-           return 0;
-        }
-    }
+	conf_key_t* r = 0;
+	WALK_LIST (r, new_config->keys) {
+		if (knot_dname_cmp(r->k.name, sample) == 0) {
+			*key = &r->k;
+			knot_dname_free(&sample);
+			return 0;
+		}
+	}
 
-    cf_error(scanner, "key '%s' is not defined", item);
-    knot_dname_free(&sample);
-    return 1;
+	cf_error(scanner, "key '%s' is not defined", item);
+	knot_dname_free(&sample);
+	return 1;
 }
 
 static void conf_zone_start(void *scanner, char *name) {
-   this_zone = malloc(sizeof(conf_zone_t));
-   if (this_zone == NULL || name == NULL) {
-      cf_error(scanner, "out of memory while allocating zone config");
-      return;
-   }
-   memset(this_zone, 0, sizeof(conf_zone_t));
-   this_zone->enable_checks = -1; // Default policy applies
-   this_zone->notify_timeout = -1; // Default policy applies
-   this_zone->notify_retries = 0; // Default policy applies
-   this_zone->dbsync_timeout = -1; // Default policy applies
-   this_zone->disable_any = -1; // Default policy applies
-   this_zone->build_diffs = -1; // Default policy applies
-   this_zone->sig_lifetime = -1; // Default policy applies
+	this_zone = malloc(sizeof(conf_zone_t));
+	if (this_zone == NULL || name == NULL) {
+		cf_error(scanner, "out of memory while allocating zone config");
+		return;
+	}
+	memset(this_zone, 0, sizeof(conf_zone_t));
+	this_zone->enable_checks = -1; // Default policy applies
+	this_zone->notify_timeout = -1; // Default policy applies
+	this_zone->notify_retries = 0; // Default policy applies
+	this_zone->dbsync_timeout = -1; // Default policy applies
+	this_zone->disable_any = -1; // Default policy applies
+	this_zone->build_diffs = -1; // Default policy applies
+	this_zone->sig_lifetime = -1; // Default policy applies
 
-   // Append mising dot to ensure FQDN
-   size_t nlen = strlen(name);
-   if (name[nlen - 1] != '.') {
-      this_zone->name = malloc(nlen + 2);
-      if (this_zone->name != NULL) {
-	memcpy(this_zone->name, name, nlen);
-	this_zone->name[nlen] = '.';
-	this_zone->name[++nlen] = '\0';
-     }
-     free(name);
-   } else {
-      this_zone->name = name; /* Already FQDN */
-   }
+	// Append mising dot to ensure FQDN
+	size_t nlen = strlen(name);
+	if (name[nlen - 1] != '.') {
+		this_zone->name = malloc(nlen + 2);
+		if (this_zone->name != NULL) {
+			memcpy(this_zone->name, name, nlen);
+			this_zone->name[nlen] = '.';
+			this_zone->name[++nlen] = '\0';
+		}
+		free(name);
+	} else {
+		this_zone->name = name; /* Already FQDN */
+	}
 
-   // DNSSEC configuration
-   this_zone->dnssec_enable = true;
-   if (new_config->dnssec_global) {
-      this_zone->dnssec_enable = new_config->dnssec_enable;
-   }
+	// DNSSEC configuration
+	if (new_config->dnssec_enable) {
+		this_zone->dnssec_enable = new_config->dnssec_enable;
+	}
 
-   /* Initialize ACL lists. */
-   init_list(&this_zone->acl.xfr_in);
-   init_list(&this_zone->acl.xfr_out);
-   init_list(&this_zone->acl.notify_in);
-   init_list(&this_zone->acl.notify_out);
-   init_list(&this_zone->acl.update_in);
+	/* Initialize ACL lists. */
+	init_list(&this_zone->acl.xfr_in);
+	init_list(&this_zone->acl.xfr_out);
+	init_list(&this_zone->acl.notify_in);
+	init_list(&this_zone->acl.notify_out);
+	init_list(&this_zone->acl.update_in);
 
-   /* Check domain name. */
-   knot_dname_t *dn = NULL;
-   if (this_zone->name != NULL) {
-      dn = knot_dname_from_str(this_zone->name, nlen);
-   }
-   if (dn == NULL) {
-     free(this_zone->name);
-     free(this_zone);
-     this_zone = NULL;
-     cf_error(scanner, "invalid zone origin");
-   } else {
-     /* Check for duplicates. */
-     if (hattrie_tryget(new_config->names, (const char *)dn, knot_dname_size(dn)) != NULL) {
-           cf_error(scanner, "zone '%s' is already present, refusing to "
-			     "duplicate", this_zone->name);
-           knot_dname_free(&dn);
-           free(this_zone->name);
-           this_zone->name = NULL;
-           /* Must not free, some versions of flex might continue after error and segfault.
-            * free(this_zone); this_zone = NULL;
-            */
-           return;
-     }
+	/* Check domain name. */
+	knot_dname_t *dn = NULL;
+	if (this_zone->name != NULL) {
+		dn = knot_dname_from_str(this_zone->name);
+	}
+	if (dn == NULL) {
+		free(this_zone->name);
+		free(this_zone);
+		this_zone = NULL;
+		cf_error(scanner, "invalid zone origin");
+	} else {
+	/* Check for duplicates. */
+	if (hattrie_tryget(new_config->names, (const char *)dn,
+	                   knot_dname_size(dn)) != NULL) {
+		cf_error(scanner, "zone '%s' is already present, refusing to "
+		         "duplicate", this_zone->name);
+		knot_dname_free(&dn);
+		free(this_zone->name);
+		this_zone->name = NULL;
+		/* Must not free, some versions of flex might continue after
+		 * error and segfault.
+		 * free(this_zone); this_zone = NULL;
+		 */
+		return;
+	}
 
-     /* Directly discard dname, won't be needed. */
-     add_tail(&new_config->zones, &this_zone->n);
-     *hattrie_get(new_config->names, (const char *)dn, knot_dname_size(dn)) = (void *)1;
-     ++new_config->zones_count;
-     knot_dname_free(&dn);
-   }
-}
-
-static int conf_mask(void* scanner, int nval, int prefixlen) {
-    if (nval < 0 || nval > prefixlen) {
-        cf_error(scanner, "IPv%c subnet prefix '%d' is out of range <0,%d>",
-                 prefixlen == IPV4_PREFIXLEN ? '4' : '6', nval, prefixlen);
-        return prefixlen; /* single host */
-    }
-    return nval;
+	/* Directly discard dname, won't be needed. */
+	add_tail(&new_config->zones, &this_zone->n);
+	*hattrie_get(new_config->names, (const char *)dn,
+	             knot_dname_size(dn)) = (void *)1;
+	++new_config->zones_count;
+	knot_dname_free(&dn);
+	}
 }
 
 /*! \brief Replace string value. */
@@ -478,7 +486,7 @@ static void ident_auto(int tok, conf_t *conf, bool val)
 
 
 /* Line 268 of yacc.c  */
-#line 482 "knot/conf/libknotd_la-cf-parse.c"
+#line 490 "knot/conf/libknotd_la-cf-parse.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -639,19 +647,19 @@ typedef union YYSTYPE
 {
 
 /* Line 293 of yacc.c  */
-#line 430 "cf-parse.y"
+#line 438 "cf-parse.y"
 
-    struct {
-       char *t;
-       long i;
-       size_t l;
-       knot_tsig_algorithm_t alg;
-    } tok;
+	struct {
+		char *t;
+		long i;
+		size_t l;
+		knot_tsig_algorithm_t alg;
+	} tok;
 
 
 
 /* Line 293 of yacc.c  */
-#line 655 "knot/conf/libknotd_la-cf-parse.c"
+#line 663 "knot/conf/libknotd_la-cf-parse.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -663,7 +671,7 @@ typedef union YYSTYPE
 
 
 /* Line 343 of yacc.c  */
-#line 667 "knot/conf/libknotd_la-cf-parse.c"
+#line 675 "knot/conf/libknotd_la-cf-parse.c"
 
 #ifdef short
 # undef short
@@ -1028,22 +1036,22 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   496,   496,   498,   500,   503,   504,   505,   506,   507,
-     508,   509,   512,   513,   520,   528,   541,   549,   565,   566,
-     574,   575,   576,   577,   578,   579,   584,   585,   586,   587,
-     595,   596,   597,   598,   603,   610,   631,   632,   633,   634,
-     635,   636,   637,   638,   642,   643,   695,   696,   697,   698,
-     699,   700,   703,   704,   711,   720,   729,   743,   752,   761,
-     775,   783,   787,   791,   798,   799,   807,   810,   812,   813,
-     817,   821,   822,   826,   829,   832,   835,   838,   843,   844,
-     845,   846,   847,   848,   851,   852,   853,   856,   857,   885,
-     886,   887,   888,   889,   890,   891,   892,   909,   913,   914,
-     915,   916,   917,   918,   919,   920,   921,   922,   923,   924,
-     931,   938,   939,   946,   956,   957,   958,   959,   960,   961,
-     962,   963,   970,   977,   984,   985,   987,   988,   995,  1004,
-    1013,  1014,  1015,  1018,  1019,  1025,  1048,  1075,  1079,  1080,
-    1081,  1084,  1084,  1088,  1092,  1098,  1099,  1106,  1112,  1113,
-    1116,  1116,  1116,  1116,  1116,  1116,  1116,  1116,  1116
+       0,   504,   504,   506,   508,   511,   512,   513,   514,   515,
+     516,   517,   520,   521,   528,   536,   549,   557,   573,   574,
+     582,   583,   584,   585,   586,   587,   592,   593,   594,   595,
+     599,   600,   601,   602,   607,   610,   631,   634,   637,   640,
+     643,   646,   649,   652,   658,   659,   711,   712,   713,   714,
+     715,   716,   719,   720,   727,   736,   745,   759,   768,   777,
+     791,   799,   803,   807,   814,   815,   823,   826,   828,   829,
+     833,   837,   838,   842,   845,   848,   851,   854,   859,   860,
+     861,   862,   863,   864,   867,   868,   869,   872,   873,   901,
+     902,   903,   904,   905,   906,   907,   908,   924,   928,   929,
+     930,   931,   932,   933,   934,   935,   938,   941,   944,   947,
+     950,   953,   954,   957,   963,   964,   965,   966,   967,   968,
+     971,   974,   977,   980,   983,   986,   987,   988,   991,   996,
+    1005,  1006,  1007,  1010,  1011,  1017,  1040,  1067,  1071,  1072,
+    1073,  1076,  1076,  1080,  1084,  1090,  1091,  1098,  1104,  1105,
+    1108,  1108,  1108,  1108,  1108,  1108,  1108,  1108,  1108
 };
 #endif
 
@@ -2182,61 +2190,61 @@ yyreduce:
         case 2:
 
 /* Line 1806 of yacc.c  */
-#line 496 "cf-parse.y"
+#line 504 "cf-parse.y"
     { return 0; }
     break;
 
   case 6:
 
 /* Line 1806 of yacc.c  */
-#line 504 "cf-parse.y"
+#line 512 "cf-parse.y"
     { conf_start_iface(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 7:
 
 /* Line 1806 of yacc.c  */
-#line 505 "cf-parse.y"
+#line 513 "cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 8:
 
 /* Line 1806 of yacc.c  */
-#line 506 "cf-parse.y"
+#line 514 "cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 9:
 
 /* Line 1806 of yacc.c  */
-#line 507 "cf-parse.y"
+#line 515 "cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 10:
 
 /* Line 1806 of yacc.c  */
-#line 508 "cf-parse.y"
+#line 516 "cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 11:
 
 /* Line 1806 of yacc.c  */
-#line 509 "cf-parse.y"
+#line 517 "cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 13:
 
 /* Line 1806 of yacc.c  */
-#line 513 "cf-parse.y"
+#line 521 "cf-parse.y"
     {
      if (this_iface->port > 0) {
        cf_error(scanner, "only one port definition is allowed in interface section\n");
      } else {
-       this_iface->port = (yyvsp[(3) - (4)].tok).i;
+       SET_UINT16(this_iface->port, (yyvsp[(3) - (4)].tok).i, "port");
      }
    }
     break;
@@ -2244,7 +2252,7 @@ yyreduce:
   case 14:
 
 /* Line 1806 of yacc.c  */
-#line 520 "cf-parse.y"
+#line 528 "cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2258,7 +2266,7 @@ yyreduce:
   case 15:
 
 /* Line 1806 of yacc.c  */
-#line 528 "cf-parse.y"
+#line 536 "cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2268,7 +2276,7 @@ yyreduce:
        if (this_iface->port > 0) {
 	 cf_error(scanner, "only one port definition is allowed in interface section\n");
        } else {
-	 this_iface->port = (yyvsp[(5) - (6)].tok).i;
+         SET_UINT16(this_iface->port, (yyvsp[(5) - (6)].tok).i, "port");
        }
      }
    }
@@ -2277,7 +2285,7 @@ yyreduce:
   case 16:
 
 /* Line 1806 of yacc.c  */
-#line 541 "cf-parse.y"
+#line 549 "cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2291,7 +2299,7 @@ yyreduce:
   case 17:
 
 /* Line 1806 of yacc.c  */
-#line 549 "cf-parse.y"
+#line 557 "cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2301,7 +2309,7 @@ yyreduce:
        if (this_iface->port > 0) {
           cf_error(scanner, "only one port definition is allowed in interface section\n");
        } else {
-          this_iface->port = (yyvsp[(5) - (6)].tok).i;
+          SET_UINT16(this_iface->port, (yyvsp[(5) - (6)].tok).i, "port");
        }
      }
    }
@@ -2310,7 +2318,7 @@ yyreduce:
   case 19:
 
 /* Line 1806 of yacc.c  */
-#line 566 "cf-parse.y"
+#line 574 "cf-parse.y"
     {
    if (this_iface->address == 0) {
      cf_error(scanner, "interface '%s' has no defined address", this_iface->name);
@@ -2321,35 +2329,35 @@ yyreduce:
   case 21:
 
 /* Line 1806 of yacc.c  */
-#line 575 "cf-parse.y"
+#line 583 "cf-parse.y"
     { new_config->version = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 22:
 
 /* Line 1806 of yacc.c  */
-#line 576 "cf-parse.y"
+#line 584 "cf-parse.y"
     { ident_auto(SVERSION, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 23:
 
 /* Line 1806 of yacc.c  */
-#line 577 "cf-parse.y"
+#line 585 "cf-parse.y"
     { new_config->identity = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 24:
 
 /* Line 1806 of yacc.c  */
-#line 578 "cf-parse.y"
+#line 586 "cf-parse.y"
     { ident_auto(IDENTITY, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 25:
 
 /* Line 1806 of yacc.c  */
-#line 579 "cf-parse.y"
+#line 587 "cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.hostname' is deprecated. "
                      "Use 'system.identity' instead.\n");
@@ -2360,63 +2368,59 @@ yyreduce:
   case 26:
 
 /* Line 1806 of yacc.c  */
-#line 584 "cf-parse.y"
+#line 592 "cf-parse.y"
     { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = (yyvsp[(3) - (4)].tok).l; }
     break;
 
   case 27:
 
 /* Line 1806 of yacc.c  */
-#line 585 "cf-parse.y"
+#line 593 "cf-parse.y"
     { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = strlen(new_config->nsid); }
     break;
 
   case 28:
 
 /* Line 1806 of yacc.c  */
-#line 586 "cf-parse.y"
+#line 594 "cf-parse.y"
     { ident_auto(NSID, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 29:
 
 /* Line 1806 of yacc.c  */
-#line 587 "cf-parse.y"
+#line 595 "cf-parse.y"
     {
-     if ((yyvsp[(3) - (4)].tok).i < EDNS_MIN_UDP_PAYLOAD || (yyvsp[(3) - (4)].tok).i > EDNS_MAX_UDP_PAYLOAD) {
-        cf_error(scanner, "maximal UDP payload size is out of range (%u-%u)",
-                 EDNS_MIN_UDP_PAYLOAD, EDNS_MAX_UDP_PAYLOAD);
-     } else {
-        new_config->max_udp_payload = (yyvsp[(3) - (4)].tok).i;
-     }
+     SET_NUM(new_config->max_udp_payload, (yyvsp[(3) - (4)].tok).i, EDNS_MIN_UDP_PAYLOAD,
+             EDNS_MAX_UDP_PAYLOAD, "max-udp-payload");
  }
     break;
 
   case 30:
 
 /* Line 1806 of yacc.c  */
-#line 595 "cf-parse.y"
+#line 599 "cf-parse.y"
     { new_config->storage = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 31:
 
 /* Line 1806 of yacc.c  */
-#line 596 "cf-parse.y"
+#line 600 "cf-parse.y"
     { new_config->rundir = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 32:
 
 /* Line 1806 of yacc.c  */
-#line 597 "cf-parse.y"
+#line 601 "cf-parse.y"
     { new_config->pidfile = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 33:
 
 /* Line 1806 of yacc.c  */
-#line 598 "cf-parse.y"
+#line 602 "cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.key' is deprecated "
                      "and has no effect.\n");
@@ -2427,13 +2431,9 @@ yyreduce:
   case 34:
 
 /* Line 1806 of yacc.c  */
-#line 603 "cf-parse.y"
+#line 607 "cf-parse.y"
     {
-     if ((yyvsp[(3) - (4)].tok).i <= 0) {
-        cf_error(scanner, "worker count must be greater than 0\n");
-     } else {
-        new_config->workers = (yyvsp[(3) - (4)].tok).i;
-     }
+     SET_NUM(new_config->workers, (yyvsp[(3) - (4)].tok).i, 1, 255, "workers");
  }
     break;
 
@@ -2468,62 +2468,78 @@ yyreduce:
 
 /* Line 1806 of yacc.c  */
 #line 631 "cf-parse.y"
-    { new_config->max_conn_idle = (yyvsp[(3) - (4)].tok).i; }
+    {
+	SET_INT(new_config->max_conn_idle, (yyvsp[(3) - (4)].tok).i, "max-conn-idle");
+ }
     break;
 
   case 37:
 
 /* Line 1806 of yacc.c  */
-#line 632 "cf-parse.y"
-    { new_config->max_conn_hs = (yyvsp[(3) - (4)].tok).i; }
+#line 634 "cf-parse.y"
+    {
+	SET_INT(new_config->max_conn_hs, (yyvsp[(3) - (4)].tok).i, "max-conn-handshake");
+ }
     break;
 
   case 38:
 
 /* Line 1806 of yacc.c  */
-#line 633 "cf-parse.y"
-    { new_config->max_conn_reply = (yyvsp[(3) - (4)].tok).i; }
+#line 637 "cf-parse.y"
+    {
+	SET_INT(new_config->max_conn_reply, (yyvsp[(3) - (4)].tok).i, "max-conn-reply");
+ }
     break;
 
   case 39:
 
 /* Line 1806 of yacc.c  */
-#line 634 "cf-parse.y"
-    { new_config->rrl = (yyvsp[(3) - (4)].tok).i; }
+#line 640 "cf-parse.y"
+    {
+	SET_INT(new_config->rrl, (yyvsp[(3) - (4)].tok).i, "rate-limit");
+ }
     break;
 
   case 40:
 
 /* Line 1806 of yacc.c  */
-#line 635 "cf-parse.y"
-    { new_config->rrl_size = (yyvsp[(3) - (4)].tok).l; }
+#line 643 "cf-parse.y"
+    {
+	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).l, "rate-limit-size");
+ }
     break;
 
   case 41:
 
 /* Line 1806 of yacc.c  */
-#line 636 "cf-parse.y"
-    { new_config->rrl_size = (yyvsp[(3) - (4)].tok).i; }
+#line 646 "cf-parse.y"
+    {
+	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).i, "rate-limit-size");
+ }
     break;
 
   case 42:
 
 /* Line 1806 of yacc.c  */
-#line 637 "cf-parse.y"
-    { new_config->rrl_slip = (yyvsp[(3) - (4)].tok).i; }
+#line 649 "cf-parse.y"
+    {
+	SET_INT(new_config->rrl_slip, (yyvsp[(3) - (4)].tok).i, "rate-limit-slip");
+ }
     break;
 
   case 43:
 
 /* Line 1806 of yacc.c  */
-#line 638 "cf-parse.y"
-    { new_config->xfers = (yyvsp[(3) - (4)].tok).i; }
+#line 652 "cf-parse.y"
+    {
+	SET_INT(new_config->xfers, (yyvsp[(3) - (4)].tok).i, "transfers");
+ }
     break;
 
   case 45:
 
 /* Line 1806 of yacc.c  */
-#line 643 "cf-parse.y"
+#line 659 "cf-parse.y"
     {
      /* Check algorithm length. */
      if (knot_tsig_digest_length((yyvsp[(3) - (5)].tok).alg) == 0) {
@@ -2551,7 +2567,7 @@ yyreduce:
      }
 
      if (fqdn != NULL && !conf_key_exists(scanner, fqdn)) {
-         knot_dname_t *dname = knot_dname_from_str(fqdn, fqdnl);
+         knot_dname_t *dname = knot_dname_from_str(fqdn);
 	 if (!dname) {
              cf_error(scanner, "key name '%s' not in valid domain name format",
                       fqdn);
@@ -2580,47 +2596,47 @@ yyreduce:
   case 47:
 
 /* Line 1806 of yacc.c  */
-#line 696 "cf-parse.y"
+#line 712 "cf-parse.y"
     { conf_start_remote(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 48:
 
 /* Line 1806 of yacc.c  */
-#line 697 "cf-parse.y"
+#line 713 "cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 49:
 
 /* Line 1806 of yacc.c  */
-#line 698 "cf-parse.y"
+#line 714 "cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 50:
 
 /* Line 1806 of yacc.c  */
-#line 699 "cf-parse.y"
+#line 715 "cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 51:
 
 /* Line 1806 of yacc.c  */
-#line 700 "cf-parse.y"
+#line 716 "cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 53:
 
 /* Line 1806 of yacc.c  */
-#line 704 "cf-parse.y"
+#line 720 "cf-parse.y"
     {
      if (this_remote->port != 0) {
        cf_error(scanner, "only one port definition is allowed in remote section\n");
      } else {
-       this_remote->port = (yyvsp[(3) - (4)].tok).i;
+       SET_UINT16(this_remote->port, (yyvsp[(3) - (4)].tok).i, "port");
      }
    }
     break;
@@ -2628,7 +2644,7 @@ yyreduce:
   case 54:
 
 /* Line 1806 of yacc.c  */
-#line 711 "cf-parse.y"
+#line 727 "cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2643,14 +2659,14 @@ yyreduce:
   case 55:
 
 /* Line 1806 of yacc.c  */
-#line 720 "cf-parse.y"
+#line 736 "cf-parse.y"
     {
        if (this_remote->address != 0) {
          cf_error(scanner, "only one address is allowed in remote section\n");
        } else {
          this_remote->address = (yyvsp[(3) - (6)].tok).t;
          this_remote->family = AF_INET;
-         this_remote->prefix = conf_mask(scanner, (yyvsp[(5) - (6)].tok).i, IPV4_PREFIXLEN);
+         SET_NUM(this_remote->prefix, (yyvsp[(5) - (6)].tok).i, 0, IPV4_PREFIXLEN, "prefix length");
        }
      }
     break;
@@ -2658,7 +2674,7 @@ yyreduce:
   case 56:
 
 /* Line 1806 of yacc.c  */
-#line 729 "cf-parse.y"
+#line 745 "cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2669,7 +2685,7 @@ yyreduce:
        if (this_remote->port != 0) {
 	 cf_error(scanner, "only one port definition is allowed in remote section\n");
        } else {
-	 this_remote->port = (yyvsp[(5) - (6)].tok).i;
+         SET_UINT16(this_remote->port, (yyvsp[(5) - (6)].tok).i, "port");
        }
      }
    }
@@ -2678,7 +2694,7 @@ yyreduce:
   case 57:
 
 /* Line 1806 of yacc.c  */
-#line 743 "cf-parse.y"
+#line 759 "cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2693,14 +2709,14 @@ yyreduce:
   case 58:
 
 /* Line 1806 of yacc.c  */
-#line 752 "cf-parse.y"
+#line 768 "cf-parse.y"
     {
        if (this_remote->address != 0) {
          cf_error(scanner, "only one address is allowed in remote section\n");
        } else {
          this_remote->address = (yyvsp[(3) - (6)].tok).t;
          this_remote->family = AF_INET6;
-         this_remote->prefix = conf_mask(scanner, (yyvsp[(5) - (6)].tok).i, IPV6_PREFIXLEN);
+         SET_NUM(this_remote->prefix, (yyvsp[(5) - (6)].tok).i, 0, IPV6_PREFIXLEN, "prefix length");
        }
      }
     break;
@@ -2708,7 +2724,7 @@ yyreduce:
   case 59:
 
 /* Line 1806 of yacc.c  */
-#line 761 "cf-parse.y"
+#line 777 "cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2719,7 +2735,7 @@ yyreduce:
        if (this_remote->port != 0) {
 	 cf_error(scanner, "only one port definition is allowed in remote section\n");
        } else {
-	 this_remote->port = (yyvsp[(5) - (6)].tok).i;
+         SET_UINT16(this_remote->port, (yyvsp[(5) - (6)].tok).i, "port");
        }
      }
    }
@@ -2728,7 +2744,7 @@ yyreduce:
   case 60:
 
 /* Line 1806 of yacc.c  */
-#line 775 "cf-parse.y"
+#line 791 "cf-parse.y"
     {
      if (this_remote->key != 0) {
        cf_error(scanner, "only one TSIG key definition is allowed in remote section\n");
@@ -2742,7 +2758,7 @@ yyreduce:
   case 61:
 
 /* Line 1806 of yacc.c  */
-#line 783 "cf-parse.y"
+#line 799 "cf-parse.y"
     {
      sockaddr_set(&this_remote->via, AF_INET, (yyvsp[(3) - (4)].tok).t, 0);
      free((yyvsp[(3) - (4)].tok).t);
@@ -2752,7 +2768,7 @@ yyreduce:
   case 62:
 
 /* Line 1806 of yacc.c  */
-#line 787 "cf-parse.y"
+#line 803 "cf-parse.y"
     {
      sockaddr_set(&this_remote->via, AF_INET6, (yyvsp[(3) - (4)].tok).t, 0);
      free((yyvsp[(3) - (4)].tok).t);
@@ -2762,7 +2778,7 @@ yyreduce:
   case 63:
 
 /* Line 1806 of yacc.c  */
-#line 791 "cf-parse.y"
+#line 807 "cf-parse.y"
     {
      conf_remote_set_via(scanner, (yyvsp[(3) - (4)].tok).t);
      free((yyvsp[(3) - (4)].tok).t);
@@ -2772,7 +2788,7 @@ yyreduce:
   case 65:
 
 /* Line 1806 of yacc.c  */
-#line 799 "cf-parse.y"
+#line 815 "cf-parse.y"
     {
      if (this_remote->address == 0) {
        cf_error(scanner, "remote '%s' has no defined address", this_remote->name);
@@ -2783,21 +2799,21 @@ yyreduce:
   case 66:
 
 /* Line 1806 of yacc.c  */
-#line 807 "cf-parse.y"
+#line 823 "cf-parse.y"
     { conf_add_member_into_group(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 70:
 
 /* Line 1806 of yacc.c  */
-#line 817 "cf-parse.y"
+#line 833 "cf-parse.y"
     { conf_start_group(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 73:
 
 /* Line 1806 of yacc.c  */
-#line 826 "cf-parse.y"
+#line 842 "cf-parse.y"
     {
       this_list = &this_zone->acl.xfr_in;
    }
@@ -2806,7 +2822,7 @@ yyreduce:
   case 74:
 
 /* Line 1806 of yacc.c  */
-#line 829 "cf-parse.y"
+#line 845 "cf-parse.y"
     {
       this_list = &this_zone->acl.xfr_out;
    }
@@ -2815,7 +2831,7 @@ yyreduce:
   case 75:
 
 /* Line 1806 of yacc.c  */
-#line 832 "cf-parse.y"
+#line 848 "cf-parse.y"
     {
       this_list = &this_zone->acl.notify_in;
    }
@@ -2824,7 +2840,7 @@ yyreduce:
   case 76:
 
 /* Line 1806 of yacc.c  */
-#line 835 "cf-parse.y"
+#line 851 "cf-parse.y"
     {
       this_list = &this_zone->acl.notify_out;
    }
@@ -2833,7 +2849,7 @@ yyreduce:
   case 77:
 
 /* Line 1806 of yacc.c  */
-#line 838 "cf-parse.y"
+#line 854 "cf-parse.y"
     {
       this_list = &this_zone->acl.update_in;
  }
@@ -2842,42 +2858,42 @@ yyreduce:
   case 79:
 
 /* Line 1806 of yacc.c  */
-#line 844 "cf-parse.y"
+#line 860 "cf-parse.y"
     { conf_acl_item(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 80:
 
 /* Line 1806 of yacc.c  */
-#line 845 "cf-parse.y"
+#line 861 "cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 81:
 
 /* Line 1806 of yacc.c  */
-#line 846 "cf-parse.y"
+#line 862 "cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 82:
 
 /* Line 1806 of yacc.c  */
-#line 847 "cf-parse.y"
+#line 863 "cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 83:
 
 /* Line 1806 of yacc.c  */
-#line 848 "cf-parse.y"
+#line 864 "cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 88:
 
 /* Line 1806 of yacc.c  */
-#line 857 "cf-parse.y"
+#line 873 "cf-parse.y"
     {
       /* Find existing node in remotes. */
       node_t* r = 0; conf_iface_t* found = 0;
@@ -2909,60 +2925,59 @@ yyreduce:
   case 90:
 
 /* Line 1806 of yacc.c  */
-#line 886 "cf-parse.y"
+#line 902 "cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 91:
 
 /* Line 1806 of yacc.c  */
-#line 887 "cf-parse.y"
+#line 903 "cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 92:
 
 /* Line 1806 of yacc.c  */
-#line 888 "cf-parse.y"
+#line 904 "cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 93:
 
 /* Line 1806 of yacc.c  */
-#line 889 "cf-parse.y"
+#line 905 "cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 94:
 
 /* Line 1806 of yacc.c  */
-#line 890 "cf-parse.y"
+#line 906 "cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 95:
 
 /* Line 1806 of yacc.c  */
-#line 891 "cf-parse.y"
+#line 907 "cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 96:
 
 /* Line 1806 of yacc.c  */
-#line 892 "cf-parse.y"
+#line 908 "cf-parse.y"
     {
-    if ((yyvsp[(1) - (3)].tok).i < 0 || (yyvsp[(1) - (3)].tok).i > 255) {
-        cf_error(scanner, "rfc2317 origin prefix '%ld' out of bounds", (yyvsp[(1) - (3)].tok).i);
-    }
+    unsigned prefix_len = 0;
+    SET_NUM(prefix_len, (yyvsp[(1) - (3)].tok).i, 0, 255, "origin prefix length");
     size_t len = 3 + 1 + strlen((yyvsp[(3) - (3)].tok).t) + 1; /* <0,255> '/' rest */
     char *name = malloc(len * sizeof(char));
     if (name == NULL) {
         cf_error(scanner, "out of memory");
     } else {
         name[0] = '\0';
-        if (snprintf(name, len, "%ld/%s", (yyvsp[(1) - (3)].tok).i, (yyvsp[(3) - (3)].tok).t) < 0) {
+        if (snprintf(name, len, "%u/%s", prefix_len, (yyvsp[(3) - (3)].tok).t) < 0) {
             cf_error(scanner,"failed to convert rfc2317 origin to string");
         }
     }
@@ -2974,212 +2989,197 @@ yyreduce:
   case 97:
 
 /* Line 1806 of yacc.c  */
-#line 909 "cf-parse.y"
+#line 924 "cf-parse.y"
     { conf_zone_start(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 101:
 
 /* Line 1806 of yacc.c  */
-#line 916 "cf-parse.y"
+#line 931 "cf-parse.y"
     { this_zone->file = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 102:
 
 /* Line 1806 of yacc.c  */
-#line 917 "cf-parse.y"
+#line 932 "cf-parse.y"
     { this_zone->build_diffs = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 103:
 
 /* Line 1806 of yacc.c  */
-#line 918 "cf-parse.y"
+#line 933 "cf-parse.y"
     { this_zone->enable_checks = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 104:
 
 /* Line 1806 of yacc.c  */
-#line 919 "cf-parse.y"
+#line 934 "cf-parse.y"
     { this_zone->disable_any = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 105:
 
 /* Line 1806 of yacc.c  */
-#line 920 "cf-parse.y"
-    { this_zone->dbsync_timeout = (yyvsp[(3) - (4)].tok).i; }
+#line 935 "cf-parse.y"
+    {
+	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
+ }
     break;
 
   case 106:
 
 /* Line 1806 of yacc.c  */
-#line 921 "cf-parse.y"
-    { this_zone->dbsync_timeout = (yyvsp[(3) - (4)].tok).i; }
+#line 938 "cf-parse.y"
+    {
+	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
+ }
     break;
 
   case 107:
 
 /* Line 1806 of yacc.c  */
-#line 922 "cf-parse.y"
-    { new_config->ixfr_fslimit = (yyvsp[(3) - (4)].tok).l; }
+#line 941 "cf-parse.y"
+    {
+	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
+ }
     break;
 
   case 108:
 
 /* Line 1806 of yacc.c  */
-#line 923 "cf-parse.y"
-    { this_zone->ixfr_fslimit = (yyvsp[(3) - (4)].tok).i; }
+#line 944 "cf-parse.y"
+    {
+	SET_SIZE(this_zone->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
+ }
     break;
 
   case 109:
 
 /* Line 1806 of yacc.c  */
-#line 924 "cf-parse.y"
+#line 947 "cf-parse.y"
     {
-       if ((yyvsp[(3) - (4)].tok).i < 1) {
-	   cf_error(scanner, "notify retries must be positive integer");
-       } else {
-	   this_zone->notify_retries = (yyvsp[(3) - (4)].tok).i;
-       }
+	SET_NUM(this_zone->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
    }
     break;
 
   case 110:
 
 /* Line 1806 of yacc.c  */
-#line 931 "cf-parse.y"
+#line 950 "cf-parse.y"
     {
-	if ((yyvsp[(3) - (4)].tok).i < 1) {
-	   cf_error(scanner, "notify timeout must be positive integer");
-       } else {
-	   this_zone->notify_timeout = (yyvsp[(3) - (4)].tok).i;
-       }
+	SET_NUM(this_zone->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
    }
     break;
 
   case 111:
 
 /* Line 1806 of yacc.c  */
-#line 938 "cf-parse.y"
+#line 953 "cf-parse.y"
     { this_zone->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 112:
 
 /* Line 1806 of yacc.c  */
-#line 939 "cf-parse.y"
+#line 954 "cf-parse.y"
     {
-	if ((yyvsp[(3) - (4)].tok).i <= 7200) {
-	   cf_error(scanner, "signature lifetime must be more than 7200 seconds");
-	} else {
-	   this_zone->sig_lifetime = (yyvsp[(3) - (4)].tok).i;
-	}
+	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 7200, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 113:
 
 /* Line 1806 of yacc.c  */
-#line 946 "cf-parse.y"
+#line 957 "cf-parse.y"
     {
-	 if ((yyvsp[(3) - (4)].tok).i <= 7200) {
-	    cf_error(scanner, "signature lifetime must be more than 7200 seconds");
-	 } else {
-	    this_zone->sig_lifetime = (yyvsp[(3) - (4)].tok).i;
-	 }
+	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 7200, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 116:
 
 /* Line 1806 of yacc.c  */
-#line 958 "cf-parse.y"
+#line 965 "cf-parse.y"
     { new_config->disable_any = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 117:
 
 /* Line 1806 of yacc.c  */
-#line 959 "cf-parse.y"
+#line 966 "cf-parse.y"
     { new_config->build_diffs = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 118:
 
 /* Line 1806 of yacc.c  */
-#line 960 "cf-parse.y"
+#line 967 "cf-parse.y"
     { new_config->zone_checks = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 119:
 
 /* Line 1806 of yacc.c  */
-#line 961 "cf-parse.y"
-    { new_config->ixfr_fslimit = (yyvsp[(3) - (4)].tok).l; }
+#line 968 "cf-parse.y"
+    {
+	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
+ }
     break;
 
   case 120:
 
 /* Line 1806 of yacc.c  */
-#line 962 "cf-parse.y"
-    { new_config->ixfr_fslimit = (yyvsp[(3) - (4)].tok).i; }
+#line 971 "cf-parse.y"
+    {
+	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
+ }
     break;
 
   case 121:
 
 /* Line 1806 of yacc.c  */
-#line 963 "cf-parse.y"
+#line 974 "cf-parse.y"
     {
-       if ((yyvsp[(3) - (4)].tok).i < 1) {
-	   cf_error(scanner, "notify retries must be positive integer");
-       } else {
-	   new_config->notify_retries = (yyvsp[(3) - (4)].tok).i;
-       }
+	SET_NUM(new_config->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
    }
     break;
 
   case 122:
 
 /* Line 1806 of yacc.c  */
-#line 970 "cf-parse.y"
+#line 977 "cf-parse.y"
     {
-	if ((yyvsp[(3) - (4)].tok).i < 1) {
-	   cf_error(scanner, "notify timeout must be positive integer");
-       } else {
-	   new_config->notify_timeout = (yyvsp[(3) - (4)].tok).i;
-       }
+	SET_NUM(new_config->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
    }
     break;
 
   case 123:
 
 /* Line 1806 of yacc.c  */
-#line 977 "cf-parse.y"
+#line 980 "cf-parse.y"
     {
-	if ((yyvsp[(3) - (4)].tok).i < 1) {
-	   cf_error(scanner, "zonefile sync timeout must be positive integer");
-       } else {
-	   new_config->dbsync_timeout = (yyvsp[(3) - (4)].tok).i;
-       }
+	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "zonefile-sync");
  }
     break;
 
   case 124:
 
 /* Line 1806 of yacc.c  */
-#line 984 "cf-parse.y"
-    { new_config->dbsync_timeout = (yyvsp[(3) - (4)].tok).i; }
+#line 983 "cf-parse.y"
+    {
+	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "zonefile-sync");
+ }
     break;
 
   case 125:
 
 /* Line 1806 of yacc.c  */
-#line 985 "cf-parse.y"
-    { new_config->dnssec_enable = (yyvsp[(3) - (4)].tok).i;
-                                  new_config->dnssec_global = true; }
+#line 986 "cf-parse.y"
+    { new_config->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 126:
@@ -3194,31 +3194,23 @@ yyreduce:
 /* Line 1806 of yacc.c  */
 #line 988 "cf-parse.y"
     {
-	if ((yyvsp[(3) - (4)].tok).i <= 7200) {
-	   cf_error(scanner, "signature lifetime must be more than 7200 seconds");
-	} else {
-	   new_config->sig_lifetime = (yyvsp[(3) - (4)].tok).i;
-	}
+	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 7200, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 128:
 
 /* Line 1806 of yacc.c  */
-#line 995 "cf-parse.y"
+#line 991 "cf-parse.y"
     {
-	 if ((yyvsp[(3) - (4)].tok).i <= 7200) {
-	    cf_error(scanner, "signature lifetime must be more than 7200 seconds");
-	 } else {
-	    new_config->sig_lifetime = (yyvsp[(3) - (4)].tok).i;
-	 }
+	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 7200, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 129:
 
 /* Line 1806 of yacc.c  */
-#line 1004 "cf-parse.y"
+#line 996 "cf-parse.y"
     {
   this_logmap = malloc(sizeof(conf_log_map_t));
   this_logmap->source = 0;
@@ -3230,21 +3222,21 @@ yyreduce:
   case 131:
 
 /* Line 1806 of yacc.c  */
-#line 1014 "cf-parse.y"
+#line 1006 "cf-parse.y"
     { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i; }
     break;
 
   case 132:
 
 /* Line 1806 of yacc.c  */
-#line 1015 "cf-parse.y"
+#line 1007 "cf-parse.y"
     { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i; }
     break;
 
   case 134:
 
 /* Line 1806 of yacc.c  */
-#line 1019 "cf-parse.y"
+#line 1011 "cf-parse.y"
     {
      this_logmap->source = (yyvsp[(2) - (3)].tok).i;
      this_logmap = 0;
@@ -3254,7 +3246,7 @@ yyreduce:
   case 135:
 
 /* Line 1806 of yacc.c  */
-#line 1025 "cf-parse.y"
+#line 1017 "cf-parse.y"
     {
   /* Find already existing rule. */
   this_log = 0;
@@ -3281,7 +3273,7 @@ yyreduce:
   case 136:
 
 /* Line 1806 of yacc.c  */
-#line 1048 "cf-parse.y"
+#line 1040 "cf-parse.y"
     {
   /* Find already existing rule. */
   this_log = 0;
@@ -3312,7 +3304,7 @@ yyreduce:
   case 137:
 
 /* Line 1806 of yacc.c  */
-#line 1075 "cf-parse.y"
+#line 1067 "cf-parse.y"
     {
 }
     break;
@@ -3320,21 +3312,21 @@ yyreduce:
   case 141:
 
 /* Line 1806 of yacc.c  */
-#line 1084 "cf-parse.y"
+#line 1076 "cf-parse.y"
     { new_config->logs_count = 0; }
     break;
 
   case 143:
 
 /* Line 1806 of yacc.c  */
-#line 1088 "cf-parse.y"
+#line 1080 "cf-parse.y"
     { conf_init_iface(scanner, NULL, -1); }
     break;
 
   case 144:
 
 /* Line 1806 of yacc.c  */
-#line 1092 "cf-parse.y"
+#line 1084 "cf-parse.y"
     {
     this_list = &new_config->ctl.allow;
   }
@@ -3343,14 +3335,14 @@ yyreduce:
   case 145:
 
 /* Line 1806 of yacc.c  */
-#line 1098 "cf-parse.y"
+#line 1090 "cf-parse.y"
     { new_config->ctl.have = true; }
     break;
 
   case 146:
 
 /* Line 1806 of yacc.c  */
-#line 1099 "cf-parse.y"
+#line 1091 "cf-parse.y"
     {
      if (this_iface->address == 0) {
        cf_error(scanner, "control interface has no defined address");
@@ -3363,7 +3355,7 @@ yyreduce:
   case 147:
 
 /* Line 1806 of yacc.c  */
-#line 1106 "cf-parse.y"
+#line 1098 "cf-parse.y"
     {
      this_iface->address = (yyvsp[(3) - (4)].tok).t;
      this_iface->family = AF_UNIX;
@@ -3375,7 +3367,7 @@ yyreduce:
 
 
 /* Line 1806 of yacc.c  */
-#line 3379 "knot/conf/libknotd_la-cf-parse.c"
+#line 3371 "knot/conf/libknotd_la-cf-parse.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -3606,6 +3598,6 @@ yyreturn:
 
 
 /* Line 2067 of yacc.c  */
-#line 1118 "cf-parse.y"
+#line 1110 "cf-parse.y"
 
 
