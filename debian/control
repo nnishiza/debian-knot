@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: Ondřej Surý <ondrej@debian.org>
 Build-Depends: debhelper (>= 9),
 	       dh-autoreconf,
-	       liburcu-dev (>= 0.4),
+	       liburcu-dev (>= 0.8),
 	       libssl-dev,
 	       flex,
 	       bison,
