@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.4.0-rc1], [knot-dns@labs.nic.cz])
+AC_INIT([knot], [1.4.0-rc2], [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnits subdir-objects dist-bzip2 dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
@@ -19,7 +19,7 @@ AM_PROG_CC_C_O
 AC_PROG_CPP_WERROR
 
 # Default compiler flags
-CFLAGS="$CFLAGS -Wall"
+CFLAGS="$CFLAGS -Wall -Werror=format-security"
 
 # Checks for programs.
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR]) # call AM_PROG_AR only if available
@@ -65,8 +65,8 @@ AS_IF([test "x$YACC_BISON" != "xbison"],
 AC_PROG_INSTALL
 
 # Check for Ragel
-AC_PATH_PROG([RAGEL], [ragel], [true])
-AM_CONDITIONAL([HAVE_RAGEL], test "$RAGEL" != "true")
+AC_PATH_PROG([RAGEL], [ragel], [false])
+AM_CONDITIONAL([HAVE_RAGEL], test "$RAGEL" != "false")
 
 # Set FSM type for Ragel
 AC_ARG_ENABLE([fastparser],
@@ -78,7 +78,7 @@ AS_CASE([$enable_fastparser],
     [no], [AC_SUBST([FSM_TYPE], [-T0])],
     [yes], [AC_SUBST([FSM_TYPE], [-G2])],
     [*], [
-        AS_IF([test "$RAGEL" = "true"],
+        AS_IF([test "$RAGEL" = "false"],
 	    [AC_MSG_ERROR([Ragel is needed to generate different parsers])])
         AC_SUBST([FSM_TYPE], [$enable_fastparser])
     ])
@@ -285,6 +285,22 @@ AS_IF([test "$with_openssl" != "no"],[
   ])
 ])
 
+AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=[DIR]],
+    [Support IDN (needs GNU Libidn)]),
+    libidn=$withval, libidn=yes)
+if test "$libidn" != "no"; then
+    if test "$libidn" != "yes"; then
+        LDFLAGS="${LDFLAGS} -L$libidn/lib"
+        CPPFLAGS="${CPPFLAGS} -I$libidn/include"
+    fi
+    AC_CHECK_HEADER(idna.h, AC_CHECK_LIB(idn, stringprep_check_version,
+                                 [libidn=yes LIBS="${LIBS} -lidn"], libidn=no),
+                    libidn=no)
+fi
+if test "$libidn" != "no" ; then
+    AC_DEFINE(LIBIDN, 1, [Define to 1 if you want IDN support.])
+fi
+
 AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread], [], [AC_MSG_ERROR([pthreads not found])])
 AC_SEARCH_LIBS([dlopen], [dl])
@@ -339,3 +355,18 @@ AC_CONFIG_FILES([Makefile
 		 ])
 
 AC_OUTPUT
+
+echo "
+  Version: ${PACKAGE_VERSION}
+  Prefix: ${prefix}
+  Run dir: ${run_dir}
+  Storage dir: ${storage_dir}
+  Config dir: ${config_dir}
+  Compiler: ${CC}
+  CFlags: ${CFLAGS} ${CPPFLAGS}
+  LDFlags: ${LDFLAGS}
+  Libs: ${LIBS}
+  Ragel: ${RAGEL} ${FSM_TYPE}
+  Utils with IDN: ${libidn}
+
+  Continue with 'make' command"

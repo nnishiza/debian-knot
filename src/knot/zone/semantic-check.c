@@ -41,13 +41,13 @@ static char *error_messages[(-ZC_ERR_UNKNOWN) + 1] = {
 	                "delegation point!",
 
 	[-ZC_ERR_RRSIG_RDATA_TYPE_COVERED] =
-	"RRSIG: Type covered rdata field is wrong!",
+	"RRSIG: Type covered RDATA field is wrong!",
 	[-ZC_ERR_RRSIG_RDATA_TTL] =
-	"RRSIG: TTL rdata field is wrong!",
+	"RRSIG: TTL RDATA field is wrong!",
 	[-ZC_ERR_RRSIG_RDATA_EXPIRATION] =
 	"RRSIG: Expired signature!",
 	[-ZC_ERR_RRSIG_RDATA_LABELS] =
-	"RRSIG: Labels rdata field is wrong!",
+	"RRSIG: Labels RDATA field is wrong!",
 	[-ZC_ERR_RRSIG_RDATA_DNSKEY_OWNER] =
 	"RRSIG: Signer name is different than in DNSKEY!",
 	[-ZC_ERR_RRSIG_NO_DNSKEY] =
@@ -59,7 +59,7 @@ static char *error_messages[(-ZC_ERR_UNKNOWN) + 1] = {
 	[-ZC_ERR_RRSIG_SIGNED] =
 	"RRSIG: Signed RRSIG!",
 	[-ZC_ERR_RRSIG_OWNER] =
-	"RRSIG: Owner name rdata field is wrong!",
+	"RRSIG: Owner name RDATA field is wrong!",
 	[-ZC_ERR_RRSIG_CLASS] =
 	"RRSIG: Class is wrong!",
 	[-ZC_ERR_RRSIG_TTL] =
@@ -84,7 +84,7 @@ static char *error_messages[(-ZC_ERR_UNKNOWN) + 1] = {
 	"NSEC3: Unsecured delegation is not part "
 	"of the Opt-Out span!",
 	[-ZC_ERR_NSEC3_RDATA_TTL] =
-	"NSEC3: Original TTL rdata field is wrong!",
+	"NSEC3: Original TTL RDATA field is wrong!",
 	[-ZC_ERR_NSEC3_RDATA_CHAIN] =
 	"NSEC3: NSEC3 chain is not coherent!",
 	[-ZC_ERR_NSEC3_RDATA_BITMAP] =
@@ -119,8 +119,6 @@ static char *error_messages[(-ZC_ERR_UNKNOWN) + 1] = {
 	[-ZC_ERR_GLUE_RECORD] =
 	"GLUE: Record with glue address missing!",
 };
-
-static const uint MAX_CNAME_CYCLE_DEPTH = 15;
 
 err_handler_t *handler_new(int log_cname, int log_glue, int log_rrsigs,
                            int log_nsec, int log_nsec3)
@@ -1103,17 +1101,10 @@ static int do_checks_in_tree(knot_node_t *node, void *data)
 {
 	dbg_semcheck_verb("semcheck: do_check_in_tree: Checking node: %s\n",
 	                  knot_dname_to_str(node->owner));
-	assert(data != NULL);
+
 	arg_t *args = (arg_t *)data;
 
-	knot_rrset_t **rrsets = knot_node_get_rrsets(node);
-	short count = knot_node_rrset_count(node);
-
-	assert(count == 0 || rrsets != NULL);
-
 	knot_zone_contents_t *zone = (knot_zone_contents_t *)args->arg1;
-
-	assert(zone);
 
 	knot_node_t **last_node = (knot_node_t **)args->arg5;
 
@@ -1131,7 +1122,6 @@ static int do_checks_in_tree(knot_node_t *node, void *data)
 		int check_level = 1 + (zone_is_secure(zone) ? 1 : 0);
 		sem_check_node_plain(zone, node, check_level, handler, 1,
 		                      (int *)args->arg7);
-		free(rrsets);
 		return KNOT_EOK;
 	}
 
@@ -1140,7 +1130,6 @@ static int do_checks_in_tree(knot_node_t *node, void *data)
 				       handler, do_checks == 3);
 	}
 
-	free(rrsets);
 	return KNOT_EOK;
 }
 
@@ -1148,7 +1137,7 @@ int zone_do_sem_checks(knot_zone_contents_t *zone, int do_checks,
                        err_handler_t *handler, knot_node_t *first_nsec3_node,
                        knot_node_t *last_nsec3_node)
 {
-	if (!handler) {
+	if (!zone || !handler) {
 		return KNOT_EINVAL;
 	}
 	knot_node_t *last_node = NULL;
@@ -1161,10 +1150,12 @@ int zone_do_sem_checks(knot_zone_contents_t *zone, int do_checks,
 	int fatal_error = 0;
 	arguments.arg7 = (void *)&fatal_error;
 
-	knot_zone_contents_tree_apply_inorder(zone,
-			   do_checks_in_tree,
-			   (void *)&arguments);
-	
+	int ret = knot_zone_contents_tree_apply_inorder(zone,
+	                                                do_checks_in_tree,
+	                                                &arguments);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
 	if (fatal_error) {
 		return KNOT_ERROR;
 	}
