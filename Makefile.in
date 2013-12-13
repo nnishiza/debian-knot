@@ -58,11 +58,12 @@ DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
 	ylwrap
 check_PROGRAMS = tests/runtests$(EXEEXT) tests/journal$(EXEEXT) \
 	tests/slab$(EXEEXT) tests/hattrie$(EXEEXT) \
-	tests/dthreads$(EXEEXT) tests/events$(EXEEXT) \
-	tests/acl$(EXEEXT) tests/fdset$(EXEEXT) tests/base64$(EXEEXT) \
-	tests/base32hex$(EXEEXT) tests/descriptor$(EXEEXT) \
-	tests/server$(EXEEXT) tests/conf$(EXEEXT) tests/rrl$(EXEEXT) \
-	tests/wire$(EXEEXT) tests/dname$(EXEEXT) tests/ztree$(EXEEXT) \
+	tests/hhash$(EXEEXT) tests/dthreads$(EXEEXT) \
+	tests/events$(EXEEXT) tests/acl$(EXEEXT) tests/fdset$(EXEEXT) \
+	tests/base64$(EXEEXT) tests/base32hex$(EXEEXT) \
+	tests/descriptor$(EXEEXT) tests/server$(EXEEXT) \
+	tests/conf$(EXEEXT) tests/rrl$(EXEEXT) tests/wire$(EXEEXT) \
+	tests/dname$(EXEEXT) tests/ztree$(EXEEXT) \
 	tests/zonedb$(EXEEXT) tests/dnssec_keys$(EXEEXT) \
 	tests/dnssec_nsec3$(EXEEXT) tests/dnssec_sign$(EXEEXT) \
 	tests/dnssec_zone_nsec$(EXEEXT) tests/rrset$(EXEEXT)
@@ -170,6 +171,11 @@ tests_hattrie_OBJECTS = tests/hattrie.$(OBJEXT)
 tests_hattrie_LDADD = $(LDADD)
 tests_hattrie_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
 	src/libknots.la @LIBOBJS@
+tests_hhash_SOURCES = tests/hhash.c
+tests_hhash_OBJECTS = tests/hhash.$(OBJEXT)
+tests_hhash_LDADD = $(LDADD)
+tests_hhash_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
 tests_journal_SOURCES = tests/journal.c
 tests_journal_OBJECTS = tests/journal.$(OBJEXT)
 tests_journal_LDADD = $(LDADD)
@@ -243,17 +249,17 @@ SOURCES = $(tests_tap_libtap_a_SOURCES) tests/acl.c tests/base32hex.c \
 	$(nodist_tests_conf_SOURCES) tests/descriptor.c tests/dname.c \
 	tests/dnssec_keys.c tests/dnssec_nsec3.c tests/dnssec_sign.c \
 	tests/dnssec_zone_nsec.c tests/dthreads.c tests/events.c \
-	tests/fdset.c tests/hattrie.c tests/journal.c tests/rrl.c \
-	tests/rrset.c tests/runtests.c tests/server.c tests/slab.c \
-	tests/wire.c tests/zonedb.c tests/ztree.c
+	tests/fdset.c tests/hattrie.c tests/hhash.c tests/journal.c \
+	tests/rrl.c tests/rrset.c tests/runtests.c tests/server.c \
+	tests/slab.c tests/wire.c tests/zonedb.c tests/ztree.c
 DIST_SOURCES = $(tests_tap_libtap_a_SOURCES) tests/acl.c \
 	tests/base32hex.c tests/base64.c $(tests_conf_SOURCES) \
 	tests/descriptor.c tests/dname.c tests/dnssec_keys.c \
 	tests/dnssec_nsec3.c tests/dnssec_sign.c \
 	tests/dnssec_zone_nsec.c tests/dthreads.c tests/events.c \
-	tests/fdset.c tests/hattrie.c tests/journal.c tests/rrl.c \
-	tests/rrset.c tests/runtests.c tests/server.c tests/slab.c \
-	tests/wire.c tests/zonedb.c tests/ztree.c
+	tests/fdset.c tests/hattrie.c tests/hhash.c tests/journal.c \
+	tests/rrl.c tests/rrset.c tests/runtests.c tests/server.c \
+	tests/slab.c tests/wire.c tests/zonedb.c tests/ztree.c
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -618,6 +624,11 @@ tests/hattrie.$(OBJEXT): tests/$(am__dirstamp) \
 tests/hattrie$(EXEEXT): $(tests_hattrie_OBJECTS) $(tests_hattrie_DEPENDENCIES) $(EXTRA_tests_hattrie_DEPENDENCIES) tests/$(am__dirstamp)
 	@rm -f tests/hattrie$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(tests_hattrie_OBJECTS) $(tests_hattrie_LDADD) $(LIBS)
+tests/hhash.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/hhash$(EXEEXT): $(tests_hhash_OBJECTS) $(tests_hhash_DEPENDENCIES) $(EXTRA_tests_hhash_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/hhash$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_hhash_OBJECTS) $(tests_hhash_LDADD) $(LIBS)
 tests/journal.$(OBJEXT): tests/$(am__dirstamp) \
 	tests/$(DEPDIR)/$(am__dirstamp)
 tests/journal$(EXEEXT): $(tests_journal_OBJECTS) $(tests_journal_DEPENDENCIES) $(EXTRA_tests_journal_DEPENDENCIES) tests/$(am__dirstamp)
@@ -680,6 +691,7 @@ mostlyclean-compile:
 	-rm -f tests/events.$(OBJEXT)
 	-rm -f tests/fdset.$(OBJEXT)
 	-rm -f tests/hattrie.$(OBJEXT)
+	-rm -f tests/hhash.$(OBJEXT)
 	-rm -f tests/journal.$(OBJEXT)
 	-rm -f tests/rrl.$(OBJEXT)
 	-rm -f tests/rrset.$(OBJEXT)
@@ -710,6 +722,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/events.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/fdset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/hattrie.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/hhash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/journal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/rrl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/rrset.Po@am__quote@

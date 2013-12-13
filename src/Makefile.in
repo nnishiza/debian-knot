@@ -86,11 +86,12 @@ am_libknot_la_OBJECTS = libknot/consts.lo libknot/util/utils.lo \
 	libknot/updates/xfr-in.lo libknot/updates/ddns.lo \
 	libknot/dname.lo libknot/edns.lo libknot/rrset.lo \
 	libknot/rrset-dump.lo libknot/tsig.lo libknot/tsig-op.lo \
-	libknot/binary.lo libknot/dnssec/key.lo \
-	libknot/dnssec/nsec3.lo libknot/dnssec/rrset-sign.lo \
-	libknot/dnssec/sig0.lo libknot/dnssec/sign.lo \
-	libknot/dnssec/zone-events.lo libknot/dnssec/zone-keys.lo \
-	libknot/dnssec/zone-nsec.lo libknot/dnssec/zone-sign.lo
+	libknot/binary.lo libknot/dnssec/crypto.lo \
+	libknot/dnssec/key.lo libknot/dnssec/nsec3.lo \
+	libknot/dnssec/rrset-sign.lo libknot/dnssec/sig0.lo \
+	libknot/dnssec/sign.lo libknot/dnssec/zone-events.lo \
+	libknot/dnssec/zone-keys.lo libknot/dnssec/zone-nsec.lo \
+	libknot/dnssec/zone-sign.lo
 libknot_la_OBJECTS = $(am_libknot_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -116,9 +117,8 @@ am_libknots_la_OBJECTS = common/slab/slab.lo common/mempattern.lo \
 	common/sockaddr.lo common/ref.lo common/errors.lo \
 	common/errcode.lo common/dSFMT.lo common/prng.lo \
 	common/fdset.lo common/getline.lo common/log.lo \
-	common/mempool.lo common/hattrie/ahtable.lo \
-	common/hattrie/hat-trie.lo common/hattrie/murmurhash3.lo \
-	common/hex.lo
+	common/mempool.lo common/hhash.lo common/hattrie/hat-trie.lo \
+	common/hattrie/murmurhash3.lo common/hex.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)"
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
@@ -143,7 +143,10 @@ knotc_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
 am_knotd_OBJECTS = knot/main.$(OBJEXT)
 knotd_OBJECTS = $(am_knotd_OBJECTS)
 knotd_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
-am_knsec3hash_OBJECTS = utils/nsec3hash/nsec3hash_main.$(OBJEXT)
+am_knsec3hash_OBJECTS = utils/common/msg.$(OBJEXT) \
+	utils/common/netio.$(OBJEXT) utils/common/resolv.$(OBJEXT) \
+	utils/common/params.$(OBJEXT) \
+	utils/nsec3hash/nsec3hash_main.$(OBJEXT)
 knsec3hash_OBJECTS = $(am_knsec3hash_OBJECTS)
 knsec3hash_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
 am_knsupdate_OBJECTS = utils/common/msg.$(OBJEXT) \
@@ -470,6 +473,14 @@ knsupdate_SOURCES = \
 	utils/nsupdate/nsupdate_exec.c
 
 knsec3hash_SOURCES = \
+	utils/common/msg.h			\
+	utils/common/msg.c			\
+	utils/common/netio.h			\
+	utils/common/netio.c			\
+	utils/common/resolv.h			\
+	utils/common/resolv.c			\
+	utils/common/params.h			\
+	utils/common/params.c			\
 	utils/nsec3hash/nsec3hash_main.c
 
 libknot_la_SOURCES = \
@@ -529,8 +540,9 @@ libknot_la_SOURCES = \
 	libknot/tsig-op.c			\
 	libknot/binary.h			\
 	libknot/binary.c			\
-	libknot/dnssec/cleanup.h		\
 	libknot/dnssec/config.h			\
+	libknot/dnssec/crypto.c			\
+	libknot/dnssec/crypto.h			\
 	libknot/dnssec/key.c			\
 	libknot/dnssec/key.h			\
 	libknot/dnssec/nsec-bitmap.h		\
@@ -603,8 +615,8 @@ libknots_la_SOURCES = \
 	common/log.h				\
 	common/mempool.c			\
 	common/mempool.h			\
-	common/hattrie/ahtable.c		\
-	common/hattrie/ahtable.h		\
+	common/hhash.c				\
+	common/hhash.h				\
 	common/hattrie/hat-trie.c		\
 	common/hattrie/hat-trie.h		\
 	common/hattrie/murmurhash3.c		\
@@ -825,6 +837,8 @@ libknot/dnssec/$(am__dirstamp):
 libknot/dnssec/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) libknot/dnssec/$(DEPDIR)
 	@: > libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
+libknot/dnssec/crypto.lo: libknot/dnssec/$(am__dirstamp) \
+	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/key.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/nsec3.lo: libknot/dnssec/$(am__dirstamp) \
@@ -981,14 +995,14 @@ common/getline.lo: common/$(am__dirstamp) \
 common/log.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
 common/mempool.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
+common/hhash.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
 common/hattrie/$(am__dirstamp):
 	@$(MKDIR_P) common/hattrie
 	@: > common/hattrie/$(am__dirstamp)
 common/hattrie/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) common/hattrie/$(DEPDIR)
 	@: > common/hattrie/$(DEPDIR)/$(am__dirstamp)
-common/hattrie/ahtable.lo: common/hattrie/$(am__dirstamp) \
-	common/hattrie/$(DEPDIR)/$(am__dirstamp)
 common/hattrie/hat-trie.lo: common/hattrie/$(am__dirstamp) \
 	common/hattrie/$(DEPDIR)/$(am__dirstamp)
 common/hattrie/murmurhash3.lo: common/hattrie/$(am__dirstamp) \
@@ -1237,8 +1251,6 @@ mostlyclean-compile:
 	-rm -f common/fdset.lo
 	-rm -f common/getline.$(OBJEXT)
 	-rm -f common/getline.lo
-	-rm -f common/hattrie/ahtable.$(OBJEXT)
-	-rm -f common/hattrie/ahtable.lo
 	-rm -f common/hattrie/hat-trie.$(OBJEXT)
 	-rm -f common/hattrie/hat-trie.lo
 	-rm -f common/hattrie/murmurhash3.$(OBJEXT)
@@ -1247,6 +1259,8 @@ mostlyclean-compile:
 	-rm -f common/heap.lo
 	-rm -f common/hex.$(OBJEXT)
 	-rm -f common/hex.lo
+	-rm -f common/hhash.$(OBJEXT)
+	-rm -f common/hhash.lo
 	-rm -f common/lists.$(OBJEXT)
 	-rm -f common/lists.lo
 	-rm -f common/log.$(OBJEXT)
@@ -1323,6 +1337,8 @@ mostlyclean-compile:
 	-rm -f libknot/consts.lo
 	-rm -f libknot/dname.$(OBJEXT)
 	-rm -f libknot/dname.lo
+	-rm -f libknot/dnssec/crypto.$(OBJEXT)
+	-rm -f libknot/dnssec/crypto.lo
 	-rm -f libknot/dnssec/key.$(OBJEXT)
 	-rm -f libknot/dnssec/key.lo
 	-rm -f libknot/dnssec/nsec3.$(OBJEXT)
@@ -1417,6 +1433,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/getline.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/heap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/hex.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/hhash.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/lists.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/log.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/mempattern.Plo@am__quote@
@@ -1425,7 +1442,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/prng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/ref.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/sockaddr.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@common/hattrie/$(DEPDIR)/ahtable.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/hattrie/$(DEPDIR)/hat-trie.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/hattrie/$(DEPDIR)/murmurhash3.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/slab/$(DEPDIR)/slab.Plo@am__quote@
@@ -1464,6 +1480,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/rrset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/tsig-op.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/tsig.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/crypto.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/key.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/nsec3.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/rrset-sign.Plo@am__quote@

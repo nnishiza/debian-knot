@@ -50,38 +50,38 @@
      HOSTNAME = 268,
      SVERSION = 269,
      NSID = 270,
-     STORAGE = 271,
-     KEY = 272,
-     KEYS = 273,
-     MAX_UDP_PAYLOAD = 274,
-     TSIG_ALGO_NAME = 275,
-     WORKERS = 276,
-     USER = 277,
-     RUNDIR = 278,
-     PIDFILE = 279,
-     REMOTES = 280,
-     GROUPS = 281,
-     ZONES = 282,
-     FILENAME = 283,
-     DISABLE_ANY = 284,
-     SEMANTIC_CHECKS = 285,
-     NOTIFY_RETRIES = 286,
-     NOTIFY_TIMEOUT = 287,
-     DBSYNC_TIMEOUT = 288,
-     IXFR_FSLIMIT = 289,
-     XFR_IN = 290,
-     XFR_OUT = 291,
-     UPDATE_IN = 292,
-     NOTIFY_IN = 293,
-     NOTIFY_OUT = 294,
-     BUILD_DIFFS = 295,
-     MAX_CONN_IDLE = 296,
-     MAX_CONN_HS = 297,
-     MAX_CONN_REPLY = 298,
-     RATE_LIMIT = 299,
-     RATE_LIMIT_SIZE = 300,
-     RATE_LIMIT_SLIP = 301,
-     TRANSFERS = 302,
+     KEY = 271,
+     KEYS = 272,
+     MAX_UDP_PAYLOAD = 273,
+     TSIG_ALGO_NAME = 274,
+     WORKERS = 275,
+     USER = 276,
+     RUNDIR = 277,
+     PIDFILE = 278,
+     REMOTES = 279,
+     GROUPS = 280,
+     ZONES = 281,
+     FILENAME = 282,
+     DISABLE_ANY = 283,
+     SEMANTIC_CHECKS = 284,
+     NOTIFY_RETRIES = 285,
+     NOTIFY_TIMEOUT = 286,
+     DBSYNC_TIMEOUT = 287,
+     IXFR_FSLIMIT = 288,
+     XFR_IN = 289,
+     XFR_OUT = 290,
+     UPDATE_IN = 291,
+     NOTIFY_IN = 292,
+     NOTIFY_OUT = 293,
+     BUILD_DIFFS = 294,
+     MAX_CONN_IDLE = 295,
+     MAX_CONN_HS = 296,
+     MAX_CONN_REPLY = 297,
+     RATE_LIMIT = 298,
+     RATE_LIMIT_SIZE = 299,
+     RATE_LIMIT_SLIP = 300,
+     TRANSFERS = 301,
+     STORAGE = 302,
      DNSSEC_ENABLE = 303,
      DNSSEC_KEYDIR = 304,
      SIGNATURE_LIFETIME = 305,
@@ -114,38 +114,38 @@
 #define HOSTNAME 268
 #define SVERSION 269
 #define NSID 270
-#define STORAGE 271
-#define KEY 272
-#define KEYS 273
-#define MAX_UDP_PAYLOAD 274
-#define TSIG_ALGO_NAME 275
-#define WORKERS 276
-#define USER 277
-#define RUNDIR 278
-#define PIDFILE 279
-#define REMOTES 280
-#define GROUPS 281
-#define ZONES 282
-#define FILENAME 283
-#define DISABLE_ANY 284
-#define SEMANTIC_CHECKS 285
-#define NOTIFY_RETRIES 286
-#define NOTIFY_TIMEOUT 287
-#define DBSYNC_TIMEOUT 288
-#define IXFR_FSLIMIT 289
-#define XFR_IN 290
-#define XFR_OUT 291
-#define UPDATE_IN 292
-#define NOTIFY_IN 293
-#define NOTIFY_OUT 294
-#define BUILD_DIFFS 295
-#define MAX_CONN_IDLE 296
-#define MAX_CONN_HS 297
-#define MAX_CONN_REPLY 298
-#define RATE_LIMIT 299
-#define RATE_LIMIT_SIZE 300
-#define RATE_LIMIT_SLIP 301
-#define TRANSFERS 302
+#define KEY 271
+#define KEYS 272
+#define MAX_UDP_PAYLOAD 273
+#define TSIG_ALGO_NAME 274
+#define WORKERS 275
+#define USER 276
+#define RUNDIR 277
+#define PIDFILE 278
+#define REMOTES 279
+#define GROUPS 280
+#define ZONES 281
+#define FILENAME 282
+#define DISABLE_ANY 283
+#define SEMANTIC_CHECKS 284
+#define NOTIFY_RETRIES 285
+#define NOTIFY_TIMEOUT 286
+#define DBSYNC_TIMEOUT 287
+#define IXFR_FSLIMIT 288
+#define XFR_IN 289
+#define XFR_OUT 290
+#define UPDATE_IN 291
+#define NOTIFY_IN 292
+#define NOTIFY_OUT 293
+#define BUILD_DIFFS 294
+#define MAX_CONN_IDLE 295
+#define MAX_CONN_HS 296
+#define MAX_CONN_REPLY 297
+#define RATE_LIMIT 298
+#define RATE_LIMIT_SIZE 299
+#define RATE_LIMIT_SLIP 300
+#define TRANSFERS 301
+#define STORAGE 302
 #define DNSSEC_ENABLE 303
 #define DNSSEC_KEYDIR 304
 #define SIGNATURE_LIFETIME 305
@@ -171,7 +171,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 438 "cf-parse.y"
+#line 436 "cf-parse.y"
 
 	struct {
 		char *t;

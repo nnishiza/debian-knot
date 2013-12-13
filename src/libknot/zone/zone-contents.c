@@ -350,7 +350,6 @@ knot_zone_contents_t *knot_zone_contents_new(knot_node_t *apex,
 
 	contents->apex = apex;
 	contents->zone = zone;
-	knot_node_set_zone(apex, contents->zone);
 	contents->node_count = 1;
 
 	dbg_zone_verb("Creating tree for normal nodes.\n");
@@ -510,8 +509,6 @@ dbg_zone_exec_detail(
 		return ret;
 	}
 
-	knot_node_set_zone(node, zone->zone);
-
 	++zone->node_count;
 
 	if (!create_parents) {
@@ -557,7 +554,6 @@ dbg_zone_exec_detail(
 
 			/* Update node pointers. */
 			knot_node_set_parent(node, next_node);
-			knot_node_set_zone(next_node, zone->zone);
 			if (knot_dname_is_wildcard(knot_node_owner(node))) {
 				knot_node_set_wildcard_child(next_node, node);
 			}
@@ -789,9 +785,6 @@ int knot_zone_contents_add_nsec3_node(knot_zone_contents_t *zone,
 	// no parents to be created, the only parent is the zone apex
 	// set the apex as the parent of the node
 	knot_node_set_parent(node, zone->apex);
-
-	// set the zone to the node
-	knot_node_set_zone(node, zone->zone);
 
 	// cannot be wildcard child, so nothing to be done
 
@@ -1587,7 +1580,9 @@ void knot_zone_contents_free(knot_zone_contents_t **contents)
 	}
 
 	// free the zone tree, but only the structure
+	dbg_zone("Destroying zone tree.\n");
 	knot_zone_tree_free(&(*contents)->nodes);
+	dbg_zone("Destroying NSEC3 zone tree.\n");
 	knot_zone_tree_free(&(*contents)->nsec3_nodes);
 
 	knot_nsec3_params_free(&(*contents)->nsec3_params);
@@ -1619,19 +1614,9 @@ void knot_zone_contents_deep_free(knot_zone_contents_t **contents)
 			(*contents)->nodes,
 			knot_zone_contents_destroy_node_rrsets_from_tree,
 			(void*)1);
-
-		// free the zone tree, but only the structure
-		// (nodes are already destroyed)
-		dbg_zone("Destroying zone tree.\n");
-		knot_zone_tree_free(&(*contents)->nodes);
-		dbg_zone("Destroying NSEC3 zone tree.\n");
-		knot_zone_tree_free(&(*contents)->nsec3_nodes);
-
-		knot_nsec3_params_free(&(*contents)->nsec3_params);
 	}
 
-	free((*contents));
-	*contents = NULL;
+	knot_zone_contents_free(contents);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1968,6 +1953,8 @@ int knot_zc_integrity_check_child_count(check_data_t *data)
 	assert(ret == KNOT_EOK);
 	if (nodes_copy == NULL) {
 		return 1;
+	} else {
+		hattrie_build_index(nodes_copy);
 	}
 
 	// set children count of all nodes to 0
@@ -2058,10 +2045,21 @@ int knot_zone_contents_integrity_check(const knot_zone_contents_t *contents)
 	return data.errors;
 }
 
-unsigned knot_zone_serial(const knot_zone_contents_t *zone)
+uint32_t knot_zone_serial(const knot_zone_contents_t *zone)
 {
 	if (!zone) return 0;
 	const knot_rrset_t *soa = NULL;
 	soa = knot_node_rrset(knot_zone_contents_apex(zone), KNOT_RRTYPE_SOA);
 	return knot_rdata_soa_serial(soa);
+}
+
+bool knot_zone_contents_is_signed(const knot_zone_contents_t *zone)
+{
+	const knot_rrset_t *soa = NULL;
+	if (zone->apex) {
+		/* Returns true if SOA has a RRSIG (basic check). */
+		soa = knot_node_rrset(zone->apex, KNOT_RRTYPE_SOA);
+		return soa && soa->rrsigs;
+	}
+	return false;
 }

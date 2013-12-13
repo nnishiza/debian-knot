@@ -20,11 +20,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <locale.h>
+
+#include "utils/common/params.h"
 #include "common/base32hex.h"
 #include "common/errcode.h"
 #include "common/hex.h"
 #include "common/strtonum.h"
-#include "libknot/dnssec/cleanup.h"
+#include "libknot/dnssec/crypto.h"
 #include "libknot/dnssec/nsec3.h"
 
 #define PROGRAM_NAME "knsec3hash"
@@ -87,11 +90,20 @@ static bool parse_nsec3_params(knot_nsec3_params_t *params, const char *salt,
  */
 int main(int argc, char *argv[])
 {
+	bool enable_idn = true;
+
 	struct option options[] = {
 		{ "version", no_argument, 0, 'V' },
 		{ "help",    no_argument, 0, 'h' },
 		{ NULL }
 	};
+
+#ifdef LIBIDN
+	// Set up localization.
+	if (setlocale(LC_CTYPE, "") == NULL) {
+		enable_idn = false;
+	}
+#endif
 
 	int opt = 0;
 	int li = 0;
@@ -115,7 +127,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	atexit(knot_dnssec_cleanup);
+	atexit(knot_crypto_cleanup);
 
 	int exit_code = 1;
 	knot_nsec3_params_t nsec3_params = { 0 };
@@ -130,7 +142,17 @@ int main(int argc, char *argv[])
 		goto fail;
 	}
 
-	dname = knot_dname_from_str(argv[4]);
+	if (enable_idn) {
+		char *ascii_name = name_from_idn(argv[4]);
+		if (ascii_name == NULL) {
+			fprintf(stderr, "Cannot transform IDN domain name.\n");
+			goto fail;
+		}
+		dname = knot_dname_from_str(ascii_name);
+		free(ascii_name);
+	} else {
+		dname = knot_dname_from_str(argv[4]);
+	}
 	if (dname == NULL) {
 		fprintf(stderr, "Cannot parse domain name.\n");
 		goto fail;

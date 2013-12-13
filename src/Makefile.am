@@ -88,6 +88,14 @@ knsupdate_SOURCES =				\
 	utils/nsupdate/nsupdate_exec.c
 
 knsec3hash_SOURCES =				\
+	utils/common/msg.h			\
+	utils/common/msg.c			\
+	utils/common/netio.h			\
+	utils/common/netio.c			\
+	utils/common/resolv.h			\
+	utils/common/resolv.c			\
+	utils/common/params.h			\
+	utils/common/params.c			\
 	utils/nsec3hash/nsec3hash_main.c
 
 libknot_la_SOURCES =				\
@@ -147,8 +155,9 @@ libknot_la_SOURCES =				\
 	libknot/tsig-op.c			\
 	libknot/binary.h			\
 	libknot/binary.c			\
-	libknot/dnssec/cleanup.h		\
 	libknot/dnssec/config.h			\
+	libknot/dnssec/crypto.c			\
+	libknot/dnssec/crypto.h			\
 	libknot/dnssec/key.c			\
 	libknot/dnssec/key.h			\
 	libknot/dnssec/nsec-bitmap.h		\
@@ -221,8 +230,8 @@ libknots_la_SOURCES =				\
 	common/log.h				\
 	common/mempool.c			\
 	common/mempool.h			\
-	common/hattrie/ahtable.c		\
-	common/hattrie/ahtable.h		\
+	common/hhash.c				\
+	common/hhash.h				\
 	common/hattrie/hat-trie.c		\
 	common/hattrie/hat-trie.h		\
 	common/hattrie/murmurhash3.c		\

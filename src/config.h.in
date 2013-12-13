@@ -178,6 +178,9 @@
 /* Zones debug. */
 #undef KNOT_ZONES_DEBUG
 
+/* Define to 1 if you want IDN support. */
+#undef LIBIDN
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
