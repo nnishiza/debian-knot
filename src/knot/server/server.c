@@ -20,10 +20,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <openssl/evp.h>
 #include <assert.h>
 
-#include "common/prng.h"
 #include "knot/knot.h"
 #include "knot/server/server.h"
 #include "knot/server/udp-handler.h"
@@ -35,6 +33,8 @@
 #include "libknot/nameserver/name-server.h"
 #include "libknot/zone/zonedb.h"
 #include "libknot/dname.h"
+#include "libknot/dnssec/crypto.h"
+#include "libknot/dnssec/random.h"
 
 /*! \brief Event scheduler loop. */
 static int evsched_run(dthread_t *thread)
@@ -70,6 +70,13 @@ static int evsched_run(dthread_t *thread)
 		}
 	}
 
+	return KNOT_EOK;
+}
+
+/*! \brief Event scheduler thread destructor. */
+static int evsched_destruct(dthread_t *thread)
+{
+	knot_crypto_cleanup_thread();
 	return KNOT_EOK;
 }
 
@@ -249,7 +256,7 @@ static int server_bind_sockets(server_t *s)
 	}
 
 	/* Update bound interfaces. */
-	node *n = 0;
+	node_t *n = 0;
 	WALK_LIST(n, conf()->ifaces) {
 
 		/* Find already matching interface. */
@@ -267,7 +274,7 @@ static int server_bind_sockets(server_t *s)
 
 		/* Found already bound interface. */
 		if (found_match) {
-			rem_node((node *)m);
+			rem_node((node_t *)m);
 		} else {
 			log_server_info("Binding to interface %s port %d.\n",
 			                cfg_if->address, cfg_if->port);
@@ -282,7 +289,7 @@ static int server_bind_sockets(server_t *s)
 
 		/* Move to new list. */
 		if (m) {
-			add_tail(&newlist->l, (node *)m);
+			add_tail(&newlist->l, (node_t *)m);
 			++bound;
 		}
 	}
@@ -334,7 +341,8 @@ server_t *server_create()
 	// Create event scheduler
 	dbg_server("server: creating event scheduler\n");
 	server->sched = evsched_new();
-	server->iosched = dt_create_coherent(1, evsched_run, server->sched);
+	server->iosched = dt_create_coherent(1, evsched_run, evsched_destruct,
+	                                     server->sched);
 
 	// Create name server
 	dbg_server("server: creating Name Server structure\n");
@@ -344,8 +352,6 @@ server_t *server_create()
 		return NULL;
 	}
 	knot_ns_set_data(server->nameserver, server);
-	dbg_server("server: initializing OpenSSL\n");
-	OpenSSL_add_all_digests();
 
 	// Create XFR handler
 	server->xfr = xfr_create(XFR_THREADS_COUNT, server->nameserver);
@@ -465,10 +471,6 @@ int server_refresh(server_t *server)
 	knot_nameserver_t *ns =  server->nameserver;
 	evsched_t *sch = ((server_t *)knot_ns_get_data(ns))->sched;
 	const knot_zone_t **zones = knot_zonedb_zones(ns->zone_db);
-	if (zones == NULL) {
-		rcu_read_unlock();
-		return KNOT_ENOMEM;
-	}
 
 	/* REFRESH zones. */
 	for (unsigned i = 0; i < knot_zonedb_zone_count(ns->zone_db); ++i) {
@@ -480,14 +482,13 @@ int server_refresh(server_t *server)
 		if (zd->xfr_in.timer) {
 			evsched_cancel(sch, zd->xfr_in.timer);
 			evsched_schedule(sch, zd->xfr_in.timer,
-			                 tls_rand() * 500 + i/2);
+			                 knot_random_int() % 500 + i/2);
 			/* Cumulative delay. */
 		}
 	}
 
 	/* Unlock RCU. */
 	rcu_read_unlock();
-	free(zones);
 	return KNOT_EOK;
 }
 
@@ -526,6 +527,7 @@ void server_stop(server_t *server)
 
 	/* Send termination event. */
 	evsched_schedule_term(server->sched, 0);
+	dt_stop(server->iosched);
 
 	/* Interrupt XFR handler execution. */
 	xfr_stop(server->xfr);
@@ -561,7 +563,6 @@ void server_destroy(server_t **server)
 	dt_delete(&(*server)->iosched);
 	rrl_destroy((*server)->rrl);
 	free(*server);
-	EVP_cleanup();
 	*server = NULL;
 }
 
@@ -594,7 +595,8 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 		/* Initialize I/O handlers. */
 		size_t udp_size = tu_size;
 		if (udp_size < 2) udp_size = 2;
-		dt_unit_t *tu = dt_create_coherent(udp_size, &udp_master, NULL);
+		dt_unit_t *tu = dt_create_coherent(udp_size, &udp_master,
+		                                   &udp_master_destruct, NULL);
 		server_init_handler(server->h + IO_UDP, server, tu, NULL);
 
 		/* Create at least CONFIG_XFERS threads for TCP for faster

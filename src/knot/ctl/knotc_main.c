@@ -79,6 +79,7 @@ static int cmd_zonestatus(int argc, char *argv[], unsigned flags);
 static int cmd_checkconf(int argc, char *argv[], unsigned flags);
 static int cmd_checkzone(int argc, char *argv[], unsigned flags);
 static int cmd_memstats(int argc, char *argv[], unsigned flags);
+static int cmd_signzone(int argc, char *argv[], unsigned flags);
 
 /*! \brief Table of remote commands. */
 knot_cmd_t knot_cmd_tbl[] = {
@@ -90,7 +91,8 @@ knot_cmd_t knot_cmd_tbl[] = {
 	{&cmd_zonestatus, 0, "zonestatus", "",       "\tShow status of configured zones."},
 	{&cmd_checkconf,  1, "checkconf",  "",       "\tCheck current server configuration."},
 	{&cmd_checkzone,  1, "checkzone",  "[zone]", "Check zone (all if not specified)."},
-	{&cmd_memstats,  1, "memstats",  "[zone]", "Estimate memory use for zone (all if not specified)."},
+	{&cmd_memstats,   1, "memstats",   "[zone]", "Estimate memory use for zone (all if not specified)."},
+	{&cmd_signzone,   0, "signzone",   "[zone]", "Sign all zones with available DNSSEC keys."},
 	{NULL, 0, NULL, NULL, NULL}
 };
 
@@ -99,17 +101,16 @@ void help(void)
 {
 	printf("Usage: %sc [parameters] <action>\n", PACKAGE_NAME);
 	printf("\nParameters:\n"
-	       " -c [file], --config=[file]\tSelect configuration file.\n"
-	       " -s [server]               \tRemote UNIX socket/IP address (default %s).\n"
-	       " -p [port]                 \tRemote server port (only for IP).\n"
-	       " -y [[hmac:]name:key]      \tUse key_id specified on the command line.\n"
-	       " -k [file]                 \tUse key file (as in config section 'keys').\n"
-	       "                           \t  Example: echo \"knotc-key hmac-md5 Wg==\" > knotc.key\n"
-	       " -f, --force               \tForce operation - override some checks.\n"
-	       " -v, --verbose             \tVerbose mode - additional runtime information.\n"
-	       " -V, --version             \tPrint %s server version.\n"
-	       " -i, --interactive         \tInteractive mode (do not daemonize).\n"
-	       " -h, --help                \tPrint help and usage.\n",
+	       " -c, --config <file>    \tSelect configuration file.\n"
+	       " -s <server>            \tRemote UNIX socket/IP address (default %s).\n"
+	       " -p <port>              \tRemote server port (only for IP).\n"
+	       " -y <[hmac:]name:key>   \tUse key specified on the command line.\n"
+	       " -k <file>              \tUse key file (as in config section 'keys').\n"
+	       " -f, --force            \tForce operation - override some checks.\n"
+	       " -v, --verbose          \tVerbose mode - additional runtime information.\n"
+	       " -V, --version          \tPrint %s server version.\n"
+	       " -i, --interactive      \tInteractive mode (do not daemonize).\n"
+	       " -h, --help             \tPrint help and usage.\n",
 	       RUN_DIR "/knot.sock", PACKAGE_NAME);
 	printf("\nActions:\n");
 	knot_cmd_t *c = knot_cmd_tbl;
@@ -137,7 +138,7 @@ static int cmd_remote_print_reply(const knot_rrset_t *rr)
 static int cmd_remote_reply(int c)
 {
 	uint8_t *rwire = malloc(SOCKET_MTU_SZ);
-	knot_packet_t *reply = knot_packet_new(KNOT_PACKET_PREALLOC_RESPONSE);
+	knot_packet_t *reply = knot_packet_new();
 	if (!rwire || !reply) {
 		free(rwire);
 		knot_packet_free(&reply);
@@ -220,7 +221,7 @@ static int cmd_remote(const char *cmd, uint16_t rrt, int argc, char *argv[])
 	}
 
 	if (knot_packet_to_wire(qr, &buf, &buflen) != KNOT_EOK) {
-		knot_rrset_deep_free(&rr, 1, 1);
+		knot_rrset_deep_free(&rr, 1);
 		knot_packet_free(&qr);
 		return 1;
 	}
@@ -256,7 +257,7 @@ static int cmd_remote(const char *cmd, uint16_t rrt, int argc, char *argv[])
 
 	/* Cleanup. */
 	if (rc == 0) printf("\n");
-	knot_rrset_deep_free(&rr, 1, 1);
+	knot_rrset_deep_free(&rr, 1);
 
 	/* Close connection. */
 	socket_close(s);
@@ -283,7 +284,7 @@ static int tsig_parse_str(knot_tsig_key_t *key, const char *str)
 	if (s) {
 		*s++ = '\0';               /* Last part separator */
 		knot_lookup_table_t *alg = NULL;
-		alg = knot_lookup_by_name(knot_tsig_alg_domain_names, h);
+		alg = knot_lookup_by_name(knot_tsig_alg_dnames_str, h);
 		if (alg) {
 			algorithm = alg->id;
 		} else {
@@ -612,6 +613,11 @@ static int cmd_zonestatus(int argc, char *argv[], unsigned flags)
 	return cmd_remote("zonestatus", KNOT_RRTYPE_TXT, 0, NULL);
 }
 
+static int cmd_signzone(int argc, char *argv[], unsigned flags)
+{
+	return cmd_remote("signzone", KNOT_RRTYPE_NS, argc, argv);
+}
+
 static int cmd_checkconf(int argc, char *argv[], unsigned flags)
 {
 	UNUSED(argc);
@@ -636,7 +642,7 @@ static int cmd_checkzone(int argc, char *argv[], unsigned flags)
 
 	/* Zone checking */
 	int rc = 0;
-	node *n = 0;
+	node_t *n = 0;
 
 	/* Generate databases for all zones */
 	WALK_LIST(n, conf()->zones) {
@@ -696,7 +702,7 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 
 	/* Zone checking */
 	int rc = 0;
-	node *n = 0;
+	node_t *n = 0;
 	size_t total_size = 0;
 
 	/* Generate databases for all zones */
@@ -730,21 +736,10 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 
 		/* Init memory estimation context. */
 		zone_estim_t est = {.node_table = hattrie_create_n(TRIE_BUCKET_SIZE, &mem_ctx),
-		                    .dname_table = hattrie_create_n(TRIE_BUCKET_SIZE, &mem_ctx),
 		                    .dname_size = 0, .rrset_size = 0,
 		                    .node_size = 0, .ahtable_size = 0,
 		                    .rdata_size = 0, .record_count = 0 };
 		if (est.node_table == NULL) {
-			if (est.dname_table) {
-				hattrie_free(est.dname_table);
-			}
-			log_server_error("Not enough memory.\n");
-			continue;
-		}
-		if (est.dname_table == NULL) {
-			if (est.node_table) {
-				hattrie_free(est.node_table);
-			}
 			log_server_error("Not enough memory.\n");
 			continue;
 		}
@@ -757,11 +752,9 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 		                                           &est);
 		if (loader == NULL) {
 			rc = 1;
-			log_zone_error("Could not load zone.\n");
+			log_zone_error("Could not load zone %s\n", zone->name);
 			hattrie_apply_rev(est.node_table, estimator_free_trie_node, NULL);
-			hattrie_apply_rev(est.dname_table, estimator_free_trie_node, NULL);
 			hattrie_free(est.node_table);
-			hattrie_free(est.dname_table);
 			break;
 		}
 
@@ -769,11 +762,9 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 		int ret = file_loader_process(loader);
 		if (ret != KNOT_EOK) {
 			rc = 1;
-			log_zone_error("Failed to parse zone.\n");
+			log_zone_error("Failed to parse zone %s.\n", zone->name);
 			hattrie_apply_rev(est.node_table, estimator_free_trie_node, NULL);
-			hattrie_apply_rev(est.dname_table, estimator_free_trie_node, NULL);
 			hattrie_free(est.node_table);
-			hattrie_free(est.dname_table);
 			file_loader_free(loader);
 			break;
 		}
@@ -784,9 +775,7 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 
 		/* Cleanup */
 		hattrie_apply_rev(est.node_table, estimator_free_trie_node, NULL);
-		hattrie_apply_rev(est.dname_table, estimator_free_trie_node, NULL);
 		hattrie_free(est.node_table);
-		hattrie_free(est.dname_table);
 
 		size_t zone_size = (size_t)(((double)(est.rdata_size +
 		                   est.node_size +

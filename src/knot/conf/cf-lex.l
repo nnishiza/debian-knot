@@ -118,6 +118,7 @@ user            { lval.t = yytext; return USER; }
 pidfile         { lval.t = yytext; return PIDFILE; }
 rundir          { lval.t = yytext; return RUNDIR; }
 ixfr-from-differences { lval.t = yytext; return BUILD_DIFFS; }
+serial-policy   { lval.t = yytext; return SERIAL_POLICY; }
 max-conn-idle   { lval.t = yytext; return MAX_CONN_IDLE; }
 max-conn-handshake { lval.t = yytext; return MAX_CONN_HS; }
 max-conn-reply  { lval.t = yytext; return MAX_CONN_REPLY; }
@@ -125,6 +126,9 @@ rate-limit      { lval.t = yytext; return RATE_LIMIT; }
 rate-limit-size { lval.t = yytext; return RATE_LIMIT_SIZE; }
 rate-limit-slip { lval.t = yytext; return RATE_LIMIT_SLIP; }
 transfers       { lval.t = yytext; return TRANSFERS; }
+dnssec-enable   { lval.t = yytext; return DNSSEC_ENABLE; }
+dnssec-keydir   { lval.t = yytext; return DNSSEC_KEYDIR; }
+signature-lifetime { lval.t = yytext; return SIGNATURE_LIFETIME; }
 
 interfaces      { lval.t = yytext; return INTERFACES; }
 address         { lval.t = yytext; return ADDRESS; }
@@ -150,6 +154,16 @@ info { lval.t = yytext; lval.i = LOG_MASK(LOG_INFO); return LOG_LEVEL; }
 notice { lval.t = yytext; lval.i = LOG_MASK(LOG_NOTICE); return LOG_LEVEL; }
 warning { lval.t = yytext; lval.i = LOG_MASK(LOG_WARNING); return LOG_LEVEL; }
 error { lval.t = yytext; lval.i = LOG_MASK(LOG_ERR); return LOG_LEVEL; }
+
+increment|unixtime {
+  lval.t = yytext;
+  if (strcmp(yytext, "increment") == 0) {
+    lval.i = CONF_SERIAL_INCREMENT;
+  } else {
+    lval.i = CONF_SERIAL_UNIXTIME;
+  }
+  return SERIAL_POLICY_VAL;
+}
 
 on|off {
   lval.t = yytext;
@@ -306,13 +320,14 @@ hmac-sha512     { lval.alg = KNOT_TSIG_ALG_HMAC_SHA512; return TSIG_ALGO_NAME; }
 	}
 
 	yypop_buffer_state(yyscanner);
+
 	if (!YY_CURRENT_BUFFER) {
 		return END;
 	}
 }
 
 <include>{BLANK}+
-<include>["][^"\n]*["] {
+<include>["][^"\n]*["][;]{0,1} {
 	BEGIN(INITIAL);
 
 	// silently skip includes if there was a former error
@@ -320,6 +335,10 @@ hmac-sha512     { lval.alg = KNOT_TSIG_ALG_HMAC_SHA512; return TSIG_ALGO_NAME; }
 		return END;
 	}
 
+	// remove optional semicolon
+	if (yytext[yyleng - 1] == ';') {
+		yyleng -= 1; 
+	}
 	// remove quotes
 	yytext += 1;
 	yyleng -= 2;

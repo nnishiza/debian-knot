@@ -30,11 +30,11 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "packet/packet.h"
+#include "libknot/packet/packet.h"
 
-#include "dname.h"
-#include "rrset.h"
-#include "edns.h"
+#include "libknot/dname.h"
+#include "libknot/rrset.h"
+#include "libknot/edns.h"
 
 /*!
  * \brief Holds information about compressed domain name.
@@ -105,9 +105,7 @@ int knot_response_init(knot_packet_t *response);
  *
  * \retval KNOT_EOK
  */
-int knot_response_init_from_query(knot_packet_t *response,
-                                  knot_packet_t *query,
-                                  int copy_question);
+int knot_response_init_from_query(knot_packet_t *response, knot_packet_t *query);
 
 /*!
  * \brief Clears the response structure for reuse.
@@ -119,7 +117,7 @@ int knot_response_init_from_query(knot_packet_t *response,
  *
  * \todo Replace the use of this function with something else maybe?
  */
-void knot_response_clear(knot_packet_t *resp, int clear_question);
+void knot_response_clear(knot_packet_t *resp);
 
 /*!
  * \brief Sets the OPT RR of the response.
@@ -161,9 +159,7 @@ int knot_response_add_opt(knot_packet_t *resp,
  * \retval KNOT_ESPACE
  */
 int knot_response_add_rrset_answer(knot_packet_t *response,
-                                   knot_rrset_t *rrset, int tc,
-                                   int check_duplicates,
-                                   int rotate);
+                                   knot_rrset_t *rrset, uint32_t flags);
 
 /*!
  * \brief Adds a RRSet to the Authority section of the response.
@@ -180,9 +176,7 @@ int knot_response_add_rrset_answer(knot_packet_t *response,
  * \retval KNOT_ESPACE
  */
 int knot_response_add_rrset_authority(knot_packet_t *response,
-                                      knot_rrset_t *rrset, int tc,
-                                      int check_duplicates,
-                                      int rotate);
+                                      knot_rrset_t *rrset, uint32_t flags);
 
 /*!
  * \brief Adds a RRSet to the Additional section of the response.
@@ -199,9 +193,7 @@ int knot_response_add_rrset_authority(knot_packet_t *response,
  * \retval KNOT_ESPACE
  */
 int knot_response_add_rrset_additional(knot_packet_t *response,
-                                       knot_rrset_t *rrset, int tc,
-                                       int check_duplicates,
-                                       int rotate);
+                                       knot_rrset_t *rrset, uint32_t flags);
 
 /*!
  * \brief Sets the RCODE of the response.

@@ -1,11 +1,55 @@
 Knot DNS NEWS
 
-v1.3.4 - Dec 13, 2013
+v1.4.0 - Dec 27, 2013
 ---------------------
+Features:
+	* Zone SERIAL policies (INCREMENT, UNIXTIME)
+Bugfixes:
+	* AXFR crash with specific packet 
+	* QNAME case-sensitive since 1.4.0-rc0
+	* DNSSEC records over DDNS
+	* Semantic check fail in AXFR is only soft-error
+	* Journal race condition
+	* Notifies are sent immediately
+
+v1.4.0-rc2 - Dec 13, 2013
+-------------------------
+Features:
+	* IDN support in Knot utilities
+	* DNSSEC: support for GOST algorithm
+
 Bugfixes:
 	* Crash in particular additionals processing
 	* Race condition in event cancelation
 	* Journal corruption after failed transactions
+	* DNSSEC: fixed detection of ECDSA support
+
+Other improvements:
+	* ./configure prints build configuration summary
+	* Pretty zone file output (DNSSEC-related data separately)
+	* Lower memory consumption
+	* config: option 'dnssec-keydir' can be set per zone
+	* config: option 'storage' can be set per zone
+
+v1.4.0-rc1 - Nov 20, 2013
+-------------------------
+
+Features:
+	* Better logging of automatic DNSSEC events
+	* Support for DNSSEC key pre-publication
+Bugfixes:
+	* Refactored zone loading
+	* Improved journal locking and fixed some race conditions
+	* Various fixes in client utilities
+	* Fixed memory errors in automatic DNSSEC signing
+	* 'dnssec-keydir' doesn't auto-enable signing
+	* Fixed rescheduling of zone resigns
+
+v1.4.0-beta - Oct 28, 2013
+--------------------------
+Features:
+	* Experimental automatic DNSSEC signing
+	* Reduced memory usage
 
 v1.3.3 - Oct 28, 2013
 ---------------------

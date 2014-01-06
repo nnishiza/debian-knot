@@ -33,6 +33,7 @@
 #include "common/base64.h"		// base64
 #include "common/base32hex.h"		// base32hex
 #include "common/descriptor.h"		// KNOT_RRTYPE
+#include "libknot/dnssec/key.h"		// knot_keytag
 #include "libknot/consts.h"		// knot_rcode_names
 #include "libknot/util/utils.h"		// knot_wire_read_u16
 
@@ -54,12 +55,12 @@ typedef struct {
 
 const knot_dump_style_t KNOT_DUMP_STYLE_DEFAULT = {
 	.wrap = false,
-	.show_class = true,
+	.show_class = false,
 	.show_ttl = true,
 	.verbose = false,
-	.reduce = true,
 	.human_ttl = false,
-	.human_tmstamp = false
+	.human_tmstamp = true,
+	.ascii_to_idn = NULL
 };
 
 static void dump_string(rrset_dump_params_t *p, const char *str)
@@ -819,75 +820,24 @@ static void wire_bitmap_to_str(rrset_dump_params_t *p)
 
 static void wire_dname_to_str(rrset_dump_params_t *p)
 {
-	knot_dname_t *dname;
-	uint8_t label_len;
-	size_t  in_len = 0;
-	size_t  out_len = 0;
-
 	p->ret = -1;
 
-	// Compute dname length.
-	do {
-		// Read label length.
-		if (p->in_max < 1) {
-			return;
-		}
-		label_len = *(p->in);
-		in_len++;
-		p->in++;
-		p->in_max--;
-
-		if (label_len > p->in_max) {
-			return;
-		}
-		in_len += label_len;
-		p->in += label_len;
-		p->in_max -= label_len;
-	} while (label_len > 0);
-
-	// Create dname.
-	dname = knot_dname_new_from_wire(p->in - in_len, in_len, NULL);
-	if (dname == NULL) {
+	int in_len = knot_dname_size(p->in);
+	if (in_len < 0) {
 		return;
 	}
 
-	// Write dname string.
-	char *dname_str = knot_dname_to_str(dname);
-	knot_dname_release(dname);
-	int ret = snprintf(p->out, p->out_max, "%s", dname_str);
-	free(dname_str);
-	if (ret < 0 || (size_t)ret >= p->out_max) {
-		return;
-	}
-	out_len = ret;
-
-	// Fill in output.
-	p->out += out_len;
-	p->out_max -= out_len;
-	p->total += out_len;
-	p->ret = 0;
-}
-
-static void ptr_dname_to_str(rrset_dump_params_t *p)
-{
-	knot_dname_t *dname;
-	size_t in_len = sizeof(knot_dname_t *);
 	size_t out_len = 0;
 
-	p->ret = -1;
-
-	// Check input size.
 	if (in_len > p->in_max) {
 		return;
 	}
 
-	// Fill in input data.
-	if (memcpy(&dname, p->in, in_len) == NULL) {
-		return;
-	}
-
 	// Write dname string.
-	char *dname_str = knot_dname_to_str(dname);
+	char *dname_str = knot_dname_to_str(p->in);
+	if (p->style->ascii_to_idn != NULL) {
+		p->style->ascii_to_idn(&dname_str);
+	}
 	int ret = snprintf(p->out, p->out_max, "%s", dname_str);
 	free(dname_str);
 	if (ret < 0 || (size_t)ret >= p->out_max) {
@@ -1337,6 +1287,26 @@ static void wire_unknown_to_str(rrset_dump_params_t *p)
 	p->ret = 0;
 }
 
+static void dnskey_info(const uint8_t *rdata,
+                        const size_t  rdata_len,
+                        char          *out,
+                        const size_t  out_len)
+{
+	const uint8_t  sep = *(rdata + 1) & 0x01;
+	const uint16_t key_tag = knot_keytag(rdata, rdata_len);
+
+	knot_lookup_table_t *alg = NULL;
+	alg = knot_lookup_by_id(knot_dnssec_alg_names, *(rdata + 3));
+
+	int ret = snprintf(out, out_len, "%s, alg = %s, id = %u ",
+	                   sep ? "KSK" : "ZSK",
+	                   alg ? alg->name : "UNKNOWN",
+	                   key_tag );
+	if (ret <= 0) {	// Truncated return is acceptable. Just check for errors.
+		out[0] = '\0';
+	}
+}
+
 #define DUMP_PARAMS	const uint8_t *in, const size_t in_len, char *out, \
 			const size_t out_max, const knot_dump_style_t *style
 #define DUMP_INIT	rrset_dump_params_t p = { .style = style, .in = in, \
@@ -1349,15 +1319,17 @@ static void wire_unknown_to_str(rrset_dump_params_t *p)
 #define WRAP_END	dump_string(&p, BLOCK_INDENT ")"); CHECK_RET(p);
 #define WRAP_LINE	dump_string(&p, BLOCK_INDENT); CHECK_RET(p);
 
-#define COMMENT(s)	if (p.style->verbose) { dump_string(&p, "\t; " s); \
-			CHECK_RET(p); }
+#define COMMENT(s)	if (p.style->verbose) { \
+			    dump_string(&p, " ; "); CHECK_RET(p); \
+			    dump_string(&p, s); CHECK_RET(p); \
+			}
 
 #define DUMP_SPACE	dump_string(&p, " "); CHECK_RET(p);
 #define DUMP_NUM8	wire_num8_to_str(&p); CHECK_RET(p);
 #define DUMP_NUM16	wire_num16_to_str(&p); CHECK_RET(p);
 #define DUMP_NUM32	wire_num32_to_str(&p); CHECK_RET(p);
 #define DUMP_NUM48	wire_num48_to_str(&p); CHECK_RET(p);
-#define DUMP_DNAME	ptr_dname_to_str(&p); CHECK_RET(p);
+#define DUMP_DNAME	wire_dname_to_str(&p); CHECK_RET(p);
 #define DUMP_TIME	wire_ttl_to_str(&p); CHECK_RET(p);
 #define DUMP_TIMESTAMP	wire_timestamp_to_str(&p); CHECK_RET(p);
 #define DUMP_IPV4	wire_ipv4_to_str(&p); CHECK_RET(p);
@@ -1478,11 +1450,14 @@ static int dump_dnskey(DUMP_PARAMS)
 	DUMP_INIT;
 
 	if (p.style->wrap) {
+		char info[512] = "";
+		dnskey_info(in, in_len, info, sizeof(info));
+
 		DUMP_NUM16; DUMP_SPACE;
 		DUMP_NUM8;  DUMP_SPACE;
 		DUMP_NUM8;  DUMP_SPACE; WRAP_INIT;
 		DUMP_BASE64;
-		WRAP_END;
+		WRAP_END; COMMENT(info);
 	} else {
 		DUMP_NUM16; DUMP_SPACE;
 		DUMP_NUM8;  DUMP_SPACE;
@@ -1924,8 +1899,12 @@ int knot_rrset_txt_dump_data(const knot_rrset_t      *rrset,
 	return ret;
 }
 
+#define SNPRINTF_CHECK(ret, max_len)			\
+	if ((ret) < 0 || (size_t)(ret) >= (max_len)) {	\
+		return KNOT_ESPACE;			\
+	}
+
 int knot_rrset_txt_dump_header(const knot_rrset_t      *rrset,
-                               const size_t            pos,
                                char                    *dst,
                                const size_t            maxlen,
                                const knot_dump_style_t *style)
@@ -1940,46 +1919,23 @@ int knot_rrset_txt_dump_header(const knot_rrset_t      *rrset,
 
 	// Dump rrset owner.
 	char *name = knot_dname_to_str(rrset->owner);
-	// If reduced style don't print non-first headers in rrset or rrsigs.
-	if (style->reduce && (pos > 0 || rrset->type == KNOT_RRTYPE_RRSIG)) {
-		// Fill buffer with tabs.
-		memset(buf, '\t', sizeof(buf));
-		// Compute leading number of tabs.
-		size_t tabs = (strlen(name) + TAB_WIDTH - 1) / TAB_WIDTH;
-		// Check number of tabs.
-		tabs = tabs < sizeof(buf) ? tabs : (sizeof(buf) - 1);
-		// Terminate tabs string.
-		buf[tabs] = '\0';
-
-		ret = snprintf(dst + len, maxlen - len, "%s", buf);
-	} else {
-		// Get rrset owner.
-		if (style->reduce) {
-			// If reduced style don't print extra spaces.
-			ret = snprintf(dst + len, maxlen - len, "%s\t", name);
-		} else {
-			// Set white space separation character.
-			char sep = strlen(name) < 4 * TAB_WIDTH ? '\t' : ' ';
-
-			ret = snprintf(dst + len, maxlen - len, "%-20s%c",
-			               name, sep);
-		}
+	if (style->ascii_to_idn != NULL) {
+		style->ascii_to_idn(&name);
 	}
+	char sep = strlen(name) < 4 * TAB_WIDTH ? '\t' : ' ';
+	ret = snprintf(dst + len, maxlen - len, "%-20s%c", name, sep);
 	free(name);
-	if (ret < 0 || (size_t)ret >= maxlen - len) {
-		return KNOT_ESPACE;
-	}
+	SNPRINTF_CHECK(ret, maxlen - len);
 	len += ret;
 
 	// Set white space separation character.
-	char sep = style->wrap ? ' ' : '\t';
+	sep = style->wrap ? ' ' : '\t';
 
 	// Dump rrset ttl.
 	if (style->show_ttl) {
 		if (style->human_ttl) {
 			// Create human readable ttl string.
-			ret = time_to_human_str(buf, sizeof(buf), rrset->ttl);
-			if (ret < 0) {
+			if (time_to_human_str(buf, sizeof(buf), rrset->ttl) < 0) {
 				return KNOT_ESPACE;
 			}
 			ret = snprintf(dst + len, maxlen - len, "%s%c",
@@ -1988,22 +1944,17 @@ int knot_rrset_txt_dump_header(const knot_rrset_t      *rrset,
 			ret = snprintf(dst + len, maxlen - len, "%u%c",
 			               rrset->ttl, sep);
 		}
-		if (ret < 0 || (size_t)ret >= maxlen - len) {
-			return KNOT_ESPACE;
-		}
+		SNPRINTF_CHECK(ret, maxlen - len);
 		len += ret;
 	}
 
 	// Dump rrset class.
 	if (style->show_class) {
-		if (knot_rrclass_to_string(rrset->rclass, buf, sizeof(buf)) < 0)
-		{
+		if (knot_rrclass_to_string(rrset->rclass, buf, sizeof(buf)) < 0) {
 			return KNOT_ESPACE;
 		}
 		ret = snprintf(dst + len, maxlen - len, "%-2s%c", buf, sep);
-		if (ret < 0 || (size_t)ret >= maxlen - len) {
-			return KNOT_ESPACE;
-		}
+		SNPRINTF_CHECK(ret, maxlen - len);
 		len += ret;
 	}
 
@@ -2011,10 +1962,12 @@ int knot_rrset_txt_dump_header(const knot_rrset_t      *rrset,
 	if (knot_rrtype_to_string(rrset->type, buf, sizeof(buf)) < 0) {
 		return KNOT_ESPACE;
 	}
-	ret = snprintf(dst + len, maxlen - len, "%s%c", buf, sep);
-	if (ret < 0 || (size_t)ret >= maxlen - len) {
-		return KNOT_ESPACE;
+	if (rrset->rdata_count > 0) {
+		ret = snprintf(dst + len, maxlen - len, "%s%c", buf, sep);
+	} else {
+		ret = snprintf(dst + len, maxlen - len, "%s", buf);
 	}
+	SNPRINTF_CHECK(ret, maxlen - len);
 	len += ret;
 
 	return len;
@@ -2023,6 +1976,8 @@ int knot_rrset_txt_dump_header(const knot_rrset_t      *rrset,
 int knot_rrset_txt_dump(const knot_rrset_t      *rrset,
                         char                    *dst,
                         const size_t            maxlen,
+                        const bool              dump_rdata,
+                        const bool              dump_rrsig,
                         const knot_dump_style_t *style)
 {
 	if (rrset == NULL || dst == NULL || style == NULL) {
@@ -2032,54 +1987,57 @@ int knot_rrset_txt_dump(const knot_rrset_t      *rrset,
 	size_t len = 0;
 	int    ret;
 
-	// If the rrset is empty, dump header only.
-	if (rrset->rdata_count == 0) {
-		// Dump rdata owner, class, ttl and type.
-		ret = knot_rrset_txt_dump_header(rrset, 0, dst + len,
-		                                 maxlen - len, style);
-		if (ret < 0) {
-			return KNOT_ESPACE;
-		}
-		len += ret;
+	if (dump_rdata) {
+		// APL RR may have empty RDATA, in this case, dump only header.
+		if (rrset->rdata_count == 0
+		    && knot_rrset_type(rrset) == KNOT_RRTYPE_APL) {
+			// Dump rdata owner, class, ttl and type.
+			ret = knot_rrset_txt_dump_header(rrset, dst + len,
+			                                 maxlen - len, style);
+			if (ret < 0) {
+				return KNOT_ESPACE;
+			}
+			len += ret;
 
-		// Terminate line.
-		if (len >= maxlen) {
-			return KNOT_ESPACE;
+			// Terminate line.
+			if (len >= maxlen) {
+				return KNOT_ESPACE;
+			}
+			dst[len++] = '\n';
+			dst[len] = '\0';
 		}
-		dst[len++] = '\n';
-		dst[len] = '\0';
-	}
 
-	// Loop over rdata in rrset.
-	for (size_t i = 0; i < rrset->rdata_count; i++) {
-		// Dump rdata owner, class, ttl and type.
-		ret = knot_rrset_txt_dump_header(rrset, i, dst + len,
-		                                 maxlen - len, style);
-		if (ret < 0) {
-			return KNOT_ESPACE;
-		}
-		len += ret;
+		// Loop over rdata in rrset.
+		for (size_t i = 0; i < rrset->rdata_count; i++) {
+			// Dump rdata owner, class, ttl and type.
+			ret = knot_rrset_txt_dump_header(rrset, dst + len,
+			                                 maxlen - len, style);
+			if (ret < 0) {
+				return KNOT_ESPACE;
+			}
+			len += ret;
 
-		// Dump rdata as such.
-		ret = knot_rrset_txt_dump_data(rrset, i, dst + len,
-		                               maxlen - len, style);
-		if (ret < 0) {
-			return KNOT_ESPACE;
-		}
-		len += ret;
+			// Dump rdata as such.
+			ret = knot_rrset_txt_dump_data(rrset, i, dst + len,
+			                               maxlen - len, style);
+			if (ret < 0) {
+				return KNOT_ESPACE;
+			}
+			len += ret;
 
-		// Terminate line.
-		if (len >= maxlen) {
-			return KNOT_ESPACE;
+			// Terminate line.
+			if (len >= maxlen) {
+				return KNOT_ESPACE;
+			}
+			dst[len++] = '\n';
+			dst[len] = '\0';
 		}
-		dst[len++] = '\n';
-		dst[len] = '\0';
 	}
 
 	// Dump RRSIG records if any via recursion call.
-	if (rrset->rrsigs != NULL) {
+	if (dump_rrsig && rrset->rrsigs != NULL) {
 		ret = knot_rrset_txt_dump(rrset->rrsigs, dst + len,
-		                          maxlen - len, style);
+		                          maxlen - len, true, false, style);
 		if (ret < 0) {
 			return KNOT_ESPACE;
 		}

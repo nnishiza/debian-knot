@@ -50,16 +50,24 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = .
-DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(top_srcdir)/configure \
-	$(top_srcdir)/src/zscanner/test/cases/06-0_INCLUDE.inin \
-	$(top_srcdir)/src/zscanner/test/cases/06-3_INCLUDE.inin \
-	$(top_srcdir)/src/zscanner/test/cases/06-4_INCLUDE.inin \
-	$(top_srcdir)/src/zscanner/test/run_tests.sh.in AUTHORS \
+DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(srcdir)/tests/Makefile.inc $(top_srcdir)/configure AUTHORS \
 	COPYING ChangeLog INSTALL NEWS THANKS ar-lib compile \
 	config.guess config.sub depcomp install-sh ltmain.sh missing \
 	ylwrap
+check_PROGRAMS = tests/runtests$(EXEEXT) tests/journal$(EXEEXT) \
+	tests/slab$(EXEEXT) tests/hattrie$(EXEEXT) \
+	tests/hhash$(EXEEXT) tests/dthreads$(EXEEXT) \
+	tests/events$(EXEEXT) tests/acl$(EXEEXT) tests/fdset$(EXEEXT) \
+	tests/base64$(EXEEXT) tests/base32hex$(EXEEXT) \
+	tests/descriptor$(EXEEXT) tests/server$(EXEEXT) \
+	tests/conf$(EXEEXT) tests/rrl$(EXEEXT) tests/wire$(EXEEXT) \
+	tests/dname$(EXEEXT) tests/ztree$(EXEEXT) \
+	tests/zonedb$(EXEEXT) tests/dnssec_keys$(EXEEXT) \
+	tests/dnssec_nsec3$(EXEEXT) tests/dnssec_sign$(EXEEXT) \
+	tests/dnssec_zone_nsec$(EXEEXT) tests/rrset$(EXEEXT)
+subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
@@ -72,19 +80,186 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/src/config.h
-CONFIG_CLEAN_FILES = src/zscanner/test/run_tests.sh \
-	src/zscanner/test/cases/06-3_INCLUDE.in \
-	src/zscanner/test/cases/06-4_INCLUDE.in \
-	src/zscanner/test/cases/06-0_INCLUDE.in
+CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-AM_V_GEN = $(am__v_GEN_@AM_V@)
-am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
-am__v_GEN_0 = @echo "  GEN   " $@;
+ARFLAGS = cru
+AM_V_AR = $(am__v_AR_@AM_V@)
+am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
+am__v_AR_0 = @echo "  AR    " $@;
 AM_V_at = $(am__v_at_@AM_V@)
 am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
 am__v_at_0 = @
-SOURCES =
-DIST_SOURCES =
+tests_tap_libtap_a_AR = $(AR) $(ARFLAGS)
+tests_tap_libtap_a_LIBADD =
+am__dirstamp = $(am__leading_dot)dirstamp
+am_tests_tap_libtap_a_OBJECTS =  \
+	tests/tap/tests_tap_libtap_a-basic.$(OBJEXT) \
+	tests/tap/tests_tap_libtap_a-float.$(OBJEXT)
+tests_tap_libtap_a_OBJECTS = $(am_tests_tap_libtap_a_OBJECTS)
+tests_acl_SOURCES = tests/acl.c
+tests_acl_OBJECTS = tests/acl.$(OBJEXT)
+tests_acl_LDADD = $(LDADD)
+tests_acl_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
+tests_base32hex_SOURCES = tests/base32hex.c
+tests_base32hex_OBJECTS = tests/base32hex.$(OBJEXT)
+tests_base32hex_LDADD = $(LDADD)
+tests_base32hex_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_base64_SOURCES = tests/base64.c
+tests_base64_OBJECTS = tests/base64.$(OBJEXT)
+tests_base64_LDADD = $(LDADD)
+tests_base64_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+am_tests_conf_OBJECTS = tests/conf.$(OBJEXT)
+nodist_tests_conf_OBJECTS = tests/sample_conf.$(OBJEXT)
+tests_conf_OBJECTS = $(am_tests_conf_OBJECTS) \
+	$(nodist_tests_conf_OBJECTS)
+tests_conf_LDADD = $(LDADD)
+tests_conf_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_descriptor_SOURCES = tests/descriptor.c
+tests_descriptor_OBJECTS = tests/descriptor.$(OBJEXT)
+tests_descriptor_LDADD = $(LDADD)
+tests_descriptor_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_dname_SOURCES = tests/dname.c
+tests_dname_OBJECTS = tests/dname.$(OBJEXT)
+tests_dname_LDADD = $(LDADD)
+tests_dname_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_dnssec_keys_SOURCES = tests/dnssec_keys.c
+tests_dnssec_keys_OBJECTS = tests/dnssec_keys.$(OBJEXT)
+tests_dnssec_keys_LDADD = $(LDADD)
+tests_dnssec_keys_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_dnssec_nsec3_SOURCES = tests/dnssec_nsec3.c
+tests_dnssec_nsec3_OBJECTS = tests/dnssec_nsec3.$(OBJEXT)
+tests_dnssec_nsec3_LDADD = $(LDADD)
+tests_dnssec_nsec3_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_dnssec_sign_SOURCES = tests/dnssec_sign.c
+tests_dnssec_sign_OBJECTS = tests/dnssec_sign.$(OBJEXT)
+tests_dnssec_sign_LDADD = $(LDADD)
+tests_dnssec_sign_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_dnssec_zone_nsec_SOURCES = tests/dnssec_zone_nsec.c
+tests_dnssec_zone_nsec_OBJECTS = tests/dnssec_zone_nsec.$(OBJEXT)
+tests_dnssec_zone_nsec_LDADD = $(LDADD)
+tests_dnssec_zone_nsec_DEPENDENCIES = tests/tap/libtap.a \
+	src/libknotd.la src/libknots.la @LIBOBJS@
+tests_dthreads_SOURCES = tests/dthreads.c
+tests_dthreads_OBJECTS = tests/dthreads.$(OBJEXT)
+tests_dthreads_LDADD = $(LDADD)
+tests_dthreads_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_events_SOURCES = tests/events.c
+tests_events_OBJECTS = tests/events.$(OBJEXT)
+tests_events_LDADD = $(LDADD)
+tests_events_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_fdset_SOURCES = tests/fdset.c
+tests_fdset_OBJECTS = tests/fdset.$(OBJEXT)
+tests_fdset_LDADD = $(LDADD)
+tests_fdset_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_hattrie_SOURCES = tests/hattrie.c
+tests_hattrie_OBJECTS = tests/hattrie.$(OBJEXT)
+tests_hattrie_LDADD = $(LDADD)
+tests_hattrie_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_hhash_SOURCES = tests/hhash.c
+tests_hhash_OBJECTS = tests/hhash.$(OBJEXT)
+tests_hhash_LDADD = $(LDADD)
+tests_hhash_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_journal_SOURCES = tests/journal.c
+tests_journal_OBJECTS = tests/journal.$(OBJEXT)
+tests_journal_LDADD = $(LDADD)
+tests_journal_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_rrl_SOURCES = tests/rrl.c
+tests_rrl_OBJECTS = tests/rrl.$(OBJEXT)
+tests_rrl_LDADD = $(LDADD)
+tests_rrl_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_rrset_SOURCES = tests/rrset.c
+tests_rrset_OBJECTS = tests/rrset.$(OBJEXT)
+tests_rrset_LDADD = $(LDADD)
+tests_rrset_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_runtests_SOURCES = tests/runtests.c
+tests_runtests_OBJECTS = tests/tests_runtests-runtests.$(OBJEXT)
+tests_runtests_LDADD = $(LDADD)
+tests_runtests_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_server_SOURCES = tests/server.c
+tests_server_OBJECTS = tests/server.$(OBJEXT)
+tests_server_LDADD = $(LDADD)
+tests_server_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_slab_SOURCES = tests/slab.c
+tests_slab_OBJECTS = tests/slab.$(OBJEXT)
+tests_slab_LDADD = $(LDADD)
+tests_slab_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_wire_SOURCES = tests/wire.c
+tests_wire_OBJECTS = tests/wire.$(OBJEXT)
+tests_wire_LDADD = $(LDADD)
+tests_wire_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_zonedb_SOURCES = tests/zonedb.c
+tests_zonedb_OBJECTS = tests/zonedb.$(OBJEXT)
+tests_zonedb_LDADD = $(LDADD)
+tests_zonedb_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+tests_ztree_SOURCES = tests/ztree.c
+tests_ztree_OBJECTS = tests/ztree.$(OBJEXT)
+tests_ztree_LDADD = $(LDADD)
+tests_ztree_DEPENDENCIES = tests/tap/libtap.a src/libknotd.la \
+	src/libknots.la @LIBOBJS@
+DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+am__depfiles_maybe = depfiles
+am__mv = mv -f
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_@AM_V@)
+am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
+am__v_CC_0 = @echo "  CC    " $@;
+CCLD = $(CC)
+LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_@AM_V@)
+am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
+am__v_CCLD_0 = @echo "  CCLD  " $@;
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN   " $@;
+SOURCES = $(tests_tap_libtap_a_SOURCES) tests/acl.c tests/base32hex.c \
+	tests/base64.c $(tests_conf_SOURCES) \
+	$(nodist_tests_conf_SOURCES) tests/descriptor.c tests/dname.c \
+	tests/dnssec_keys.c tests/dnssec_nsec3.c tests/dnssec_sign.c \
+	tests/dnssec_zone_nsec.c tests/dthreads.c tests/events.c \
+	tests/fdset.c tests/hattrie.c tests/hhash.c tests/journal.c \
+	tests/rrl.c tests/rrset.c tests/runtests.c tests/server.c \
+	tests/slab.c tests/wire.c tests/zonedb.c tests/ztree.c
+DIST_SOURCES = $(tests_tap_libtap_a_SOURCES) tests/acl.c \
+	tests/base32hex.c tests/base64.c $(tests_conf_SOURCES) \
+	tests/descriptor.c tests/dname.c tests/dnssec_keys.c \
+	tests/dnssec_nsec3.c tests/dnssec_sign.c \
+	tests/dnssec_zone_nsec.c tests/dthreads.c tests/events.c \
+	tests/fdset.c tests/hattrie.c tests/hhash.c tests/journal.c \
+	tests/rrl.c tests/rrset.c tests/runtests.c tests/server.c \
+	tests/slab.c tests/wire.c tests/zonedb.c tests/ztree.c
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -281,13 +456,38 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = src samples doc man
-EXTRA_DIST = resource.sh
+check_LIBRARIES = tests/tap/libtap.a
+AM_CPPFLAGS = \
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/tests
+
+tests_runtests_CPPFLAGS = \
+	-DSOURCE='"$(abs_top_srcdir)/tests"' \
+	-DBUILD='"$(abs_top_builddir)/tests"'
+
+tests_tap_libtap_a_CPPFLAGS = -I$(abs_top_srcdir)/tests
+tests_tap_libtap_a_SOURCES = \
+	tests/tap/basic.c tests/tap/basic.h \
+	tests/tap/float.c tests/tap/float.h \
+	tests/tap/macros.h
+
+LDADD = \
+	tests/tap/libtap.a \
+	src/libknotd.la src/libknots.la \
+	@LIBOBJS@
+
+tests_conf_SOURCES = tests/conf.c tests/sample_conf.h
+nodist_tests_conf_SOURCES = tests/sample_conf.c
+CLEANFILES = tests/sample_conf.c
+EXTRA_DIST = tests/data tests/TESTS
+dist_check_SCRIPTS = tests/resource.sh
 all: all-recursive
 
 .SUFFIXES:
+.SUFFIXES: .c .lo .o .obj
 am--refresh: Makefile
 	@:
-$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
+$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/tests/Makefile.inc $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -310,6 +510,7 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe)'; \
 	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
 	esac;
+$(srcdir)/tests/Makefile.inc:
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
@@ -319,20 +520,294 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
 $(am__aclocal_m4_deps):
-src/zscanner/test/run_tests.sh: $(top_builddir)/config.status $(top_srcdir)/src/zscanner/test/run_tests.sh.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-src/zscanner/test/cases/06-3_INCLUDE.in: $(top_builddir)/config.status $(top_srcdir)/src/zscanner/test/cases/06-3_INCLUDE.inin
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-src/zscanner/test/cases/06-4_INCLUDE.in: $(top_builddir)/config.status $(top_srcdir)/src/zscanner/test/cases/06-4_INCLUDE.inin
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-src/zscanner/test/cases/06-0_INCLUDE.in: $(top_builddir)/config.status $(top_srcdir)/src/zscanner/test/cases/06-0_INCLUDE.inin
-	cd $(top_builddir) && $(SHELL) ./config.status $@
+
+clean-checkLIBRARIES:
+	-test -z "$(check_LIBRARIES)" || rm -f $(check_LIBRARIES)
+tests/tap/$(am__dirstamp):
+	@$(MKDIR_P) tests/tap
+	@: > tests/tap/$(am__dirstamp)
+tests/tap/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) tests/tap/$(DEPDIR)
+	@: > tests/tap/$(DEPDIR)/$(am__dirstamp)
+tests/tap/tests_tap_libtap_a-basic.$(OBJEXT):  \
+	tests/tap/$(am__dirstamp) tests/tap/$(DEPDIR)/$(am__dirstamp)
+tests/tap/tests_tap_libtap_a-float.$(OBJEXT):  \
+	tests/tap/$(am__dirstamp) tests/tap/$(DEPDIR)/$(am__dirstamp)
+tests/tap/libtap.a: $(tests_tap_libtap_a_OBJECTS) $(tests_tap_libtap_a_DEPENDENCIES) $(EXTRA_tests_tap_libtap_a_DEPENDENCIES) tests/tap/$(am__dirstamp)
+	$(AM_V_at)-rm -f tests/tap/libtap.a
+	$(AM_V_AR)$(tests_tap_libtap_a_AR) tests/tap/libtap.a $(tests_tap_libtap_a_OBJECTS) $(tests_tap_libtap_a_LIBADD)
+	$(AM_V_at)$(RANLIB) tests/tap/libtap.a
+
+clean-checkPROGRAMS:
+	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
+	echo " rm -f" $$list; \
+	rm -f $$list || exit $$?; \
+	test -n "$(EXEEXT)" || exit 0; \
+	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
+	echo " rm -f" $$list; \
+	rm -f $$list
+tests/$(am__dirstamp):
+	@$(MKDIR_P) tests
+	@: > tests/$(am__dirstamp)
+tests/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) tests/$(DEPDIR)
+	@: > tests/$(DEPDIR)/$(am__dirstamp)
+tests/acl.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/acl$(EXEEXT): $(tests_acl_OBJECTS) $(tests_acl_DEPENDENCIES) $(EXTRA_tests_acl_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/acl$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_acl_OBJECTS) $(tests_acl_LDADD) $(LIBS)
+tests/base32hex.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/base32hex$(EXEEXT): $(tests_base32hex_OBJECTS) $(tests_base32hex_DEPENDENCIES) $(EXTRA_tests_base32hex_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/base32hex$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_base32hex_OBJECTS) $(tests_base32hex_LDADD) $(LIBS)
+tests/base64.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/base64$(EXEEXT): $(tests_base64_OBJECTS) $(tests_base64_DEPENDENCIES) $(EXTRA_tests_base64_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/base64$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_base64_OBJECTS) $(tests_base64_LDADD) $(LIBS)
+tests/conf.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/sample_conf.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/conf$(EXEEXT): $(tests_conf_OBJECTS) $(tests_conf_DEPENDENCIES) $(EXTRA_tests_conf_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/conf$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_conf_OBJECTS) $(tests_conf_LDADD) $(LIBS)
+tests/descriptor.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/descriptor$(EXEEXT): $(tests_descriptor_OBJECTS) $(tests_descriptor_DEPENDENCIES) $(EXTRA_tests_descriptor_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/descriptor$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_descriptor_OBJECTS) $(tests_descriptor_LDADD) $(LIBS)
+tests/dname.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/dname$(EXEEXT): $(tests_dname_OBJECTS) $(tests_dname_DEPENDENCIES) $(EXTRA_tests_dname_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/dname$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_dname_OBJECTS) $(tests_dname_LDADD) $(LIBS)
+tests/dnssec_keys.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/dnssec_keys$(EXEEXT): $(tests_dnssec_keys_OBJECTS) $(tests_dnssec_keys_DEPENDENCIES) $(EXTRA_tests_dnssec_keys_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/dnssec_keys$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_dnssec_keys_OBJECTS) $(tests_dnssec_keys_LDADD) $(LIBS)
+tests/dnssec_nsec3.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/dnssec_nsec3$(EXEEXT): $(tests_dnssec_nsec3_OBJECTS) $(tests_dnssec_nsec3_DEPENDENCIES) $(EXTRA_tests_dnssec_nsec3_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/dnssec_nsec3$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_dnssec_nsec3_OBJECTS) $(tests_dnssec_nsec3_LDADD) $(LIBS)
+tests/dnssec_sign.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/dnssec_sign$(EXEEXT): $(tests_dnssec_sign_OBJECTS) $(tests_dnssec_sign_DEPENDENCIES) $(EXTRA_tests_dnssec_sign_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/dnssec_sign$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_dnssec_sign_OBJECTS) $(tests_dnssec_sign_LDADD) $(LIBS)
+tests/dnssec_zone_nsec.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/dnssec_zone_nsec$(EXEEXT): $(tests_dnssec_zone_nsec_OBJECTS) $(tests_dnssec_zone_nsec_DEPENDENCIES) $(EXTRA_tests_dnssec_zone_nsec_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/dnssec_zone_nsec$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_dnssec_zone_nsec_OBJECTS) $(tests_dnssec_zone_nsec_LDADD) $(LIBS)
+tests/dthreads.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/dthreads$(EXEEXT): $(tests_dthreads_OBJECTS) $(tests_dthreads_DEPENDENCIES) $(EXTRA_tests_dthreads_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/dthreads$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_dthreads_OBJECTS) $(tests_dthreads_LDADD) $(LIBS)
+tests/events.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/events$(EXEEXT): $(tests_events_OBJECTS) $(tests_events_DEPENDENCIES) $(EXTRA_tests_events_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/events$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_events_OBJECTS) $(tests_events_LDADD) $(LIBS)
+tests/fdset.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/fdset$(EXEEXT): $(tests_fdset_OBJECTS) $(tests_fdset_DEPENDENCIES) $(EXTRA_tests_fdset_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/fdset$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_fdset_OBJECTS) $(tests_fdset_LDADD) $(LIBS)
+tests/hattrie.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/hattrie$(EXEEXT): $(tests_hattrie_OBJECTS) $(tests_hattrie_DEPENDENCIES) $(EXTRA_tests_hattrie_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/hattrie$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_hattrie_OBJECTS) $(tests_hattrie_LDADD) $(LIBS)
+tests/hhash.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/hhash$(EXEEXT): $(tests_hhash_OBJECTS) $(tests_hhash_DEPENDENCIES) $(EXTRA_tests_hhash_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/hhash$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_hhash_OBJECTS) $(tests_hhash_LDADD) $(LIBS)
+tests/journal.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/journal$(EXEEXT): $(tests_journal_OBJECTS) $(tests_journal_DEPENDENCIES) $(EXTRA_tests_journal_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/journal$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_journal_OBJECTS) $(tests_journal_LDADD) $(LIBS)
+tests/rrl.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/rrl$(EXEEXT): $(tests_rrl_OBJECTS) $(tests_rrl_DEPENDENCIES) $(EXTRA_tests_rrl_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/rrl$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_rrl_OBJECTS) $(tests_rrl_LDADD) $(LIBS)
+tests/rrset.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/rrset$(EXEEXT): $(tests_rrset_OBJECTS) $(tests_rrset_DEPENDENCIES) $(EXTRA_tests_rrset_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/rrset$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_rrset_OBJECTS) $(tests_rrset_LDADD) $(LIBS)
+tests/tests_runtests-runtests.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/runtests$(EXEEXT): $(tests_runtests_OBJECTS) $(tests_runtests_DEPENDENCIES) $(EXTRA_tests_runtests_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/runtests$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_runtests_OBJECTS) $(tests_runtests_LDADD) $(LIBS)
+tests/server.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/server$(EXEEXT): $(tests_server_OBJECTS) $(tests_server_DEPENDENCIES) $(EXTRA_tests_server_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/server$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_server_OBJECTS) $(tests_server_LDADD) $(LIBS)
+tests/slab.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/slab$(EXEEXT): $(tests_slab_OBJECTS) $(tests_slab_DEPENDENCIES) $(EXTRA_tests_slab_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/slab$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_slab_OBJECTS) $(tests_slab_LDADD) $(LIBS)
+tests/wire.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/wire$(EXEEXT): $(tests_wire_OBJECTS) $(tests_wire_DEPENDENCIES) $(EXTRA_tests_wire_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/wire$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_wire_OBJECTS) $(tests_wire_LDADD) $(LIBS)
+tests/zonedb.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/zonedb$(EXEEXT): $(tests_zonedb_OBJECTS) $(tests_zonedb_DEPENDENCIES) $(EXTRA_tests_zonedb_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/zonedb$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_zonedb_OBJECTS) $(tests_zonedb_LDADD) $(LIBS)
+tests/ztree.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+tests/ztree$(EXEEXT): $(tests_ztree_OBJECTS) $(tests_ztree_DEPENDENCIES) $(EXTRA_tests_ztree_DEPENDENCIES) tests/$(am__dirstamp)
+	@rm -f tests/ztree$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tests_ztree_OBJECTS) $(tests_ztree_LDADD) $(LIBS)
+
+mostlyclean-compile:
+	-rm -f *.$(OBJEXT)
+	-rm -f tests/acl.$(OBJEXT)
+	-rm -f tests/base32hex.$(OBJEXT)
+	-rm -f tests/base64.$(OBJEXT)
+	-rm -f tests/conf.$(OBJEXT)
+	-rm -f tests/descriptor.$(OBJEXT)
+	-rm -f tests/dname.$(OBJEXT)
+	-rm -f tests/dnssec_keys.$(OBJEXT)
+	-rm -f tests/dnssec_nsec3.$(OBJEXT)
+	-rm -f tests/dnssec_sign.$(OBJEXT)
+	-rm -f tests/dnssec_zone_nsec.$(OBJEXT)
+	-rm -f tests/dthreads.$(OBJEXT)
+	-rm -f tests/events.$(OBJEXT)
+	-rm -f tests/fdset.$(OBJEXT)
+	-rm -f tests/hattrie.$(OBJEXT)
+	-rm -f tests/hhash.$(OBJEXT)
+	-rm -f tests/journal.$(OBJEXT)
+	-rm -f tests/rrl.$(OBJEXT)
+	-rm -f tests/rrset.$(OBJEXT)
+	-rm -f tests/sample_conf.$(OBJEXT)
+	-rm -f tests/server.$(OBJEXT)
+	-rm -f tests/slab.$(OBJEXT)
+	-rm -f tests/tap/tests_tap_libtap_a-basic.$(OBJEXT)
+	-rm -f tests/tap/tests_tap_libtap_a-float.$(OBJEXT)
+	-rm -f tests/tests_runtests-runtests.$(OBJEXT)
+	-rm -f tests/wire.$(OBJEXT)
+	-rm -f tests/zonedb.$(OBJEXT)
+	-rm -f tests/ztree.$(OBJEXT)
+
+distclean-compile:
+	-rm -f *.tab.c
+
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/acl.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/base32hex.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/base64.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/conf.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/descriptor.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/dname.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/dnssec_keys.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/dnssec_nsec3.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/dnssec_sign.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/dnssec_zone_nsec.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/dthreads.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/events.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/fdset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/hattrie.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/hhash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/journal.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/rrl.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/rrset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/sample_conf.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/slab.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/tests_runtests-runtests.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/wire.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/zonedb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/ztree.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Po@am__quote@
+
+.c.o:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ $<
+
+.c.obj:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+.c.lo:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+tests/tap/tests_tap_libtap_a-basic.o: tests/tap/basic.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-basic.o -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo -c -o tests/tap/tests_tap_libtap_a-basic.o `test -f 'tests/tap/basic.c' || echo '$(srcdir)/'`tests/tap/basic.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/basic.c' object='tests/tap/tests_tap_libtap_a-basic.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-basic.o `test -f 'tests/tap/basic.c' || echo '$(srcdir)/'`tests/tap/basic.c
+
+tests/tap/tests_tap_libtap_a-basic.obj: tests/tap/basic.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-basic.obj -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo -c -o tests/tap/tests_tap_libtap_a-basic.obj `if test -f 'tests/tap/basic.c'; then $(CYGPATH_W) 'tests/tap/basic.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/basic.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/basic.c' object='tests/tap/tests_tap_libtap_a-basic.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-basic.obj `if test -f 'tests/tap/basic.c'; then $(CYGPATH_W) 'tests/tap/basic.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/basic.c'; fi`
+
+tests/tap/tests_tap_libtap_a-float.o: tests/tap/float.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-float.o -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo -c -o tests/tap/tests_tap_libtap_a-float.o `test -f 'tests/tap/float.c' || echo '$(srcdir)/'`tests/tap/float.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/float.c' object='tests/tap/tests_tap_libtap_a-float.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-float.o `test -f 'tests/tap/float.c' || echo '$(srcdir)/'`tests/tap/float.c
+
+tests/tap/tests_tap_libtap_a-float.obj: tests/tap/float.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-float.obj -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo -c -o tests/tap/tests_tap_libtap_a-float.obj `if test -f 'tests/tap/float.c'; then $(CYGPATH_W) 'tests/tap/float.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/float.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/float.c' object='tests/tap/tests_tap_libtap_a-float.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-float.obj `if test -f 'tests/tap/float.c'; then $(CYGPATH_W) 'tests/tap/float.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/float.c'; fi`
+
+tests/tests_runtests-runtests.o: tests/runtests.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tests_runtests-runtests.o -MD -MP -MF tests/$(DEPDIR)/tests_runtests-runtests.Tpo -c -o tests/tests_runtests-runtests.o `test -f 'tests/runtests.c' || echo '$(srcdir)/'`tests/runtests.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/tests_runtests-runtests.Tpo tests/$(DEPDIR)/tests_runtests-runtests.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/runtests.c' object='tests/tests_runtests-runtests.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tests_runtests-runtests.o `test -f 'tests/runtests.c' || echo '$(srcdir)/'`tests/runtests.c
+
+tests/tests_runtests-runtests.obj: tests/runtests.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tests_runtests-runtests.obj -MD -MP -MF tests/$(DEPDIR)/tests_runtests-runtests.Tpo -c -o tests/tests_runtests-runtests.obj `if test -f 'tests/runtests.c'; then $(CYGPATH_W) 'tests/runtests.c'; else $(CYGPATH_W) '$(srcdir)/tests/runtests.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/tests_runtests-runtests.Tpo tests/$(DEPDIR)/tests_runtests-runtests.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/runtests.c' object='tests/tests_runtests-runtests.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tests_runtests-runtests.obj `if test -f 'tests/runtests.c'; then $(CYGPATH_W) 'tests/runtests.c'; else $(CYGPATH_W) '$(srcdir)/tests/runtests.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
 	-rm -rf .libs _libs
+	-rm -rf tests/.libs tests/_libs
 
 distclean-libtool:
 	-rm -f libtool config.lt
@@ -666,6 +1141,9 @@ distcleancheck: distclean
 	       $(distcleancheck_listfiles) ; \
 	       exit 1; } >&2
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_LIBRARIES) $(check_PROGRAMS) \
+	  $(dist_check_SCRIPTS)
+	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: check-recursive
 all-am: Makefile
 installdirs: installdirs-recursive
@@ -692,23 +1170,30 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f tests/$(DEPDIR)/$(am__dirstamp)
+	-rm -f tests/$(am__dirstamp)
+	-rm -f tests/tap/$(DEPDIR)/$(am__dirstamp)
+	-rm -f tests/tap/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-recursive
 
-clean-am: clean-generic clean-libtool mostlyclean-am
+clean-am: clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
+	clean-libtool mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
+	-rm -rf tests/$(DEPDIR) tests/tap/$(DEPDIR)
 	-rm -f Makefile
-distclean-am: clean-am distclean-generic distclean-libtool \
-	distclean-tags
+distclean-am: clean-am distclean-compile distclean-generic \
+	distclean-libtool distclean-tags
 
 dvi: dvi-recursive
 
@@ -753,12 +1238,14 @@ installcheck-am:
 maintainer-clean: maintainer-clean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
+	-rm -rf tests/$(DEPDIR) tests/tap/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
 mostlyclean: mostlyclean-recursive
 
-mostlyclean-am: mostlyclean-generic mostlyclean-libtool
+mostlyclean-am: mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool
 
 pdf: pdf-recursive
 
@@ -770,25 +1257,35 @@ ps-am:
 
 uninstall-am:
 
-.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) ctags-recursive \
-	install-am install-strip tags-recursive
+.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) check-am \
+	ctags-recursive install-am install-strip tags-recursive
 
 .PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
-	all all-am am--refresh check check-am clean clean-generic \
+	all all-am am--refresh check check-am check-local clean \
+	clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
 	clean-libtool ctags ctags-recursive dist dist-all dist-bzip2 \
 	dist-gzip dist-lzip dist-lzma dist-shar dist-tarZ dist-xz \
-	dist-zip distcheck distclean distclean-generic \
-	distclean-libtool distclean-tags distcleancheck distdir \
-	distuninstallcheck dvi dvi-am html html-am info info-am \
-	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	installdirs-am maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-generic mostlyclean-libtool pdf pdf-am \
-	ps ps-am tags tags-recursive uninstall uninstall-am
+	dist-zip distcheck distclean distclean-compile \
+	distclean-generic distclean-libtool distclean-tags \
+	distcleancheck distdir distuninstallcheck dvi dvi-am html \
+	html-am info info-am install install-am install-data \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-man install-pdf install-pdf-am \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs installdirs-am maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags tags-recursive uninstall uninstall-am
 
+
+check-compile-only: $(check_PROGRAMS)
+
+check-local: $(check_PROGRAMS)
+	cd tests && ./runtests -l $(abs_top_srcdir)/tests/TESTS
+
+tests/sample_conf.c: tests/data/sample_conf
+	$(abs_top_srcdir)/tests/resource.sh $(abs_top_srcdir)/tests/data/sample_conf >$@
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

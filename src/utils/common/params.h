@@ -28,6 +28,7 @@
 #define _UTILS__PARAMS_H_
 
 #include <stdint.h>			// uint16_t
+#include <limits.h>			// INT_MAX
 #include <stdbool.h>			// bool
 
 #include "libknot/libknot.h"
@@ -92,7 +93,49 @@ typedef struct {
 	bool	show_additional;
 	/*!< Show footer info. */
 	bool	show_footer;
+
+	/*!< KHOST - Hide CNAME record in answer (duplicity reduction). */
+	bool	hide_cname;
 } style_t;
+
+/*! \brief Parametr handler. */
+typedef int (*param_handle_f)(const char *arg, void *params);
+
+/*! \brief Parameter argument type. */
+typedef enum {
+	ARG_NONE,
+	ARG_REQUIRED,
+	ARG_OPTIONAL
+} arg_t;
+
+/*! \brief Parameter specification. */
+typedef struct {
+	const char     *name;
+	arg_t          arg;
+	param_handle_f handler;
+} param_t;
+
+/*!
+ * \brief Transforms localized IDN string to ASCII punycode.
+ *
+ * \param idn_name	IDN name to transform.
+ *
+ * \retval NULL		if transformation fails.
+ * \retval string	if ok.
+ */
+char* name_from_idn(const char *idn_name);
+
+/*!
+ * \brief Transforms ASCII punycode to localized IDN string.
+ *
+ * If an error occures or IDN support is missing, this function does nothing.
+ *
+ * \param idn_name	ASCII name to transform and replace with IDN name.
+ */
+void name_to_idn(char **name);
+
+int best_param(const char *str, const size_t str_len, const param_t *tbl,
+               bool *unique);
 
 char* get_reverse_name(const char *name);
 
@@ -102,13 +145,11 @@ int params_parse_class(const char *value, uint16_t *rclass);
 
 int params_parse_type(const char *value, uint16_t *rtype, uint32_t *xfr_serial);
 
-int params_parse_server(const char *value, list *servers, const char *def_port);
+int params_parse_server(const char *value, list_t *servers, const char *def_port);
 
 int params_parse_wait(const char *value, int32_t *dst);
 
 int params_parse_num(const char *value, uint32_t *dst);
-
-int params_parse_bufsize(const char *value, int32_t *dst);
 
 int params_parse_tsig(const char *value, knot_key_params_t *key_params);
 

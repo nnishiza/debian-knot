@@ -1,4 +1,4 @@
-.TH "knot.conf" "5" "13 December 2013" "CZ.NIC Labs" "Knot DNS, version 1.3.4"
+.TH "knot.conf" "5" "6 January 2014" "CZ.NIC Labs" "Knot DNS, version 1.4.0"
 .SH "NAME"
 .LP
 .B knot.conf
@@ -37,10 +37,6 @@ serves as an example of the configuration for knotc(8) and knotd(8).
   # Or hexstring 0x01ab00
   # Or on|off. When 'on', FQDN hostname will be used as default.
   nsid off;
-
-  # This is a default directory to place slave zone files, journals etc.
-  # default: ${localstatedir}/lib/knot, configured with --with-storage
-  storage "/var/lib/knot";
 
   # Directory for storing run-time data
   # e.g. PID file and control sockets
@@ -102,7 +98,8 @@ serves as an example of the configuration for knotc(8) and knotd(8).
   rate-limit-slip 1;
 
   # Maximum EDNS0 UDP payload size
-  # max-udp-payload 4096;
+  # Default value: 4096
+  max-udp-payload 4096;
  }
 
  # Includes can be placed anywhere at any level in the configuration file. The
@@ -216,7 +213,11 @@ serves as an example of the configuration for knotc(8) and knotd(8).
   # Shared options for all listed zones
   #
 
-  # Build differences from zone file changes. EXPERIMENTAL feature.
+  # This is a default directory to place slave zone files, journals etc.
+  # default: ${localstatedir}/lib/knot, configured with --with-storage
+  storage "/var/lib/knot";
+
+  # Build differences from zone file changes
   # Possible values: on|off
   # Default value: off
   ixfr-from-differences off;
@@ -255,10 +256,38 @@ serves as an example of the configuration for knotc(8) and knotd(8).
   # f.e. 1k, 100M, 2G
   ixfr-fslimit 1G;
 
+  # Enable DNSSEC online signing (technical preview)
+  # Possible values: on | off;
+  # Default value: off
+  dnssec-enable off;
+
+  # Location of DNSSEC signing keys (relative to storage directory).
+  # Default value: not set
+  dnssec-keydir "keys";
+
+  # Validity period for DNSSEC signatures
+  # Possible values: <10801..INT_MAX> (seconds)
+  # Default value: 30d (30 days or 2592000 seconds)
+  # It is also possible to suffix with unit size [s/m/h/d]
+  # f.e. 1s = 1 day, 1m = 1 minute, 1h = 1 hour, 1d = 1 day
+  # The lower limit is because the server will trigger resign when any of the
+  # signatures expires in 7200 seconds or less and it was chosen as a 
+  # reasonable value with regard to signing overhead.
+  signature-lifetime 30d;
+  
+  # Serial policy after DDNS and automatic DNSSEC signing.
+  # Possible values: increment | unixtime
+  # Default value: increment
+  serial-policy increment;
+
   # Zone entry
   #
   # Format: <zone-name> { file "<path-to-zone-file>"; }
   example.com {  # <zone-name> is the DNS name of the zone (zone root)
+    # Zone specific storage directory (relative to storage in zones section).
+    # default: inherited from zones section
+    storage "example.com";
+
     # <path-to-zone-file> may be either absolute or relative, in which case
     #   it is considered relative to the current directory from which the server
     #   was started.
@@ -295,6 +324,37 @@ serves as an example of the configuration for knotc(8) and knotd(8).
     # It is also possible to suffix with unit size [s/m/h/d]
     # f.e. 1s = 1 second, 1m = 1 minute, 1h = 1 hour, 1d = 1 day
     zonefile-sync 1h;
+
+    # File size limit for IXFR journal
+    # Possible values: <1..INT_MAX>
+    # Default value: N/A (infinite)
+    # It is also possible to suffix with unit size [k/M/G]
+    # f.e. 1k, 100M, 2G
+    ixfr-fslimit 1G;
+
+    # Location of DNSSEC signing keys (relative to storage directory in zone).
+    # Default value: inherited from zones section
+    dnssec-keydir "keys";
+
+    # Enable DNSSEC online signing (technical preview)
+    # Possible values: on | off;
+    # Default value: inherited from zones section
+    dnssec-enable off;
+
+    # Validity period for DNSSEC signatures
+    # Possible values: <10801..INT_MAX> (seconds)
+    # Default value: 30d (30 days or 2592000 seconds)
+    # It is also possible to suffix with unit size [s/m/h/d]
+    # f.e. 1s = 1 day, 1m = 1 minute, 1h = 1 hour, 1d = 1 day
+    # The lower limit is because the server will trigger resign when any of the
+    # signatures expires in 7200 seconds or less and it was chosen as a
+    # reasonable value with regard to signing overhead.
+    signature-lifetime 30d;
+
+    # Serial policy after DDNS and automatic DNSSEC signing.
+    # Possible values: increment | unixtime
+    # Default value: increment
+    serial-policy increment;
 
     # XFR master server
     xfr-in server0;

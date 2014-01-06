@@ -31,7 +31,6 @@
 #include "libknot/nameserver/name-server.h"
 #include "common/evqueue.h"
 #include "common/fdset.h"
-#include "common/hattrie/ahtable.h"
 
 struct xfrhandler_t;
 
@@ -55,7 +54,7 @@ typedef struct xfrworker_t
  */
 typedef struct xfrhandler_t
 {
-	list queue;
+	list_t queue;
 	unsigned pending; /*!< \brief Pending transfers. */
 	pthread_mutex_t pending_mx;
 	pthread_mutex_t mx; /*!< \brief Tasks synchronisation. */

@@ -20,9 +20,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "common.h"
-#include "util/utils.h"
-#include "common/prng.h"
+#include "libknot/common.h"
+#include "libknot/util/utils.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -55,11 +54,6 @@ knot_lookup_table_t *knot_lookup_by_id(knot_lookup_table_t *table,
 }
 
 /*----------------------------------------------------------------------------*/
-
-uint16_t knot_random_id()
-{
-	return (uint16_t)(tls_rand() * ((uint16_t)~0));
-}
 
 struct flock* knot_file_lock(short type, short whence)
 {

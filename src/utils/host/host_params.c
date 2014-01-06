@@ -21,11 +21,13 @@
 #include <stdio.h>			// printf
 #include <getopt.h>			// getopt
 #include <stdlib.h>			// free
+#include <locale.h>			// setlocale
 
 #include "common/lists.h"		// list
 #include "common/errcode.h"		// KNOT_EOK
 #include "common/descriptor.h"		// KNOT_CLASS_IN
 #include "utils/common/msg.h"		// WARN
+#include "utils/common/params.h"	// name_to_idn
 #include "utils/dig/dig_params.h"	// dig_params_t
 #include "utils/common/resolv.h"	// get_nameservers
 
@@ -34,9 +36,15 @@
 
 static const style_t DEFAULT_STYLE_HOST = {
 	.format = FORMAT_HOST,
-	.style = { .wrap = false, .show_class = true, .show_ttl = true,
-	           .verbose = true, .reduce = false, .human_ttl = false,
-	           .human_tmstamp = true },
+	.style = {
+		.wrap = false,
+		.show_class = true,
+		.show_ttl = true,
+		.verbose = false,
+		.human_ttl = false,
+		.human_tmstamp = true,
+		.ascii_to_idn = name_to_idn
+	},
 	.show_query = false,
 	.show_header = false,
 	.show_edns = false,
@@ -64,6 +72,7 @@ static int host_init(dig_params_t *params)
 	params->config->servfail_stop = false;
 	params->config->class_num = KNOT_CLASS_IN;
 	params->config->style = DEFAULT_STYLE_HOST;
+	params->config->idn = true;
 
 	// Check port.
 	if (params->config->port == NULL) {
@@ -84,14 +93,26 @@ void host_clean(dig_params_t *params)
 	dig_clean(params);
 }
 
-static int parse_name(const char *value, list *queries, const query_t *conf)
+static int parse_name(const char *value, list_t *queries, const query_t *conf)
 {
 	char	*reverse = get_reverse_name(value);
-	char	*fqd_name = NULL;
+	char	*ascii_name = (char *)value;
 	query_t	*query;
 
+	if (conf->idn) {
+		ascii_name = name_from_idn(value);
+		if (ascii_name == NULL) {
+			free(reverse);
+			return KNOT_EINVAL;
+		}
+	}
+
 	// If name is not FQDN, append trailing dot.
-	fqd_name = get_fqd_name(value);
+	char *fqd_name = get_fqd_name(ascii_name);
+
+	if (conf->idn) {
+		free(ascii_name);
+	}
 
 	// RR type is known.
 	if (conf->type_num >= 0) {
@@ -110,7 +131,7 @@ static int parse_name(const char *value, list *queries, const query_t *conf)
 			if (query == NULL) {
 				return KNOT_ENOMEM;
 			}
-			add_tail(queries, (node *)query);
+			add_tail(queries, (node_t *)query);
 		} else {
 			free(reverse);
 
@@ -120,7 +141,7 @@ static int parse_name(const char *value, list *queries, const query_t *conf)
 			if (query == NULL) {
 				return KNOT_ENOMEM;
 			}
-			add_tail(queries, (node *)query);
+			add_tail(queries, (node_t *)query);
 		}
 	// RR type is unknown, use defaults.
 	} else {
@@ -132,7 +153,7 @@ static int parse_name(const char *value, list *queries, const query_t *conf)
 				return KNOT_ENOMEM;
 			}
 			query->type_num = KNOT_RRTYPE_A;
-			add_tail(queries, (node *)query);
+			add_tail(queries, (node_t *)query);
 
 			// Add query for name and type AAAA.
 			query = query_create(fqd_name, conf);
@@ -141,7 +162,8 @@ static int parse_name(const char *value, list *queries, const query_t *conf)
 				return KNOT_ENOMEM;
 			}
 			query->type_num = KNOT_RRTYPE_AAAA;
-			add_tail(queries, (node *)query);
+			query->style.hide_cname = true;
+			add_tail(queries, (node_t *)query);
 
 			// Add query for name and type MX.
 			query = query_create(fqd_name, conf);
@@ -151,7 +173,8 @@ static int parse_name(const char *value, list *queries, const query_t *conf)
 			}
 			free(fqd_name);
 			query->type_num = KNOT_RRTYPE_MX;
-			add_tail(queries, (node *)query);
+			query->style.hide_cname = true;
+			add_tail(queries, (node_t *)query);
 		} else {
 			free(fqd_name);
 
@@ -162,7 +185,7 @@ static int parse_name(const char *value, list *queries, const query_t *conf)
 				return KNOT_ENOMEM;
 			}
 			query->type_num = KNOT_RRTYPE_PTR;
-			add_tail(queries, (node *)query);
+			add_tail(queries, (node_t *)query);
 		}
 	}
 
@@ -203,6 +226,13 @@ int host_parse(dig_params_t *params, int argc, char *argv[])
 	if (host_init(params) != KNOT_EOK) {
 		return KNOT_ERROR;
 	}
+
+#ifdef LIBIDN
+	// Set up localization.
+	if (setlocale(LC_CTYPE, "") == NULL) {
+		params->config->idn = false;
+	}
+#endif
 
 	query_t  *conf = params->config;
 	uint16_t rclass, rtype;
