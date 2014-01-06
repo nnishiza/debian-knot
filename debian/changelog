@@ -1,3 +1,21 @@
+knot (1.4.0-1) unstable; urgency=low
+
+  * New major upstream version 1.4.0
+    + Experimental automatic DNSSEC signing
+    + Fastest ragel parser enabled by default
+    + Reduced memory usage 
+    + Zone SOA SERIAL policies (INCREMENT, UNIXTIME) for DDNS and
+      automatic DNSSEC signing
+    + IDN support in Knot utilities (kdig, knsupdate, ...)
+    + DNSSEC: support for GOST algorithm  
+    + Support for DNSSEC key pre-publication
+  * Remove PATH_MAX patch, it's already included in upstream
+  * Run the tests on all archs, but don't fail the build if the tests fail
+    on broken archs
+  * Update watch file to match (alpha|beta|rc)\d* versions
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 06 Jan 2014 11:00:07 +0100
+
 knot (1.4.0~rc2-1) experimental; urgency=low
 
   * New upstream version 1.4.0~rc2
