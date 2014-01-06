@@ -11,7 +11,7 @@ Build-Depends: debhelper (>= 9),
 	       pkg-config,
 	       texinfo,
 	       texlive
-Standards-Version: 3.9.4
+Standards-Version: 3.9.5
 Homepage: http://www.knot-dns.cz/
 Vcs-Browser: http://git.debian.org/?p=users/ondrej/knot.git
 Vcs-Git: git://git.debian.org/users/ondrej/knot.git
