@@ -13,6 +13,7 @@ In this chapter we provide suggested configurations and explain the meaning of i
 * Enabling zone semantic checks::
 * Creating IXFR differences from zone file changes::
 * Using Response Rate Limiting::
+* Automatic DNSSEC signing::
 @end menu
 
 @node Minimal configuration
@@ -28,10 +29,6 @@ file which can be used as a base for your Knot DNS setup.
 # For exhaustive list of all options see samples/knot.full.conf
 # in the source directory.
 #
-
-system @{
-  storage "/var/lib/knot";
-@}
 
 interfaces @{
   my_interface @{ address 127.0.0.1@@53; @}
@@ -54,11 +51,6 @@ zones @{
 Now let's go step by step through this minimal configuration file:
 
 @enumerate
-
-@item
-In @code{system} statement we have configured @code{storage}
-directory where Knot DNS will store slave zones and journal files.
-(See @ref{system} and @ref{storage})
 
 @item
 The @code{interfaces} statement defines interfaces where Knot
@@ -200,24 +192,7 @@ message to its primary master specified by @code{xfr-in} directive. When it rece
 the response from primary master, it forwards it back to the originator. This finishes the transaction.
 
 However, if the zone is configured as master (i.e. not having any @code{xfr-in} directive), it accepts
-such an UPDATE and processes it. As of 1.2, there are a few limitations with DNSSEC signed zones described below. Other than that, UPDATE of unsigned zones works as expected without any limitations.
-
-@itemize @bullet
-@item
-Knot DNS doesn't automatically sign incoming RR if the zone is signed.
-As a workaround, it accepts DNSSEC-related records. However, it may prove challenging
-to create such an UPDATE that it correctly adds/replaces signed RRs, so this
-feature should be treated as experimental until correct signing is implemented.
-
-@item
-As for the reason in a previous point, removing RRSIG with no specified rdata makes it impossible
-to determine whether the user meant a RRSIG for an NSEC3 record or other one.
-Since they are stored separately, it is advisable to always specify RRSIG along with at least the types it covers.
-
-@item
-Deleting a last RR also removes its RRSIG.
-
-@end itemize
+such an UPDATE and processes it.
 
 @node Remote control interface
 @section Remote control interface
@@ -254,7 +229,7 @@ which checks are enabled by default and which are optional.
 
 @node Creating IXFR differences from zone file changes
 @section Creating IXFR differences from zone file changes
-If Knot is being run as a master server, experimental feature @code{ixfr-from-differences}
+If Knot is being run as a master server, feature @code{ixfr-from-differences}
 can be enabled to create IXFR differences from changes made to the master zone file.
 See @ref{Controlling running daemon} for more information. For more about @code{zones} statement see @ref{zones}.
 
@@ -283,3 +258,121 @@ system @{
 	rate-limit-slip 1; # Every response is slipped (default)
 @}
 @end example
+
+@node Automatic DNSSEC signing
+@section Automatic DNSSEC signing
+
+Knot DNS 1.4 is the first release to include automatic DNSSEC signing feature.
+Automatic DNSSEC signing is currently a technical preview and there are some
+limitations we will try to eliminate. The concept of key management and
+configuration is likely to change in the future without maintaining backward
+compatibility.
+
+@subsection Example configuration
+
+The example configuration enables automatic signing for all zones using
+@ref{dnssec-enable} option in the @code{zones} section, but the signing is
+explicitly disabled for zone @code{example.dev} using the same option directly
+in zone configuration. The location of directory with signing keys is set
+globally by option @ref{dnssec-keydir}.
+
+@sp 1
+
+@example
+zones @{
+  dnssec-enable on;
+  dnssec-keydir "/var/lib/knot/keys";
+
+  example.com @{
+    file "example.com.zone";
+  @}
+
+  example.dev @{
+    file "example.dev.zone";
+    dnssec-enable off;
+  @}
+@}
+@end example
+
+@subsection Signing keys
+
+The signing keys can be generated using ISC @code{dnssec-keygen} tool only
+and there are some limitations:
+
+@itemize @bullet
+@item
+Keys for all zones must be placed in one directory.
+
+@item
+Algorithms based on RSA, DSA, and ECDSA are supported, support for GOST
+algorithm is not finished yet.
+
+@item
+Only key publication, activation, inactivation, and removal time stamps
+are utilized. Other time stamps are ignored.
+
+@item
+It is required, that both @code{.private} and @code{.key} files for each key
+are available in the key directory in order to use the keys (even for
+verification only).
+
+@item
+There cannot be more than eight keys per zone. Keys which are not published
+are not included in this number.
+
+@end itemize
+
+@sp 1
+
+Example how to generate NSEC3 capable zone signing key (ZSK) and key signing
+key (KSK) for zone @code{example.com}:
+
+@sp 1
+@example
+$ cd /var/lib/knot/keys
+$ dnssec-keygen -3 example.com
+$ dnssec-keygen -3 -f KSK example.com
+@end example
+
+@subsection Signing policy
+
+Currently the signing policy is not configurable, except for signature lifetime.
+
+@itemize @bullet
+@item Signature lifetime can be set in configuration globally for all zones and for each zone in particular. @xref{signature-lifetime}. If not set, the default value is 30 days.
+@item Signature is refreshed 2 hours before expiration. The signature lifetime must thus be set to more than 2 hours.
+@end itemize
+
+@subsection Zone signing
+
+The signing process consists of the following steps:
+
+@itemize @bullet
+@item
+Fixing @code{NSEC} or @code{NSEC3} records. This is determined by
+@code{NSEC3PARAM} record presence in unsigned zone.
+
+@item
+Updating @code{DNSKEY} records. This also means adding DNSKEY records for any keys that are present in keydir, but missing in zone file.
+
+@item
+Removing expired signatures, invalid signatures, signatures expiring in a short
+time, and signatures with unknown key.
+
+@item
+Creating any missing signatures. @code{DNSKEY} records are signed by both ZSK
+and KSK keys, other records are signed only by ZSK keys.
+
+@item
+SOA record is updated and resigned if any changes were performed.
+
+@end itemize
+
+@sp 1
+
+The zone signing is performed when the zone is loaded into server, on zone
+reload, before any signature is expiring, and after DDNS update. The signing
+can be also forced using @code{signzone} command issued by @code{knotc}, in
+this case all signatures are recreated. After each zone signing, a new signing
+event is planned. User can view the time of this event by using the
+@code{knotc zonestatus} command.

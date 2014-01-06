@@ -39,9 +39,9 @@
 #include "knot/server/zones.h"
 #include "libknot/tsig-op.h"
 #include "common/evsched.h"
-#include "common/prng.h"
 #include "common/descriptor.h"
 #include "libknot/rrset.h"
+#include "libknot/dnssec/random.h"
 
 /* Constants */
 #define XFR_MAX_TASKS 1024 /*! Maximum pending tasks. */
@@ -293,7 +293,7 @@ static void xfr_task_cleanup(knot_ns_xfr_t *rq)
 		}
 	} else if (rq->type == XFR_TYPE_IIN) {
 		knot_changesets_t *chs = (knot_changesets_t *)rq->data;
-		knot_free_changesets(&chs);
+		knot_changesets_free(&chs);
 		rq->data = NULL;
 		assert(rq->new_contents == NULL);
 	} else if (rq->type == XFR_TYPE_FORWARD) {
@@ -322,7 +322,7 @@ static int xfr_task_close(knot_ns_xfr_t *rq)
 	/* Reschedule failed bootstrap. */
 	if (rq->type == XFR_TYPE_AIN && !knot_zone_contents(rq->zone)) {
 		/* Progressive retry interval up to AXFR_RETRY_MAXTIME */
-		zd->xfr_in.bootstrap_retry += AXFR_BOOTSTRAP_RETRY * tls_rand();
+		zd->xfr_in.bootstrap_retry += knot_random_uint32_t() % AXFR_BOOTSTRAP_RETRY;
 		if (zd->xfr_in.bootstrap_retry > AXFR_RETRY_MAXTIME)
 			zd->xfr_in.bootstrap_retry = AXFR_RETRY_MAXTIME;
 		event_t *ev = zd->xfr_in.timer;
@@ -347,16 +347,13 @@ static int xfr_task_expire(fdset_t *set, int i, knot_ns_xfr_t *rq)
 	const knot_zone_contents_t *contents = knot_zone_contents(zone);
 
 	/* Process timeout. */
-	rq->wire_size = rq->wire_maxlen;
 	switch(rq->type) {
 	case XFR_TYPE_NOTIFY:
 		if ((long)--rq->data > 0) { /* Retries */
-			notify_create_request(contents, rq->wire, &rq->wire_size);
-			fdset_set_watchdog(set, i, NOTIFY_TIMEOUT);
 			rq->send(rq->session, &rq->addr, rq->wire, rq->wire_size);
 			log_zone_info("%s Query issued (serial %u).\n",
 			              rq->msg, knot_zone_serial(contents));
-			rq->packet_nr = knot_wire_get_id(rq->wire);
+			fdset_set_watchdog(set, i, NOTIFY_TIMEOUT);
 			return KNOT_EOK; /* Keep state. */
 		}
 		break;
@@ -406,8 +403,7 @@ static int xfr_task_start(knot_ns_xfr_t *rq)
 		ret = xfrin_create_soa_query(zone->name, rq, &rq->wire_size);
 		break;
 	case XFR_TYPE_NOTIFY:
-		rq->wire_size = 0;
-		ret = KNOT_EOK; /* Will be sent on first timeout. */
+		ret = notify_create_request(contents, rq->wire, &rq->wire_size);
 		break;
 	case XFR_TYPE_FORWARD:
 		ret = knot_ns_create_forward_query(rq->query, rq->wire, &rq->wire_size);
@@ -439,7 +435,7 @@ static int xfr_task_start(knot_ns_xfr_t *rq)
 	}
 
 	/* If successful. */
-	if (rq->type == XFR_TYPE_SOA) {
+	if (rq->type == XFR_TYPE_SOA || rq->type == XFR_TYPE_NOTIFY) {
 		rq->packet_nr = knot_wire_get_id(rq->wire);
 	}
 
@@ -549,22 +545,17 @@ static int xfr_async_finish(fdset_t *set, unsigned id)
 		}
 		break;
 	case XFR_TYPE_NOTIFY:
-		/* This is a bit of a hack to adapt NOTIFY lifetime tracking.
-		 * When NOTIFY event enters handler, it shouldn't be sent immediately.
-		 * To accomodate for this, <0, 5>s random delay is set on
-		 * event startup, so the first query fires when this timer
-		 * expires. */
-		fdset_set_watchdog(set, id, (int)(tls_rand() * 5));
-		return KNOT_EOK;
 	case XFR_TYPE_SOA:
 	case XFR_TYPE_FORWARD:
-		fdset_set_watchdog(set, id, conf()->max_conn_reply);
-		break;
 	default:
 		break;
 	}
 
-	if (ret == KNOT_EOK) {
+	/* NOTIFY is special. */
+	if (rq->type == XFR_TYPE_NOTIFY) {
+		log_zone_info("%s Query issued (serial %u).\n",
+		              rq->msg, knot_zone_serial(rq->zone->contents));
+	} else if (ret == KNOT_EOK) {
 		log_server_info("%s %s\n", rq->msg, msg);
 	} else {
 		log_server_error("%s %s\n", rq->msg, msg);
@@ -577,6 +568,7 @@ static int xfr_async_finish(fdset_t *set, unsigned id)
 static int xfr_task_finalize(xfrworker_t *w, knot_ns_xfr_t *rq)
 {
 	int ret = KNOT_EINVAL;
+	rcu_read_lock();
 	knot_nameserver_t *ns = w->master->ns;
 
 	if (rq->type == XFR_TYPE_AIN) {
@@ -614,6 +606,8 @@ static int xfr_task_finalize(xfrworker_t *w, knot_ns_xfr_t *rq)
 		rq->new_contents = NULL; /* Do not free. */
 	}
 
+	rcu_read_unlock();
+
 	return ret;
 }
 
@@ -621,7 +615,7 @@ static int xfr_task_finalize(xfrworker_t *w, knot_ns_xfr_t *rq)
 static int xfr_task_resp(xfrworker_t *w, knot_ns_xfr_t *rq)
 {
 	knot_nameserver_t *ns = w->master->ns;
-	knot_packet_t *re = knot_packet_new(KNOT_PACKET_PREALLOC_RESPONSE);
+	knot_packet_t *re = knot_packet_new();
 	if (re == NULL) {
 		return KNOT_ENOMEM;
 	}
@@ -782,6 +776,7 @@ static int xfr_task_xfer(xfrworker_t *w, knot_ns_xfr_t *rq)
 
 	/* IXFR refused, try again with AXFR. */
 	const char *diff_nospace_msg = "Can't fit the differences in the journal.";
+	const char *diff_invalid_msg = "IXFR packet processed, but invalid parameters.";
 	if (rq->type == XFR_TYPE_IIN) {
 		switch(ret) {
 		case KNOT_ESPACE: /* Fallthrough */
@@ -807,12 +802,30 @@ static int xfr_task_xfer(xfrworker_t *w, knot_ns_xfr_t *rq)
 		/* EBUSY on incremental transfer has a special meaning and
 		 * is caused by a journal not able to free up space for incoming
 		 * transfer, thus forcing to start a new full zone transfer. */
+
+		/* Some bad incremental transfer packets seem to get further
+		 * than they should.  This has been seen when the master has
+		 * logged the fact that it is falling back to AXFR.
+		 * In this case, chs->count == 0, so we end up here with
+		 * EINVAL.  To work around this problem, force a new full
+		 * zone transfer in this case. */
+
 		if (ret == KNOT_EBUSY && rq->type == XFR_TYPE_IIN) {
 			return xfr_start_axfr(w, rq, diff_nospace_msg);
+		} else if (ret == KNOT_EINVAL && rq->type == XFR_TYPE_IIN) {
+			return xfr_start_axfr(w, rq, diff_invalid_msg);
 		} else {
 
 			/* Passed, schedule NOTIFYs. */
 			zones_schedule_notify(rq->zone);
+		}
+		
+		/* Sync zonefile immediately if configured. */
+		zonedata_t *zone_data = (zonedata_t *)rq->zone->data;
+		conf_zone_t *zone_conf = zone_data->conf;
+		if (rq->type == XFR_TYPE_IIN && zone_conf->dbsync_timeout == 0) {
+			dbg_zones("%s: syncing zone immediately\n", __func__);
+			zones_schedule_ixfr_sync(rq->zone, 0);
 		}
 
 		/* Update REFRESH/RETRY */
@@ -937,7 +950,7 @@ static int xfr_check_tsig(knot_ns_xfr_t *xfr, knot_rcode_t *rcode, char **tag)
 	/* Evaluate configured key for claimed key name.*/
 	key = xfr->tsig_key; /* Expects already set key (check_zone) */
 	xfr->tsig_key = 0;
-	if (key && kname && knot_dname_compare(key->name, kname) == 0) {
+	if (key && kname && knot_dname_cmp(key->name, kname) == 0) {
 		dbg_xfr("xfr: found claimed TSIG key for comparison\n");
 	} else {
 
@@ -966,6 +979,7 @@ static int xfr_check_tsig(knot_ns_xfr_t *xfr, knot_rcode_t *rcode, char **tag)
 			        "maximum size %zu\n",
 			        mac_len, xfr->digest_max_size);
 		} else {
+			assert(xfr->digest);
 			memcpy(xfr->digest, mac, mac_len);
 			xfr->digest_size = mac_len;
 
@@ -1133,7 +1147,11 @@ int xfr_worker(dthread_t *thread)
 				continue; /* Stay on the same index. */
 			} else {
 				/* Connection is active, update watchdog. */
-				fdset_set_watchdog(&set, i, conf()->max_conn_idle);
+				if (rq->type == XFR_TYPE_NOTIFY) {
+					fdset_set_watchdog(&set, i, NOTIFY_TIMEOUT);
+				} else {
+					fdset_set_watchdog(&set, i, conf()->max_conn_idle);
+				}
 			}
 
 			/* Next active. */
@@ -1357,7 +1375,7 @@ int xfr_answer(knot_nameserver_t *ns, knot_ns_xfr_t *rq)
 
 	/* Cleanup. */
 	knot_packet_free(&rq->response);  /* Free response. */
-	knot_free_changesets((knot_changesets_t **)(&rq->data));
+	knot_changesets_free((knot_changesets_t **)(&rq->data));
 	free(rq->zname);
 
 	/* Free request. */

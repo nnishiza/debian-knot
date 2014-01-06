@@ -60,7 +60,7 @@ extern void cf_lex_destroy(void *scanner);
 extern void switch_input(const char *str, void *scanner);
 extern char *cf_current_filename(void *scanner);
 
-conf_t *new_config = 0; /*!< \brief Currently parsed config. */
+conf_t *new_config = NULL; /*!< \brief Currently parsed config. */
 static volatile int _parser_res = 0; /*!< \brief Parser result. */
 static pthread_mutex_t _parser_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -130,7 +130,7 @@ static void conf_parse_end(conf_t *conf)
  */
 static void conf_update_hooks(conf_t *conf)
 {
-	node *n = 0;
+	node_t *n = NULL;
 	conf->_touched = CONF_ALL;
 	WALK_LIST (n, conf->hooks) {
 		conf_hook_t *hook = (conf_hook_t*)n;
@@ -140,14 +140,23 @@ static void conf_update_hooks(conf_t *conf)
 	}
 }
 
-/*! \brief Make relative path absolute to given directory.
- *  \param basedir Base directory.
- *  \param file Relative file name.
+/*!
+ * \brief Make relative path absolute to given directory.
+ *
+ * If basedir is not provided, only normalization is performed.
+ * If file is not provided, returns NULL.
+ *
+ * \param basedir Base directory.
+ * \param file Relative file name.
  */
 static char* conf_abs_path(const char *basedir, char *file)
 {
+	if (!file) {
+		return NULL;
+	}
+
 	/* Make path absolute to the directory. */
-	if (file[0] != '/') {
+	if (basedir && file[0] != '/') {
 		char *basepath = strcdup(basedir, "/");
 		char *path = strcdup(basepath, file);
 		free(basepath);
@@ -157,6 +166,26 @@ static char* conf_abs_path(const char *basedir, char *file)
 
 	/* Normalize. */
 	return strcpath(file);
+}
+
+/*!
+ * \brief Check if given path is an existing directory.
+ *
+ * \param path  Path to be checked.
+ *
+ * \return Given path is a directory.
+ */
+static bool is_existing_dir(const char *path)
+{
+	assert(path);
+
+	struct stat st;
+
+	if (stat(path, &st) == -1) {
+		return false;
+	}
+
+	return S_ISDIR(st.st_mode);
 }
 
 /*!
@@ -170,31 +199,6 @@ static char* conf_abs_path(const char *basedir, char *file)
  */
 static int conf_process(conf_t *conf)
 {
-	// Check
-	if (conf->storage == NULL) {
-		conf->storage = strdup(STORAGE_DIR);
-		if (conf->storage == NULL) {
-			return KNOT_ENOMEM;
-		}
-	}
-
-	// Normalize paths
-	conf->storage = strcpath(conf->storage);
-
-	// Storage directory exists?
-	struct stat st;
-	if (stat(conf->storage, &st) == -1) {
-		log_server_error("Could not open storage directory '%s'\n", conf->storage);
-		// I assume that conf->* is freed elsewhere
-		return KNOT_EINVAL;
-	}
-
-	// Storage directory is a directory?
-	if (S_ISDIR(st.st_mode) == 0) {
-		log_server_error("Configured storage '%s' not a directory\n", conf->storage);
-		return KNOT_EINVAL;
-	}
-
 	// Create PID file
 	if (conf->rundir == NULL) {
 		conf->rundir = strdup(RUN_DIR);
@@ -259,9 +263,20 @@ static int conf_process(conf_t *conf)
 	if (conf->xfers <= 0)
 		conf->xfers = CONFIG_XFERS;
 
+
+	/* Zones global configuration. */
+	if (conf->storage == NULL) {
+		conf->storage = strdup(STORAGE_DIR);
+	}
+	conf->storage = strcpath(conf->storage);
+	if (conf->dnssec_keydir) {
+		conf->dnssec_keydir = conf_abs_path(conf->storage,
+		                                    conf->dnssec_keydir);
+	}
+
 	// Postprocess zones
 	int ret = KNOT_EOK;
-	node *n = 0;
+	node_t *n = NULL;
 	WALK_LIST (n, conf->zones) {
 		conf_zone_t *zone = (conf_zone_t*)n;
 
@@ -296,8 +311,17 @@ static int conf_process(conf_t *conf)
 		}
 
 		// Default policy for IXFR FSLIMIT
-		if (zone->ixfr_fslimit == 0) {
+		if (zone->ixfr_fslimit == 0) { /* ixfr_fslimit is unsigned type */
 			zone->ixfr_fslimit = conf->ixfr_fslimit;
+		}
+
+		// Default policy for DNSSEC signature lifetime
+		if (zone->sig_lifetime <= 0) {
+			zone->sig_lifetime = conf->sig_lifetime;
+		}
+
+		if (zone->serial_policy == 0) {
+			zone->serial_policy = conf->serial_policy;
 		}
 
 		// Default zone file
@@ -309,27 +333,91 @@ static int conf_process(conf_t *conf)
 			}
 		}
 
-		// Relative zone filenames should be relative to storage
-		zone->file = conf_abs_path(conf->storage, zone->file);
-		if (zone->file == NULL) {
+		// Default data directories
+		if (!zone->storage && conf->storage) {
+			zone->storage = strdup(conf->storage);
+		}
+		if (!zone->dnssec_keydir && conf->dnssec_keydir) {
+			zone->dnssec_keydir = strdup(conf->dnssec_keydir);
+		}
+
+		// Default policy for DNSSEC
+		if (!zone->dnssec_keydir) {
+			zone->dnssec_enable = 0;
+		} else if (zone->dnssec_enable < 0) {
+			zone->dnssec_enable = conf->dnssec_enable;
+		}
+
+		assert(zone->dnssec_enable == 0 || zone->dnssec_enable == 1);
+
+		// DNSSEC required settings
+		if (zone->dnssec_enable) {
+			// Enable zone diffs (silently)
+			zone->build_diffs = true;
+
+			// Disable incoming XFRs
+			if (!EMPTY_LIST(zone->acl.notify_in) ||
+			    !EMPTY_LIST(zone->acl.xfr_in)
+			) {
+				log_server_warning("Automatic DNSSEC signing "
+				                   "for zone '%s', disabling "
+				                   "incoming XFRs.\n",
+				                   zone->name);
+
+				WALK_LIST_FREE(zone->acl.notify_in);
+				WALK_LIST_FREE(zone->acl.xfr_in);
+			}
+		}
+
+		// Resolve relative paths everywhere
+		zone->storage = conf_abs_path(conf->storage, zone->storage);
+		zone->file = conf_abs_path(zone->storage, zone->file);
+		if (zone->dnssec_enable) {
+			zone->dnssec_keydir = conf_abs_path(zone->storage,
+			                                    zone->dnssec_keydir);
+		}
+
+		if (zone->storage == NULL ||
+		    zone->file == NULL ||
+		    (zone->dnssec_enable && zone->dnssec_keydir == NULL)
+		) {
+			free(zone->storage);
+			free(zone->file);
+			free(zone->dnssec_keydir);
 			ret = KNOT_ENOMEM;
 			continue;
 		}
 
+		/* Check paths existence. */
+		if (!is_existing_dir(zone->storage)) {
+			log_server_error("Storage dir '%s' does not exist.\n",
+			                 zone->storage);
+			ret = KNOT_EINVAL;
+			continue;
+		}
+		if (zone->dnssec_enable && !is_existing_dir(zone->dnssec_keydir)) {
+			log_server_error("DNSSEC key dir '%s' does not exist.\n",
+			                 zone->dnssec_keydir);
+			ret = KNOT_EINVAL;
+			continue;
+
+		}
+
 		/* Create journal filename. */
 		size_t zname_len = strlen(zone->name);
-		size_t stor_len = strlen(conf->storage);
+		size_t stor_len = strlen(zone->storage);
 		size_t size = stor_len + zname_len + 9; // /diff.db,\0
 		char *dest = malloc(size);
 		if (dest == NULL) {
+			ERR_ALLOC_FAILED;
 			zone->ixfr_db = NULL; /* Not enough memory. */
 			ret = KNOT_ENOMEM; /* Error report. */
 			continue;
 		}
 		char *dpos = dest;
-		memcpy(dpos, conf->storage, stor_len + 1);
+		memcpy(dpos, zone->storage, stor_len + 1);
 		dpos += stor_len;
-		if (conf->storage[stor_len - 1] != '/') {
+		if (zone->storage[stor_len - 1] != '/') {
 			*(dpos++) = '/';
 			*dpos = '\0';
 		}
@@ -365,7 +453,7 @@ static int conf_process(conf_t *conf)
  * Singletion configuration API.
  */
 
-conf_t *s_config = 0; /*! \brief Singleton config instance. */
+conf_t *s_config = NULL; /*! \brief Singleton config instance. */
 
 /*! \brief Singleton config constructor (automatically called on load). */
 void __attribute__ ((constructor)) conf_init()
@@ -393,7 +481,7 @@ void __attribute__ ((constructor)) conf_init()
 	/* Syslog */
 	conf_log_t *log = malloc(sizeof(conf_log_t));
 	log->type = LOGT_SYSLOG;
-	log->file = 0;
+	log->file = NULL;
 	init_list(&log->map);
 
 	conf_log_map_t *map = malloc(sizeof(conf_log_map_t));
@@ -406,7 +494,7 @@ void __attribute__ ((constructor)) conf_init()
 	/* Stderr */
 	log = malloc(sizeof(conf_log_t));
 	log->type = LOGT_STDERR;
-	log->file = 0;
+	log->file = NULL;
 	init_list(&log->map);
 
 	map = malloc(sizeof(conf_log_map_t));
@@ -425,7 +513,7 @@ void __attribute__ ((destructor)) conf_deinit()
 {
 	if (s_config) {
 		conf_free(s_config);
-		s_config = 0;
+		s_config = NULL;
 	}
 }
 
@@ -446,7 +534,7 @@ static int conf_fparser(conf_t *conf)
 	// Hook new configuration
 	new_config = conf;
 	FILE *f = fopen(conf->filename, "r");
-	if (f == 0) {
+	if (f == NULL) {
 		pthread_mutex_unlock(&_parser_lock);
 		return KNOT_ENOENT;
 	}
@@ -532,13 +620,17 @@ conf_t *conf_new(const char* path)
 	c->notify_timeout = CONFIG_NOTIFY_TIMEOUT;
 	c->dbsync_timeout = CONFIG_DBSYNC_TIMEOUT;
 	c->max_udp_payload = EDNS_MAX_UDP_PAYLOAD;
-	c->ixfr_fslimit = -1;
+	c->sig_lifetime = KNOT_DNSSEC_DEFAULT_LIFETIME;
+	c->serial_policy = CONFIG_SERIAL_DEFAULT;
 	c->uid = -1;
 	c->gid = -1;
 	c->xfers = -1;
 	c->rrl_slip = -1;
 	c->build_diffs = 0; /* Disable by default. */
 	c->logs_count = -1;
+
+	/* DNSSEC. */
+	c->dnssec_enable = 0;
 
 	/* ACLs. */
 	c->ctl.acl = acl_new();
@@ -615,7 +707,7 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 		return;
 	}
 
-	node *n = 0, *nxt = 0;
+	node_t *n = NULL, *nxt = NULL;
 
 	// Unload hooks
 	if (unload_hooks) {
@@ -666,33 +758,38 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 	conf->zones_count = 0;
 	init_list(&conf->zones);
 
+	conf->dnssec_enable = -1;
 	if (conf->filename) {
 		free(conf->filename);
-		conf->filename = 0;
+		conf->filename = NULL;
 	}
 	if (conf->identity) {
 		free(conf->identity);
-		conf->identity = 0;
+		conf->identity = NULL;
 	}
 	if (conf->version) {
 		free(conf->version);
-		conf->version = 0;
+		conf->version = NULL;
 	}
 	if (conf->storage) {
 		free(conf->storage);
-		conf->storage = 0;
+		conf->storage = NULL;
 	}
 	if (conf->rundir) {
 		free(conf->rundir);
-		conf->rundir = 0;
+		conf->rundir = NULL;
 	}
 	if (conf->pidfile) {
 		free(conf->pidfile);
-		conf->pidfile = 0;
+		conf->pidfile = NULL;
 	}
 	if (conf->nsid) {
 		free(conf->nsid);
-		conf->nsid = 0;
+		conf->nsid = NULL;
+	}
+	if (conf->dnssec_keydir) {
+		free(conf->dnssec_keydir);
+		conf->dnssec_keydir = NULL;
 	}
 
 	/* Free remote control list. */
@@ -728,7 +825,7 @@ void conf_free(conf_t *conf)
 char* conf_find_default()
 {
 	/* Try sequentially each default path. */
-	char *path = 0;
+	char *path = NULL;
 	for (int i = 0; i < DEFAULT_CONF_COUNT; ++i) {
 		path = strcpath(strdup(DEFAULT_CONFIG[i]));
 
@@ -744,7 +841,7 @@ char* conf_find_default()
 		/* Keep the last item. */
 		if (i < DEFAULT_CONF_COUNT - 1) {
 			free(path);
-			path = 0;
+			path = NULL;
 		}
 	}
 
@@ -789,26 +886,27 @@ int conf_open(const char* path)
 	/* Replace current config. */
 	conf_t *oldconf = rcu_xchg_pointer(&s_config, nconf);
 
-	/* Copy hooks. */
+	/* Synchronize. */
+	synchronize_rcu();
+
 	if (oldconf) {
-		node *n = 0, *nxt = 0;
-		WALK_LIST_DELSAFE (n, nxt, oldconf->hooks) {
+
+		/* Copy hooks. */
+		node_t *n = NULL;
+		WALK_LIST (n, oldconf->hooks) {
 			conf_hook_t *hook = (conf_hook_t*)n;
 			conf_add_hook(nconf, hook->sections,
 			              hook->update, hook->data);
 		}
-	}
 
-	/* Synchronize. */
-	synchronize_rcu();
+		/* Update hooks. */
+		conf_update_hooks(nconf);
 
-	/* Free old config. */
-	if (oldconf) {
+		/* Free old config. */
 		conf_free(oldconf);
 	}
 
-	/* Update hooks. */
-	conf_update_hooks(nconf);
+
 
 	return KNOT_EOK;
 }
@@ -888,6 +986,8 @@ void conf_free_zone(conf_zone_t *zone)
 	free(zone->name);
 	free(zone->file);
 	free(zone->ixfr_db);
+	free(zone->dnssec_keydir);
+	free(zone->storage);
 	free(zone);
 }
 
@@ -933,7 +1033,7 @@ void conf_free_log(conf_log_t *log)
 	free(log->file);
 
 	/* Free loglevel mapping. */
-	node *n = 0, *nxt = 0;
+	node_t *n = NULL, *nxt = NULL;
 	WALK_LIST_DELSAFE(n, nxt, log->map) {
 		free((conf_log_map_t*)n);
 	}

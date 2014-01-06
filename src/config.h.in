@@ -9,9 +9,6 @@
 /* Enable verbose debugging messages. */
 #undef DEBUG_ENABLE_VERBOSE
 
-/* DSFMT parameters */
-#undef DSFMT_MEXP
-
 /* microseconds in log messages */
 #undef ENABLE_MICROSECONDS_LOG
 
@@ -148,14 +145,11 @@
 /* Server debug. */
 #undef KNOTD_SERVER_DEBUG
 
-/* Zone compiler debug. */
-#undef KNOT_COMPILER_DEBUG
+/* DNSSEC debug. */
+#undef KNOT_DNSSEC_DEBUG
 
-/* Domain names debug. */
-#undef KNOT_DNAME_DEBUG
-
-/* Hashtable debug. */
-#undef KNOT_HASH_DEBUG
+/* Zone loading debug. */
+#undef KNOT_LOADER_DEBUG
 
 /* Nameserver debug. */
 #undef KNOT_NS_DEBUG
@@ -166,14 +160,14 @@
 /* RR debug. */
 #undef KNOT_RR_DEBUG
 
-/* Hash table stash debug. */
-#undef KNOT_STASH_DEBUG
-
 /* XFR debug. */
 #undef KNOT_XFR_DEBUG
 
 /* Zones debug. */
 #undef KNOT_ZONES_DEBUG
+
+/* Define to 1 if you want IDN support. */
+#undef LIBIDN
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

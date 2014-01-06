@@ -28,17 +28,20 @@
 #ifndef _KNOT_NODE_H_
 #define _KNOT_NODE_H_
 
-#include "dname.h"
-#include "rrset.h"
+#include "libknot/dname.h"
+#include "libknot/rrset.h"
 
 struct knot_zone;
+
+/*! \brief RRSet count in node if there is only NSEC (and possibly its RRSIG).*/
+#define KNOT_NODE_RRSET_COUNT_ONLY_NSEC 1
 
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief Structure representing one node in a domain name tree, i.e. one domain
  *        name in a zone.
  *
- * RRSets are ordered by type and stored in a skip-list to allow fast lookup.
+ * RRSets are stored in an array.
  */
 struct knot_node {
 	knot_dname_t *owner; /*!< Domain name being the owner of this node. */
@@ -67,8 +70,6 @@ struct knot_node {
 	 */
 	struct knot_node *nsec3_node;
 
-	const struct knot_zone *zone;
-
 	struct knot_node *new_node;
 
 	unsigned int children;
@@ -95,12 +96,11 @@ typedef enum {
 	KNOT_NODE_FLAGS_DELEG = (uint8_t)0x01,
 	/*! \brief Node is not authoritative (i.e. below a zone cut). */
 	KNOT_NODE_FLAGS_NONAUTH = (uint8_t)0x02,
-	/*! \brief Node is old and will be removed (during update). */
-	KNOT_NODE_FLAGS_OLD = (uint8_t)0x04,
-	/*! \brief Node is new and should not be used while zoen is old. */
-	KNOT_NODE_FLAGS_NEW = (uint8_t)0x08,
-	/*! \brief Node is empty and will be deleted after update. */
-	KNOT_NODE_FLAGS_EMPTY = (uint8_t)0x10
+	/*! \brief Node is empty and will be deleted after update.
+	 *  \todo Remove after dname refactoring, update description in node. */
+	KNOT_NODE_FLAGS_EMPTY = (uint8_t)0x10,
+	/*! \brief NSEC in this node needs new RRSIGs. Used for signing. */
+	KNOT_NODE_FLAGS_REPLACED_NSEC = (uint8_t)0x20
 } knot_node_flags_t;
 
 /*----------------------------------------------------------------------------*/
@@ -117,7 +117,7 @@ typedef enum {
  *
  * \return Newly created node or NULL if an error occured.
  */
-knot_node_t *knot_node_new(knot_dname_t *owner, knot_node_t *parent,
+knot_node_t *knot_node_new(const knot_dname_t *owner, knot_node_t *parent,
                                uint8_t flags);
 
 /*!
@@ -300,16 +300,6 @@ const knot_dname_t *knot_node_owner(const knot_node_t *node);
 knot_dname_t *knot_node_get_owner(const knot_node_t *node);
 
 /*!
- * \brief Set node owner to specified dname.
- *
- * Previous owner will be replaced if exist.
- *
- * \param node Specified node.
- * \param owner New owner dname.
- */
-void knot_node_set_owner(knot_node_t *node, knot_dname_t* owner);
-
-/*!
  * \brief Returns the wildcard child of the node.
  *
  * \param node Node to get the owner of.
@@ -338,10 +328,6 @@ const knot_node_t *knot_node_new_node(const knot_node_t *node);
 knot_node_t *knot_node_get_new_node(const knot_node_t *node);
 
 void knot_node_set_new_node(knot_node_t *node, knot_node_t *new_node);
-
-void knot_node_set_zone(knot_node_t *node, const struct knot_zone *zone);
-
-const struct knot_zone *knot_node_zone(const knot_node_t *node);
 
 void knot_node_update_ref(knot_node_t **ref);
 
@@ -385,31 +371,24 @@ void knot_node_set_auth(knot_node_t *node);
 
 int knot_node_is_auth(const knot_node_t *node);
 
-int knot_node_is_new(const knot_node_t *node);
+int knot_node_is_replaced_nsec(const knot_node_t *node);
 
-int knot_node_is_old(const knot_node_t *node);
+void knot_node_set_replaced_nsec(knot_node_t *node);
 
-void knot_node_set_new(knot_node_t *node);
+void knot_node_clear_replaced_nsec(knot_node_t *node);
 
-void knot_node_set_old(knot_node_t *node);
-
-void knot_node_clear_new(knot_node_t *node);
-
-void knot_node_clear_old(knot_node_t *node);
-
+//! \todo remove after dname refactoring
 int knot_node_is_empty(const knot_node_t *node);
 
+//! \todo remove after dname refactoring
 void knot_node_set_empty(knot_node_t *node);
 
 /*!
  * \brief Destroys the RRSets within the node structure.
  *
  * \param node Node to be destroyed.
- * \param free_rdata_dnames Set to <> 0 if you want to delete ALL domain names
- *                          present in RDATA. Set to 0 otherwise. (See
- *                          knot_rdata_deep_free().)
  */
-void knot_node_free_rrsets(knot_node_t *node, int free_rdata_dnames);
+void knot_node_free_rrsets(knot_node_t *node);
 
 /*!
  * \brief Destroys the node structure.

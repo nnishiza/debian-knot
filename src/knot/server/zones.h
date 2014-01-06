@@ -43,7 +43,6 @@
 
 /* Constants. */
 #define ZONES_JITTER_PCT    10 /*!< +-N% jitter to timers. */
-#define IXFR_DBSYNC_TIMEOUT (60*1000) /*!< Database sync timeout = 60s. */
 #define AXFR_BOOTSTRAP_RETRY (30*1000) /*!< Interval between AXFR BS retries. */
 #define AXFR_RETRY_MAXTIME (10*60*1000) /*!< Maximum interval 10mins */
 
@@ -64,6 +63,8 @@ typedef struct zonedata_t
 
 	/*! \brief Zone data lock for exclusive access. */
 	pthread_mutex_t lock;
+	/*! \brief Zone lock for DDNS. */
+	pthread_mutex_t ddns_lock;
 
 	/*! \brief Access control lists. */
 	acl_t *xfr_out;    /*!< ACL for xfr-out.*/
@@ -84,36 +85,13 @@ typedef struct zonedata_t
 		unsigned state;
 	} xfr_in;
 
+	struct event_t *dnssec_timer;  /*!< Timer for DNSSEC events. */
+
 	/*! \brief Zone IXFR history. */
 	journal_t *ixfr_db;
 	struct event_t *ixfr_dbsync;   /*!< Syncing IXFR db to zonefile. */
 	uint32_t zonefile_serial;
 } zonedata_t;
-
-/*!
- * \brief Update zone database according to configuration.
- *
- * Creates a new database, copies references those zones from the old database
- * which are still in the configuration, loads any new zones required and
- * replaces the database inside the namserver.
- *
- * It also creates a list of deprecated zones that should be deleted once the
- * function finishes.
- *
- * This function uses RCU mechanism to guard the access to the config and
- * nameserver and to publish the new database in the nameserver.
- *
- * \param[in] conf Configuration.
- * \param[in] ns Nameserver which holds the zone database.
- * \param[out] db_old Old database, containing only zones which should be
- *                    deleted afterwards.
- *
- * \retval KNOT_EOK
- * \retval KNOT_EINVAL
- * \retval KNOT_ERROR
- */
-int zones_update_db_from_config(const conf_t *conf, knot_nameserver_t *ns,
-                               knot_zonedb_t **db_old);
 
 /*!
  * \brief Sync zone data back to text zonefile.
@@ -209,7 +187,7 @@ int zones_ns_conf_hook(const struct conf_t *conf, void *data);
 /*!
  * \brief Store changesets in journal.
  *
- * Changesets will be stored on a permanent storage.
+ * Changesets will be stored to a permanent storage.
  * Journal may be compacted, resulting in flattening changeset history.
  *
  * \param zone Zone associated with the changeset.
@@ -293,8 +271,9 @@ int zones_xfr_load_changesets(knot_ns_xfr_t *xfr, uint32_t serial_from,
  * \retval KNOT_ENODIFF when new zone's serial are equal.
  * \retval KNOT_ERROR when there was error creating changesets.
  */
-int zones_create_and_save_changesets(const knot_zone_t *old_zone,
-                                     const knot_zone_t *new_zone);
+int zones_create_changeset(const knot_zone_t *old_zone,
+                           const knot_zone_t *new_zone,
+                           knot_changeset_t *changeset);
 
 int zones_store_and_apply_chgsets(knot_changesets_t *chs,
                                   knot_zone_t *zone,
@@ -325,6 +304,33 @@ int zones_schedule_refresh(knot_zone_t *zone, int64_t time);
 int zones_schedule_notify(knot_zone_t *zone);
 
 /*!
+ * \brief Cancel DNSSEC event.
+ *
+ * \param zone  Related zone.
+ *
+ * \return Error code, KNOT_OK if successful.
+ */
+int zones_cancel_dnssec(knot_zone_t *zone);
+
+/*!
+ * \brief Schedule DNSSEC event.
+ * \param zone Related zone.
+ * \param time When to schedule. Time difference in milliseconds from now.
+ * \param force Force sign or not
+ *
+ * \return Error code, KNOT_OK if successful.
+ */
+int zones_schedule_dnssec(knot_zone_t *zone, uint32_t time);
+
+/*!
+ * \brief Schedule IXFR sync for given zone.
+ *
+ * \param zone            Zone to scheduler IXFR sync for.
+ * \param dbsync_timeout  Sync time in seconds.
+ */
+void zones_schedule_ixfr_sync(knot_zone_t *zone, int dbsync_timeout);
+
+/*!
  * \brief Processes forwarded UPDATE response packet.
  * \todo #1291 move to appropriate section (DDNS).
  */
@@ -345,6 +351,43 @@ int zones_verify_tsig_query(const knot_packet_t *query,
                             const knot_tsig_key_t *key,
                             knot_rcode_t *rcode, uint16_t *tsig_rcode,
                             uint64_t *tsig_prev_time_signed);
+
+/*!
+ * \brief Apply changesets to zone from journal.
+ *
+ * \param zone Specified zone.
+ *
+ * \retval KNOT_EOK if successful.
+ * \retval KNOT_EINVAL on invalid parameters.
+ * \retval KNOT_ENOENT if zone has no contents.
+ * \retval KNOT_ERROR on unspecified error.
+ */
+int zones_journal_apply(knot_zone_t *zone);
+
+/*!
+ * \brief Creates diff and DNSSEC changesets and stores them to journal.
+ *
+ * \param z             Zone configuration.
+ * \param zone          Zone to sign.
+ * \param ns            Name server structure.
+ * \param zone_changed  The zone was loaded or modified.
+ *
+ * \return Error code, KNOT_OK if successful.
+ */
+int zones_do_diff_and_sign(const conf_zone_t *z, knot_zone_t *zone,
+                           const knot_nameserver_t *ns, bool zone_changed);
+
+/*! \brief Just sign current zone. */
+int zones_dnssec_sign(knot_zone_t *zone, bool force, uint32_t *expires_at);
+
+/*
+ * Event callbacks.
+ */
+
+int zones_expire_ev(event_t *e);
+int zones_refresh_ev(event_t *e);
+int zones_flush_ev(event_t *e);
+int zones_dnssec_ev(event_t *event);
 
 #endif // _KNOTD_ZONES_H_
 

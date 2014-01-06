@@ -21,13 +21,13 @@
 
 #include <urcu.h>
 
-#include "common.h"
-#include "zone/zone.h"
-#include "zone/node.h"
-#include "dname.h"
-#include "util/debug.h"
-#include "util/utils.h"
-#include "zone/zone-contents.h"
+#include "libknot/common.h"
+#include "libknot/zone/zone.h"
+#include "libknot/zone/node.h"
+#include "libknot/dname.h"
+#include "libknot/util/debug.h"
+#include "libknot/util/utils.h"
+#include "libknot/zone/zone-contents.h"
 
 /*! \brief Adaptor for knot_zone_deep_free() */
 static void knot_zone_dtor(struct ref_t *p) {
@@ -72,7 +72,7 @@ knot_zone_t *knot_zone_new_empty(knot_dname_t *name)
 knot_zone_t *knot_zone_new(knot_node_t *apex)
 {
 	knot_zone_t *zone = knot_zone_new_empty(
-			knot_dname_deep_copy(knot_node_owner(apex)));
+			knot_dname_copy(knot_node_owner(apex)));
 	if (zone == NULL) {
 		return NULL;
 	}
@@ -80,7 +80,7 @@ knot_zone_t *knot_zone_new(knot_node_t *apex)
 	dbg_zone("Creating zone contents.\n");
 	zone->contents = knot_zone_contents_new(apex, zone);
 	if (zone->contents == NULL) {
-		knot_dname_release(zone->name);
+		knot_dname_free(&zone->name);
 		free(zone);
 		return NULL;
 	}
@@ -207,7 +207,7 @@ void knot_zone_free(knot_zone_t **zone)
 		         "update.\n");
 	}
 
-	knot_dname_release((*zone)->name);
+	knot_dname_free(&(*zone)->name);
 
 	/* Call zone data destructor if exists. */
 	if ((*zone)->dtor) {
@@ -242,7 +242,7 @@ dbg_zone_exec(
 	free(name);
 );
 
-	knot_dname_release((*zone)->name);
+	knot_dname_free(&(*zone)->name);
 
 	/* Call zone data destructor if exists. */
 	if ((*zone)->dtor) {

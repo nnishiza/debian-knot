@@ -27,65 +27,85 @@
 
 #define RESOLV_FILE	"/etc/resolv.conf"
 
-server_t* parse_nameserver(const char *nameserver, const char *def_port)
+srv_info_t* parse_nameserver(const char *str, const char *def_port)
 {
-	if (nameserver == NULL || def_port == NULL) {
+	char *host = NULL, *port = NULL;
+	const char *addr = NULL, *sep = NULL;
+	size_t addr_len = 0;
+	char separator = ':';
+
+	if (str == NULL || def_port == NULL) {
 		DBG_NULL;
 		return NULL;
 	}
 
-	// OpenBSD notation: nameserver [address]:port
-	if (nameserver[0] == '[') {
-		char *addr, *port;
+	const size_t str_len = strlen(str);
+	const char *str_end = str + str_len;
 
-		char   *start = (char *)nameserver + 1;
-		char   *end = index(nameserver, ']');
-		size_t addr_len = end - start;
-
+	// [address]:port notation.
+	if (*str == '[') {
+		addr = str + 1;
+		const char *addr_end = index(addr, ']');
 		// Missing closing bracket -> stop processing.
-		if (end == NULL) {
+		if (addr_end == NULL) {
+			return NULL;
+		}
+		addr_len = addr_end - addr;
+		str += 1 + addr_len + 1;
+	// Address#port notation.
+	} else if ((sep = index(str, '#')) != NULL) {
+		addr = str;
+		addr_len = sep - addr;
+		str += addr_len;
+		separator = '#';
+	// IPv4:port notation.
+	} else if ((sep = index(str, ':')) != NULL) {
+		addr = str;
+		// Not IPv4 address -> no port.
+		if (index(sep + 1, ':') != NULL) {
+			addr_len = str_len;
+			str = str_end;
+		} else {
+			addr_len = sep - addr;
+			str += addr_len;
+		}
+	// No port specified.
+	} else {
+		addr = str;
+		addr_len = str_len;
+		str = str_end;
+	}
+
+	// Process port.
+	if (str < str_end) {
+		// Check port separator.
+		if (*str != separator) {
+			return NULL;
+		}
+		str++;
+
+		// Check for missing port.
+		if (str >= str_end) {
 			return NULL;
 		}
 
-		// Fill enclosed address.
-		addr = strndup(start, addr_len);
-
-		// Find possible port.
-		start += addr_len + 1;
-		if (strlen(start) > 0) {
-			// Check for colon separation.
-			if (*start != ':') {
-				free(addr);
-				return NULL;
-			}
-
-			size_t port_len = strlen(++start);
-
-			// Check port string length.
-			if (port_len == 0 || port_len >= sizeof(port)) {
-				free(addr);
-				return NULL;
-			}
-
-			// Fill port part.
-			port = strdup(start);
-		} else {
-			port = strdup(def_port);
-		}
-
-		// Create server structure.
-		server_t *server = server_create(addr, port);
-
-		free(addr);
-		free(port);
-
-		return server;
+		port = strdup(str);
 	} else {
-		return server_create(nameserver, def_port);
+		port = strdup(def_port);
 	}
+
+	host = strndup(addr, addr_len);
+
+	// Create server structure.
+	srv_info_t *server = srv_info_create(host, port);
+
+	free(host);
+	free(port);
+
+	return server;
 }
 
-static int get_resolv_nameservers(list *servers, const char *def_port)
+static int get_resolv_nameservers(list_t *servers, const char *def_port)
 {
 	char	line[512];
 
@@ -133,13 +153,13 @@ static int get_resolv_nameservers(list *servers, const char *def_port)
 
 		// Process value with respect to option name.
 		if (strncmp(option, "nameserver", strlen("nameserver")) == 0) {
-			server_t *server;
+			srv_info_t *server;
 
 			server = parse_nameserver(value, def_port);
 
 			// If value is correct, add nameserver to the list.
 			if (server != NULL) {
-				add_tail(servers, (node *)server);
+				add_tail(servers, (node_t *)server);
 			}
 		}
 
@@ -154,7 +174,7 @@ static int get_resolv_nameservers(list *servers, const char *def_port)
 	return list_size(servers);
 }
 
-int get_nameservers(list *servers, const char *def_port)
+int get_nameservers(list_t *servers, const char *def_port)
 {
 	if (servers == NULL || def_port == NULL) {
 		DBG_NULL;
@@ -172,20 +192,20 @@ int get_nameservers(list *servers, const char *def_port)
 		return ret;
 	// If no nameservers.
 	} else {
-		server_t *server;
+		srv_info_t *server;
 
 		// Add default ipv6 nameservers.
-		server = server_create(DEFAULT_IPV6_NAME, def_port);
+		server = srv_info_create(DEFAULT_IPV6_NAME, def_port);
 
 		if (server != NULL) {
-			add_tail(servers, (node *)server);
+			add_tail(servers, (node_t *)server);
 		}
 
 		// Add default ipv4 nameservers.
-		server = server_create(DEFAULT_IPV4_NAME, def_port);
+		server = srv_info_create(DEFAULT_IPV4_NAME, def_port);
 
 		if (server != NULL) {
-			add_tail(servers, (node *)server);
+			add_tail(servers, (node_t *)server);
 		}
 
 		return list_size(servers);

@@ -128,7 +128,7 @@ enum {
 };
 
 static int dname_isvalid(const char *lp, size_t len) {
-	knot_dname_t *dn = knot_dname_new_from_str(lp, len, NULL);
+	knot_dname_t *dn = knot_dname_from_str(lp);
 	if (dn == NULL) {
 		return 0;
 	}
@@ -164,26 +164,13 @@ static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
 
 	/* Extract owner. */
 	size_t len = strcspn(lp, SEP_CHARS);
-	knot_dname_t *owner = knot_dname_new_from_str(lp, len, NULL);
+	knot_dname_t *owner = knot_dname_from_str(lp);
 	if (owner == NULL) {
 		return KNOT_EPARSEFAIL;
 	}
 
-	/* ISC nsupdate doesn't do this, but it seems right to me. */
-	if (!knot_dname_is_fqdn(owner)) {
-		knot_dname_t* suf = knot_dname_new_from_wire(s->zone_origin,
-		                                             s->zone_origin_length,
-		                                             NULL);
-		if (suf == NULL) {
-			knot_dname_free(&owner);
-			return KNOT_ENOMEM;
-		}
-		knot_dname_cat(owner, suf);
-		knot_dname_free(&suf);
-	}
-
 	s->r_owner_length = knot_dname_size(owner);
-	memcpy(s->r_owner, knot_dname_name(owner), s->r_owner_length);
+	memcpy(s->r_owner, owner, s->r_owner_length);
 	lp = tok_skipspace(lp + len);
 
 	/* Initialize */
@@ -265,10 +252,10 @@ static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
 	return ret;
 }
 
-static server_t *parse_host(const char *lp, const char* default_port)
+static srv_info_t *parse_host(const char *lp, const char* default_port)
 {
 	/* Extract server address. */
-	server_t *srv = NULL;
+	srv_info_t *srv = NULL;
 	size_t len = strcspn(lp, SEP_CHARS);
 	char *addr = strndup(lp, len);
 	if (!addr) return NULL;
@@ -277,7 +264,7 @@ static server_t *parse_host(const char *lp, const char* default_port)
 	/* Store port/service if present. */
 	lp = tok_skipspace(lp + len);
 	if (*lp == '\0') {
-		srv = server_create(addr, default_port);
+		srv = srv_info_create(addr, default_port);
 		free(addr);
 		return srv;
 	}
@@ -291,7 +278,7 @@ static server_t *parse_host(const char *lp, const char* default_port)
 	DBG("%s: parsed port: %s\n", __func__, port);
 
 	/* Create server struct. */
-	srv = server_create(addr, port);
+	srv = srv_info_create(addr, port);
 	free(addr);
 	free(port);
 	return srv;
@@ -301,33 +288,31 @@ static int pkt_append(nsupdate_params_t *p, int sect)
 {
 	/* Check packet state first. */
 	int ret = KNOT_EOK;
+	knot_dname_t * qname = NULL;
 	scanner_t *s = p->rrp;
 	if (!p->pkt) {
-		p->pkt = create_empty_packet(KNOT_PACKET_PREALLOC_RESPONSE,
-		                             MAX_PACKET_SIZE);
-		knot_question_t q;
-		q.qclass = p->class_num;
-		q.qtype = p->type_num;
-		q.qname = knot_dname_new_from_nonfqdn_str(p->zone, strlen(p->zone), NULL);
-		ret = knot_query_set_question(p->pkt, &q);
-		if (ret != KNOT_EOK) {
+		p->pkt = create_empty_packet(MAX_PACKET_SIZE);
+		qname = knot_dname_from_str(p->zone);
+		ret = knot_query_set_question(p->pkt, qname, p->class_num, p->type_num);
+		knot_dname_free(&qname);
+		if (ret != KNOT_EOK)
 			return ret;
-		}
+
 		knot_query_set_opcode(p->pkt, KNOT_OPCODE_UPDATE);
 	}
 
 	/* Form a rrset. */
-	knot_dname_t *o = knot_dname_new_from_wire(s->r_owner, s->r_owner_length, NULL);
+	knot_dname_t *o = knot_dname_copy(s->r_owner);
 	if (!o) {
 		DBG("%s: failed to create dname - %s\n",
 		    __func__, knot_strerror(ret));
 		return KNOT_ENOMEM;
 	}
 	knot_rrset_t *rr = knot_rrset_new(o, s->r_type, s->r_class, s->r_ttl);
-	knot_dname_release(o);
 	if (!rr) {
 		DBG("%s: failed to create rrset - %s\n",
 		    __func__, knot_strerror(ret));
+		knot_dname_free(&o);
 		return KNOT_ENOMEM;
 	}
 
@@ -354,13 +339,13 @@ static int pkt_append(nsupdate_params_t *p, int sect)
 	switch(sect) {
 	case UP_ADD:
 	case UP_DEL:
-		ret = knot_response_add_rrset_authority(p->pkt, rr, 0, 0, 0);
+		ret = knot_response_add_rrset_authority(p->pkt, rr, KNOT_PF_NOTRUNC);
 		break;
 	case PQ_NXDOMAIN:
 	case PQ_NXRRSET:
 	case PQ_YXDOMAIN:
 	case PQ_YXRRSET:
-		ret = knot_response_add_rrset_answer(p->pkt, rr, 0, 0, 0);
+		ret = knot_response_add_rrset_answer(p->pkt, rr, KNOT_PF_NOTRUNC);
 		break;
 	default:
 		assert(0); /* Should never happen. */
@@ -392,10 +377,15 @@ static int pkt_sendrecv(nsupdate_params_t *params,
 	               get_socktype(params->protocol, KNOT_RRTYPE_SOA),
 	               params->wait,
 	               &net);
+	if (ret != KNOT_EOK) {
+		return -1;
+	}
 
 	ret = net_connect(&net);
 	DBG("%s: send_msg = %d\n", __func__, net.sockfd);
-	if (ret != KNOT_EOK) return -1;
+	if (ret != KNOT_EOK) {
+		return -1;
+	}
 
 	ret = net_send(&net, qwire, qlen);
 	if (ret != KNOT_EOK) {
@@ -729,8 +719,6 @@ int cmd_send(const char* lp, nsupdate_params_t *params)
 	}
 
 	/* Clear sent packet. */
-	knot_question_t *q = knot_packet_question(params->pkt);
-	knot_dname_release(q->qname);
 	knot_packet_free_rrsets(params->pkt);
 	knot_packet_free(&params->pkt);
 
@@ -746,7 +734,7 @@ int cmd_send(const char* lp, nsupdate_params_t *params)
 	}
 
 	/* Parse response. */
-	params->resp = knot_packet_new(KNOT_PACKET_PREALLOC_NONE);
+	params->resp = knot_packet_new();
 	if (!params->resp) {
 		free_sign_context(&sign_ctx);
 		return KNOT_ENOMEM;
@@ -805,12 +793,12 @@ int cmd_server(const char* lp, nsupdate_params_t *params)
 	DBG("%s: lp='%s'\n", __func__, lp);
 
 	/* Parse host. */
-	server_t *srv = parse_host(lp, params->server->service);
+	srv_info_t *srv = parse_host(lp, params->server->service);
 
 	/* Enqueue. */
 	if (!srv) return KNOT_ENOMEM;
 
-	server_free(params->server);
+	srv_info_free(params->server);
 	params->server = srv;
 
 	return KNOT_EOK;
@@ -821,12 +809,12 @@ int cmd_local(const char* lp, nsupdate_params_t *params)
 	DBG("%s: lp='%s'\n", __func__, lp);
 
 	/* Parse host. */
-	server_t *srv = parse_host(lp, "0");
+	srv_info_t *srv = parse_host(lp, "0");
 
 	/* Enqueue. */
 	if (!srv) return KNOT_ENOMEM;
 
-	server_free(params->srcif);
+	srv_info_free(params->srcif);
 	params->srcif = srv;
 
 	return KNOT_EOK;
@@ -880,26 +868,6 @@ int cmd_key(const char* lp, nsupdate_params_t *params)
 	return ret;
 }
 
-/*
- *   Not implemented.
- */
-
-int cmd_gsstsig(const char* lp, nsupdate_params_t *params)
-{
-	UNUSED(params);
-	DBG("%s: lp='%s'\n", __func__, lp);
-
-	return KNOT_ENOTSUP;
-}
-
-int cmd_oldgsstsig(const char* lp, nsupdate_params_t *params)
-{
-	UNUSED(params);
-	DBG("%s: lp='%s'\n", __func__, lp);
-
-	return KNOT_ENOTSUP;
-}
-
 int cmd_origin(const char* lp, nsupdate_params_t *params)
 {
 	DBG("%s: lp='%s'\n", __func__, lp);
@@ -918,6 +886,26 @@ int cmd_origin(const char* lp, nsupdate_params_t *params)
 	free(name);
 
 	return ret;
+}
+
+/*
+ *   Not implemented.
+ */
+
+int cmd_gsstsig(const char* lp, nsupdate_params_t *params)
+{
+	UNUSED(params);
+	DBG("%s: lp='%s'\n", __func__, lp);
+
+	return KNOT_ENOTSUP;
+}
+
+int cmd_oldgsstsig(const char* lp, nsupdate_params_t *params)
+{
+	UNUSED(params);
+	DBG("%s: lp='%s'\n", __func__, lp);
+
+	return KNOT_ENOTSUP;
 }
 
 int cmd_realm(const char* lp, nsupdate_params_t *params)

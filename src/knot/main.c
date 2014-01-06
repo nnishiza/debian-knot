@@ -26,7 +26,8 @@
 #include <cap-ng.h>
 #endif /* HAVE_CAP_NG_H */
 
-#include "common.h"
+#include "libknot/common.h"
+#include "libknot/dnssec/crypto.h"
 #include "common/evqueue.h"
 #include "knot/knot.h"
 #include "knot/server/server.h"
@@ -52,6 +53,13 @@ char *zone = NULL;
 
 // Cleanup handler
 static int do_cleanup(server_t *server, char *configf, char *pidf);
+
+// atexit() handler for server code
+static void deinit(void)
+{
+	knot_crypto_cleanup();
+	knot_crypto_cleanup_threads();
+}
 
 // SIGINT signal handler
 void interrupt_handle(int s)
@@ -86,24 +94,27 @@ void help(void)
 	printf("Usage: %sd [parameters]\n",
 	       PACKAGE_NAME);
 	printf("\nParameters:\n"
-	       " -c, --config [file] Select configuration file.\n"
+	       " -c, --config <file>     Select configuration file.\n"
 #ifdef INTEGRITY_CHECK
-	       " -z, --zone [zone]   Set zone to check. Send SIGUSR1 to trigger\n"
-	       "                     integrity check.\n"
+	       " -z, --zone <zone>       Set zone to check. Send SIGUSR1 to trigger\n"
+	       "                         integrity check.\n"
 #endif /* INTEGRITY_CHECK */
-	       " -d, --daemonize     Run server as a daemon.\n"
-	       " -v, --verbose       Verbose mode - additional runtime information.\n"
-	       " -V, --version       Print version of the server.\n"
-	       " -h, --help          Print help and usage.\n");
+	       " -d, --daemonize=[dir]   Run server as a daemon.\n"
+	       " -v, --verbose           Verbose mode - additional runtime information.\n"
+	       " -V, --version           Print version of the server.\n"
+	       " -h, --help              Print help and usage.\n");
 }
 
 int main(int argc, char **argv)
 {
+	atexit(deinit);
+
 	// Parse command line arguments
 	int c = 0, li = 0;
 	int verbose = 0;
 	int daemonize = 0;
 	char* config_fn = NULL;
+	char* daemon_root = NULL;
 
 	/* Long options. */
 	struct option opts[] = {
@@ -111,7 +122,7 @@ int main(int argc, char **argv)
 #ifdef INTEGRITY_CHECK
 		{"zone",      required_argument, 0, 'z'},
 #endif /* INTEGRITY_CHECK */
-		{"daemonize", no_argument,       0, 'd'},
+		{"daemonize", optional_argument, 0, 'd'},
 		{"verbose",   no_argument,       0, 'v'},
 		{"version",   no_argument,       0, 'V'},
 		{"help",      no_argument,       0, 'h'},
@@ -126,6 +137,7 @@ int main(int argc, char **argv)
 		switch (c)
 		{
 		case 'c':
+			free(config_fn);
 			config_fn = strdup(optarg);
 			break;
 #ifdef INTEGRITY_CHECK
@@ -139,11 +151,15 @@ int main(int argc, char **argv)
 #endif /* INTEGRITY_CHECK */
 		case 'd':
 			daemonize = 1;
+			if (optarg) {
+				daemon_root = strdup(optarg);
+			}
 			break;
 		case 'v':
 			verbose = 1;
 			break;
 		case 'V':
+			free(config_fn);
 			printf("%s, version %s\n", "Knot DNS", PACKAGE_VERSION);
 			return 0;
 		case 'h':
@@ -160,9 +176,14 @@ int main(int argc, char **argv)
 
 	// Check for non-option parameters.
 	if (argc - optind > 0) {
+		free(config_fn);
 		help();
 		return 1;
 	}
+
+	// Initialize cryptographic backend
+	knot_crypto_init();
+	knot_crypto_init_threads();
 
 	// Now check if we want to daemonize
 	if (daemonize) {
@@ -294,10 +315,23 @@ int main(int argc, char **argv)
 			return do_cleanup(server, config_fn, pidf);
 		log_server_info("Server started as a daemon, PID = %ld\n", pid);
 		log_server_info("PID stored in '%s'\n", pidf);
-		if ((cwd = malloc(PATH_MAX)) != NULL)
-			cwd = getcwd(cwd, PATH_MAX);
-		if (chdir("/") != 0)
-			log_server_warning("Server can't change working directory.\n");
+		if ((cwd = malloc(PATH_MAX)) != NULL) {
+			if (getcwd(cwd, PATH_MAX) == NULL) {
+				log_server_info("Cannot get current working directory.\n");
+				cwd[0] = '\0';
+			}
+		}
+		if (daemon_root == NULL) {
+			daemon_root = strdup("/");
+		}
+		if (chdir(daemon_root) != 0) {
+			log_server_warning("Server can't change working "
+			                   "directory to %s.\n", daemon_root);
+		} else {
+			log_server_info("Server changed directory to %s.\n",
+			                daemon_root);
+		}
+		free(daemon_root);
 	} else {
 		log_server_info("Server started in foreground, PID = %ld\n", pid);
 		log_server_info("Server running without PID file.\n");
@@ -311,7 +345,7 @@ int main(int argc, char **argv)
 	int res = 0;
 	log_server_info("Starting server...\n");
 	if ((server_start(server)) == KNOT_EOK) {
-		size_t zcount = server->nameserver->zone_db->zone_count;
+		size_t zcount = server->nameserver->zone_db->count;
 		if (!zcount) {
 			log_server_warning("Server started, but no zones served.\n");
 		}
@@ -383,9 +417,7 @@ int main(int argc, char **argv)
 				log_server_info("Starting integrity check of "
 				                "zone: %s\n", zone);
 				knot_dname_t *zdn =
-					knot_dname_new_from_str(zone,
-					                        strlen(zone),
-					                        NULL);
+					knot_dname_from_str(zone);
 				knot_zone_t *z =
 					knot_zonedb_find_zone(server->nameserver->zone_db,
 					                      zdn);

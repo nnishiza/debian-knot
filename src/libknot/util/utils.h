@@ -27,7 +27,7 @@
 #ifndef _KNOT_UTILS_H_
 #define _KNOT_UTILS_H_
 
-#include "util/endian.h"
+#include "libknot/util/endian.h"
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -174,11 +174,6 @@ static inline void knot_wire_write_u64(uint8_t *pos, uint64_t data)
 {
 	*(uint64_t *)pos = htobe64(data);
 }
-
-/*!
- * \brief Get random packet id.
- */
-uint16_t knot_random_id();
 
 /*!
  * \brief Helper function for simple locking.

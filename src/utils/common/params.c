@@ -23,6 +23,10 @@
 #include <arpa/inet.h>			// inet_pton
 #include <sys/socket.h>			// AF_INET (BSD)
 
+#ifdef LIBIDN
+#include <idna.h>
+#endif
+
 #include "libknot/libknot.h"
 #include "common/errcode.h"		// KNOT_EOK
 #include "common/mempattern.h"		// strcdup
@@ -33,6 +37,125 @@
 
 #define IPV4_REVERSE_DOMAIN	"in-addr.arpa."
 #define IPV6_REVERSE_DOMAIN	"ip6.arpa."
+
+char* name_from_idn(const char *idn_name) {
+#ifdef LIBIDN
+	char *name = NULL;
+
+	int rc = idna_to_ascii_lz(idn_name, &name, 0);
+	if (rc != IDNA_SUCCESS) {
+		ERR("IDNA (%s)\n", idna_strerror(rc));
+		return NULL;
+	}
+
+	return name;
+#endif
+	return strdup(idn_name);
+}
+
+void name_to_idn(char **name) {
+#ifdef LIBIDN
+	char *idn_name = NULL;
+
+	int rc = idna_to_unicode_8zlz(*name, &idn_name, 0);
+	if (rc != IDNA_SUCCESS) {
+		return;
+	}
+
+	free(*name);
+	*name = idn_name;
+#endif
+	return;
+}
+
+/*!
+ * \brief Checks if string is a prefix of reference string.
+ *
+ * \param pref		Prefix string.
+ * \param pref_len	Prefix length.
+ * \param str		Reference string (must have trailing zero).
+ *
+ * \retval -1		\a pref is not a prefix of \a str.
+ * \retval  0<=		number of chars after prefix \a pref in \a str.
+ */
+static int cmp_prefix(const char *pref, const size_t pref_len,
+                      const char *str)
+{
+	size_t i = 0;
+	while (1) {
+		// Different characters => NOT prefix.
+		if (pref[i] != str[i]) {
+			return -1;
+		}
+
+		i++;
+
+		// Pref IS a prefix of pref.
+		if (i == pref_len) {
+			size_t rest = 0;
+			while (str[i + rest] != '\0') {
+				rest++;
+			}
+			return rest;
+		// Pref is longer then ref => NOT prefix.
+		} else if (str[i] == '\0') {
+			return -1;
+		}
+	}
+}
+
+/*!
+ * \brief Find the best parameter match in table based on prefix equality.
+ *
+ * \param str		Parameter name to look up.
+ * \param str_len	Parameter name length.
+ * \param tbl		Parameter table.
+ * \param unique	Indication if output is unique result.
+ *
+ * \retval >=0		looked up parameter position in \a tbl.
+ * \retval err		if error.
+ */
+int best_param(const char *str, const size_t str_len, const param_t *tbl,
+               bool *unique)
+{
+	if (str == NULL || str_len == 0 || tbl == NULL) {
+		DBG_NULL;
+		return KNOT_EINVAL;
+	}
+
+	int best_pos = -1;
+	int best_match = INT_MAX;
+	size_t matches = 0;
+	for (int i = 0; tbl[i].name != NULL; i++) {
+		int ret = cmp_prefix(str, str_len, tbl[i].name);
+		switch (ret) {
+		case -1:
+			continue;
+		case 0:
+			best_pos = i;
+			best_match = 0;
+			matches = 1;
+			break;
+		default:
+			if (ret < best_match) {
+				best_pos = i;
+				best_match = ret;
+			}
+			matches++;
+		}
+	}
+
+	switch (matches) {
+	case 0:
+		return KNOT_ENOTSUP;
+	case 1:
+		*unique = true;
+		return best_pos;
+	default:
+		*unique = false;
+		return best_pos;
+	}
+}
 
 char* get_reverse_name(const char *name)
 {
@@ -189,7 +312,7 @@ int params_parse_type(const char *value, uint16_t *rtype, uint32_t *xfr_serial)
 	return KNOT_EOK;
 }
 
-int params_parse_server(const char *value, list *servers, const char *def_port)
+int params_parse_server(const char *value, list_t *servers, const char *def_port)
 {
 	if (value == NULL || servers == NULL) {
 		DBG_NULL;
@@ -197,12 +320,12 @@ int params_parse_server(const char *value, list *servers, const char *def_port)
 	}
 
 	// Add specified nameserver.
-	server_t *server = parse_nameserver(value, def_port);
+	srv_info_t *server = parse_nameserver(value, def_port);
 	if (server == NULL) {
 		ERR("bad nameserver %s\n", value);
 		return KNOT_EINVAL;
 	}
-	add_tail(servers, (node *)server);
+	add_tail(servers, (node_t *)server);
 
 	return KNOT_EOK;
 }
@@ -247,7 +370,7 @@ int params_parse_num(const char *value, uint32_t *dst)
 	}
 
 	// Convert string to number.
-	unsigned long long num = strtoull(value, &end, 10);
+	long long num = strtoll(value, &end, 10);
 
 	// Check for bad string.
 	if (end == value || *end != '\0') {
@@ -257,35 +380,10 @@ int params_parse_num(const char *value, uint32_t *dst)
 
 	if (num > UINT32_MAX) {
 		num = UINT32_MAX;
-		WARN("number %s is too big, using %llu instead\n", value, num);
-	}
-
-	*dst = num;
-
-	return KNOT_EOK;
-}
-
-int params_parse_bufsize(const char *value, int32_t *dst)
-{
-	char *end;
-
-	if (value == NULL || dst == NULL) {
-		DBG_NULL;
-		return KNOT_EINVAL;
-	}
-
-	// Convert string to number.
-	unsigned long long num = strtoull(value, &end, 10);
-
-	// Check for bad string.
-	if (end == value || *end != '\0') {
-		ERR("bad size %s\n", value);
-		return KNOT_EINVAL;
-	}
-
-	if (num > UINT16_MAX) {
-		num = UINT16_MAX;
-		WARN("size %s is too big, using %llu instead\n", value, num);
+		WARN("number %s is too big, using %lld instead\n", value, num);
+	} else if (num < 0) {
+		num = 0;
+		WARN("number %s is too small, using %lld instead\n", value, num);
 	}
 
 	*dst = num;
@@ -344,9 +442,13 @@ int params_parse_tsig(const char *value, knot_key_params_t *key_params)
 	}
 
 	/* Set key name and secret. */
-	key_params->name = knot_dname_new_from_nonfqdn_str(k, strlen(k), NULL);
+	key_params->name = knot_dname_from_str(k);
 	knot_dname_to_lower(key_params->name);
-	key_params->secret = strdup(s);
+	int r = knot_binary_from_base64(s, &key_params->secret);
+	if (r != KNOT_EOK) {
+		free(h);
+		return r;
+	}
 
 	DBG("%s: parsed name '%s'\n", __func__, k);
 	DBG("%s: parsed secret '%s'\n", __func__, s);
