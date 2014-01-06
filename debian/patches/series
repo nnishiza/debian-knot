@@ -1,1 +1,2 @@
 0001-Check-the-OpenSSL-version-when-checking-for-GOST-alg.patch
+0001-Add-support-for-OpenSSL-threads-in-OpenSSL-1.0.0.patch

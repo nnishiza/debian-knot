@@ -1,0 +1,44 @@
+From c0c390f18d602e310e8bf31a23b25a376314e07c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Sur=C3=BD?= <ondrej@sury.org>
+Date: Mon, 6 Jan 2014 12:04:45 +0100
+Subject: [PATCH] Add support for OpenSSL threads in OpenSSL << 1.0.0
+
+---
+ src/libknot/dnssec/crypto.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+--- knot.orig/src/libknot/dnssec/crypto.c
++++ knot/src/libknot/dnssec/crypto.c
+@@ -105,11 +105,20 @@ static void openssl_mutexes_destroy(void
+  *
+  * \param openssl_id  Thread identifier in OpenSSL.
+  */
++#if OPENSSL_VERSION_NUMBER >= 0x1000001fL
+ static void openssl_threadid_cb(CRYPTO_THREADID *openssl_id)
+ {
+ 	pthread_t id = pthread_self();
+ 	CRYPTO_THREADID_set_pointer(openssl_id, (void *)id);
+ }
++#else
++static unsigned long openssl_threadid_cb(void)
++{
++	unsigned long ret;
++	ret = (unsigned long)pthread_self();
++	return(ret);
++}
++#endif
+ 
+ /*- pluggable engines -------------------------------------------------------*/
+ 
+@@ -181,7 +190,11 @@ void knot_crypto_init_threads(void)
+ 	}
+ 
+ 	// thread identification
++#if OPENSSL_VERSION_NUMBER >= 0x1000001fL
+ 	CRYPTO_THREADID_set_callback(openssl_threadid_cb);
++#else
++        CRYPTO_set_id_callback((unsigned long (*)())openssl_threadid_cb);
++#endif
+ }
+ 
+ void knot_crypto_cleanup_threads(void)
