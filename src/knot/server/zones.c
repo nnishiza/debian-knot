@@ -374,7 +374,7 @@ static int zones_zonefile_sync_from_ev(knot_zone_t *zone, zonedata_t *zd)
 }
 
 /*!
- * \brief Sync chagnes in zone to zonefile.
+ * \brief Sync changes in zone to zonefile.
  */
 int zones_flush_ev(event_t *e)
 {
@@ -1248,15 +1248,17 @@ static int zones_process_update_auth(knot_zone_t *zone,
 		knot_zone_contents_set_gen_old(new_contents);
 		ret = xfrin_apply_changesets(fake_zone, sec_chs,
 		                             &dnssec_contents);
-		free(fake_zone);
 		if (ret != KNOT_EOK) {
 			log_zone_error("%s: Failed to sign incoming update %s\n",
 			               msg, knot_strerror(ret));
+			new_contents->zone = zone;
 			zones_store_changesets_rollback(transaction);
 			zones_free_merged_changesets(chgsets, sec_chs);
+			free(fake_zone);
 			return ret;
 		}
 		assert(dnssec_contents);
+		dnssec_contents->zone = zone;
 
 		// Plan zone resign if needed
 		zonedata_t *zd = (zonedata_t *)zone->data;
@@ -1265,13 +1267,16 @@ static int zones_process_update_auth(knot_zone_t *zone,
 		if (ret != KNOT_EOK) {
 			log_zone_error("%s: Failed to replan zone sign %s\n",
 			               msg, knot_strerror(ret));
+			new_contents->zone = zone;
 			zones_store_changesets_rollback(transaction);
 			zones_free_merged_changesets(chgsets, sec_chs);
+			free(fake_zone);
 			return ret;
 		}
-	} else {
-		free(fake_zone);
 	}
+
+	new_contents->zone = zone;
+	free(fake_zone);
 
 	dbg_zones_verb("%s: DNSSEC changes applied\n", msg);
 
@@ -1330,6 +1335,9 @@ static int zones_process_update_auth(knot_zone_t *zone,
 
 	free(msg);
 	msg = NULL;
+
+	/* Trim extra heap. */
+	mem_trim();
 
 	/* Sync zonefile immediately if configured. */
 	zonedata_t *zone_data = (zonedata_t *)zone->data;
@@ -1596,8 +1604,6 @@ int zones_normal_query_answer(knot_nameserver_t *nameserver,
 			rcu_read_unlock();
 			return KNOT_EOK;
 		}
-		knot_ns_error_response_full(nameserver, resp, rcode, resp_wire,
-		                            rsize);
 	} else {
 		/*
 		 * Now we have zone. Verify TSIG if it is in the packet.
@@ -2121,6 +2127,7 @@ static int zones_dump_zone_text(knot_zone_contents_t *zone, const char *fname)
 	char *new_fname = NULL;
 	int fd = zones_open_free_filename(fname, &new_fname);
 	if (fd < 0) {
+		free(new_fname);
 		return KNOT_EWRITABLE;
 	}
 
@@ -2241,6 +2248,9 @@ int zones_ns_conf_hook(const struct conf_t *conf, void *data)
 
 	/* Delete all deprecated zones and delete the old database. */
 	knot_zonedb_deep_free(&old_db);
+
+	/* Trim extra heap. */
+	mem_trim();
 
 	/* Update events scheduled for zone. */
 	knot_zone_t *zone = NULL;

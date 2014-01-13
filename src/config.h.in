@@ -54,6 +54,9 @@
 /* Define to 1 if you have the `madvise' function. */
 #undef HAVE_MADVISE
 
+/* Define to 1 if you have the `malloc_trim' function. */
+#undef HAVE_MALLOC_TRIM
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
