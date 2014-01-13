@@ -1,7 +1,7 @@
 This is knot.info, produced by makeinfo version 4.13 from knot.texi.
 
-This manual is for Knot DNS (version 1.4.0, 20 December 2013), which is
-a high-performance authoritative-only DNS server.
+This manual is for Knot DNS (version 1.4.1, 6 January 2014), which is a
+high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
 
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.4.0, 20 December 2013).
+This manual is for Knot DNS (version 1.4.1, 6 January 2014).
 
 * Menu:
 
@@ -1725,8 +1725,8 @@ A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.4.0";
-       version "1.4.0";
+       identity "Knot DNS 1.4.1";
+       version "1.4.1";
        nsid    "amaterasu";
        rundir "/var/run/knot";
        workers 16;
@@ -2820,138 +2820,138 @@ Bind.
 
 
 Tag Table:
-Node: Top1040
-Node: Introduction4093
-Node: What is Knot DNS4391
-Node: Knot DNS features4909
-Node: Scope of this document5879
-Node: Knot DNS Resource Requirements6141
-Node: Hardware requirements6439
-Node: CPU requirements7079
-Node: Memory requirements7464
-Node: Supported operating system8180
-Node: Knot DNS Installation8648
-Node: Required build environment8955
-Node: Required libraries9522
-Node: Userspace RCU10327
-Node: Installation from the sources11279
-Node: Configuring and generating Makefiles11864
-Node: Compilation13353
-Node: Installation13929
-Node: Installation from packages14436
-Node: Installing Knot DNS packages on Debian14960
-Node: Installing Knot DNS packages on Ubuntu15938
-Node: Adding official PPA repository for Knot DNS16852
-Node: Installing Knot DNS packages on Fedora17480
-Node: Installing Knot DNS from ports on FreeBSD18879
-Node: Knot DNS Configuration19226
-Node: Minimal configuration19826
-Node: Slave configuration21609
-Node: Master configuration23605
-Node: Configuring multiple interfaces24651
-Node: Using DNS UPDATE25136
-Node: Remote control interface25828
-Node: Enabling zone semantic checks26920
-Node: Creating IXFR differences from zone file changes27387
-Node: Using Response Rate Limiting27947
-Node: Automatic DNSSEC signing29411
-Node: Running Knot DNS33045
-Node: Running a slave server36503
-Node: Running a master server37799
-Node: Controlling running daemon38780
-Node: Troubleshooting39752
-Node: Submitting a bugreport40160
-Node: Generating backtrace41330
-Node: Debug messages42332
-Node: Enabling debug messages in server43002
-Node: Debug messages Example44435
-Node: Statement Index44634
-Node: Knot DNS Configuration Reference48749
-Node: system49156
-Node: system Syntax49517
-Node: system Statement Definition and Usage50405
-Node: identity50840
-Node: version51371
-Node: nsid51969
-Node: rundir52395
-Node: pidfile52733
-Node: workers53032
-Node: user53417
-Node: max-conn-idle53851
-Node: max-conn-handshake54173
-Node: max-conn-reply54553
-Node: transfers54791
-Node: rate-limit55076
-Node: rate-limit-size55818
-Node: rate-limit-slip56489
-Node: max-udp-payload57097
-Node: system Example57315
-Node: keys57669
-Node: keys Syntax57976
-Node: keys Statement Definition and Usage58205
-Node: key_id58411
-Node: Example59373
-Node: interfaces59607
-Node: interfaces Syntax59942
-Node: interfaces Statement Definition and Usage60280
-Node: interface_id60522
-Node: interfaces Examples60886
-Node: remotes61365
-Node: remotes Syntax61964
-Node: remotes Statement Definition and Grammar62403
-Node: remote_id62673
-Node: address62873
-Node: port63092
-Node: key63346
-Node: via63561
-Node: remotes Examples63791
-Node: groups64317
-Node: groups Syntax65007
-Node: groups Statement Definition and Grammar65225
-Node: group_id65483
-Node: groups_remote_id65690
-Node: groups Examples65937
-Node: control66343
-Node: control Syntax66880
-Node: control Statement Definition and Grammar67248
-Node: control Examples67831
-Node: zones68313
-Node: zones Syntax68657
-Node: zones Statement Definition and Grammar69875
-Node: zone_id70396
-Node: file70784
-Node: xfr-in71128
-Node: xfr-out71467
-Node: notify-in71812
-Node: notify-out72060
-Node: update-in72315
-Node: storage72650
-Node: semantic-checks73307
-Node: ixfr-from-differences73724
-Node: disable-any74269
-Node: notify-timeout74656
-Node: notify-retries75001
-Node: zonefile-sync75320
-Node: ixfr-fslimit76303
-Node: dnssec-keydir76731
-Node: dnssec-enable76988
-Node: signature-lifetime77333
-Node: serial-policy78149
-Node: zones Example78989
-Node: zones List of zone semantic checks80090
-Node: log81890
-Node: log Syntax82113
-Node: log Statement Definition and Grammar82439
-Node: log_name83149
-Node: category83478
-Node: severity83945
-Node: log_file84687
-Node: log Example84942
-Node: include85325
-Node: include Syntax85794
-Node: include Examples85932
-Node: Migration from other DNS servers86199
-Node: Knot DNS for BIND users86437
+Node: Top1038
+Node: Introduction4089
+Node: What is Knot DNS4387
+Node: Knot DNS features4905
+Node: Scope of this document5875
+Node: Knot DNS Resource Requirements6137
+Node: Hardware requirements6435
+Node: CPU requirements7075
+Node: Memory requirements7460
+Node: Supported operating system8176
+Node: Knot DNS Installation8644
+Node: Required build environment8951
+Node: Required libraries9518
+Node: Userspace RCU10323
+Node: Installation from the sources11275
+Node: Configuring and generating Makefiles11860
+Node: Compilation13349
+Node: Installation13925
+Node: Installation from packages14432
+Node: Installing Knot DNS packages on Debian14956
+Node: Installing Knot DNS packages on Ubuntu15934
+Node: Adding official PPA repository for Knot DNS16848
+Node: Installing Knot DNS packages on Fedora17476
+Node: Installing Knot DNS from ports on FreeBSD18875
+Node: Knot DNS Configuration19222
+Node: Minimal configuration19822
+Node: Slave configuration21605
+Node: Master configuration23601
+Node: Configuring multiple interfaces24647
+Node: Using DNS UPDATE25132
+Node: Remote control interface25824
+Node: Enabling zone semantic checks26916
+Node: Creating IXFR differences from zone file changes27383
+Node: Using Response Rate Limiting27943
+Node: Automatic DNSSEC signing29407
+Node: Running Knot DNS33041
+Node: Running a slave server36499
+Node: Running a master server37795
+Node: Controlling running daemon38776
+Node: Troubleshooting39748
+Node: Submitting a bugreport40156
+Node: Generating backtrace41326
+Node: Debug messages42328
+Node: Enabling debug messages in server42998
+Node: Debug messages Example44431
+Node: Statement Index44630
+Node: Knot DNS Configuration Reference48745
+Node: system49152
+Node: system Syntax49513
+Node: system Statement Definition and Usage50401
+Node: identity50836
+Node: version51367
+Node: nsid51965
+Node: rundir52391
+Node: pidfile52729
+Node: workers53028
+Node: user53413
+Node: max-conn-idle53847
+Node: max-conn-handshake54169
+Node: max-conn-reply54549
+Node: transfers54787
+Node: rate-limit55072
+Node: rate-limit-size55814
+Node: rate-limit-slip56485
+Node: max-udp-payload57093
+Node: system Example57311
+Node: keys57665
+Node: keys Syntax57972
+Node: keys Statement Definition and Usage58201
+Node: key_id58407
+Node: Example59369
+Node: interfaces59603
+Node: interfaces Syntax59938
+Node: interfaces Statement Definition and Usage60276
+Node: interface_id60518
+Node: interfaces Examples60882
+Node: remotes61361
+Node: remotes Syntax61960
+Node: remotes Statement Definition and Grammar62399
+Node: remote_id62669
+Node: address62869
+Node: port63088
+Node: key63342
+Node: via63557
+Node: remotes Examples63787
+Node: groups64313
+Node: groups Syntax65003
+Node: groups Statement Definition and Grammar65221
+Node: group_id65479
+Node: groups_remote_id65686
+Node: groups Examples65933
+Node: control66339
+Node: control Syntax66876
+Node: control Statement Definition and Grammar67244
+Node: control Examples67827
+Node: zones68309
+Node: zones Syntax68653
+Node: zones Statement Definition and Grammar69871
+Node: zone_id70392
+Node: file70780
+Node: xfr-in71124
+Node: xfr-out71463
+Node: notify-in71808
+Node: notify-out72056
+Node: update-in72311
+Node: storage72646
+Node: semantic-checks73303
+Node: ixfr-from-differences73720
+Node: disable-any74265
+Node: notify-timeout74652
+Node: notify-retries74997
+Node: zonefile-sync75316
+Node: ixfr-fslimit76299
+Node: dnssec-keydir76727
+Node: dnssec-enable76984
+Node: signature-lifetime77329
+Node: serial-policy78145
+Node: zones Example78985
+Node: zones List of zone semantic checks80086
+Node: log81886
+Node: log Syntax82109
+Node: log Statement Definition and Grammar82435
+Node: log_name83145
+Node: category83474
+Node: severity83941
+Node: log_file84683
+Node: log Example84938
+Node: include85321
+Node: include Syntax85790
+Node: include Examples85928
+Node: Migration from other DNS servers86195
+Node: Knot DNS for BIND users86433
 
 End Tag Table
 

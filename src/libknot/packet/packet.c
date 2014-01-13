@@ -88,7 +88,7 @@ static int knot_packet_parse_rdata(knot_rrset_t *rr, const uint8_t *wire,
                                    size_t *pos, size_t total_size,
                                    size_t rdlength)
 {
-	if (!rr || !wire || !pos || rdlength == 0) {
+	if (!rr || !wire || !pos) {
 		return KNOT_EINVAL;
 	}
 
@@ -171,11 +171,6 @@ dbg_packet_exec_verb(
 	}
 
 	rrset->rrsigs = NULL;
-
-	if (rdlength == 0) {
-		return rrset;
-	}
-
 
 	// parse RDATA
 	/*! \todo Merge with add_rdata_to_rr in zcompile, should be a rrset func
@@ -489,7 +484,7 @@ int knot_packet_parse_from_wire(knot_packet_t *packet,
 		if ((err = knot_packet_parse_question(packet)) != KNOT_EOK)
 			return err;
 	} else if (qdcount > 1) {
-		dbg_packet("QDCOUNT larger than 1, FORMERR.\n");
+		dbg_packet("QDCOUNT > 1, FORMERR.\n");
 		return KNOT_EMALF;
 	}
 
