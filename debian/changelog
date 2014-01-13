@@ -1,3 +1,18 @@
+knot (1.4.1-1) unstable; urgency=low
+
+  * New upstream version 1.4.1
+    + Empty APL record support
+    + 'zonestatus' when using immediate zone syncing
+    + Immediate zone syncing after reload
+    + Race condition writing time values to zone file
+    + Require OpenSSL >= 1.0.0
+  * Don't use dh-autoreconf, upstream uses recent enough autotools
+  * Bump standards version to 3.9.5
+  * Run the tests on every arch without the condition, but don't fail
+    anywhere
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 13 Jan 2014 18:00:18 +0100
+
 knot (1.4.0-1) unstable; urgency=low
 
   * New major upstream version 1.4.0
