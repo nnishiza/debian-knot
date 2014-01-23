@@ -1,3 +1,12 @@
+knot (1.4.1-2) unstable; urgency=low
+
+  * Add patch to remove the requirement for OpenSSL 1.0.0 to build on
+    Debian squeeze, be warned though that the OpenSSL before 1.0.0 might
+    manifest some threading errors and crashes, so you really should
+    upgrade your system to Debian wheezy.
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 23 Jan 2014 16:53:03 +0100
+
 knot (1.4.1-1) unstable; urgency=low
 
   * New upstream version 1.4.1
