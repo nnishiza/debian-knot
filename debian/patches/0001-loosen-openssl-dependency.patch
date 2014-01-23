@@ -1,0 +1,43 @@
+--- knot.orig/configure
++++ knot/configure
+@@ -13429,23 +13429,6 @@ if test "$with_openssl" = "no"; then :
+ 
+ fi
+ 
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-#include <openssl/crypto.h>
+-   #if (OPENSSL_VERSION_NUMBER >= 0x1000000fL)
+-   openssl_version_ok
+-   #endif
+-
+-_ACEOF
+-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+-  $EGREP "openssl_version_ok" >/dev/null 2>&1; then :
+-
+-else
+-  as_fn_error $? "OpenSSL library version >= 1.0.0 is required." "$LINENO" 5
+-
+-fi
+-rm -f conftest*
+-
+ 
+ 
+ # Check whether --with-libidn was given.
+--- knot.orig/configure.ac
++++ knot/configure.ac
+@@ -283,14 +283,6 @@ AS_IF([test "$with_openssl" = "no"],[
+   AC_MSG_ERROR([OpenSSL library is required.])
+ ])
+ 
+-AC_EGREP_CPP(openssl_version_ok,
+-  [#include <openssl/crypto.h>
+-   #if (OPENSSL_VERSION_NUMBER >= 0x1000000fL)
+-   openssl_version_ok
+-   #endif
+-  ],[],[AC_MSG_ERROR([OpenSSL library version >= 1.0.0 is required.])]
+-)
+-
+ AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=[DIR]],
+     [Support IDN (needs GNU Libidn)]),
+     libidn=$withval, libidn=yes)
