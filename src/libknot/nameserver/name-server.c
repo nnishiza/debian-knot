@@ -670,7 +670,7 @@ dbg_ns_exec(
 				const knot_dname_t *dname
 						= knot_node_owner(node);
 				ret = ns_follow_cname(&node, &dname, resp,
-				    knot_response_add_rrset_additional, 0);
+				    knot_response_add_rrset_additional, KNOT_PF_NOTRUNC);
 				if (ret != KNOT_EOK) {
 					dbg_ns("Failed to follow CNAME.\n");
 					return ret;
@@ -703,7 +703,7 @@ dbg_ns_exec(
 				}
 
 				ret = ns_add_rrsigs(rrset_add, resp, dname,
-				      knot_response_add_rrset_additional, 0);
+				      knot_response_add_rrset_additional, KNOT_PF_NOTRUNC|KNOT_PF_CHECKDUP);
 
 				if (ret != KNOT_EOK) {
 					dbg_ns("Failed to add RRSIGs for A RR"
@@ -738,7 +738,7 @@ dbg_ns_exec(
 				}
 
 				ret = ns_add_rrsigs(rrset_add, resp, dname,
-				      knot_response_add_rrset_additional, 0);
+				      knot_response_add_rrset_additional, KNOT_PF_NOTRUNC|KNOT_PF_CHECKDUP);
 
 				if (ret != KNOT_EOK) {
 					dbg_ns("Failed to add RRSIG for AAAA RR"
@@ -2106,7 +2106,7 @@ static int ns_add_dnskey(const knot_node_t *apex, knot_packet_t *resp)
 		ret = knot_response_add_rrset_additional(resp, rrset, KNOT_PF_NOTRUNC);
 		if (ret == KNOT_EOK) {
 			ret = ns_add_rrsigs(rrset, resp, apex->owner,
-			              knot_response_add_rrset_additional, 0);
+			              knot_response_add_rrset_additional, KNOT_PF_NOTRUNC);
 		}
 	}
 
@@ -2610,13 +2610,6 @@ static int ns_xfr_send_and_clear(knot_ns_xfr_t *xfr, int add_tsig)
 
 	// increment the packet number
 	++xfr->packet_nr;
-	if ((xfr->tsig_key && knot_ns_tsig_required(xfr->packet_nr))
-	     || xfr->tsig_rcode != 0) {
-		/*! \todo Where is xfr->tsig_size set?? */
-		knot_packet_set_tsig_size(xfr->response, xfr->tsig_size);
-	} else {
-		knot_packet_set_tsig_size(xfr->response, 0);
-	}
 
 dbg_ns_exec_verb(
 	dbg_ns_verb("Response structure after clearing:\n");
@@ -2984,22 +2977,6 @@ static int ns_ixfr(knot_ns_xfr_t *xfr)
 		return KNOT_EMALF;
 	}
 
-	const knot_rrset_t *soa = knot_packet_authority_rrset(xfr->query, 0);
-	const knot_dname_t *qname = knot_packet_qname(xfr->response);
-
-	// check if XFR QNAME and SOA correspond
-	if (knot_packet_qtype(xfr->query) != KNOT_RRTYPE_IXFR
-	    || knot_rrset_type(soa) != KNOT_RRTYPE_SOA
-	    || knot_dname_cmp(qname, knot_rrset_owner(soa)) != 0) {
-		// malformed packet
-		dbg_ns("IXFR query is malformed.\n");
-		knot_response_set_rcode(xfr->response, KNOT_RCODE_FORMERR);
-		if (ns_xfr_send_and_clear(xfr, 1) != KNOT_EOK) {
-			return KNOT_ECONN;
-		}
-		return KNOT_EMALF;
-	}
-
 	return ns_ixfr_from_zone(xfr);
 }
 
@@ -3276,16 +3253,16 @@ int knot_ns_error_response_from_query(const knot_nameserver_t *nameserver,
 
 	size_t max_size = *rsize;
 	uint8_t flags1 = knot_wire_get_flags1(knot_packet_wireformat(query));
-	const size_t question_off = KNOT_WIRE_HEADER_SIZE;
 
 	// prepare the generic error response
 	knot_ns_error_response(nameserver, knot_packet_id(query),
 	                       &flags1, rcode, response_wire,
 	                       rsize);
 
-	if (query->parsed > KNOT_WIRE_HEADER_SIZE + question_off) {
+	if (query->parsed > KNOT_WIRE_HEADER_SIZE && query->qname_size > 0) {
 
 		/* Append question only (do not rewrite header). */
+		const size_t question_off = KNOT_WIRE_HEADER_SIZE;
 		size_t question_size = knot_packet_question_size(query);
 		question_size -= question_off;
 		if (max_size >= *rsize + question_size) {
@@ -3447,7 +3424,10 @@ int knot_ns_prep_normal_response(knot_nameserver_t *nameserver,
 		return KNOT_EOK;
 
 	const knot_dname_t *qname = knot_packet_qname(*resp);
-	assert(qname != NULL);
+	if (qname == NULL) {
+		(*resp)->zone = query->zone = *zone = NULL;
+		 return KNOT_EMALF;
+	}
 
 	uint16_t qtype = knot_packet_qtype(*resp);
 dbg_ns_exec_verb(
@@ -3589,7 +3569,10 @@ int knot_ns_prep_update_response(knot_nameserver_t *nameserver,
 	dbg_ns_verb("Response max size: %zu\n", (*resp)->max_size);
 
 	const knot_dname_t *qname = knot_packet_qname(knot_packet_query(*resp));
-	assert(qname != NULL);
+	if (qname == NULL) {
+		*zone = NULL;
+		return KNOT_EMALF;
+	}
 
 //	uint16_t qtype = knot_packet_qtype(*resp);
 dbg_ns_exec_verb(
