@@ -88,10 +88,10 @@ am_libknot_la_OBJECTS = libknot/consts.lo libknot/util/utils.lo \
 	libknot/rrset-dump.lo libknot/tsig.lo libknot/tsig-op.lo \
 	libknot/binary.lo libknot/dnssec/crypto.lo \
 	libknot/dnssec/key.lo libknot/dnssec/nsec3.lo \
-	libknot/dnssec/rrset-sign.lo libknot/dnssec/sig0.lo \
-	libknot/dnssec/sign.lo libknot/dnssec/zone-events.lo \
-	libknot/dnssec/zone-keys.lo libknot/dnssec/zone-nsec.lo \
-	libknot/dnssec/zone-sign.lo
+	libknot/dnssec/policy.lo libknot/dnssec/rrset-sign.lo \
+	libknot/dnssec/sig0.lo libknot/dnssec/sign.lo \
+	libknot/dnssec/zone-events.lo libknot/dnssec/zone-keys.lo \
+	libknot/dnssec/zone-nsec.lo libknot/dnssec/zone-sign.lo
 libknot_la_OBJECTS = $(am_libknot_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -548,6 +548,7 @@ libknot_la_SOURCES = \
 	libknot/dnssec/nsec-bitmap.h		\
 	libknot/dnssec/nsec3.c			\
 	libknot/dnssec/nsec3.h			\
+	libknot/dnssec/policy.c			\
 	libknot/dnssec/policy.h			\
 	libknot/dnssec/random.h			\
 	libknot/dnssec/rrset-sign.c		\
@@ -837,6 +838,8 @@ libknot/dnssec/crypto.lo: libknot/dnssec/$(am__dirstamp) \
 libknot/dnssec/key.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/nsec3.lo: libknot/dnssec/$(am__dirstamp) \
+	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
+libknot/dnssec/policy.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/rrset-sign.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
@@ -1330,6 +1333,8 @@ mostlyclean-compile:
 	-rm -f libknot/dnssec/key.lo
 	-rm -f libknot/dnssec/nsec3.$(OBJEXT)
 	-rm -f libknot/dnssec/nsec3.lo
+	-rm -f libknot/dnssec/policy.$(OBJEXT)
+	-rm -f libknot/dnssec/policy.lo
 	-rm -f libknot/dnssec/rrset-sign.$(OBJEXT)
 	-rm -f libknot/dnssec/rrset-sign.lo
 	-rm -f libknot/dnssec/sig0.$(OBJEXT)
@@ -1468,6 +1473,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/crypto.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/key.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/nsec3.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/policy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/rrset-sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/sig0.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/sign.Plo@am__quote@

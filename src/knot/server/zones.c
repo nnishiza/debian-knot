@@ -172,7 +172,7 @@ int zones_expire_ev(event_t *e)
 	synchronize_rcu();
 
 	/* Log event. */
-	log_server_info("Zone '%s' expired.\n", zd->conf->name);
+	log_zone_warning("Zone '%s' expired.\n", zd->conf->name);
 
 	/* Cancel REFRESH timer. */
 	if (zd->xfr_in.timer) {
@@ -269,16 +269,12 @@ int zones_refresh_ev(event_t *e)
 	dbg_zones("zones: RETRY of '%s' after %u seconds\n",
 	          zd->conf->name, retry_tmr / 1000);
 
-
 	/* Issue request. */
 	evsched_event_finished(e->parent);
 	ret = xfr_enqueue(zd->server->xfr, rq);
 	if (ret != KNOT_EOK) {
 		xfr_task_free(rq);
 	}
-
-
-
 
 	return ret;
 }
@@ -350,7 +346,7 @@ static int zones_zonefile_sync_from_ev(knot_zone_t *zone, zonedata_t *zd)
 
 	/* Only on zones with valid contents (non empty). */
 	int ret = KNOT_EOK;
-	if (knot_zone_contents(zone)) {
+	if (knot_zone_contents(zone) && journal_is_used(zd->ixfr_db)) {
 		/* Synchronize journal. */
 		ret = journal_retain(zd->ixfr_db);
 		if (ret == KNOT_EOK) {
@@ -428,8 +424,8 @@ static int zones_store_changesets_begin_and_store(knot_zone_t *zone,
 		/* Fetch zone-specific data. */
 		zonedata_t *zd = (zonedata_t *)zone->data;
 
-		log_server_notice("Journal for '%s' is full, flushing.\n",
-		                  zd->conf->name);
+		log_zone_notice("Journal for '%s' is full, flushing.\n",
+		                zd->conf->name);
 		/* Don't worry about sync event. It can't happen while this
 		 * event (signing) is not finished. We may thus do the sync
 		 * by hand and leave the planned one there to be executed
@@ -440,8 +436,7 @@ static int zones_store_changesets_begin_and_store(knot_zone_t *zone,
 		/* Transaction rolled back, journal released, we may flush. */
 		ret = zones_zonefile_sync_from_ev(zone, zd);
 		if (ret != KNOT_EOK) {
-			log_server_error("Failed to sync journal to zone file."
-			                 "\n");
+			log_zone_error("Failed to sync journal to zone file.\n");
 			return ret;
 		}
 
@@ -636,16 +631,10 @@ static int zones_load_changesets(const knot_zone_t *zone,
 		return KNOT_EINVAL;
 	}
 
-	rcu_read_lock();
 	/* Check journal file existence. */
-	struct stat st;
-	if (stat(zd->conf->ixfr_db, &st) == -1) {
-		rcu_read_unlock();
-		return KNOT_ERANGE; /* Not existent, no changesets available. */
+	if (!journal_is_used(zd->ixfr_db)) {
+		return KNOT_ERANGE; /* Not used, no changesets available. */
 	}
-	dbg_xfr("xfr: loading changesets for zone '%s' from serial %u to %u\n",
-	        zd->conf->name, from, to);
-	rcu_read_unlock();
 
 	/* Retain journal for changeset loading. */
 	int ret = journal_retain(zd->ixfr_db);
@@ -847,20 +836,6 @@ static int zones_merge_and_store_changesets(knot_zone_t *zone,
 	return KNOT_EOK;
 }
 
-static uint32_t expiration_to_relative(uint32_t exp,
-                                       const knot_zone_t *zone) {
-	time_t t = time(NULL);
-	if (t >= exp) {
-		char *zname = knot_dname_to_str(zone->name);
-		log_zone_warning("DNSSEC: Zone %s: Signature lifetime too low, "
-		                 "set higher value in configuration!\n", zname);
-		free(zname);
-		return 0;
-	} else {
-		return (exp - t) * 1000;
-	}
-}
-
 /*----------------------------------------------------------------------------*/
 
 static int zones_check_tsig_query(const knot_zone_t *zone,
@@ -881,7 +856,6 @@ static int zones_check_tsig_query(const knot_zone_t *zone,
 	dbg_zones_verb("Checking zone and ACL.\n");
 	int ret = zones_query_check_zone(zone, knot_packet_opcode(query),
 	                                 addr, tsig_key_zone, rcode);
-
 
 	/* Accept found OR unknown key results. */
 	if (ret == KNOT_EOK || ret == KNOT_EACCES) {
@@ -987,7 +961,7 @@ static uint32_t zones_next_serial(knot_zone_t *zone)
 	assert(zone);
 
 	uint32_t old_serial = knot_zone_serial(knot_zone_contents(zone));
-	uint32_t new_serial;
+	uint32_t new_serial = 0;
 
 	switch (zones_serial_policy(zone)) {
 	case CONF_SERIAL_INCREMENT:
@@ -1014,21 +988,17 @@ static uint32_t zones_next_serial(knot_zone_t *zone)
 /*----------------------------------------------------------------------------*/
 
 static int replan_zone_sign_after_ddns(knot_zone_t *zone, zonedata_t *zd,
-                                       uint32_t expires_at)
+                                       uint32_t refresh_at)
 {
 	assert(zone);
 	assert(zd);
 
-	int ret = KNOT_EOK;
-	uint32_t new_expire = time(NULL) + expires_at;
-	if (new_expire < zd->dnssec_timer->tv.tv_sec) {
-		// Drop old event, earlier signing needed
-		zones_cancel_dnssec(zone);
-		ret = zones_schedule_dnssec(zone,
-		                            expiration_to_relative(new_expire,
-								   zone));
+	if (zd->dnssec_timer->tv.tv_sec <= refresh_at) {
+		return KNOT_EOK;
 	}
-	return ret;
+
+	zones_cancel_dnssec(zone);
+	return zones_schedule_dnssec(zone, refresh_at);
 }
 
 static bool apex_rr_changed(const knot_zone_contents_t *old_contents,
@@ -1056,7 +1026,6 @@ static bool zones_nsec3param_changed(const knot_zone_contents_t *old_contents,
 {
 	return apex_rr_changed(old_contents, new_contents, KNOT_RRTYPE_NSEC3PARAM);
 }
-
 
 /*! \brief Process UPDATE query.
  *
@@ -1151,7 +1120,7 @@ static int zones_process_update_auth(knot_zone_t *zone,
 
 	knot_changesets_t *sec_chs = NULL;
 	knot_changeset_t *sec_ch = NULL;
-	uint32_t expires_at = 0;
+	uint32_t refresh_at = 0;
 
 	conf_zone_t *zone_config = ((zonedata_t *)knot_zone_data(zone))->conf;
 	assert(zone_config);
@@ -1193,20 +1162,15 @@ static int zones_process_update_auth(knot_zone_t *zone,
 		    zones_nsec3param_changed(old_contents, new_contents)) {
 			ret = knot_dnssec_zone_sign(fake_zone, sec_ch,
 			                            KNOT_SOA_SERIAL_KEEP,
-			                            &expires_at, new_serial);
+			                            &refresh_at, new_serial);
 		} else {
 			// Sign the created changeset
-			uint32_t used_lifetime = 0;
-			uint32_t used_refresh = 0;
 
 			knot_zone_contents_load_nsec3param(new_contents);
 			ret = knot_dnssec_sign_changeset(fake_zone,
 			                      knot_changesets_get_last(chgsets),
 			                      sec_ch, KNOT_SOA_SERIAL_KEEP,
-			                      &used_lifetime, &used_refresh,
-			                      new_serial);
-
-			expires_at = used_lifetime - used_refresh;
+			                      &refresh_at, new_serial);
 		}
 
 		if (ret != KNOT_EOK) {
@@ -1263,7 +1227,7 @@ static int zones_process_update_auth(knot_zone_t *zone,
 		// Plan zone resign if needed
 		zonedata_t *zd = (zonedata_t *)zone->data;
 		assert(zd && zd->dnssec_timer);
-		ret = replan_zone_sign_after_ddns(zone, zd, expires_at);
+		ret = replan_zone_sign_after_ddns(zone, zd, refresh_at);
 		if (ret != KNOT_EOK) {
 			log_zone_error("%s: Failed to replan zone sign %s\n",
 			               msg, knot_strerror(ret));
@@ -1591,6 +1555,8 @@ int zones_normal_query_answer(knot_nameserver_t *nameserver,
 			break;
 		default:
 			rcode = KNOT_RCODE_REFUSED;
+			ret = KNOT_ENOTSUP;
+			break;
 		}
 	}
 
@@ -1783,12 +1749,12 @@ int zones_normal_query_answer(knot_nameserver_t *nameserver,
 			// in other case the RCODE is set and ret != KNOT_EOK
 			// and a normal error is returned below
 		}
+	}
 
-		if (ret != KNOT_EOK) {
-			knot_ns_error_response_full(nameserver, resp,
-			                            rcode, resp_wire,
-			                            rsize);
-		}
+	if (ret != KNOT_EOK) {
+		knot_ns_error_response_full(nameserver, resp,
+		                            rcode, resp_wire,
+		                            rsize);
 	}
 
 	knot_packet_free(&resp);
@@ -1869,7 +1835,7 @@ int zones_process_update(knot_nameserver_t *nameserver,
 			return ret;
 		}
 	}
-	
+
 	/*
 	 * Check if UPDATE not running already.
 	 */
@@ -2362,7 +2328,6 @@ static int zones_serialize_and_store_chgset(const knot_changeset_t *chs,
 
 	}
 
-
 	return KNOT_EOK;
 }
 
@@ -2661,8 +2626,8 @@ int zones_schedule_notify(knot_zone_t *zone)
 		/* Create request. */
 		knot_ns_xfr_t *rq = xfr_task_create(zone, XFR_TYPE_NOTIFY, XFR_FLAG_UDP);
 		if (!rq) {
-			log_server_error("Failed to create NOTIFY for '%s', "
-			                 "not enough memory.\n", cfg->name);
+			log_zone_error("Failed to create NOTIFY for '%s', "
+			               "not enough memory.\n", cfg->name);
 			continue;
 		}
 
@@ -2672,8 +2637,8 @@ int zones_schedule_notify(knot_zone_t *zone)
 		xfr_task_setaddr(rq, &addr, &cfg_if->via);
 		rq->data = (void *)((long)cfg->notify_retries);
 		if (xfr_enqueue(zd->server->xfr, rq) != KNOT_EOK) {
-			log_server_error("Failed to enqueue NOTIFY for '%s'.",
-			                 cfg->name);
+			log_zone_error("Failed to enqueue NOTIFY for '%s'.",
+			               cfg->name);
 			continue;
 		}
 	}
@@ -2724,11 +2689,11 @@ int zones_schedule_refresh(knot_zone_t *zone, int64_t time)
 	return KNOT_EOK;
 }
 
-int zones_dnssec_sign(knot_zone_t *zone, bool force, uint32_t *expires_at)
+int zones_dnssec_sign(knot_zone_t *zone, bool force, uint32_t *refresh_at)
 {
 	int ret = KNOT_EOK;
 	char *msgpref = NULL;
-	*expires_at = 0;
+	*refresh_at = 0;
 
 	knot_changesets_t *chs = knot_changesets_create();
 	if (chs == NULL) {
@@ -2759,11 +2724,11 @@ int zones_dnssec_sign(knot_zone_t *zone, bool force, uint32_t *expires_at)
 	uint32_t new_serial = zones_next_serial(zone);
 
 	if (force) {
-		ret = knot_dnssec_zone_sign_force(zone, ch, expires_at,
+		ret = knot_dnssec_zone_sign_force(zone, ch, refresh_at,
 		                                  new_serial);
 	} else {
 		ret = knot_dnssec_zone_sign(zone, ch, KNOT_SOA_SERIAL_UPDATE,
-		                            expires_at, new_serial);
+		                            refresh_at, new_serial);
 	}
 	if (ret != KNOT_EOK) {
 		goto done;
@@ -2794,13 +2759,11 @@ int zones_dnssec_ev(event_t *event)
 	// We will be working with zone, don't want it to change in the meantime
 	rcu_read_lock();
 	knot_zone_t *zone = (knot_zone_t *)event->data;
-	uint32_t expires_at = 0;
+	uint32_t refresh_at = 0;
 
-	int ret = zones_dnssec_sign(zone, false, &expires_at);
-	if (expires_at != 0) {
-		ret = zones_schedule_dnssec(zone,
-		                            expiration_to_relative(expires_at,
-								   zone));
+	int ret = zones_dnssec_sign(zone, false, &refresh_at);
+	if (refresh_at != 0) {
+		ret = zones_schedule_dnssec(zone, refresh_at);
 	}
 	rcu_read_unlock();
 
@@ -2823,7 +2786,7 @@ int zones_cancel_dnssec(knot_zone_t *zone)
 	return KNOT_EOK;
 }
 
-int zones_schedule_dnssec(knot_zone_t *zone, uint32_t time)
+int zones_schedule_dnssec(knot_zone_t *zone, time_t unixtime)
 {
 	if (!zone || !zone->data) {
 		return KNOT_EINVAL;
@@ -2832,20 +2795,44 @@ int zones_schedule_dnssec(knot_zone_t *zone, uint32_t time)
 	zonedata_t *zd = (zonedata_t *)zone->data;
 	evsched_t *scheduler = zd->server->sched;
 
-	char *zname = knot_dname_to_str(knot_zone_name(zone));
-	log_zone_info("DNSSEC: Zone %s - planning next resign %" PRIu32 "s"
-	              "(%" PRIu32 "h) from now.\n", zname, time / 1000,
-	              time / 3600000);
+	// event not created yet
+	if (zd->dnssec_timer == NULL) {
+		return KNOT_EAGAIN;
+	}
+
+	char *zname = knot_dname_to_str(zone->name);
+
+	// absolute time -> relative time
+
+	time_t now = time(NULL);
+	int32_t relative = 0;
+	if (unixtime <= now) {
+		log_zone_warning("DNSSEC: Zone %s: Signature life time too low, "
+		                 "set higher value in configuration!\n", zname);
+	} else {
+		relative = unixtime - now;
+	}
+
+	// log the message
+
+	char time_str[64] = {'\0'};
+	struct tm time_gm = {0};
+
+	gmtime_r(&unixtime, &time_gm);
+
+	strftime(time_str, sizeof(time_str), KNOT_LOG_TIME_FORMAT, &time_gm);
+
+	log_zone_info("DNSSEC: Zone %s: Next signing planned on %s.\n",
+	              zname, time_str);
+
 	free(zname);
 
-	if (zd->dnssec_timer) {
-		// Event created already, just reschedule
-		evsched_schedule(scheduler, zd->dnssec_timer, time);
-	}
+	// schedule
+
+	evsched_schedule(scheduler, zd->dnssec_timer, relative * 1000);
 
 	return KNOT_EOK;
 }
-
 
 /*!
  * \brief Schedule IXFR sync for given zone.
@@ -2882,7 +2869,6 @@ int zones_process_update_response(knot_ns_xfr_t *data, uint8_t *rwire, size_t *r
 	*rsize = 0;
 	return ret;
 }
-
 
 int zones_verify_tsig_query(const knot_packet_t *query,
                             const knot_tsig_key_t *key,
@@ -3043,23 +3029,23 @@ int zones_journal_apply(knot_zone_t *zone)
 	if (ret == KNOT_EOK || ret == KNOT_ERANGE) {
 		if (!EMPTY_LIST(chsets->sets)) {
 			/* Apply changesets. */
-			log_server_info("Applying '%zu' changesets from journal "
-			                "to zone '%s'.\n",
-			                chsets->count, zd->conf->name);
+			log_zone_info("Applying '%zu' changesets from journal "
+			              "to zone '%s'.\n",
+			              chsets->count, zd->conf->name);
 			knot_zone_contents_t *contents = NULL;
 			int apply_ret = xfrin_apply_changesets(zone, chsets,
 			                                       &contents);
 			if (apply_ret != KNOT_EOK) {
-				log_server_error("Failed to apply changesets to"
-				                 " '%s' - Apply failed: %s\n",
-				                 zd->conf->name,
-				                 knot_strerror(apply_ret));
+				log_zone_error("Failed to apply changesets to"
+				               " '%s' - Apply failed: %s\n",
+				               zd->conf->name,
+				               knot_strerror(apply_ret));
 				ret = KNOT_ERROR;
 			} else {
 				/* Switch zone immediately. */
-				log_server_info("Zone '%s' serial %u -> %u.\n",
-				                zd->conf->name,
-				                serial, knot_zone_serial(contents));
+				log_zone_info("Zone '%s' serial %u -> %u.\n",
+				              zd->conf->name,
+				              serial, knot_zone_serial(contents));
 				dbg_zones("Old zone contents: %p, new: %p\n",
 				          zone->contents, contents);
 				rcu_read_unlock();
@@ -3070,10 +3056,10 @@ int zones_journal_apply(knot_zone_t *zone)
 					xfrin_cleanup_successful_update(
 							chsets->changes);
 				} else {
-					log_server_error("Failed to apply "
-					  "changesets to '%s' - Switch failed: "
-					  "%s\n", zd->conf->name,
-					  knot_strerror(apply_ret));
+					log_zone_error("Failed to apply "
+					               "changesets to '%s' - Switch failed: "
+					               "%s\n", zd->conf->name,
+					               knot_strerror(apply_ret));
 					ret = KNOT_ERROR;
 
 					// Cleanup old and new contents
@@ -3151,7 +3137,7 @@ int zones_do_diff_and_sign(const conf_zone_t *z, knot_zone_t *zone,
 	knot_changesets_t *sec_chs = NULL;
 	knot_changeset_t *sec_ch = NULL;
 	knot_zone_contents_t *new_contents = NULL;
-	uint32_t expires_at = 0;
+	uint32_t refresh_at = 0;
 	if (z->dnssec_enable) {
 		sec_chs = knot_changesets_create();
 		if (sec_chs == NULL) {
@@ -3179,7 +3165,7 @@ int zones_do_diff_and_sign(const conf_zone_t *z, knot_zone_t *zone,
 		 */
 		int ret = knot_dnssec_zone_sign(zone, sec_ch,
 		                                KNOT_SOA_SERIAL_UPDATE,
-		                                &expires_at, new_serial);
+		                                &refresh_at, new_serial);
 		if (ret != KNOT_EOK) {
 			knot_changesets_free(&diff_chs);
 			knot_changesets_free(&sec_chs);
@@ -3255,9 +3241,7 @@ int zones_do_diff_and_sign(const conf_zone_t *z, knot_zone_t *zone,
 
 	// Schedule next zone signing
 	if (z->dnssec_enable) {
-		ret = zones_schedule_dnssec(zone,
-					    expiration_to_relative(expires_at,
-								   zone));
+		ret = zones_schedule_dnssec(zone, refresh_at);
 	}
 
 	return ret;

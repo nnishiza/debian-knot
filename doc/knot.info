@@ -1,6 +1,6 @@
 This is knot.info, produced by makeinfo version 4.13 from knot.texi.
 
-This manual is for Knot DNS (version 1.4.1, 6 January 2014), which is a
+This manual is for Knot DNS (version 1.4.2, 6 January 2014), which is a
 high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.4.1, 6 January 2014).
+This manual is for Knot DNS (version 1.4.2, 6 January 2014).
 
 * Menu:
 
@@ -1725,8 +1725,8 @@ A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.4.1";
-       version "1.4.1";
+       identity "Knot DNS 1.4.2";
+       version "1.4.2";
        nsid    "amaterasu";
        rundir "/var/run/knot";
        workers 16;
@@ -2465,12 +2465,10 @@ A.7.2.18 signature-lifetime
 Specifies how long should the automatically generated DNSSEC signatures
 be valid.  Expiration will thus be set as current time (in the moment
 of signing) + `signature-lifetime'.  Possible values are from 10801 to
-INT_MAX. The lower limit is because the server will trigger resign when
-any of the signatures expires in 7200 seconds or less and it was chosen
-as a reasonable value with regard to signing overhead. Setting the
-signature lifetime to minimum value will result in re-signing the zone
-each hour. For information about zone expiration date, invoke the
-`knotc zonestatus' command.
+INT_MAX. The signatures are refreshed one tenth of the signature
+lifetime before the signature expiration (i.e., 3 days before the
+expiration with the default value). For information about zone
+expiration date, invoke the `knotc zonestatus' command.
 
 Default value: `30d' (`2592000')
 
@@ -2936,22 +2934,22 @@ Node: ixfr-fslimit76299
 Node: dnssec-keydir76727
 Node: dnssec-enable76984
 Node: signature-lifetime77329
-Node: serial-policy78145
-Node: zones Example78985
-Node: zones List of zone semantic checks80086
-Node: log81886
-Node: log Syntax82109
-Node: log Statement Definition and Grammar82435
-Node: log_name83145
-Node: category83474
-Node: severity83941
-Node: log_file84683
-Node: log Example84938
-Node: include85321
-Node: include Syntax85790
-Node: include Examples85928
-Node: Migration from other DNS servers86195
-Node: Knot DNS for BIND users86433
+Node: serial-policy78019
+Node: zones Example78859
+Node: zones List of zone semantic checks79960
+Node: log81760
+Node: log Syntax81983
+Node: log Statement Definition and Grammar82309
+Node: log_name83019
+Node: category83348
+Node: severity83815
+Node: log_file84557
+Node: log Example84812
+Node: include85195
+Node: include Syntax85664
+Node: include Examples85802
+Node: Migration from other DNS servers86069
+Node: Knot DNS for BIND users86307
 
 End Tag Table
 
