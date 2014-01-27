@@ -1,3 +1,10 @@
+knot (1.4.2-1) unstable; urgency=low
+
+  * New upstream version 1.4.2
+  * Update OpenSSL << 1.0.0 compatibility patch
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 27 Jan 2014 16:14:33 +0100
+
 knot (1.4.1-2) unstable; urgency=low
 
   * Add patch to remove the requirement for OpenSSL 1.0.0 to build on
