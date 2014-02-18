@@ -836,10 +836,13 @@ static yyconst flex_int32_t yy_rule_can_match_eol[90] =
 #line 26 "cf-lex.l"
 
 #include <config.h>
+#include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "common/sockaddr.h"
 #include "knot/conf/conf.h"
@@ -876,7 +879,7 @@ int hex2bin(const char* src, char *dst, size_t len) {
 
 #define YY_NO_INPUT 1
 
-#line 880 "knot/conf/libknotd_la-cf-lex.c"
+#line 883 "knot/conf/libknotd_la-cf-lex.c"
 
 #define INITIAL 0
 #define include 1
@@ -1115,9 +1118,9 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 87 "cf-lex.l"
+#line 90 "cf-lex.l"
 
-#line 1121 "knot/conf/libknotd_la-cf-lex.c"
+#line 1124 "knot/conf/libknotd_la-cf-lex.c"
 
     yylval = yylval_param;
 
@@ -1217,328 +1220,328 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 88 "cf-lex.l"
+#line 91 "cf-lex.l"
 /* Ignore comments */;
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 89 "cf-lex.l"
+#line 92 "cf-lex.l"
 /* Ignore whitespace */;
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 90 "cf-lex.l"
+#line 93 "cf-lex.l"
 { return yytext[0]; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 91 "cf-lex.l"
+#line 94 "cf-lex.l"
 { lval.t = yytext; return SYSTEM; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 92 "cf-lex.l"
+#line 95 "cf-lex.l"
 { lval.t = yytext; return IDENTITY; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 93 "cf-lex.l"
+#line 96 "cf-lex.l"
 { lval.t = yytext; return HOSTNAME; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 94 "cf-lex.l"
+#line 97 "cf-lex.l"
 { lval.t = yytext; return SVERSION; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 95 "cf-lex.l"
+#line 98 "cf-lex.l"
 { lval.t = yytext; return NSID; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 96 "cf-lex.l"
+#line 99 "cf-lex.l"
 { lval.t = yytext; return MAX_UDP_PAYLOAD; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 97 "cf-lex.l"
+#line 100 "cf-lex.l"
 { lval.t = yytext; return STORAGE; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 98 "cf-lex.l"
+#line 101 "cf-lex.l"
 { lval.t = yytext; return KEY; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 99 "cf-lex.l"
+#line 102 "cf-lex.l"
 { lval.t = yytext; return KEYS; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 100 "cf-lex.l"
+#line 103 "cf-lex.l"
 { lval.t = yytext; return REMOTES; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 101 "cf-lex.l"
+#line 104 "cf-lex.l"
 { lval.t = yytext; return GROUPS; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 103 "cf-lex.l"
+#line 106 "cf-lex.l"
 { lval.t = yytext; return ZONES; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 104 "cf-lex.l"
+#line 107 "cf-lex.l"
 { lval.t = yytext; return FILENAME; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 105 "cf-lex.l"
+#line 108 "cf-lex.l"
 { lval.t = yytext; return DISABLE_ANY; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 106 "cf-lex.l"
+#line 109 "cf-lex.l"
 { lval.t = yytext; return SEMANTIC_CHECKS; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 107 "cf-lex.l"
+#line 110 "cf-lex.l"
 { lval.t = yytext; return NOTIFY_RETRIES; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 108 "cf-lex.l"
+#line 111 "cf-lex.l"
 { lval.t = yytext; return NOTIFY_TIMEOUT; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 109 "cf-lex.l"
+#line 112 "cf-lex.l"
 { lval.t = yytext; return DBSYNC_TIMEOUT; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 110 "cf-lex.l"
+#line 113 "cf-lex.l"
 { lval.t = yytext; return IXFR_FSLIMIT; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 111 "cf-lex.l"
+#line 114 "cf-lex.l"
 { lval.t = yytext; return XFR_IN; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 112 "cf-lex.l"
+#line 115 "cf-lex.l"
 { lval.t = yytext; return XFR_OUT; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 113 "cf-lex.l"
+#line 116 "cf-lex.l"
 { lval.t = yytext; return UPDATE_IN; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 114 "cf-lex.l"
+#line 117 "cf-lex.l"
 { lval.t = yytext; return NOTIFY_IN; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 115 "cf-lex.l"
+#line 118 "cf-lex.l"
 { lval.t = yytext; return NOTIFY_OUT; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 116 "cf-lex.l"
+#line 119 "cf-lex.l"
 { lval.t = yytext; return WORKERS; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 117 "cf-lex.l"
+#line 120 "cf-lex.l"
 { lval.t = yytext; return USER; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 118 "cf-lex.l"
+#line 121 "cf-lex.l"
 { lval.t = yytext; return PIDFILE; }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 119 "cf-lex.l"
+#line 122 "cf-lex.l"
 { lval.t = yytext; return RUNDIR; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 120 "cf-lex.l"
+#line 123 "cf-lex.l"
 { lval.t = yytext; return BUILD_DIFFS; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 121 "cf-lex.l"
+#line 124 "cf-lex.l"
 { lval.t = yytext; return SERIAL_POLICY; }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 122 "cf-lex.l"
+#line 125 "cf-lex.l"
 { lval.t = yytext; return MAX_CONN_IDLE; }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 123 "cf-lex.l"
+#line 126 "cf-lex.l"
 { lval.t = yytext; return MAX_CONN_HS; }
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 124 "cf-lex.l"
+#line 127 "cf-lex.l"
 { lval.t = yytext; return MAX_CONN_REPLY; }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 125 "cf-lex.l"
+#line 128 "cf-lex.l"
 { lval.t = yytext; return RATE_LIMIT; }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 126 "cf-lex.l"
+#line 129 "cf-lex.l"
 { lval.t = yytext; return RATE_LIMIT_SIZE; }
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 127 "cf-lex.l"
+#line 130 "cf-lex.l"
 { lval.t = yytext; return RATE_LIMIT_SLIP; }
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 128 "cf-lex.l"
+#line 131 "cf-lex.l"
 { lval.t = yytext; return TRANSFERS; }
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 129 "cf-lex.l"
+#line 132 "cf-lex.l"
 { lval.t = yytext; return DNSSEC_ENABLE; }
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 130 "cf-lex.l"
+#line 133 "cf-lex.l"
 { lval.t = yytext; return DNSSEC_KEYDIR; }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 131 "cf-lex.l"
+#line 134 "cf-lex.l"
 { lval.t = yytext; return SIGNATURE_LIFETIME; }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 133 "cf-lex.l"
+#line 136 "cf-lex.l"
 { lval.t = yytext; return INTERFACES; }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 134 "cf-lex.l"
+#line 137 "cf-lex.l"
 { lval.t = yytext; return ADDRESS; }
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 135 "cf-lex.l"
+#line 138 "cf-lex.l"
 { lval.t = yytext; return PORT; }
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 136 "cf-lex.l"
+#line 139 "cf-lex.l"
 { lval.t = yytext; return VIA; }
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 138 "cf-lex.l"
+#line 141 "cf-lex.l"
 { lval.t = yytext; return CONTROL; }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 139 "cf-lex.l"
+#line 142 "cf-lex.l"
 { lval.t = yytext; return ALLOW; }
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 140 "cf-lex.l"
+#line 143 "cf-lex.l"
 { lval.t = yytext; return LISTEN_ON; }
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 142 "cf-lex.l"
+#line 145 "cf-lex.l"
 { lval.t = yytext; return LOG; }
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 144 "cf-lex.l"
+#line 147 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_ANY; return LOG_SRC; }
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 145 "cf-lex.l"
+#line 148 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_SERVER; return LOG_SRC; }
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 146 "cf-lex.l"
+#line 149 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_ANSWER; return LOG_SRC; }
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 147 "cf-lex.l"
+#line 150 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_ZONE; return LOG_SRC; }
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 148 "cf-lex.l"
+#line 151 "cf-lex.l"
 { lval.t = yytext; lval.i = LOGT_STDOUT; return LOG_DEST; }
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 149 "cf-lex.l"
+#line 152 "cf-lex.l"
 { lval.t = yytext; lval.i = LOGT_STDERR; return LOG_DEST; }
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 150 "cf-lex.l"
+#line 153 "cf-lex.l"
 { lval.t = yytext; lval.i = LOGT_SYSLOG; return LOG_DEST; }
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 151 "cf-lex.l"
+#line 154 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_UPTO(LOG_DEBUG); return LOG_LEVEL; }
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 152 "cf-lex.l"
+#line 155 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_DEBUG); return LOG_LEVEL; }
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 153 "cf-lex.l"
+#line 156 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_INFO); return LOG_LEVEL; }
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 154 "cf-lex.l"
+#line 157 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_NOTICE); return LOG_LEVEL; }
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 155 "cf-lex.l"
+#line 158 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_WARNING); return LOG_LEVEL; }
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 156 "cf-lex.l"
+#line 159 "cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_ERR); return LOG_LEVEL; }
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 158 "cf-lex.l"
+#line 161 "cf-lex.l"
 {
   lval.t = yytext;
   if (strcmp(yytext, "increment") == 0) {
@@ -1551,7 +1554,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 168 "cf-lex.l"
+#line 171 "cf-lex.l"
 {
   lval.t = yytext;
   lval.i = 0;
@@ -1563,12 +1566,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 177 "cf-lex.l"
+#line 180 "cf-lex.l"
 BEGIN(include);
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 179 "cf-lex.l"
+#line 182 "cf-lex.l"
 {
   size_t mpos = strlen(yytext) - 1;
   char multiplier = yytext[mpos];
@@ -1593,7 +1596,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 201 "cf-lex.l"
+#line 204 "cf-lex.l"
 {
   size_t mpos = strlen(yytext) - 1;
   char multiplier = yytext[mpos];
@@ -1617,7 +1620,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 222 "cf-lex.l"
+#line 225 "cf-lex.l"
 {
   lval.i = atol(yytext);
   return NUM;
@@ -1625,7 +1628,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 227 "cf-lex.l"
+#line 230 "cf-lex.l"
 {
   unsigned char buf[sizeof(struct in_addr)];
   if (inet_pton(AF_INET, yytext, buf)) {
@@ -1637,7 +1640,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 236 "cf-lex.l"
+#line 239 "cf-lex.l"
 {
 #ifdef DISABLE_IPV6
   lval.t = strdup(yytext);
@@ -1656,7 +1659,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 252 "cf-lex.l"
+#line 255 "cf-lex.l"
 {
 #ifdef DISABLE_IPV6
 	lval.t = strdup(yytext);
@@ -1674,7 +1677,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 267 "cf-lex.l"
+#line 270 "cf-lex.l"
 {
   lval.t = NULL;
   lval.l = 0;
@@ -1702,42 +1705,42 @@ YY_RULE_SETUP
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 292 "cf-lex.l"
+#line 295 "cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_GSS_TSIG;    return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 293 "cf-lex.l"
+#line 296 "cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_MD5;    return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 294 "cf-lex.l"
+#line 297 "cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA1;   return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 295 "cf-lex.l"
+#line 298 "cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA224; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 296 "cf-lex.l"
+#line 299 "cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA256; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 297 "cf-lex.l"
+#line 300 "cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA384; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 298 "cf-lex.l"
+#line 301 "cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA512; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 300 "cf-lex.l"
+#line 303 "cf-lex.l"
 {
   yytext[yyleng-1] = 0;
   lval.t = strdup(yytext + 1);
@@ -1747,12 +1750,12 @@ YY_RULE_SETUP
 case 83:
 /* rule 83 can match eol */
 YY_RULE_SETUP
-#line 306 "cf-lex.l"
+#line 309 "cf-lex.l"
 cf_error(yyscanner, "Unterminated string.");
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 308 "cf-lex.l"
+#line 311 "cf-lex.l"
 {
   lval.t = strdup(yytext);
   return TEXT /* Last resort, alphanumeric word. */;
@@ -1760,18 +1763,14 @@ YY_RULE_SETUP
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 313 "cf-lex.l"
+#line 316 "cf-lex.l"
 /* Optional : in assignments. */;
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(include):
-#line 315 "cf-lex.l"
+#line 318 "cf-lex.l"
 {
-	conf_include_t *inc = conf_includes_pop(yyextra->includes);
-	free(inc->filename);
-	if (inc->handle) {
-		fclose(inc->handle);
-	}
+	conf_includes_remove(yyextra->includes);
 
 	cf_pop_buffer_state(yyscanner);
 
@@ -1783,12 +1782,12 @@ case YY_STATE_EOF(include):
 case 86:
 /* rule 86 can match eol */
 YY_RULE_SETUP
-#line 329 "cf-lex.l"
+#line 328 "cf-lex.l"
 
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 330 "cf-lex.l"
+#line 329 "cf-lex.l"
 {
 	BEGIN(INITIAL);
 
@@ -1807,7 +1806,7 @@ YY_RULE_SETUP
 	yytext[yyleng] = '\0';
 
 	if (!conf_includes_push(yyextra->includes, yytext)) {
-		cf_error(yyscanner, "includes nested too deeply");
+		cf_error(yyscanner, "include loop");
 		return END;
 	}
 
@@ -1817,28 +1816,94 @@ YY_RULE_SETUP
 	FILE *included = fopen(inc->filename, "r");
 	if (!included) {
 		cf_error(yyscanner, "cannot open file '%s'", inc->filename);
-		conf_includes_pop(yyextra->includes);
-		free(inc->filename);
+		conf_includes_remove(yyextra->includes);
+		return END;
+	}
+	inc->handle = included;
+
+	struct stat file_stat;
+	if (fstat(fileno(included), &file_stat) == -1) {
+		cf_error(yyscanner, "cannot stat file '%s'", yytext);
+		conf_includes_remove(yyextra->includes);
 		return END;
 	}
 
-	inc->handle = included;
-	YY_BUFFER_STATE bs = cf__create_buffer(included,YY_BUF_SIZE,yyscanner);
-	cf_push_buffer_state(bs,yyscanner);
+	if (S_ISDIR(file_stat.st_mode)) {
+		// Store dirname statically to reduce deallocation.
+		char dirname[256] = { 0 };
+		int ret = snprintf(dirname, sizeof(dirname), "%s",
+		                   inc->filename);
+		if (ret <= 0 || ret >= sizeof(dirname)) {
+			cf_error(yyscanner, "dir name is too long '%s'",
+			         inc->filename);
+			return END;
+		}
+
+		// Remove include directory from the stack.
+		conf_includes_remove(yyextra->includes);
+
+		DIR *dp = opendir(dirname);
+		if (dp == NULL) {
+			cf_error(yyscanner, "cannot open directory '%s'",
+			         dirname);
+			return END;
+		}
+
+		struct dirent *ep;
+		while ((ep = readdir(dp)) != NULL) {
+			// Skip names with leading dot.
+			if (*ep->d_name == '.') {
+				continue;
+			}
+
+			char infile[256] = { 0 };
+			int ret = snprintf(infile, sizeof(infile), "%s/%s",
+			                   dirname, ep->d_name);
+			if (ret <= 0 || ret >= sizeof(infile)) {
+				cf_error(yyscanner, "cannot open file '%s/%s'",
+				         dirname, ep->d_name);
+				return END;
+			}
+
+			if (!conf_includes_push(yyextra->includes, infile)) {
+				cf_error(yyscanner, "include loop");
+				return END;
+			}
+
+			// retrieved relative to previous config
+			conf_include_t *inc = conf_includes_top(yyextra->includes);
+
+			FILE *included = fopen(inc->filename, "r");
+			if (!included) {
+				cf_error(yyscanner, "cannot open file '%s'",
+				         inc->filename);
+				conf_includes_remove(yyextra->includes);
+				return END;
+			}
+			inc->handle = included;
+
+			YY_BUFFER_STATE bs = cf__create_buffer(included,YY_BUF_SIZE,yyscanner);
+			cf_push_buffer_state(bs,yyscanner);
+		}
+		(void)closedir(dp);
+	} else {
+		YY_BUFFER_STATE bs = cf__create_buffer(included,YY_BUF_SIZE,yyscanner);
+		cf_push_buffer_state(bs,yyscanner);
+	}
 }
 	YY_BREAK
 case 88:
 /* rule 88 can match eol */
 YY_RULE_SETUP
-#line 368 "cf-lex.l"
+#line 435 "cf-lex.l"
 cf_error(yyscanner, "Unterminated string.");
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 370 "cf-lex.l"
+#line 437 "cf-lex.l"
 ECHO;
 	YY_BREAK
-#line 1842 "knot/conf/libknotd_la-cf-lex.c"
+#line 1907 "knot/conf/libknotd_la-cf-lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2972,7 +3037,7 @@ void cf_free (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 370 "cf-lex.l"
+#line 437 "cf-lex.l"
 
 
 

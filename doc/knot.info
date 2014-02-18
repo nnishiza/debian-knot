@@ -1,6 +1,6 @@
 This is knot.info, produced by makeinfo version 4.13 from knot.texi.
 
-This manual is for Knot DNS (version 1.4.2, 6 January 2014), which is a
+This manual is for Knot DNS (version 1.4.3, 6 January 2014), which is a
 high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.4.2, 6 January 2014).
+This manual is for Knot DNS (version 1.4.3, 6 January 2014).
 
 * Menu:
 
@@ -399,7 +399,7 @@ File: knot.info,  Node: Required libraries,  Next: Installation from the sources
 
 Knot DNS requires few libraries to be compiled:
 
-   * OpenSSL, at least 0.9.8
+   * OpenSSL, at least 1.0.0
 
    * zlib
 
@@ -1725,8 +1725,8 @@ A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.4.2";
-       version "1.4.2";
+       identity "Knot DNS 1.4.3";
+       version "1.4.3";
        nsid    "amaterasu";
        rundir "/var/run/knot";
        workers 16;
@@ -2720,8 +2720,8 @@ A.9 `include' Statement
 =======================
 
 The `include' statement is a special statement which can be used almost
-anywhere on any level in the configuration file. It makes inclusion of
-another file possible.
+anywhere on any level in the configuration file. It allows inclusion of
+another file or all files in the given directory.
 
 The path of the included file can be either absolute or relative to a
 configuration file currently being processed.
@@ -2738,6 +2738,7 @@ A.9.1 Syntax
 ------------
 
      `include' "filename"`;'
+     `include' "dirname"`;'
 
 
 File: knot.info,  Node: include Examples,  Prev: include Syntax,  Up: include
@@ -2754,6 +2755,8 @@ A.9.2 Examples
        }
        include "remotes.conf";
      }
+
+     include "zones";
 
 
 File: knot.info,  Node: Migration from other DNS servers,  Prev: Knot DNS Configuration Reference,  Up: Top
@@ -2946,10 +2949,10 @@ Node: severity83815
 Node: log_file84557
 Node: log Example84812
 Node: include85195
-Node: include Syntax85664
-Node: include Examples85802
-Node: Migration from other DNS servers86069
-Node: Knot DNS for BIND users86307
+Node: include Syntax85692
+Node: include Examples85858
+Node: Migration from other DNS servers86148
+Node: Knot DNS for BIND users86386
 
 End Tag Table
 
