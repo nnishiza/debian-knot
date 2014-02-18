@@ -1,3 +1,10 @@
+knot (1.4.3-2) unstable; urgency=medium
+
+  * Add support for autotools-dev and dh-systemd
+  * Enable parallel builds in dh invocation
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 18 Feb 2014 13:44:13 +0100
+
 knot (1.4.3-1) unstable; urgency=low
 
   * New upstream version 1.4.3
