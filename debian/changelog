@@ -1,3 +1,9 @@
+knot (1.4.3-1) unstable; urgency=low
+
+  * New upstream version 1.4.3
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 18 Feb 2014 13:03:42 +0100
+
 knot (1.4.2-1) unstable; urgency=low
 
   * New upstream version 1.4.2
