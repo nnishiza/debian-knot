@@ -1,6 +1,6 @@
 This is knot.info, produced by makeinfo version 4.13 from knot.texi.
 
-This manual is for Knot DNS (version 1.4.3, 6 January 2014), which is a
+This manual is for Knot DNS (version 1.4.4, 6 January 2014), which is a
 high-performance authoritative-only DNS server.
 
 Copyright (C) 2012 CZ.NIC, z.s.p.o.
@@ -30,7 +30,7 @@ File: knot.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Knot DNS
 ********
 
-This manual is for Knot DNS (version 1.4.3, 6 January 2014).
+This manual is for Knot DNS (version 1.4.4, 6 January 2014).
 
 * Menu:
 
@@ -245,7 +245,7 @@ Knot DNS supports the following DNS features:
 
    * TSIG
 
-   * ENDS0
+   * EDNS0
 
    * DNSSEC, including NSEC3
 
@@ -1725,8 +1725,8 @@ A.1.3 system Example
 --------------------
 
      system {
-       identity "Knot DNS 1.4.3";
-       version "1.4.3";
+       identity "Knot DNS 1.4.4";
+       version "1.4.4";
        nsid    "amaterasu";
        rundir "/var/run/knot";
        workers 16;

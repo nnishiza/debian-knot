@@ -38,6 +38,7 @@
 #define KNOT_CTL_REALM "knot."
 #define KNOT_CTL_REALM_EXT ("." KNOT_CTL_REALM)
 #define CMDARGS_BUFLEN (1024*1024) /* 1M */
+#define CMDARGS_BUFLEN_LOG 256
 #define KNOT_CTL_SOCKET_UMASK 0007
 
 /*! \brief Remote command structure. */
@@ -65,6 +66,7 @@ typedef struct remote_cmd_t {
 static int remote_c_stop(server_t *s, remote_cmdargs_t* a);
 static int remote_c_reload(server_t *s, remote_cmdargs_t* a);
 static int remote_c_refresh(server_t *s, remote_cmdargs_t* a);
+static int remote_c_retransfer(server_t *s, remote_cmdargs_t* a);
 static int remote_c_status(server_t *s, remote_cmdargs_t* a);
 static int remote_c_zonestatus(server_t *s, remote_cmdargs_t* a);
 static int remote_c_flush(server_t *s, remote_cmdargs_t* a);
@@ -75,6 +77,7 @@ struct remote_cmd_t remote_cmd_tbl[] = {
 	{ "stop",      &remote_c_stop },
 	{ "reload",    &remote_c_reload },
 	{ "refresh",   &remote_c_refresh },
+	{ "retransfer",&remote_c_retransfer },
 	{ "status",    &remote_c_status },
 	{ "zonestatus",&remote_c_zonestatus },
 	{ "flush",     &remote_c_flush },
@@ -140,6 +143,18 @@ static int remote_zone_refresh(server_t *s, const knot_zone_t *z)
 		                 knot_random_uint32_t() % 1000);
 	}
 
+	return KNOT_EOK;
+}
+
+/*! \brief Render zones obsolete (needing retransfer). */
+static int remote_zone_obsolete(server_t *s, const knot_zone_t *z)
+{
+	if (!s || !z) {
+		return KNOT_EINVAL;
+	}
+
+	knot_zone_t *zone = (knot_zone_t *)z;
+	zone->flags |= KNOT_ZONE_OBSOLETE;
 	return KNOT_EOK;
 }
 
@@ -343,6 +358,7 @@ static int remote_c_zonestatus(server_t *s, remote_cmdargs_t* a)
 	return ret;
 }
 
+
 /*!
  * \brief Remote command 'refresh' handler.
  *
@@ -361,6 +377,30 @@ static int remote_c_refresh(server_t *s, remote_cmdargs_t* a)
 
 	/* Refresh specific zones. */
 	return remote_rdata_apply(s, a, &remote_zone_refresh);
+}
+
+/*!
+ * \brief Remote command 'retransfer' handler.
+ *
+ * QNAME: retransfer
+ * DATA: NONE for all zones
+ *       CNAME RRs with zones in RDATA
+ */
+static int remote_c_retransfer(server_t *s, remote_cmdargs_t* a)
+{
+	dbg_server("remote: %s\n", __func__);
+	if (a->argc == 0) {
+		knot_nameserver_t *ns = s->nameserver;
+		knot_zone_t **zones = (knot_zone_t **)knot_zonedb_zones(ns->zone_db);
+		for (unsigned i = 0; i < knot_zonedb_zone_count(ns->zone_db); ++i) {
+			zones[i]->flags |= KNOT_ZONE_OBSOLETE;
+		}
+	} else {
+		/* Make zones obsolete if forced. */
+		remote_rdata_apply(s, a, &remote_zone_obsolete);
+	}
+
+	return remote_c_refresh(s, a);
 }
 
 /*!
@@ -571,6 +611,34 @@ static int remote_send_chunk(int c, knot_packet_t *pkt, const char* d,
 	return len;
 }
 
+static void log_command(const char *cmd, const remote_cmdargs_t* args)          
+{                                                                               
+	char params[CMDARGS_BUFLEN_LOG] = { 0 };                                
+	size_t rest = CMDARGS_BUFLEN_LOG;                                       
+							
+	for (unsigned i = 0; i < args->argc; i++) {                             
+		const knot_rrset_t *rr = args->arg[i];                          
+		if (knot_rrset_type(rr) != KNOT_RRTYPE_NS) {                    
+			continue;                                               
+		}                                                               
+							
+		uint16_t rr_count = knot_rrset_rdata_rr_count(rr);                    
+		for (uint16_t j = 0; j < rr_count; j++) {                       
+			const knot_dname_t *dn = knot_rdata_ns_name(rr, j);     
+			char *name = knot_dname_to_str(dn);                     
+								
+			int ret = snprintf(params, rest, " %s", name);          
+			free(name);                                             
+			if (ret <= 0 || ret >= rest) {                          
+				break;                                          
+			}                                                       
+			rest -= ret;                                            
+		}                                                               
+	}                                                                       
+						
+	log_server_info("Remote command: '%s%s'\n", cmd, params);               
+}
+
 int remote_answer(int fd, server_t *s, knot_packet_t *pkt, uint8_t* rwire, size_t rlen)
 {
 	if (fd < 0 || !s || !pkt || !rwire) {
@@ -615,6 +683,8 @@ int remote_answer(int fd, server_t *s, knot_packet_t *pkt, uint8_t* rwire, size_
 	args->arg = pkt->authority;
 	args->argc = knot_packet_authority_rrset_count(pkt);
 	args->rc = KNOT_RCODE_NOERROR;
+
+	log_command(cmd, args);
 
 	remote_cmd_t *c = remote_cmd_tbl;
 	while(c->name != NULL) {

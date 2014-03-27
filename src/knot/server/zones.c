@@ -219,9 +219,15 @@ int zones_refresh_ev(event_t *e)
 		rq->tsig_key = &zd->xfr_in.tsig_key;
 	}
 
-	/* Check for contents. */
+	/* Forced transfer - either bootstrap or retransfer. */
 	int ret = KNOT_EOK;
-	if (!knot_zone_contents(zone)) {
+	bool force_transfer = !knot_zone_contents(zone);
+	if (zone->flags & KNOT_ZONE_OBSOLETE) {
+		/* One-shot flag. */
+		zone->flags &= ~KNOT_ZONE_OBSOLETE;
+		force_transfer = true;
+	}
+	if (force_transfer) {
 
 		/* Bootstrap over TCP. */
 		rq->type = XFR_TYPE_AIN;
@@ -1310,6 +1316,9 @@ static int zones_process_update_auth(knot_zone_t *zone,
 		zones_schedule_ixfr_sync(zone, 0);
 	}
 
+	/* Zone has changed. Issue notifications. */
+	zones_schedule_notify(zone);
+
 	// Prepare DDNS response.
 	assert(*rcode == KNOT_RCODE_NOERROR);
 	dbg_zones_verb("Preparing NOERROR UPDATE response RCODE=%u "
@@ -2224,8 +2233,12 @@ int zones_ns_conf_hook(const struct conf_t *conf, void *data)
 	/* REFRESH zones. */
 	for (unsigned i = 0; i < knot_zonedb_zone_count(ns->zone_db); ++i) {
 		zone = (knot_zone_t *)zones[i];
-		zones_schedule_refresh(zone, 0); /* Now. */
-		zones_schedule_notify(zone);
+
+		/* Refresh / issue notifications for the changed zones. */
+		if (zone->flags & KNOT_ZONE_UPDATED) {
+			zones_schedule_refresh(zone, 0); /* Now. */
+			zones_schedule_notify(zone);
+		}
 	}
 
 	return KNOT_EOK;
@@ -2747,9 +2760,16 @@ int zones_dnssec_sign(knot_zone_t *zone, bool force, uint32_t *refresh_at)
 
 	log_zone_info("%s Successfully signed.\n", msgpref);
 
+	/* DNSSEC signing passed, zone has changed. Issue notifications. */
+	zones_schedule_notify(zone);
+
 done:
 	knot_changesets_free(&chs);
 	free(msgpref);
+
+	/* Trim extra heap. */
+	mem_trim();
+
 	return ret;
 }
 
@@ -2844,6 +2864,7 @@ void zones_schedule_ixfr_sync(knot_zone_t *zone, int dbsync_timeout)
 	evsched_t *scheduler = zd->server->sched;
 
 	if (zd->ixfr_dbsync != NULL) {
+		evsched_cancel(scheduler, zd->ixfr_dbsync);
 		evsched_schedule(scheduler, zd->ixfr_dbsync, dbsync_timeout * 1000);
 	}
 }
@@ -3237,6 +3258,9 @@ int zones_do_diff_and_sign(const conf_zone_t *z, knot_zone_t *zone,
 	rcu_read_unlock();
 
 	zones_free_merged_changesets(diff_chs, sec_chs);
+
+	/* Trim extra heap. */
+	mem_trim();
 
 	// Schedule next zone signing
 	if (z->dnssec_enable) {
