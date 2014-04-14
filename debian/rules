@@ -18,7 +18,7 @@ else
 endif
 
 %:
-	dh $@ --with autotools-dev,systemd --parallel
+	dh $@ --with autotools-dev,systemd,autoreconf --parallel
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
