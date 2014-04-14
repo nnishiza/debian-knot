@@ -1,6 +1,6 @@
 --- knot.orig/configure
 +++ knot/configure
-@@ -13429,23 +13429,6 @@ if test "$with_openssl" = "no"; then :
+@@ -13491,23 +13491,6 @@ if test "$with_openssl" = "no"; then :
  
  fi
  
