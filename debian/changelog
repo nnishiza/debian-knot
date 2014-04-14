@@ -1,3 +1,12 @@
+knot (1.4.5-1) unstable; urgency=high
+
+  * New upstream version 1.4.5
+   + Fix possible weakness in TSIG signature checking
+  * Refresh patches for 1.4.5 release
+  * Use dh-autoreconf to regenerate autotools files
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 14 Apr 2014 15:11:12 +0200
+
 knot (1.4.4-1) unstable; urgency=medium
 
   * New upstream version 1.4.4
