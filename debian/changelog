@@ -1,3 +1,9 @@
+knot (1.4.5-2) unstable; urgency=high
+
+  * Re-upload to fix botched amd64 upload in 1.4.5-1
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 22 Apr 2014 14:58:30 +0200
+
 knot (1.4.5-1) unstable; urgency=high
 
   * New upstream version 1.4.5
