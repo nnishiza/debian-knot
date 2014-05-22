@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 2.5.  */
+/* A Bison parser, made by GNU Bison 2.7.  */
 
 /* Bison implementation for Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989-1990, 2000-2012 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.5"
+#define YYBISON_VERSION "2.7"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -58,8 +58,6 @@
 /* Pull parsers.  */
 #define YYPULL 1
 
-/* Using locations.  */
-#define YYLSP_NEEDED 0
 
 /* Substitute the variable and function names.  */
 #define yyparse         cf_parse
@@ -70,11 +68,9 @@
 #define yydebug         cf_debug
 #define yynerrs         cf_nerrs
 
-
 /* Copy the first part of user declarations.  */
-
-/* Line 268 of yacc.c  */
-#line 23 "cf-parse.y"
+/* Line 371 of yacc.c  */
+#line 23 "knot/conf/cf-parse.y"
 
 
 #include <config.h>
@@ -488,14 +484,16 @@ static void ident_auto(int tok, conf_t *conf, bool val)
 }
 
 
+/* Line 371 of yacc.c  */
+#line 489 "knot/conf/libknotd_la-cf-parse.c"
 
-/* Line 268 of yacc.c  */
-#line 494 "knot/conf/libknotd_la-cf-parse.c"
-
-/* Enabling traces.  */
-#ifndef YYDEBUG
-# define YYDEBUG 0
-#endif
+# ifndef YY_NULL
+#  if defined __cplusplus && 201103L <= __cplusplus
+#   define YY_NULL nullptr
+#  else
+#   define YY_NULL 0
+#  endif
+# endif
 
 /* Enabling verbose error messages.  */
 #ifdef YYERROR_VERBOSE
@@ -505,11 +503,17 @@ static void ident_auto(int tok, conf_t *conf, bool val)
 # define YYERROR_VERBOSE 0
 #endif
 
-/* Enabling the token table.  */
-#ifndef YYTOKEN_TABLE
-# define YYTOKEN_TABLE 0
+/* In a future release of Bison, this section will be replaced
+   by #include "y.tab.h".  */
+#ifndef YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED
+# define YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED
+/* Enabling traces.  */
+#ifndef YYDEBUG
+# define YYDEBUG 0
 #endif
-
+#if YYDEBUG
+extern int cf_debug;
+#endif
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -649,13 +653,11 @@ static void ident_auto(int tok, conf_t *conf, bool val)
 
 
 
-
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
 {
-
-/* Line 293 of yacc.c  */
-#line 442 "cf-parse.y"
+/* Line 387 of yacc.c  */
+#line 442 "knot/conf/cf-parse.y"
 
 	struct {
 		char *t;
@@ -665,9 +667,8 @@ typedef union YYSTYPE
 	} tok;
 
 
-
-/* Line 293 of yacc.c  */
-#line 671 "knot/conf/libknotd_la-cf-parse.c"
+/* Line 387 of yacc.c  */
+#line 672 "knot/conf/libknotd_la-cf-parse.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -675,11 +676,26 @@ typedef union YYSTYPE
 #endif
 
 
+#ifdef YYPARSE_PARAM
+#if defined __STDC__ || defined __cplusplus
+int cf_parse (void *YYPARSE_PARAM);
+#else
+int cf_parse ();
+#endif
+#else /* ! YYPARSE_PARAM */
+#if defined __STDC__ || defined __cplusplus
+int cf_parse (void *scanner);
+#else
+int cf_parse ();
+#endif
+#endif /* ! YYPARSE_PARAM */
+
+#endif /* !YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED  */
+
 /* Copy the second part of user declarations.  */
 
-
-/* Line 343 of yacc.c  */
-#line 683 "knot/conf/libknotd_la-cf-parse.c"
+/* Line 390 of yacc.c  */
+#line 699 "knot/conf/libknotd_la-cf-parse.c"
 
 #ifdef short
 # undef short
@@ -732,24 +748,24 @@ typedef short int yytype_int16;
 # if defined YYENABLE_NLS && YYENABLE_NLS
 #  if ENABLE_NLS
 #   include <libintl.h> /* INFRINGES ON USER NAME SPACE */
-#   define YY_(msgid) dgettext ("bison-runtime", msgid)
+#   define YY_(Msgid) dgettext ("bison-runtime", Msgid)
 #  endif
 # endif
 # ifndef YY_
-#  define YY_(msgid) msgid
+#  define YY_(Msgid) Msgid
 # endif
 #endif
 
 /* Suppress unused-variable warnings by "using" E.  */
 #if ! defined lint || defined __GNUC__
-# define YYUSE(e) ((void) (e))
+# define YYUSE(E) ((void) (E))
 #else
-# define YYUSE(e) /* empty */
+# define YYUSE(E) /* empty */
 #endif
 
 /* Identity function, used to suppress warnings about constant conditions.  */
 #ifndef lint
-# define YYID(n) (n)
+# define YYID(N) (N)
 #else
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
@@ -785,6 +801,7 @@ YYID (yyi)
 #    if ! defined _ALLOCA_H && ! defined EXIT_SUCCESS && (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 #     include <stdlib.h> /* INFRINGES ON USER NAME SPACE */
+      /* Use EXIT_SUCCESS as a witness for stdlib.h.  */
 #     ifndef EXIT_SUCCESS
 #      define EXIT_SUCCESS 0
 #     endif
@@ -876,20 +893,20 @@ union yyalloc
 #endif
 
 #if defined YYCOPY_NEEDED && YYCOPY_NEEDED
-/* Copy COUNT objects from FROM to TO.  The source and destination do
+/* Copy COUNT objects from SRC to DST.  The source and destination do
    not overlap.  */
 # ifndef YYCOPY
 #  if defined __GNUC__ && 1 < __GNUC__
-#   define YYCOPY(To, From, Count) \
-      __builtin_memcpy (To, From, (Count) * sizeof (*(From)))
+#   define YYCOPY(Dst, Src, Count) \
+      __builtin_memcpy (Dst, Src, (Count) * sizeof (*(Src)))
 #  else
-#   define YYCOPY(To, From, Count)		\
-      do					\
-	{					\
-	  YYSIZE_T yyi;				\
-	  for (yyi = 0; yyi < (Count); yyi++)	\
-	    (To)[yyi] = (From)[yyi];		\
-	}					\
+#   define YYCOPY(Dst, Src, Count)              \
+      do                                        \
+        {                                       \
+          YYSIZE_T yyi;                         \
+          for (yyi = 0; yyi < (Count); yyi++)   \
+            (Dst)[yyi] = (Src)[yyi];            \
+        }                                       \
       while (YYID (0))
 #  endif
 # endif
@@ -1068,7 +1085,7 @@ static const yytype_uint16 yyrline[] =
 };
 #endif
 
-#if YYDEBUG || YYERROR_VERBOSE || YYTOKEN_TABLE
+#if YYDEBUG || YYERROR_VERBOSE || 0
 /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
@@ -1092,7 +1109,7 @@ static const char *const yytname[] =
   "zone_acl_list", "zone_acl", "zone_start", "zone", "zones",
   "log_prios_start", "log_prios", "log_src", "log_dest", "log_file",
   "log_end", "log_start", "log", "$@1", "ctl_listen_start",
-  "ctl_allow_start", "control", "conf", 0
+  "ctl_allow_start", "control", "conf", YY_NULL
 };
 #endif
 
@@ -1296,10 +1313,10 @@ static const yytype_int16 yytable[] =
        0,   329,   330
 };
 
-#define yypact_value_is_default(yystate) \
-  ((yystate) == (-49))
+#define yypact_value_is_default(Yystate) \
+  (!!((Yystate) == (-49)))
 
-#define yytable_value_is_error(yytable_value) \
+#define yytable_value_is_error(Yytable_value) \
   YYID (0)
 
 static const yytype_int16 yycheck[] =
@@ -1405,62 +1422,35 @@ static const yytype_uint8 yystos[] =
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
-#define YYBACKUP(Token, Value)					\
-do								\
-  if (yychar == YYEMPTY && yylen == 1)				\
-    {								\
-      yychar = (Token);						\
-      yylval = (Value);						\
-      YYPOPSTACK (1);						\
-      goto yybackup;						\
-    }								\
-  else								\
-    {								\
+#define YYBACKUP(Token, Value)                                  \
+do                                                              \
+  if (yychar == YYEMPTY)                                        \
+    {                                                           \
+      yychar = (Token);                                         \
+      yylval = (Value);                                         \
+      YYPOPSTACK (yylen);                                       \
+      yystate = *yyssp;                                         \
+      goto yybackup;                                            \
+    }                                                           \
+  else                                                          \
+    {                                                           \
       yyerror (scanner, YY_("syntax error: cannot back up")); \
       YYERROR;							\
     }								\
 while (YYID (0))
 
-
+/* Error token number */
 #define YYTERROR	1
 #define YYERRCODE	256
 
 
-/* YYLLOC_DEFAULT -- Set CURRENT to span from RHS[1] to RHS[N].
-   If N is 0, then set CURRENT to the empty location which ends
-   the previous symbol: RHS[0] (always defined).  */
-
-#define YYRHSLOC(Rhs, K) ((Rhs)[K])
-#ifndef YYLLOC_DEFAULT
-# define YYLLOC_DEFAULT(Current, Rhs, N)				\
-    do									\
-      if (YYID (N))                                                    \
-	{								\
-	  (Current).first_line   = YYRHSLOC (Rhs, 1).first_line;	\
-	  (Current).first_column = YYRHSLOC (Rhs, 1).first_column;	\
-	  (Current).last_line    = YYRHSLOC (Rhs, N).last_line;		\
-	  (Current).last_column  = YYRHSLOC (Rhs, N).last_column;	\
-	}								\
-      else								\
-	{								\
-	  (Current).first_line   = (Current).last_line   =		\
-	    YYRHSLOC (Rhs, 0).last_line;				\
-	  (Current).first_column = (Current).last_column =		\
-	    YYRHSLOC (Rhs, 0).last_column;				\
-	}								\
-    while (YYID (0))
-#endif
-
-
 /* This macro is provided for backward compatibility. */
-
 #ifndef YY_LOCATION_PRINT
 # define YY_LOCATION_PRINT(File, Loc) ((void) 0)
 #endif
 
 
 /* YYLEX -- calling `yylex' with the right arguments.  */
-
 #ifdef YYLEX_PARAM
 # define YYLEX yylex (&yylval, YYLEX_PARAM)
 #else
@@ -1511,6 +1501,8 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner)
     void *scanner;
 #endif
 {
+  FILE *yyo = yyoutput;
+  YYUSE (yyo);
   if (!yyvaluep)
     return;
   YYUSE (scanner);
@@ -1523,7 +1515,7 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner)
   switch (yytype)
     {
       default:
-	break;
+        break;
     }
 }
 
@@ -1765,12 +1757,11 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (0, yytname[yytoken]);
+  YYSIZE_T yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
   YYSIZE_T yysize = yysize0;
-  YYSIZE_T yysize1;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
-  const char *yyformat = 0;
+  const char *yyformat = YY_NULL;
   /* Arguments of yyformat. */
   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
   /* Number of reported tokens (one for the "unexpected", one per
@@ -1830,11 +1821,13 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                     break;
                   }
                 yyarg[yycount++] = yytname[yyx];
-                yysize1 = yysize + yytnamerr (0, yytname[yyx]);
-                if (! (yysize <= yysize1
-                       && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
-                  return 2;
-                yysize = yysize1;
+                {
+                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULL, yytname[yyx]);
+                  if (! (yysize <= yysize1
+                         && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
+                    return 2;
+                  yysize = yysize1;
+                }
               }
         }
     }
@@ -1854,10 +1847,12 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 # undef YYCASE_
     }
 
-  yysize1 = yysize + yystrlen (yyformat);
-  if (! (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
-    return 2;
-  yysize = yysize1;
+  {
+    YYSIZE_T yysize1 = yysize + yystrlen (yyformat);
+    if (! (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
+      return 2;
+    yysize = yysize1;
+  }
 
   if (*yymsg_alloc < yysize)
     {
@@ -1919,25 +1914,11 @@ yydestruct (yymsg, yytype, yyvaluep, scanner)
     {
 
       default:
-	break;
+        break;
     }
 }
 
 
-/* Prevent warnings from -Wmissing-prototypes.  */
-#ifdef YYPARSE_PARAM
-#if defined __STDC__ || defined __cplusplus
-int yyparse (void *YYPARSE_PARAM);
-#else
-int yyparse ();
-#endif
-#else /* ! YYPARSE_PARAM */
-#if defined __STDC__ || defined __cplusplus
-int yyparse (void *scanner);
-#else
-int yyparse ();
-#endif
-#endif /* ! YYPARSE_PARAM */
 
 
 /*----------.
@@ -1969,8 +1950,31 @@ yyparse (scanner)
 /* The lookahead symbol.  */
 int yychar;
 
+
+#if defined __GNUC__ && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
+/* Suppress an incorrect diagnostic about yylval being uninitialized.  */
+# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN \
+    _Pragma ("GCC diagnostic push") \
+    _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")\
+    _Pragma ("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+# define YY_IGNORE_MAYBE_UNINITIALIZED_END \
+    _Pragma ("GCC diagnostic pop")
+#else
+/* Default value used for initialization, for pacifying older GCCs
+   or non-GCC compilers.  */
+static YYSTYPE yyval_default;
+# define YY_INITIAL_VALUE(Value) = Value
+#endif
+#ifndef YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
+# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
+# define YY_IGNORE_MAYBE_UNINITIALIZED_END
+#endif
+#ifndef YY_INITIAL_VALUE
+# define YY_INITIAL_VALUE(Value) /* Nothing. */
+#endif
+
 /* The semantic value of the lookahead symbol.  */
-YYSTYPE yylval;
+YYSTYPE yylval YY_INITIAL_VALUE(yyval_default);
 
     /* Number of syntax errors so far.  */
     int yynerrs;
@@ -1983,7 +1987,7 @@ YYSTYPE yylval;
        `yyss': related to states.
        `yyvs': related to semantic values.
 
-       Refer to the stacks thru separate pointers, to allow yyoverflow
+       Refer to the stacks through separate pointers, to allow yyoverflow
        to reallocate them elsewhere.  */
 
     /* The state stack.  */
@@ -2001,7 +2005,7 @@ YYSTYPE yylval;
   int yyn;
   int yyresult;
   /* Lookahead token as an internal (translated) token number.  */
-  int yytoken;
+  int yytoken = 0;
   /* The variables used to return semantic value and location from the
      action routines.  */
   YYSTYPE yyval;
@@ -2019,9 +2023,8 @@ YYSTYPE yylval;
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
 
-  yytoken = 0;
-  yyss = yyssa;
-  yyvs = yyvsa;
+  yyssp = yyss = yyssa;
+  yyvsp = yyvs = yyvsa;
   yystacksize = YYINITDEPTH;
 
   YYDPRINTF ((stderr, "Starting parse\n"));
@@ -2030,14 +2033,6 @@ YYSTYPE yylval;
   yyerrstatus = 0;
   yynerrs = 0;
   yychar = YYEMPTY; /* Cause a token to be read.  */
-
-  /* Initialize stack pointers.
-     Waste one element of value and location stack
-     so that they stay on the same level as the state stack.
-     The wasted elements are never initialized.  */
-  yyssp = yyss;
-  yyvsp = yyvs;
-
   goto yysetstate;
 
 /*------------------------------------------------------------.
@@ -2178,7 +2173,9 @@ yybackup:
   yychar = YYEMPTY;
 
   yystate = yyn;
+  YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
   *++yyvsp = yylval;
+  YY_IGNORE_MAYBE_UNINITIALIZED_END
 
   goto yynewstate;
 
@@ -2215,58 +2212,50 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-
-/* Line 1806 of yacc.c  */
-#line 511 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 511 "knot/conf/cf-parse.y"
     { return 0; }
     break;
 
   case 6:
-
-/* Line 1806 of yacc.c  */
-#line 519 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 519 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 7:
-
-/* Line 1806 of yacc.c  */
-#line 520 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 520 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 8:
-
-/* Line 1806 of yacc.c  */
-#line 521 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 521 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 9:
-
-/* Line 1806 of yacc.c  */
-#line 522 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 522 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 10:
-
-/* Line 1806 of yacc.c  */
-#line 523 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 523 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 11:
-
-/* Line 1806 of yacc.c  */
-#line 524 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 524 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 13:
-
-/* Line 1806 of yacc.c  */
-#line 528 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 528 "knot/conf/cf-parse.y"
     {
      if (this_iface->port > 0) {
        cf_error(scanner, "only one port definition is allowed in interface section\n");
@@ -2277,9 +2266,8 @@ yyreduce:
     break;
 
   case 14:
-
-/* Line 1806 of yacc.c  */
-#line 535 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 535 "knot/conf/cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2291,9 +2279,8 @@ yyreduce:
     break;
 
   case 15:
-
-/* Line 1806 of yacc.c  */
-#line 543 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 543 "knot/conf/cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2310,9 +2297,8 @@ yyreduce:
     break;
 
   case 16:
-
-/* Line 1806 of yacc.c  */
-#line 556 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 556 "knot/conf/cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2324,9 +2310,8 @@ yyreduce:
     break;
 
   case 17:
-
-/* Line 1806 of yacc.c  */
-#line 564 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 564 "knot/conf/cf-parse.y"
     {
      if (this_iface->address != 0) {
        cf_error(scanner, "only one address is allowed in interface section\n");
@@ -2343,9 +2328,8 @@ yyreduce:
     break;
 
   case 19:
-
-/* Line 1806 of yacc.c  */
-#line 581 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 581 "knot/conf/cf-parse.y"
     {
    if (this_iface->address == 0) {
      cf_error(scanner, "interface '%s' has no defined address", this_iface->name);
@@ -2354,37 +2338,32 @@ yyreduce:
     break;
 
   case 21:
-
-/* Line 1806 of yacc.c  */
-#line 590 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 590 "knot/conf/cf-parse.y"
     { new_config->version = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 22:
-
-/* Line 1806 of yacc.c  */
-#line 591 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 591 "knot/conf/cf-parse.y"
     { ident_auto(SVERSION, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 23:
-
-/* Line 1806 of yacc.c  */
-#line 592 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 592 "knot/conf/cf-parse.y"
     { new_config->identity = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 24:
-
-/* Line 1806 of yacc.c  */
-#line 593 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 593 "knot/conf/cf-parse.y"
     { ident_auto(IDENTITY, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 25:
-
-/* Line 1806 of yacc.c  */
-#line 594 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 594 "knot/conf/cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.hostname' is deprecated. "
                      "Use 'system.identity' instead.\n");
@@ -2393,30 +2372,26 @@ yyreduce:
     break;
 
   case 26:
-
-/* Line 1806 of yacc.c  */
-#line 599 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 599 "knot/conf/cf-parse.y"
     { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = (yyvsp[(3) - (4)].tok).l; }
     break;
 
   case 27:
-
-/* Line 1806 of yacc.c  */
-#line 600 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 600 "knot/conf/cf-parse.y"
     { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = strlen(new_config->nsid); }
     break;
 
   case 28:
-
-/* Line 1806 of yacc.c  */
-#line 601 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 601 "knot/conf/cf-parse.y"
     { ident_auto(NSID, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 29:
-
-/* Line 1806 of yacc.c  */
-#line 602 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 602 "knot/conf/cf-parse.y"
     {
      SET_NUM(new_config->max_udp_payload, (yyvsp[(3) - (4)].tok).i, EDNS_MIN_UDP_PAYLOAD,
              EDNS_MAX_UDP_PAYLOAD, "max-udp-payload");
@@ -2424,9 +2399,8 @@ yyreduce:
     break;
 
   case 30:
-
-/* Line 1806 of yacc.c  */
-#line 606 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 606 "knot/conf/cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.storage' was relocated. "
                      "Use 'zones.storage' instead.\n");
@@ -2435,23 +2409,20 @@ yyreduce:
     break;
 
   case 31:
-
-/* Line 1806 of yacc.c  */
-#line 611 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 611 "knot/conf/cf-parse.y"
     { new_config->rundir = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 32:
-
-/* Line 1806 of yacc.c  */
-#line 612 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 612 "knot/conf/cf-parse.y"
     { new_config->pidfile = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 33:
-
-/* Line 1806 of yacc.c  */
-#line 613 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 613 "knot/conf/cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.key' is deprecated "
                      "and has no effect.\n");
@@ -2460,18 +2431,16 @@ yyreduce:
     break;
 
   case 34:
-
-/* Line 1806 of yacc.c  */
-#line 618 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 618 "knot/conf/cf-parse.y"
     {
      SET_NUM(new_config->workers, (yyvsp[(3) - (4)].tok).i, 1, 255, "workers");
  }
     break;
 
   case 35:
-
-/* Line 1806 of yacc.c  */
-#line 621 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 621 "knot/conf/cf-parse.y"
     {
      new_config->uid = new_config->gid = -1; // Invalidate
      char* dpos = strchr((yyvsp[(3) - (4)].tok).t, '.'); // Find uid.gid format
@@ -2496,81 +2465,72 @@ yyreduce:
     break;
 
   case 36:
-
-/* Line 1806 of yacc.c  */
-#line 642 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 642 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->max_conn_idle, (yyvsp[(3) - (4)].tok).i, "max-conn-idle");
  }
     break;
 
   case 37:
-
-/* Line 1806 of yacc.c  */
-#line 645 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 645 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->max_conn_hs, (yyvsp[(3) - (4)].tok).i, "max-conn-handshake");
  }
     break;
 
   case 38:
-
-/* Line 1806 of yacc.c  */
-#line 648 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 648 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->max_conn_reply, (yyvsp[(3) - (4)].tok).i, "max-conn-reply");
  }
     break;
 
   case 39:
-
-/* Line 1806 of yacc.c  */
-#line 651 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 651 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->rrl, (yyvsp[(3) - (4)].tok).i, "rate-limit");
  }
     break;
 
   case 40:
-
-/* Line 1806 of yacc.c  */
-#line 654 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 654 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).l, "rate-limit-size");
  }
     break;
 
   case 41:
-
-/* Line 1806 of yacc.c  */
-#line 657 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 657 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).i, "rate-limit-size");
  }
     break;
 
   case 42:
-
-/* Line 1806 of yacc.c  */
-#line 660 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 660 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->rrl_slip, (yyvsp[(3) - (4)].tok).i, "rate-limit-slip");
  }
     break;
 
   case 43:
-
-/* Line 1806 of yacc.c  */
-#line 663 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 663 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->xfers, (yyvsp[(3) - (4)].tok).i, "transfers");
  }
     break;
 
   case 45:
-
-/* Line 1806 of yacc.c  */
-#line 670 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 670 "knot/conf/cf-parse.y"
     {
      /* Check algorithm length. */
      if (knot_tsig_digest_length((yyvsp[(3) - (5)].tok).alg) == 0) {
@@ -2625,44 +2585,38 @@ yyreduce:
     break;
 
   case 47:
-
-/* Line 1806 of yacc.c  */
-#line 723 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 723 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 48:
-
-/* Line 1806 of yacc.c  */
-#line 724 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 724 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 49:
-
-/* Line 1806 of yacc.c  */
-#line 725 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 725 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 50:
-
-/* Line 1806 of yacc.c  */
-#line 726 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 726 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 51:
-
-/* Line 1806 of yacc.c  */
-#line 727 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 727 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 53:
-
-/* Line 1806 of yacc.c  */
-#line 731 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 731 "knot/conf/cf-parse.y"
     {
      if (this_remote->port != 0) {
        cf_error(scanner, "only one port definition is allowed in remote section\n");
@@ -2673,9 +2627,8 @@ yyreduce:
     break;
 
   case 54:
-
-/* Line 1806 of yacc.c  */
-#line 738 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 738 "knot/conf/cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2688,9 +2641,8 @@ yyreduce:
     break;
 
   case 55:
-
-/* Line 1806 of yacc.c  */
-#line 747 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 747 "knot/conf/cf-parse.y"
     {
        if (this_remote->address != 0) {
          cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2703,9 +2655,8 @@ yyreduce:
     break;
 
   case 56:
-
-/* Line 1806 of yacc.c  */
-#line 756 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 756 "knot/conf/cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2723,9 +2674,8 @@ yyreduce:
     break;
 
   case 57:
-
-/* Line 1806 of yacc.c  */
-#line 770 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 770 "knot/conf/cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2738,9 +2688,8 @@ yyreduce:
     break;
 
   case 58:
-
-/* Line 1806 of yacc.c  */
-#line 779 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 779 "knot/conf/cf-parse.y"
     {
        if (this_remote->address != 0) {
          cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2753,9 +2702,8 @@ yyreduce:
     break;
 
   case 59:
-
-/* Line 1806 of yacc.c  */
-#line 788 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 788 "knot/conf/cf-parse.y"
     {
      if (this_remote->address != 0) {
        cf_error(scanner, "only one address is allowed in remote section\n");
@@ -2773,9 +2721,8 @@ yyreduce:
     break;
 
   case 60:
-
-/* Line 1806 of yacc.c  */
-#line 802 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 802 "knot/conf/cf-parse.y"
     {
      if (this_remote->key != 0) {
        cf_error(scanner, "only one TSIG key definition is allowed in remote section\n");
@@ -2787,9 +2734,8 @@ yyreduce:
     break;
 
   case 61:
-
-/* Line 1806 of yacc.c  */
-#line 810 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 810 "knot/conf/cf-parse.y"
     {
      sockaddr_set(&this_remote->via, AF_INET, (yyvsp[(3) - (4)].tok).t, 0);
      free((yyvsp[(3) - (4)].tok).t);
@@ -2797,9 +2743,8 @@ yyreduce:
     break;
 
   case 62:
-
-/* Line 1806 of yacc.c  */
-#line 814 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 814 "knot/conf/cf-parse.y"
     {
      sockaddr_set(&this_remote->via, AF_INET6, (yyvsp[(3) - (4)].tok).t, 0);
      free((yyvsp[(3) - (4)].tok).t);
@@ -2807,9 +2752,8 @@ yyreduce:
     break;
 
   case 63:
-
-/* Line 1806 of yacc.c  */
-#line 818 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 818 "knot/conf/cf-parse.y"
     {
      conf_remote_set_via(scanner, (yyvsp[(3) - (4)].tok).t);
      free((yyvsp[(3) - (4)].tok).t);
@@ -2817,9 +2761,8 @@ yyreduce:
     break;
 
   case 65:
-
-/* Line 1806 of yacc.c  */
-#line 826 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 826 "knot/conf/cf-parse.y"
     {
      if (this_remote->address == 0) {
        cf_error(scanner, "remote '%s' has no defined address", this_remote->name);
@@ -2828,103 +2771,90 @@ yyreduce:
     break;
 
   case 66:
-
-/* Line 1806 of yacc.c  */
-#line 834 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 834 "knot/conf/cf-parse.y"
     { conf_add_member_into_group(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 70:
-
-/* Line 1806 of yacc.c  */
-#line 844 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 844 "knot/conf/cf-parse.y"
     { conf_start_group(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 73:
-
-/* Line 1806 of yacc.c  */
-#line 853 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 853 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.xfr_in;
    }
     break;
 
   case 74:
-
-/* Line 1806 of yacc.c  */
-#line 856 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 856 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.xfr_out;
    }
     break;
 
   case 75:
-
-/* Line 1806 of yacc.c  */
-#line 859 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 859 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.notify_in;
    }
     break;
 
   case 76:
-
-/* Line 1806 of yacc.c  */
-#line 862 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 862 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.notify_out;
    }
     break;
 
   case 77:
-
-/* Line 1806 of yacc.c  */
-#line 865 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 865 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.update_in;
  }
     break;
 
   case 79:
-
-/* Line 1806 of yacc.c  */
-#line 871 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 871 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 80:
-
-/* Line 1806 of yacc.c  */
-#line 872 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 872 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 81:
-
-/* Line 1806 of yacc.c  */
-#line 873 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 873 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 82:
-
-/* Line 1806 of yacc.c  */
-#line 874 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 874 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 83:
-
-/* Line 1806 of yacc.c  */
-#line 875 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 875 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 88:
-
-/* Line 1806 of yacc.c  */
-#line 884 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 884 "knot/conf/cf-parse.y"
     {
       /* Find existing node in remotes. */
       node_t* r = 0; conf_iface_t* found = 0;
@@ -2954,51 +2884,44 @@ yyreduce:
     break;
 
   case 90:
-
-/* Line 1806 of yacc.c  */
-#line 913 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 913 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 91:
-
-/* Line 1806 of yacc.c  */
-#line 914 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 914 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 92:
-
-/* Line 1806 of yacc.c  */
-#line 915 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 915 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 93:
-
-/* Line 1806 of yacc.c  */
-#line 916 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 916 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 94:
-
-/* Line 1806 of yacc.c  */
-#line 917 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 917 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 95:
-
-/* Line 1806 of yacc.c  */
-#line 918 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 918 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 96:
-
-/* Line 1806 of yacc.c  */
-#line 919 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 919 "knot/conf/cf-parse.y"
     {
     unsigned prefix_len = 0;
     SET_NUM(prefix_len, (yyvsp[(1) - (3)].tok).i, 0, 255, "origin prefix length");
@@ -3018,269 +2941,236 @@ yyreduce:
     break;
 
   case 97:
-
-/* Line 1806 of yacc.c  */
-#line 935 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 935 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 101:
-
-/* Line 1806 of yacc.c  */
-#line 942 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 942 "knot/conf/cf-parse.y"
     { this_zone->file = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 102:
-
-/* Line 1806 of yacc.c  */
-#line 943 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 943 "knot/conf/cf-parse.y"
     { this_zone->build_diffs = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 103:
-
-/* Line 1806 of yacc.c  */
-#line 944 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 944 "knot/conf/cf-parse.y"
     { this_zone->enable_checks = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 104:
-
-/* Line 1806 of yacc.c  */
-#line 945 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 945 "knot/conf/cf-parse.y"
     { this_zone->storage = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 105:
-
-/* Line 1806 of yacc.c  */
-#line 946 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 946 "knot/conf/cf-parse.y"
     { this_zone->dnssec_keydir = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 106:
-
-/* Line 1806 of yacc.c  */
-#line 947 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 947 "knot/conf/cf-parse.y"
     { this_zone->disable_any = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 107:
-
-/* Line 1806 of yacc.c  */
-#line 948 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 948 "knot/conf/cf-parse.y"
     {
 	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
  }
     break;
 
   case 108:
-
-/* Line 1806 of yacc.c  */
-#line 951 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 951 "knot/conf/cf-parse.y"
     {
 	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
  }
     break;
 
   case 109:
-
-/* Line 1806 of yacc.c  */
-#line 954 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 954 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
  }
     break;
 
   case 110:
-
-/* Line 1806 of yacc.c  */
-#line 957 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 957 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(this_zone->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
  }
     break;
 
   case 111:
-
-/* Line 1806 of yacc.c  */
-#line 960 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 960 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
    }
     break;
 
   case 112:
-
-/* Line 1806 of yacc.c  */
-#line 963 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 963 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
    }
     break;
 
   case 113:
-
-/* Line 1806 of yacc.c  */
-#line 966 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 966 "knot/conf/cf-parse.y"
     { this_zone->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 114:
-
-/* Line 1806 of yacc.c  */
-#line 967 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 967 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 115:
-
-/* Line 1806 of yacc.c  */
-#line 970 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 970 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 116:
-
-/* Line 1806 of yacc.c  */
-#line 973 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 973 "knot/conf/cf-parse.y"
     {
 	this_zone->serial_policy = (yyvsp[(3) - (4)].tok).i;
  }
     break;
 
   case 119:
-
-/* Line 1806 of yacc.c  */
-#line 981 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 981 "knot/conf/cf-parse.y"
     { new_config->disable_any = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 120:
-
-/* Line 1806 of yacc.c  */
-#line 982 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 982 "knot/conf/cf-parse.y"
     { new_config->build_diffs = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 121:
-
-/* Line 1806 of yacc.c  */
-#line 983 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 983 "knot/conf/cf-parse.y"
     { new_config->zone_checks = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 122:
-
-/* Line 1806 of yacc.c  */
-#line 984 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 984 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
  }
     break;
 
   case 123:
-
-/* Line 1806 of yacc.c  */
-#line 987 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 987 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
  }
     break;
 
   case 124:
-
-/* Line 1806 of yacc.c  */
-#line 990 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 990 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
    }
     break;
 
   case 125:
-
-/* Line 1806 of yacc.c  */
-#line 993 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 993 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
    }
     break;
 
   case 126:
-
-/* Line 1806 of yacc.c  */
-#line 996 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 996 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 0, INT_MAX, "zonefile-sync");
  }
     break;
 
   case 127:
-
-/* Line 1806 of yacc.c  */
-#line 999 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 999 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 0, INT_MAX, "zonefile-sync");
  }
     break;
 
   case 128:
-
-/* Line 1806 of yacc.c  */
-#line 1002 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1002 "knot/conf/cf-parse.y"
     { new_config->storage = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 129:
-
-/* Line 1806 of yacc.c  */
-#line 1003 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1003 "knot/conf/cf-parse.y"
     { new_config->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 130:
-
-/* Line 1806 of yacc.c  */
-#line 1004 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1004 "knot/conf/cf-parse.y"
     { new_config->dnssec_keydir = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 131:
-
-/* Line 1806 of yacc.c  */
-#line 1005 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1005 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 132:
-
-/* Line 1806 of yacc.c  */
-#line 1008 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1008 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
     break;
 
   case 133:
-
-/* Line 1806 of yacc.c  */
-#line 1011 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1011 "knot/conf/cf-parse.y"
     {
 	new_config->serial_policy = (yyvsp[(3) - (4)].tok).i;
  }
     break;
 
   case 134:
-
-/* Line 1806 of yacc.c  */
-#line 1016 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1016 "knot/conf/cf-parse.y"
     {
   this_logmap = malloc(sizeof(conf_log_map_t));
   this_logmap->source = 0;
@@ -3290,23 +3180,20 @@ yyreduce:
     break;
 
   case 136:
-
-/* Line 1806 of yacc.c  */
-#line 1026 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1026 "knot/conf/cf-parse.y"
     { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i; }
     break;
 
   case 137:
-
-/* Line 1806 of yacc.c  */
-#line 1027 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1027 "knot/conf/cf-parse.y"
     { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i; }
     break;
 
   case 139:
-
-/* Line 1806 of yacc.c  */
-#line 1031 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1031 "knot/conf/cf-parse.y"
     {
      this_logmap->source = (yyvsp[(2) - (3)].tok).i;
      this_logmap = 0;
@@ -3314,9 +3201,8 @@ yyreduce:
     break;
 
   case 140:
-
-/* Line 1806 of yacc.c  */
-#line 1037 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1037 "knot/conf/cf-parse.y"
     {
   /* Find already existing rule. */
   this_log = 0;
@@ -3341,9 +3227,8 @@ yyreduce:
     break;
 
   case 141:
-
-/* Line 1806 of yacc.c  */
-#line 1060 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1060 "knot/conf/cf-parse.y"
     {
   /* Find already existing rule. */
   this_log = 0;
@@ -3372,47 +3257,41 @@ yyreduce:
     break;
 
   case 142:
-
-/* Line 1806 of yacc.c  */
-#line 1087 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1087 "knot/conf/cf-parse.y"
     {
 }
     break;
 
   case 146:
-
-/* Line 1806 of yacc.c  */
-#line 1096 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1096 "knot/conf/cf-parse.y"
     { new_config->logs_count = 0; }
     break;
 
   case 148:
-
-/* Line 1806 of yacc.c  */
-#line 1100 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1100 "knot/conf/cf-parse.y"
     { conf_init_iface(scanner, NULL, -1); }
     break;
 
   case 149:
-
-/* Line 1806 of yacc.c  */
-#line 1104 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1104 "knot/conf/cf-parse.y"
     {
     this_list = &new_config->ctl.allow;
   }
     break;
 
   case 150:
-
-/* Line 1806 of yacc.c  */
-#line 1110 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1110 "knot/conf/cf-parse.y"
     { new_config->ctl.have = true; }
     break;
 
   case 151:
-
-/* Line 1806 of yacc.c  */
-#line 1111 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1111 "knot/conf/cf-parse.y"
     {
      if (this_iface->address == 0) {
        cf_error(scanner, "control interface has no defined address");
@@ -3423,9 +3302,8 @@ yyreduce:
     break;
 
   case 152:
-
-/* Line 1806 of yacc.c  */
-#line 1118 "cf-parse.y"
+/* Line 1792 of yacc.c  */
+#line 1118 "knot/conf/cf-parse.y"
     {
      this_iface->address = (yyvsp[(3) - (4)].tok).t;
      this_iface->family = AF_UNIX;
@@ -3435,9 +3313,8 @@ yyreduce:
     break;
 
 
-
-/* Line 1806 of yacc.c  */
-#line 3441 "knot/conf/libknotd_la-cf-parse.c"
+/* Line 1792 of yacc.c  */
+#line 3318 "knot/conf/libknotd_la-cf-parse.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -3600,7 +3477,9 @@ yyerrlab1:
       YY_STACK_PRINT (yyss, yyssp);
     }
 
+  YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
   *++yyvsp = yylval;
+  YY_IGNORE_MAYBE_UNINITIALIZED_END
 
 
   /* Shift the error token.  */
@@ -3624,7 +3503,7 @@ yyabortlab:
   yyresult = 1;
   goto yyreturn;
 
-#if !defined(yyoverflow) || YYERROR_VERBOSE
+#if !defined yyoverflow || YYERROR_VERBOSE
 /*-------------------------------------------------.
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
@@ -3666,8 +3545,6 @@ yyreturn:
 }
 
 
-
-/* Line 2067 of yacc.c  */
-#line 1130 "cf-parse.y"
-
+/* Line 2055 of yacc.c  */
+#line 1130 "knot/conf/cf-parse.y"
 

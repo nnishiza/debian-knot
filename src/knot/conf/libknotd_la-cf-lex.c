@@ -9,7 +9,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 35
+#define YY_FLEX_SUBMINOR_VERSION 37
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -159,15 +159,7 @@ typedef void* yyscan_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
-#ifdef __ia64__
-/* On IA-64, the buffer size is 16k, not 8k.
- * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
- * Ditto for the __ia64__ case accordingly.
- */
-#define YY_BUF_SIZE 32768
-#else
 #define YY_BUF_SIZE 16384
-#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -177,6 +169,11 @@ typedef void* yyscan_t;
 #ifndef YY_TYPEDEF_YY_BUFFER_STATE
 #define YY_TYPEDEF_YY_BUFFER_STATE
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
+#endif
+
+#ifndef YY_TYPEDEF_YY_SIZE_T
+#define YY_TYPEDEF_YY_SIZE_T
+typedef size_t yy_size_t;
 #endif
 
 #define EOB_ACT_CONTINUE_SCAN 0
@@ -214,11 +211,6 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 
 #define unput(c) yyunput( c, yyg->yytext_ptr , yyscanner )
 
-#ifndef YY_TYPEDEF_YY_SIZE_T
-#define YY_TYPEDEF_YY_SIZE_T
-typedef size_t yy_size_t;
-#endif
-
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
 struct yy_buffer_state
@@ -236,7 +228,7 @@ struct yy_buffer_state
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	int yy_n_chars;
+	yy_size_t yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -315,7 +307,7 @@ static void cf__init_buffer (YY_BUFFER_STATE b,FILE *file ,yyscan_t yyscanner );
 
 YY_BUFFER_STATE cf__scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner );
 YY_BUFFER_STATE cf__scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
-YY_BUFFER_STATE cf__scan_bytes (yyconst char *bytes,int len ,yyscan_t yyscanner );
+YY_BUFFER_STATE cf__scan_bytes (yyconst char *bytes,yy_size_t len ,yyscan_t yyscanner );
 
 void *cf_alloc (yy_size_t ,yyscan_t yyscanner );
 void *cf_realloc (void *,yy_size_t ,yyscan_t yyscanner );
@@ -347,7 +339,7 @@ void cf_free (void * ,yyscan_t yyscanner );
 
 /* Begin user sect3 */
 
-#define cf_wrap(n) 1
+#define cf_wrap(yyscanner) 1
 #define YY_SKIP_YYWRAP
 
 typedef unsigned char YY_CHAR;
@@ -808,7 +800,7 @@ static yyconst flex_int32_t yy_rule_can_match_eol[90] =
 #define yymore() yymore_used_but_not_detected
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
-#line 1 "cf-lex.l"
+#line 1 "knot/conf/cf-lex.l"
 /*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
@@ -833,7 +825,7 @@ static yyconst flex_int32_t yy_rule_can_match_eol[90] =
  *
  * IP address conversions from BIRD, (c) 1998--2000 Martin Mares <mj@ucw.cz>
  */
-#line 26 "cf-lex.l"
+#line 26 "knot/conf/cf-lex.l"
 
 #include <config.h>
 #include <dirent.h>
@@ -879,7 +871,7 @@ int hex2bin(const char* src, char *dst, size_t len) {
 
 #define YY_NO_INPUT 1
 
-#line 883 "knot/conf/libknotd_la-cf-lex.c"
+#line 875 "knot/conf/libknotd_la-cf-lex.c"
 
 #define INITIAL 0
 #define include 1
@@ -907,8 +899,8 @@ struct yyguts_t
     size_t yy_buffer_stack_max; /**< capacity of stack. */
     YY_BUFFER_STATE * yy_buffer_stack; /**< Stack as an array. */
     char yy_hold_char;
-    int yy_n_chars;
-    int yyleng_r;
+    yy_size_t yy_n_chars;
+    yy_size_t yyleng_r;
     char *yy_c_buf_p;
     int yy_init;
     int yy_start;
@@ -961,7 +953,7 @@ FILE *cf_get_out (yyscan_t yyscanner );
 
 void cf_set_out  (FILE * out_str ,yyscan_t yyscanner );
 
-int cf_get_leng (yyscan_t yyscanner );
+yy_size_t cf_get_leng (yyscan_t yyscanner );
 
 char *cf_get_text (yyscan_t yyscanner );
 
@@ -1009,12 +1001,7 @@ static int input (yyscan_t yyscanner );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
-#ifdef __ia64__
-/* On IA-64, the buffer size is 16k, not 8k */
-#define YY_READ_BUF_SIZE 16384
-#else
 #define YY_READ_BUF_SIZE 8192
-#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1118,9 +1105,9 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 90 "cf-lex.l"
+#line 90 "knot/conf/cf-lex.l"
 
-#line 1124 "knot/conf/libknotd_la-cf-lex.c"
+#line 1111 "knot/conf/libknotd_la-cf-lex.c"
 
     yylval = yylval_param;
 
@@ -1196,7 +1183,7 @@ yy_find_action:
 
 		if ( yy_act != YY_END_OF_BUFFER && yy_rule_can_match_eol[yy_act] )
 			{
-			int yyl;
+			yy_size_t yyl;
 			for ( yyl = 0; yyl < yyleng; ++yyl )
 				if ( yytext[yyl] == '\n' )
 					   
@@ -1220,328 +1207,328 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 91 "cf-lex.l"
+#line 91 "knot/conf/cf-lex.l"
 /* Ignore comments */;
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 92 "cf-lex.l"
+#line 92 "knot/conf/cf-lex.l"
 /* Ignore whitespace */;
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 93 "cf-lex.l"
+#line 93 "knot/conf/cf-lex.l"
 { return yytext[0]; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 94 "cf-lex.l"
+#line 94 "knot/conf/cf-lex.l"
 { lval.t = yytext; return SYSTEM; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 95 "cf-lex.l"
+#line 95 "knot/conf/cf-lex.l"
 { lval.t = yytext; return IDENTITY; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 96 "cf-lex.l"
+#line 96 "knot/conf/cf-lex.l"
 { lval.t = yytext; return HOSTNAME; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 97 "cf-lex.l"
+#line 97 "knot/conf/cf-lex.l"
 { lval.t = yytext; return SVERSION; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 98 "cf-lex.l"
+#line 98 "knot/conf/cf-lex.l"
 { lval.t = yytext; return NSID; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 99 "cf-lex.l"
+#line 99 "knot/conf/cf-lex.l"
 { lval.t = yytext; return MAX_UDP_PAYLOAD; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 100 "cf-lex.l"
+#line 100 "knot/conf/cf-lex.l"
 { lval.t = yytext; return STORAGE; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 101 "cf-lex.l"
+#line 101 "knot/conf/cf-lex.l"
 { lval.t = yytext; return KEY; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 102 "cf-lex.l"
+#line 102 "knot/conf/cf-lex.l"
 { lval.t = yytext; return KEYS; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 103 "cf-lex.l"
+#line 103 "knot/conf/cf-lex.l"
 { lval.t = yytext; return REMOTES; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 104 "cf-lex.l"
+#line 104 "knot/conf/cf-lex.l"
 { lval.t = yytext; return GROUPS; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 106 "cf-lex.l"
+#line 106 "knot/conf/cf-lex.l"
 { lval.t = yytext; return ZONES; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 107 "cf-lex.l"
+#line 107 "knot/conf/cf-lex.l"
 { lval.t = yytext; return FILENAME; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 108 "cf-lex.l"
+#line 108 "knot/conf/cf-lex.l"
 { lval.t = yytext; return DISABLE_ANY; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 109 "cf-lex.l"
+#line 109 "knot/conf/cf-lex.l"
 { lval.t = yytext; return SEMANTIC_CHECKS; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 110 "cf-lex.l"
+#line 110 "knot/conf/cf-lex.l"
 { lval.t = yytext; return NOTIFY_RETRIES; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 111 "cf-lex.l"
+#line 111 "knot/conf/cf-lex.l"
 { lval.t = yytext; return NOTIFY_TIMEOUT; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 112 "cf-lex.l"
+#line 112 "knot/conf/cf-lex.l"
 { lval.t = yytext; return DBSYNC_TIMEOUT; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 113 "cf-lex.l"
+#line 113 "knot/conf/cf-lex.l"
 { lval.t = yytext; return IXFR_FSLIMIT; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 114 "cf-lex.l"
+#line 114 "knot/conf/cf-lex.l"
 { lval.t = yytext; return XFR_IN; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 115 "cf-lex.l"
+#line 115 "knot/conf/cf-lex.l"
 { lval.t = yytext; return XFR_OUT; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 116 "cf-lex.l"
+#line 116 "knot/conf/cf-lex.l"
 { lval.t = yytext; return UPDATE_IN; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 117 "cf-lex.l"
+#line 117 "knot/conf/cf-lex.l"
 { lval.t = yytext; return NOTIFY_IN; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 118 "cf-lex.l"
+#line 118 "knot/conf/cf-lex.l"
 { lval.t = yytext; return NOTIFY_OUT; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 119 "cf-lex.l"
+#line 119 "knot/conf/cf-lex.l"
 { lval.t = yytext; return WORKERS; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 120 "cf-lex.l"
+#line 120 "knot/conf/cf-lex.l"
 { lval.t = yytext; return USER; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 121 "cf-lex.l"
+#line 121 "knot/conf/cf-lex.l"
 { lval.t = yytext; return PIDFILE; }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 122 "cf-lex.l"
+#line 122 "knot/conf/cf-lex.l"
 { lval.t = yytext; return RUNDIR; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 123 "cf-lex.l"
+#line 123 "knot/conf/cf-lex.l"
 { lval.t = yytext; return BUILD_DIFFS; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 124 "cf-lex.l"
+#line 124 "knot/conf/cf-lex.l"
 { lval.t = yytext; return SERIAL_POLICY; }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 125 "cf-lex.l"
+#line 125 "knot/conf/cf-lex.l"
 { lval.t = yytext; return MAX_CONN_IDLE; }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 126 "cf-lex.l"
+#line 126 "knot/conf/cf-lex.l"
 { lval.t = yytext; return MAX_CONN_HS; }
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 127 "cf-lex.l"
+#line 127 "knot/conf/cf-lex.l"
 { lval.t = yytext; return MAX_CONN_REPLY; }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 128 "cf-lex.l"
+#line 128 "knot/conf/cf-lex.l"
 { lval.t = yytext; return RATE_LIMIT; }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 129 "cf-lex.l"
+#line 129 "knot/conf/cf-lex.l"
 { lval.t = yytext; return RATE_LIMIT_SIZE; }
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 130 "cf-lex.l"
+#line 130 "knot/conf/cf-lex.l"
 { lval.t = yytext; return RATE_LIMIT_SLIP; }
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 131 "cf-lex.l"
+#line 131 "knot/conf/cf-lex.l"
 { lval.t = yytext; return TRANSFERS; }
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 132 "cf-lex.l"
+#line 132 "knot/conf/cf-lex.l"
 { lval.t = yytext; return DNSSEC_ENABLE; }
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 133 "cf-lex.l"
+#line 133 "knot/conf/cf-lex.l"
 { lval.t = yytext; return DNSSEC_KEYDIR; }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 134 "cf-lex.l"
+#line 134 "knot/conf/cf-lex.l"
 { lval.t = yytext; return SIGNATURE_LIFETIME; }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 136 "cf-lex.l"
+#line 136 "knot/conf/cf-lex.l"
 { lval.t = yytext; return INTERFACES; }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 137 "cf-lex.l"
+#line 137 "knot/conf/cf-lex.l"
 { lval.t = yytext; return ADDRESS; }
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 138 "cf-lex.l"
+#line 138 "knot/conf/cf-lex.l"
 { lval.t = yytext; return PORT; }
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 139 "cf-lex.l"
+#line 139 "knot/conf/cf-lex.l"
 { lval.t = yytext; return VIA; }
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 141 "cf-lex.l"
+#line 141 "knot/conf/cf-lex.l"
 { lval.t = yytext; return CONTROL; }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 142 "cf-lex.l"
+#line 142 "knot/conf/cf-lex.l"
 { lval.t = yytext; return ALLOW; }
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 143 "cf-lex.l"
+#line 143 "knot/conf/cf-lex.l"
 { lval.t = yytext; return LISTEN_ON; }
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 145 "cf-lex.l"
+#line 145 "knot/conf/cf-lex.l"
 { lval.t = yytext; return LOG; }
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 147 "cf-lex.l"
+#line 147 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_ANY; return LOG_SRC; }
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 148 "cf-lex.l"
+#line 148 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_SERVER; return LOG_SRC; }
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 149 "cf-lex.l"
+#line 149 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_ANSWER; return LOG_SRC; }
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 150 "cf-lex.l"
+#line 150 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_ZONE; return LOG_SRC; }
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 151 "cf-lex.l"
+#line 151 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOGT_STDOUT; return LOG_DEST; }
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 152 "cf-lex.l"
+#line 152 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOGT_STDERR; return LOG_DEST; }
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 153 "cf-lex.l"
+#line 153 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOGT_SYSLOG; return LOG_DEST; }
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 154 "cf-lex.l"
+#line 154 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_UPTO(LOG_DEBUG); return LOG_LEVEL; }
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 155 "cf-lex.l"
+#line 155 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_DEBUG); return LOG_LEVEL; }
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 156 "cf-lex.l"
+#line 156 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_INFO); return LOG_LEVEL; }
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 157 "cf-lex.l"
+#line 157 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_NOTICE); return LOG_LEVEL; }
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 158 "cf-lex.l"
+#line 158 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_WARNING); return LOG_LEVEL; }
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 159 "cf-lex.l"
+#line 159 "knot/conf/cf-lex.l"
 { lval.t = yytext; lval.i = LOG_MASK(LOG_ERR); return LOG_LEVEL; }
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 161 "cf-lex.l"
+#line 161 "knot/conf/cf-lex.l"
 {
   lval.t = yytext;
   if (strcmp(yytext, "increment") == 0) {
@@ -1554,7 +1541,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 171 "cf-lex.l"
+#line 171 "knot/conf/cf-lex.l"
 {
   lval.t = yytext;
   lval.i = 0;
@@ -1566,12 +1553,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 180 "cf-lex.l"
+#line 180 "knot/conf/cf-lex.l"
 BEGIN(include);
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 182 "cf-lex.l"
+#line 182 "knot/conf/cf-lex.l"
 {
   size_t mpos = strlen(yytext) - 1;
   char multiplier = yytext[mpos];
@@ -1596,7 +1583,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 204 "cf-lex.l"
+#line 204 "knot/conf/cf-lex.l"
 {
   size_t mpos = strlen(yytext) - 1;
   char multiplier = yytext[mpos];
@@ -1620,7 +1607,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 225 "cf-lex.l"
+#line 225 "knot/conf/cf-lex.l"
 {
   lval.i = atol(yytext);
   return NUM;
@@ -1628,7 +1615,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 230 "cf-lex.l"
+#line 230 "knot/conf/cf-lex.l"
 {
   unsigned char buf[sizeof(struct in_addr)];
   if (inet_pton(AF_INET, yytext, buf)) {
@@ -1640,7 +1627,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 239 "cf-lex.l"
+#line 239 "knot/conf/cf-lex.l"
 {
 #ifdef DISABLE_IPV6
   lval.t = strdup(yytext);
@@ -1659,7 +1646,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 255 "cf-lex.l"
+#line 255 "knot/conf/cf-lex.l"
 {
 #ifdef DISABLE_IPV6
 	lval.t = strdup(yytext);
@@ -1677,7 +1664,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 270 "cf-lex.l"
+#line 270 "knot/conf/cf-lex.l"
 {
   lval.t = NULL;
   lval.l = 0;
@@ -1705,42 +1692,42 @@ YY_RULE_SETUP
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 295 "cf-lex.l"
+#line 295 "knot/conf/cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_GSS_TSIG;    return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 296 "cf-lex.l"
+#line 296 "knot/conf/cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_MD5;    return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 297 "cf-lex.l"
+#line 297 "knot/conf/cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA1;   return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 298 "cf-lex.l"
+#line 298 "knot/conf/cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA224; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 299 "cf-lex.l"
+#line 299 "knot/conf/cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA256; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 300 "cf-lex.l"
+#line 300 "knot/conf/cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA384; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 301 "cf-lex.l"
+#line 301 "knot/conf/cf-lex.l"
 { lval.alg = KNOT_TSIG_ALG_HMAC_SHA512; return TSIG_ALGO_NAME; }
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 303 "cf-lex.l"
+#line 303 "knot/conf/cf-lex.l"
 {
   yytext[yyleng-1] = 0;
   lval.t = strdup(yytext + 1);
@@ -1750,12 +1737,12 @@ YY_RULE_SETUP
 case 83:
 /* rule 83 can match eol */
 YY_RULE_SETUP
-#line 309 "cf-lex.l"
+#line 309 "knot/conf/cf-lex.l"
 cf_error(yyscanner, "Unterminated string.");
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 311 "cf-lex.l"
+#line 311 "knot/conf/cf-lex.l"
 {
   lval.t = strdup(yytext);
   return TEXT /* Last resort, alphanumeric word. */;
@@ -1763,12 +1750,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 316 "cf-lex.l"
+#line 316 "knot/conf/cf-lex.l"
 /* Optional : in assignments. */;
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(include):
-#line 318 "cf-lex.l"
+#line 318 "knot/conf/cf-lex.l"
 {
 	conf_includes_remove(yyextra->includes);
 
@@ -1782,12 +1769,12 @@ case YY_STATE_EOF(include):
 case 86:
 /* rule 86 can match eol */
 YY_RULE_SETUP
-#line 328 "cf-lex.l"
+#line 328 "knot/conf/cf-lex.l"
 
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 329 "cf-lex.l"
+#line 329 "knot/conf/cf-lex.l"
 {
 	BEGIN(INITIAL);
 
@@ -1895,15 +1882,15 @@ YY_RULE_SETUP
 case 88:
 /* rule 88 can match eol */
 YY_RULE_SETUP
-#line 435 "cf-lex.l"
+#line 435 "knot/conf/cf-lex.l"
 cf_error(yyscanner, "Unterminated string.");
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 437 "cf-lex.l"
+#line 437 "knot/conf/cf-lex.l"
 ECHO;
 	YY_BREAK
-#line 1907 "knot/conf/libknotd_la-cf-lex.c"
+#line 1894 "knot/conf/libknotd_la-cf-lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2088,21 +2075,21 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			int num_to_read =
+			yy_size_t num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
 			{ /* Not enough room in the buffer - grow it. */
 
 			/* just a shorter name for the current buffer */
-			YY_BUFFER_STATE b = YY_CURRENT_BUFFER;
+			YY_BUFFER_STATE b = YY_CURRENT_BUFFER_LVALUE;
 
 			int yy_c_buf_p_offset =
 				(int) (yyg->yy_c_buf_p - b->yy_ch_buf);
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = b->yy_buf_size * 2;
+				yy_size_t new_size = b->yy_buf_size * 2;
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -2133,7 +2120,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			yyg->yy_n_chars, (size_t) num_to_read );
+			yyg->yy_n_chars, num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
@@ -2230,6 +2217,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
 	yy_is_jam = (yy_current_state == 514);
 
+	(void)yyg;
 	return yy_is_jam ? 0 : yy_current_state;
 }
 
@@ -2258,7 +2246,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		else
 			{ /* need more input */
-			int offset = yyg->yy_c_buf_p - yyg->yytext_ptr;
+			yy_size_t offset = yyg->yy_c_buf_p - yyg->yytext_ptr;
 			++yyg->yy_c_buf_p;
 
 			switch ( yy_get_next_buffer( yyscanner ) )
@@ -2429,10 +2417,6 @@ static void cf__load_buffer_state  (yyscan_t yyscanner)
 	cf_free((void *) b ,yyscanner );
 }
 
-#ifndef __cplusplus
-extern int isatty (int );
-#endif /* __cplusplus */
-    
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
  * such as during a cf_restart() or at EOF.
@@ -2549,7 +2533,7 @@ void cf_pop_buffer_state (yyscan_t yyscanner)
  */
 static void cf_ensure_buffer_stack (yyscan_t yyscanner)
 {
-	int num_to_alloc;
+	yy_size_t num_to_alloc;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 	if (!yyg->yy_buffer_stack) {
@@ -2647,12 +2631,12 @@ YY_BUFFER_STATE cf__scan_string (yyconst char * yystr , yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
-YY_BUFFER_STATE cf__scan_bytes  (yyconst char * yybytes, int  _yybytes_len , yyscan_t yyscanner)
+YY_BUFFER_STATE cf__scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes_len , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
 	char *buf;
 	yy_size_t n;
-	int i;
+	yy_size_t i;
     
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
@@ -2762,7 +2746,7 @@ FILE *cf_get_out  (yyscan_t yyscanner)
 /** Get the length of the current token.
  * @param yyscanner The scanner object.
  */
-int cf_get_leng  (yyscan_t yyscanner)
+yy_size_t cf_get_leng  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyleng;
@@ -2798,7 +2782,7 @@ void cf_set_lineno (int  line_number , yyscan_t yyscanner)
 
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "cf_set_lineno called with no buffer" , yyscanner); 
+           YY_FATAL_ERROR( "cf_set_lineno called with no buffer" );
     
     yylineno = line_number;
 }
@@ -2813,7 +2797,7 @@ void cf_set_column (int  column_no , yyscan_t yyscanner)
 
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "cf_set_column called with no buffer" , yyscanner); 
+           YY_FATAL_ERROR( "cf_set_column called with no buffer" );
     
     yycolumn = column_no;
 }
@@ -3037,7 +3021,7 @@ void cf_free (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 437 "cf-lex.l"
+#line 437 "knot/conf/cf-lex.l"
 
 
 
