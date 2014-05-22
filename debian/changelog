@@ -1,3 +1,10 @@
+knot (1.4.6-1) unstable; urgency=medium
+
+  * New upstream version 1.4.6
+  * Update patches for 1.4.6 release
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 22 May 2014 13:15:14 +0200
+
 knot (1.4.5-2) unstable; urgency=high
 
   * Re-upload to fix botched amd64 upload in 1.4.5-1
