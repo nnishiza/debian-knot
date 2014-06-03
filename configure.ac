@@ -1,16 +1,25 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.4.6], [knot-dns@labs.nic.cz])
+AC_INIT([knot], [1.5.0-rc1], [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
 AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_USE_SYSTEM_EXTENSIONS([_GNU_SOURCE])
+AC_CANONICAL_HOST
 
 # Automatically update release date based on configure.ac date
-release_date=`doc/mdate-sh configure.ac`
+case "$host_os" in
+linux*)
+    release_date=`date +"%Y-%m-%d" -r configure.ac`
+    ;;
+*)
+    tmstamp=`stat -f %m configure.ac`
+    release_date=`date -r $tmstamp +"%Y-%m-%d"`
+    ;;
+esac
 AC_SUBST([RELEASE_DATE], $release_date)
 
 # Set compiler compatibility flags
@@ -64,26 +73,27 @@ AS_IF([test "x$YACC_BISON" != "xbison"],
     [AC_MSG_ERROR([GNU bison needed for reentrant parsers, set the \$YACC variable before running configure])])
 AC_PROG_INSTALL
 
-# Check for Ragel
-AC_PATH_PROG([RAGEL], [ragel], [false])
-AM_CONDITIONAL([HAVE_RAGEL], test "$RAGEL" != "false")
-
-# Set FSM type for Ragel
+# Set zone parser type
 AC_ARG_ENABLE([fastparser],
-    AS_HELP_STRING([--disable-fastparser], [Don't use faster zone parser]),
-    [],
-    [enable_fastparser=yes])
+    AS_HELP_STRING([--disable-fastparser], [Use slower zone parser]),
+    [], [enable_fastparser=yes])
+AM_CONDITIONAL([FAST_PARSER], [test "$enable_fastparser" = yes])
 
-AS_CASE([$enable_fastparser],
-    [no], [AC_SUBST([FSM_TYPE], [-T0])],
-    [yes], [AC_SUBST([FSM_TYPE], [-G2])],
-    [*], [
-        AS_IF([test "$RAGEL" = "false"],
-	    [AC_MSG_ERROR([Ragel is needed to generate different parsers])])
-        AC_SUBST([FSM_TYPE], [$enable_fastparser])
-    ])
-AM_CONDITIONAL([G2_PARSER], test "$enable_fastparser" = "yes")
-AM_CONDITIONAL([T0_PARSER], test "$enable_fastparser" = "no")
+# Systemd integration
+AC_ARG_ENABLE([systemd],
+    AS_HELP_STRING([--enable-systemd=auto|yes|no], [enable systemd notification mechanism [default=auto]]),
+    [enable_systemd="$enableval"], [enable_systemd=auto])
+
+case "$enable_systemd" in
+    auto) PKG_CHECK_MODULES([systemd_daemon], [libsystemd-daemon], [enable_systemd=yes], [enable_systemd=no]) ;;
+    yes)  PKG_CHECK_MODULES([systemd_daemon], [libsystemd-daemon]) ;;
+    no)   ;;
+    *)    AC_MSG_ERROR([Invalid value of --enable-systemd.]) ;;
+esac
+
+if test "$enable_systemd" = yes; then
+    AC_DEFINE([ENABLE_SYSTEMD_NOTIFY], [1], [Use systemd notifications.])
+fi
 
 # Debug modules
 AC_ARG_ENABLE([debug],
@@ -145,11 +155,6 @@ AC_ARG_ENABLE([recvmmsg],
       [AC_DEFINE(HAVE_RECVMMSG, 1, [Define if struct mmsghdr and recvmmsg() exists.])])
     ])
 
-# Enable integrity check
-AC_ARG_ENABLE([integrity-check],
-    AS_HELP_STRING([--enable-integrity-check], [enable integrity check in knotd via SIGUSR1]),
-    [AC_DEFINE([INTEGRITY_CHECK], [1], [integrity check in knotd])])
-
 # Check for link time optimizations support and predictive commoning
 AC_ARG_ENABLE([lto],
     AS_HELP_STRING([--enable-lto=yes|no], [enable link-time optimizations, enable if not broken for some extra speed [default=no]]),
@@ -165,10 +170,6 @@ AC_ARG_ENABLE([microseconds-log],
     AC_DEFINE([ENABLE_MICROSECONDS_LOG], [1], [microseconds in log messages]))
 
 AX_CHECK_COMPILE_FLAG("-fpredictive-commoning", [CFLAGS="$CFLAGS -fpredictive-commoning"], [], "-Werror")
-
-# Disable strict aliasing
-# FIXME: we break strict aliasing on many occurenes, disable it until resolved or kept
-AX_CHECK_COMPILE_FLAG("-fno-strict-aliasing", [CFLAGS="$CFLAGS -fno-strict-aliasing"], [])
 
 # Default directories
 run_dir="${localstatedir}/run/knot"
@@ -291,21 +292,30 @@ AC_EGREP_CPP(openssl_version_ok,
   ],[],[AC_MSG_ERROR([OpenSSL library version >= 1.0.0 is required.])]
 )
 
-AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=[DIR]],
-    [Support IDN (needs GNU Libidn)]),
-    libidn=$withval, libidn=yes)
-if test "$libidn" != "no"; then
-    if test "$libidn" != "yes"; then
-        LDFLAGS="${LDFLAGS} -L$libidn/lib"
-        CPPFLAGS="${CPPFLAGS} -I$libidn/include"
+dnl Check for libidn.
+AC_ARG_WITH(libidn,
+    AC_HELP_STRING([--with-libidn=[DIR]], [Support IDN (needs GNU Libidn)]),
+    with_libidn=$withval,
+    with_libidn=yes
+)
+if test "$with_libidn" != "no" ; then
+    PKG_CHECK_MODULES([libidn], [libidn >= 0.0.0], [with_libidn=yes], [with_libidn=no])
+    if test "$with_libidn" != "yes" ; then
+        with_libidn=no
+        AC_MSG_WARN([Libidn not found])
+    else
+        with_libidn=yes
+        AC_DEFINE([LIBIDN], [1], [Define to 1 to enable IDN support])
     fi
-    AC_CHECK_HEADER(idna.h, AC_CHECK_LIB(idn, stringprep_check_version,
-                                 [libidn=yes LIBS="${LIBS} -lidn"], libidn=no),
-                    libidn=no)
 fi
-if test "$libidn" != "no" ; then
-    AC_DEFINE(LIBIDN, 1, [Define to 1 if you want IDN support.])
-fi
+
+dnl Check for dnstap.
+dt_DNSTAP([
+    LIBS="$LIBS $DNSTAP_LIBS"
+    CPPFLAGS="$CPPFLAGS $DNSTAP_CFLAGS"
+    AC_DEFINE([USE_DNSTAP], [1], [Define to 1 to enable dnstap support])
+])
+AM_CONDITIONAL([HAVE_DNSTAP], test "$opt_dnstap" != "no")
 
 AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread], [], [AC_MSG_ERROR([pthreads not found])])
@@ -325,11 +335,11 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 
 # Checks for library functions.
-AC_CHECK_FUNCS([clock_gettime gettimeofday fgetln getline madvise malloc_trim poll posix_memalign pselect pthread_setaffinity_np regcomp select setgroups initgroups])
+AC_CHECK_FUNCS([clock_gettime gettimeofday fgetln getline madvise malloc_trim poll posix_memalign pselect pthread_setaffinity_np regcomp select setgroups strlcat strlcpy initgroups])
 
 # Check for be64toh function
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <endian.h>]], [[return be64toh(0);]])],
-[AC_DEFINE(HAVE_BE64TOH, 1, [Define to 1 if you have the `be64toh' function.])])
+[AC_DEFINE(HAVE_BE64TOH, 1, [Define to 1 if you have the 'be64toh' function.])])
 
 # Check for cpu_set_t/cpuset_t compatibility
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]], [[cpu_set_t set; CPU_ZERO(&set);]])],
@@ -339,16 +349,40 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread_np.h>]], [[cpuset_t set; CPU
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sched.h>]], [[cpuset_t* set = cpuset_create(); cpuset_destroy(set);]])],
 [AC_DEFINE(HAVE_CPUSET_NETBSD, 1, [Define if cpuset_t and cpuset(3) exists.])])
 
-gl_VISIBILITY()
-CFLAGS="$CFLAGS $CFLAG_VISIBILITY"
+# Use -fvisibility=hidden when linking.
+# Let's leave it default now and use -export-symbols-regex in LDFLAGS
+#gl_VISIBILITY()
+#CFLAGS="$CFLAGS $CFLAG_VISIBILITY"
+
+# Add code coverage macro
+AX_CODE_COVERAGE
+
+AC_PATH_PROG([SPHINXBUILD], [sphinx-build], [false])
+AS_IF([test "$SPHINXBUILD" = "false"],
+  [AC_MSG_WARN([Could not find the 'sphinx-build' executable, you will be unable to regenerate documentation.])],
+  [AC_PATH_PROG([PDFLATEX], [pdflatex], [false])
+   AS_IF([test "$PDFLATEX" = ""],
+     [AC_MSG_WARN([Could not find the 'pdflatex' executable, you will be unable to generate PDF documentation.])])
+   AC_PATH_PROG([MAKEINFO], [makeinfo], [false])
+   AS_IF([test "$MAKEINFO" = "false"],
+     [AC_MSG_WARN([Could not find the 'makeinfo' executable, you will be unable to generate info documentation.])])
+  ])
+
+AM_CONDITIONAL([HAVE_SPHINXBUILD], test "$SPHINXBUILD" != "false")
+AM_CONDITIONAL([HAVE_PDFLATEX], test "$PDFLATEX" != "false")
+AM_CONDITIONAL([HAVE_MAKEINFO], test "$MAKEINFO" != "false")
 
 AC_CONFIG_FILES([Makefile
 		 doc/Makefile
 		 man/Makefile
-		 src/Makefile
 		 samples/Makefile
 		 patches/Makefile
+		 libtap/Makefile
+		 src/Makefile
+		 tests/Makefile
+		 src/dnstap/Makefile
 		 src/zscanner/Makefile
+		 doc/conf.py
 		 man/khost.1
 		 man/knotc.8
 		 man/knotd.8
@@ -359,18 +393,25 @@ AC_CONFIG_FILES([Makefile
 		 ])
 
 AC_OUTPUT
+AC_MSG_RESULT([
+  $PACKAGE $VERSION
 
-echo "
-  Version: ${PACKAGE_VERSION}
-  Prefix: ${prefix}
-  Run dir: ${run_dir}
-  Storage dir: ${storage_dir}
-  Config dir: ${config_dir}
-  Compiler: ${CC}
-  CFlags: ${CFLAGS} ${CPPFLAGS}
-  LDFlags: ${LDFLAGS}
-  Libs: ${LIBS}
-  Ragel: ${RAGEL} ${FSM_TYPE}
-  Utils with IDN: ${libidn}
+    Target:   $host_os $host_cpu
+    Compiler: ${CC}
+    CFlags:   ${CFLAGS} ${CPPFLAGS}
+    LDFlags:  ${LDFLAGS}
+    Libs:     ${LIBS}
 
-  Continue with 'make' command"
+    Prefix:      ${prefix}
+    Run dir:     ${run_dir}
+    Storage dir: ${storage_dir}
+    Config dir:  ${config_dir}
+
+    Fast zone parser:      ${enable_fastparser}
+    Utilities with IDN:    ${with_libidn}
+    Systemd notifications: ${enable_systemd}
+    Dnstap support:        ${opt_dnstap}
+    Code coverage:         ${enable_code_coverage}
+
+  Continue with 'make' command
+])

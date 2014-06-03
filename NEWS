@@ -1,40 +1,20 @@
 Knot DNS NEWS
 
-v1.4.6 - May 22, 2014
----------------------
-Bugfixes:
-	* Fix possible signing loop when doing key rollover
-	* Fixed sending of malformed UDP empty responses
-
-v1.4.5 - Apr 14, 2014
----------------------
-Bugfixes:
-	* Fix possible weakness in TSIG signature checking
-
-v1.4.4 - Mar 24, 2014
----------------------
+1.5.0-rc1 - Jun 3, 2014
+-----------------------
 Features:
-	* Server is logging remote control commands
-	* 'knotc reload' doesn't refresh unchanged zones
-	* 'knotc -f refresh' forces zone retransfer
-Bugfixes:
-	* Missing notifications after DDNS/automatic resign
-	* Zone is rebootstrapped if the zone file is unreadable
-	* Progressive bootstrap retry backoff 
-	* Zone file parser allows asterisk as part of the label
-	* Journal maximum entry size fixes
-	* Sign DNSKEYs in non-apex nodes as regular RR sets
-	* Various spelling and typo fixes
-
-v1.4.3 - Feb 13, 2014
----------------------
-Bugfixes:
-	* Failure when expanding wildcard leading to apex and having DNSKEY records
-	* Failure for query to wildcard without wildcard expansion
-	* Bad cleanup when loading a faulty entry from a journal 
-	* Zone file $ORIGIN and configuration comparison is case-insensitive
-Features:
-	* Config "include" statement supports directory and includes all files within
+	* Pluggable query processing modules
+	* Synthetic IPv4/IPv6 reverse/forward records (optional module)
+	* dnstap support in both utilities & server (optional module)
+	* NOTIFY message support and new TSIG section in kdig
+	* Multi-master support
+Improvements:
+	* Query processing and core functionality overhaul 
+	* Performance and reduced memory footprint
+	* Faster zone events scheduling
+	* RFC compliant queries/responses in some corner cases
+	* Log messages
+	* New documentation (Sphinx)
 
 v1.4.2 - Jan 27, 2014
 ---------------------

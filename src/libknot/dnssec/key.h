@@ -24,14 +24,13 @@
  * @{
  */
 
-#ifndef _KNOT_DNSSEC_KEY_H_
-#define _KNOT_DNSSEC_KEY_H_
+#pragma once
 
 #include <stdint.h>
 #include <time.h>
 #include "libknot/dname.h"
 #include "libknot/binary.h"
-#include "libknot/tsig.h"
+#include "libknot/rrtype/tsig.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -175,7 +174,5 @@ int knot_tsig_key_from_params(const knot_key_params_t *params,
  * \return Error code, KNOT_EOK when succeeded.
  */
 int knot_tsig_key_free(knot_tsig_key_t *key);
-
-#endif // _KNOT_DNSSEC_KEY_H_
 
 /*! @} */

@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,68 +25,58 @@
 #include <cap-ng.h>
 #endif /* HAVE_CAP_NG_H */
 
+#ifdef ENABLE_SYSTEMD_NOTIFY
+#include <systemd/sd-daemon.h>
+#endif
+
 #include "libknot/common.h"
 #include "libknot/dnssec/crypto.h"
-#include "common/evqueue.h"
 #include "knot/knot.h"
 #include "knot/server/server.h"
 #include "knot/ctl/process.h"
 #include "knot/ctl/remote.h"
 #include "knot/conf/conf.h"
 #include "knot/conf/logconf.h"
-#include "knot/server/zones.h"
 #include "knot/server/tcp-handler.h"
-
-/*----------------------------------------------------------------------------*/
 
 /* Signal flags. */
 static volatile short sig_req_stop = 0;
 static volatile short sig_req_reload = 0;
 static volatile short sig_stopping = 0;
 
-#ifdef INTEGRITY_CHECK
-static volatile short sig_integrity_check = 0;
-
-static void check_integrity(server_t *server) {
-	const knot_zonedb_t *zonedb = server->nameserver->zone_db;
-	const unsigned      zone_count = knot_zonedb_zone_count(zonedb);
-	const knot_zone_t   **zones = knot_zonedb_zones(zonedb);
-
-	for (unsigned i = 0; i < zone_count; i++) {
-		char *zname = knot_dname_to_str(zones[i]->name);
-
-		log_server_info("Integrity check for zone %s\n", zname);
-
-		int ret = knot_zone_contents_integrity_check(zones[i]->contents);
-		if (ret != 0) {
-			log_server_info("Integrity errors(%i)\n", ret);
-		}
-
-		free(zname);
-	}
+/* \brief Signal started state to the init system. */
+static void init_signal_started(void)
+{
+#ifdef ENABLE_SYSTEMD_NOTIFY
+	sd_notify(0, "READY=1");
+#endif
 }
-#endif /* INTEGRITY_CHECK */
 
-// Cleanup handler
-static int do_cleanup(server_t *server, char *configf, char *pidf);
-
-// atexit() handler for server code
-static void deinit(void)
+/*! \brief atexit() handler for server code. */
+static void knot_crypto_deinit(void)
 {
 	knot_crypto_cleanup();
 	knot_crypto_cleanup_threads();
 }
 
-// SIGINT signal handler
+/*! \brief PID file cleanup handler. */
+static void pid_cleanup(char *pidfile)
+{
+	if (pidfile && pid_remove(pidfile) < 0) {
+		log_server_warning("Failed to remove PID file.\n");
+	}
+}
+
+/*! \brief SIGINT signal handler. */
 void interrupt_handle(int s)
 {
-	// Reload configuration
+	/* Reload configuration. */
 	if (s == SIGHUP) {
 		sig_req_reload = 1;
 		return;
 	}
 
-	// Stop server
+	/* Stop server. */
 	if (s == SIGINT || s == SIGTERM) {
 		if (sig_stopping == 0) {
 			sig_req_stop = 1;
@@ -96,166 +85,15 @@ void interrupt_handle(int s)
 			exit(1);
 		}
 	}
-#ifdef INTEGRITY_CHECK
-	// Start zone integrity check
-	if (s == SIGUSR1) {
-		sig_integrity_check = 1;
-		return;
-	}
-#endif /* INTEGRITY_CHECK */
 }
 
-void help(void)
+/*! \brief POSIX 1003.1e capabilities. */
+static void setup_capabilities(void)
 {
-	printf("Usage: %sd [parameters]\n",
-	       PACKAGE_NAME);
-	printf("\nParameters:\n"
-	       " -c, --config <file>     Select configuration file.\n"
-	       " -d, --daemonize=[dir]   Run server as a daemon.\n"
-	       " -v, --verbose           Verbose mode - additional runtime information.\n"
-	       " -V, --version           Print version of the server.\n"
-	       " -h, --help              Print help and usage.\n");
-}
-
-int main(int argc, char **argv)
-{
-	atexit(deinit);
-
-	// Parse command line arguments
-	int c = 0, li = 0;
-	int verbose = 0;
-	int daemonize = 0;
-	char *config_fn = NULL;
-	char *daemon_root = NULL;
-
-	/* Long options. */
-	struct option opts[] = {
-		{"config",    required_argument, 0, 'c'},
-		{"daemonize", optional_argument, 0, 'd'},
-		{"verbose",   no_argument,       0, 'v'},
-		{"version",   no_argument,       0, 'V'},
-		{"help",      no_argument,       0, 'h'},
-		{0, 0, 0, 0}
-	};
-
-	while ((c = getopt_long(argc, argv, "c:dvVh", opts, &li)) != -1) {
-		switch (c)
-		{
-		case 'c':
-			free(config_fn);
-			config_fn = strdup(optarg);
-			break;
-		case 'd':
-			daemonize = 1;
-			if (optarg) {
-				daemon_root = strdup(optarg);
-			}
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case 'V':
-			free(config_fn);
-			free(daemon_root);
-			printf("%s, version %s\n", "Knot DNS", PACKAGE_VERSION);
-			return 0;
-		case 'h':
-		case '?':
-			free(config_fn);
-			free(daemon_root);
-			help();
-			return 0;
-		default:
-			free(config_fn);
-			free(daemon_root);
-			help();
-			return 1;
-		}
-	}
-
-	// Check for non-option parameters.
-	if (argc - optind > 0) {
-		free(config_fn);
-		free(daemon_root);
-		help();
-		return 1;
-	}
-
-	// Initialize cryptographic backend
-	knot_crypto_init();
-	knot_crypto_init_threads();
-
-	// Now check if we want to daemonize
-	if (daemonize) {
-		if (daemon(1, 0) != 0) {
-			free(config_fn);
-			free(daemon_root);
-			fprintf(stderr, "Daemonization failed, "
-					"shutting down...\n");
-			return 1;
-		}
-	}
-
-	// Register service and signal handler
-	struct sigaction emptyset;
-	memset(&emptyset, 0, sizeof(struct sigaction));
-	emptyset.sa_handler = interrupt_handle;
-	sigemptyset(&emptyset.sa_mask);
-	emptyset.sa_flags = 0;
-	sigaction(SIGALRM, &emptyset, NULL); // Interrupt
-	sigaction(SIGPIPE, &emptyset, NULL); // Mask
-	rcu_register_thread();
-
-	// Initialize log
-	log_init();
-
-	// Verbose mode
-	if (verbose) {
-		int mask = LOG_MASK(LOG_INFO)|LOG_MASK(LOG_DEBUG);
-		log_levels_add(LOGT_STDOUT, LOG_ANY, mask);
-	}
-
-	// Initialize pseudorandom number generator
-	srand(time(0));
-
-	// Find implicit configuration file
-	if (!config_fn) {
-		config_fn = conf_find_default();
-	}
-
-	// Find absolute path for config file
-	if (config_fn[0] != '/')
-	{
-		// Get absolute path to cwd
-		char *rpath = realpath(config_fn, NULL);
-		if (rpath == NULL) {
-			log_server_error("Couldn't get absolute path for configuration file '%s' - "
-			                 "%s.\n", config_fn, strerror(errno));
-			free(config_fn);
-			free(daemon_root);
-			return 1;
-		} else {
-			free(config_fn);
-			config_fn = rpath;
-		}
-	}
-
-	// Create server
-	server_t *server = server_create();
-
-	// Initialize configuration
-	rcu_read_lock();
-	conf_add_hook(conf(), CONF_LOG, log_conf_hook, 0);
-	conf_add_hook(conf(), CONF_ALL, server_conf_hook, server);
-	rcu_read_unlock();
-
-	/* POSIX 1003.1e capabilities. */
 #ifdef HAVE_CAP_NG_H
-
 	/* Drop all capabilities. */
 	if (capng_have_capability(CAPNG_EFFECTIVE, CAP_SETPCAP)) {
 		capng_clear(CAPNG_SELECT_BOTH);
-
 
 		/* Retain ability to set capabilities and FS access. */
 		capng_type_t tp = CAPNG_EFFECTIVE|CAPNG_PERMITTED;
@@ -275,7 +113,7 @@ int main(int argc, char **argv)
 		/* Allow priorities changing. */
 		capng_update(CAPNG_ADD, tp, CAP_SYS_NICE);
 
-		/* Apply */
+		/* Apply. */
 		if (capng_apply(CAPNG_SELECT_BOTH) < 0) {
 			log_server_error("Couldn't set process capabilities - "
 			                 "%s.\n", strerror(errno));
@@ -285,201 +123,270 @@ int main(int argc, char **argv)
 		                "capabilities, skipping.\n", getuid());
 	}
 #endif /* HAVE_CAP_NG_H */
+}
 
-	// Open configuration
-	log_server_info("Reading configuration '%s' ...\n", config_fn);
-	int conf_ret = conf_open(config_fn);
-	if (conf_ret != KNOT_EOK) {
-		if (conf_ret == KNOT_ENOENT) {
-			log_server_error("Couldn't open configuration file "
-			                 "'%s'.\n", config_fn);
-		} else {
-			log_server_error("Failed to load configuration '%s'.\n",
-			                 config_fn);
+/*! \brief Event loop listening for signals and remote commands. */
+static void event_loop(server_t *server)
+{
+	/* Setup signal handler. */
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = interrupt_handle;
+	sigaction(SIGINT,  &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGHUP,  &sa, NULL);
+	sigaction(SIGPIPE, &sa, NULL);
+	sigaction(SIGALRM, &sa, NULL);
+	pthread_sigmask(SIG_BLOCK, &sa.sa_mask, NULL);
+
+	/* Bind to control interface. */
+	uint8_t buf[KNOT_WIRE_MAX_PKTSIZE];
+	size_t buflen = sizeof(buf);
+	int remote = remote_bind(conf()->ctl.iface);
+
+	/* Run event loop. */
+	for (;;) {
+		pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
+		int ret = remote_poll(remote);
+		pthread_sigmask(SIG_BLOCK, &sa.sa_mask, NULL);
+
+		/* Events. */
+		if (ret > 0) {
+			ret = remote_process(server, conf()->ctl.iface,
+			                     remote, buf, buflen);
+			switch (ret) {
+			case KNOT_CTL_STOP:
+				sig_req_stop = 1;
+				break;
+			default:
+				break;
+			}
 		}
-		return do_cleanup(server, config_fn, NULL);
-	} else {
-		log_server_info("Configured %d interfaces and %d zones.\n",
-				conf()->ifaces_count, conf()->zones_count);
+
+		/* Interrupts. */
+		if (sig_req_stop) {
+			sig_req_stop = 0;
+			server_stop(server);
+			break;
+		}
+		if (sig_req_reload) {
+			sig_req_reload = 0;
+			server_reload(server, conf()->filename);
+		}
+	}
+	pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
+
+	/* Close remote control interface. */
+	remote_unbind(conf()->ctl.iface, remote);
+
+	/* Wait for server to finish. */
+	server_wait(server);
+}
+
+static void help(void)
+{
+	printf("Usage: %sd [parameters]\n",
+	       PACKAGE_NAME);
+	printf("\nParameters:\n"
+	       " -c, --config <file>     Select configuration file.\n"
+	       " -d, --daemonize=[dir]   Run server as a daemon.\n"
+	       " -V, --version           Print version of the server.\n"
+	       " -h, --help              Print help and usage.\n");
+}
+
+int main(int argc, char **argv)
+{
+	/* Parse command line arguments. */
+	int c = 0, li = 0;
+	int daemonize = 0;
+	const char *config_fn = conf_find_default();
+	const char *daemon_root = "/";
+
+	/* Long options. */
+	struct option opts[] = {
+		{"config",    required_argument, 0, 'c'},
+		{"daemonize", optional_argument, 0, 'd'},
+		{"version",   no_argument,       0, 'V'},
+		{"help",      no_argument,       0, 'h'},
+		{0, 0, 0, 0}
+	};
+
+	while ((c = getopt_long(argc, argv, "c:dVh", opts, &li)) != -1) {
+		switch (c)
+		{
+		case 'c':
+			config_fn = optarg;
+			break;
+		case 'd':
+			daemonize = 1;
+			if (optarg) {
+				daemon_root = optarg;
+			}
+			break;
+		case 'V':
+			printf("%s, version %s\n", "Knot DNS", PACKAGE_VERSION);
+			return EXIT_SUCCESS;
+		case 'h':
+		case '?':
+			help();
+			return EXIT_SUCCESS;
+		default:
+			help();
+			return EXIT_FAILURE;
+		}
 	}
 
+	/* Check for non-option parameters. */
+	if (argc - optind > 0) {
+		help();
+		return EXIT_FAILURE;
+	}
+
+	/* Now check if we want to daemonize. */
+	if (daemonize) {
+		if (daemon(1, 0) != 0) {
+			fprintf(stderr, "Daemonization failed, shutting down...\n");
+			return EXIT_FAILURE;
+		}
+	}
+
+	/* Initialize cryptographic backend. */
+	knot_crypto_init();
+	knot_crypto_init_threads();
+	atexit(knot_crypto_deinit);
+
+	/* Initialize pseudorandom number generator. */
+	srand(time(NULL));
+
+	/* POSIX 1003.1e capabilities. */
+	setup_capabilities();
+
+	/* Default logging to std out/err. */
+	log_init();
+
+	/* Open configuration. */
+	int res = conf_open(config_fn);
+	conf_t *config = conf();
+	if (res != KNOT_EOK) {
+		log_server_fatal("Couldn't load configuration '%s': %s\n",
+		                 config_fn, knot_strerror(res));
+		return EXIT_FAILURE;
+	}
+
+	/* Initialize logging subsystem.
+	 * @note We're logging since now. */
+	log_reconfigure(config, NULL);
+	conf_add_hook(config, CONF_LOG, log_reconfigure, NULL);
+
+	/* Initialize server. */
+	server_t server;
+	res = server_init(&server, config->bg_workers);
+	if (res != KNOT_EOK) {
+		log_server_fatal("Could not initialize server: %s\n",
+		                 knot_strerror(res));
+		conf_free(conf());
+		log_close();
+		return EXIT_FAILURE;
+	}
+
+	/* Reconfigure server interfaces.
+	 * @note This MUST be done before we drop privileges. */
+	server_reconfigure(config, &server);
+	conf_add_hook(config, CONF_ALL, server_reconfigure, &server);
+	log_server_info("Configured %zu interfaces and %zu zones.\n",
+	                list_size(&config->ifaces), hattrie_weight(config->zones));
+
+
 	/* Alter privileges. */
-	log_update_privileges(conf()->uid, conf()->gid);
-	if (proc_update_privileges(conf()->uid, conf()->gid) != KNOT_EOK)
-		return do_cleanup(server, config_fn, NULL);
+	log_update_privileges(config->uid, config->gid);
+	if (proc_update_privileges(config->uid, config->gid) != KNOT_EOK) {
+		server_deinit(&server);
+		conf_free(conf());
+		log_close();
+		return EXIT_FAILURE;
+	}
 
 	/* Check and create PID file. */
 	long pid = (long)getpid();
-	char *pidf = NULL;
-	char *cwd = NULL;
+	char *pidfile = NULL;
 	if (daemonize) {
-		if ((pidf = pid_check_and_create()) == NULL)
-			return do_cleanup(server, config_fn, pidf);
-		log_server_info("Server started as a daemon, PID = %ld\n", pid);
-		log_server_info("PID stored in '%s'\n", pidf);
-		if ((cwd = malloc(PATH_MAX)) != NULL) {
-			if (getcwd(cwd, PATH_MAX) == NULL) {
-				log_server_info("Cannot get current working directory.\n");
-				cwd[0] = '\0';
-			}
+		pidfile = pid_check_and_create();
+		if (pidfile == NULL) {
+			server_deinit(&server);
+			conf_free(conf());
+			log_close();
+			return EXIT_FAILURE;
 		}
-		if (daemon_root == NULL) {
-			daemon_root = strdup("/");
-		}
+
+		log_server_info("PID stored in '%s'\n", pidfile);
 		if (chdir(daemon_root) != 0) {
-			log_server_warning("Server can't change working "
-			                   "directory to %s.\n", daemon_root);
+			log_server_warning("Can't change working directory to %s.\n",
+			                   daemon_root);
 		} else {
-			log_server_info("Server changed directory to %s.\n",
+			log_server_info("Changed directory to %s.\n",
 			                daemon_root);
 		}
-		free(daemon_root);
+	}
+
+	/* Register base signal handling. */
+	struct sigaction emptyset;
+	memset(&emptyset, 0, sizeof(struct sigaction));
+	emptyset.sa_handler = interrupt_handle;
+	sigaction(SIGALRM, &emptyset, NULL);
+	sigaction(SIGPIPE, &emptyset, NULL);
+
+	/* Now we're going multithreaded. */
+	rcu_register_thread();
+
+	/* Populate zone database and add reconfiguration hook. */
+	log_server_info("Loading zones...\n");
+	server_update_zones(config, &server);
+	conf_add_hook(config, CONF_ALL, server_update_zones, &server);
+
+	/* Check number of loaded zones. */
+	if (knot_zonedb_size(server.zone_db) == 0) {
+		log_server_warning("No zones loaded.\n");
+	}
+
+	/* Start it up. */
+	log_server_info("Starting server...\n");
+	res = server_start(&server);
+	if (res != KNOT_EOK) {
+		log_server_fatal("Failed to start server: %s.\n",
+		                 knot_strerror(res));
+		server_deinit(&server);
+		rcu_unregister_thread();
+		pid_cleanup(pidfile);
+		log_close();
+		conf_free(conf());
+		return EXIT_FAILURE;
+	}
+
+	if (daemonize) {
+		log_server_info("Server started as a daemon, PID = %ld\n", pid);
 	} else {
 		log_server_info("Server started in foreground, PID = %ld\n", pid);
-		log_server_info("Server running without PID file.\n");
+		init_signal_started();
 	}
 
-	/* Load zones and add hook. */
-	zones_ns_conf_hook(conf(), server->nameserver);
-	conf_add_hook(conf(), CONF_ALL, zones_ns_conf_hook, server->nameserver);
+	/* Start the event loop. */
+	config = NULL; /* @note Invalidate pointer, as it may change now. */
+	event_loop(&server);
 
-	// Run server
-	int res = 0;
-	log_server_info("Starting server...\n");
-	if ((server_start(server)) == KNOT_EOK) {
-		size_t zcount = server->nameserver->zone_db->count;
-		if (!zcount) {
-			log_server_warning("Server started, but no zones served.\n");
-		}
+	/* Teardown server and configuration. */
+	server_deinit(&server);
 
-		// Setup signal handler
-		struct sigaction sa;
-		memset(&sa, 0, sizeof(sa));
-		sa.sa_handler = interrupt_handle;
-		sigemptyset(&sa.sa_mask);
-		sigaction(SIGINT,  &sa, NULL);
-		sigaction(SIGTERM, &sa, NULL);
-		sigaction(SIGHUP,  &sa, NULL);
-		sigaction(SIGPIPE, &sa, NULL);
-#ifdef INTEGRITY_CHECK
-		sigaction(SIGUSR1, &sa, NULL);
-#endif /* INTEGRITY_CHECK */
-		sa.sa_flags = 0;
-		pthread_sigmask(SIG_BLOCK, &sa.sa_mask, NULL);
+	/* Free configuration. */
+	conf_free(conf());
 
-		/* Bind to control interface. */
-		uint8_t buf[SOCKET_MTU_SZ];
-		size_t buflen = sizeof(buf);
-		int remote = -1;
-		if (conf()->ctl.iface != NULL) {
-			conf_iface_t *ctl_if = conf()->ctl.iface;
-			memset(buf, 0, buflen);
-			if (ctl_if->port)
-				snprintf((char*)buf, buflen, "@%d", ctl_if->port);
-			/* Log control interface description. */
-			log_server_info("Binding remote control interface "
-					"to %s%s\n",
-					ctl_if->address, (char*)buf);
-			remote = remote_bind(ctl_if);
-		}
+	/* Unhook from RCU. */
+	rcu_unregister_thread();
 
-		/* Run event loop. */
-		for(;;) {
-			pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
-			int ret = remote_poll(remote);
-			pthread_sigmask(SIG_BLOCK, &sa.sa_mask, NULL);
-
-			/* Events. */
-			if (ret > 0) {
-				ret = remote_process(server, conf()->ctl.iface,
-				                     remote, buf, buflen);
-				switch(ret) {
-				case KNOT_CTL_STOP:
-					sig_req_stop = 1;
-					break;
-				default:
-					break;
-				}
-			}
-
-			/* Interrupts. */
-			if (sig_req_stop) {
-				sig_req_stop = 0;
-				server_stop(server);
-				break;
-			}
-			if (sig_req_reload) {
-				sig_req_reload = 0;
-				server_reload(server, config_fn);
-			}
-#ifdef INTEGRITY_CHECK
-			if (sig_integrity_check) {
-				sig_integrity_check = 0;
-				check_integrity(server);
-			}
-#endif /* INTEGRITY_CHECK */
-		}
-		pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
-
-		/* Close remote control interface */
-		if (remote > -1) {
-			close(remote);
-
-			/* Remove control socket.  */
-			conf_iface_t *ctl_if = conf()->ctl.iface;
-			if (ctl_if && ctl_if->family == AF_UNIX)
-				unlink(conf()->ctl.iface->address);
-		}
-
-		if ((server_wait(server)) != KNOT_EOK) {
-			log_server_error("An error occured while "
-					 "waiting for server to finish.\n");
-			res = 1;
-		} else {
-			log_server_info("Server finished.\n");
-		}
-
-	} else {
-		log_server_fatal("An error occured while "
-				 "starting the server.\n");
-		res = 1;
-	}
+	/* Cleanup PID file. */
+	pid_cleanup(pidfile);
 
 	log_server_info("Shut down.\n");
 	log_close();
 
-	/* Cleanup. */
-	if (pidf && pid_remove(pidf) < 0)
-		log_server_warning("Failed to remove PID file.\n");
-	do_cleanup(server, config_fn, pidf);
-
-	if (!daemonize) {
-		fflush(stdout);
-		fflush(stderr);
-	}
-
-	/* Return to original working directory. */
-	if (cwd) {
-		if (chdir(cwd) != 0)
-			log_server_warning("Server can't change working directory.\n");
-		free(cwd);
-	}
-
-	return res;
-}
-
-static int do_cleanup(server_t *server, char *configf, char *pidf)
-{
-	/* Free alloc'd variables. */
-	if (server) {
-		server_wait(server);
-		server_destroy(&server);
-	}
-	free(configf);
-	free(pidf);
-
-	/* Unhook from RCU */
-	rcu_unregister_thread();
-
-	return 1;
+	return EXIT_SUCCESS;
 }

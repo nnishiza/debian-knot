@@ -22,14 +22,10 @@
  * @{
  */
 
-#ifndef _ZSCANNER__ZSCANNER_H_
-#define _ZSCANNER__ZSCANNER_H_
+#pragma once
 
 #include "zscanner/error.h"
 #include "zscanner/scanner.h"
-#include "zscanner/descriptor.h"
-#include "zscanner/file_loader.h"
-
-#endif // _ZSCANNER__ZSCANNER_H_
+#include "zscanner/loader.h"
 
 /*! @} */

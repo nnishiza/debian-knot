@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -12,97 +12,51 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-/*!
- * \file zone-load.h
- *
- * \author Marek Vavrusa <marek.vavrusa@nic.cz>
- * \author Jan Kadlec <jan.kadlec@nic.cz>
- *
- * \brief Zone loading
- *
- * @{
- */
+*/
 
-#ifndef _KNOT_ZONELOAD_H_
-#define _KNOT_ZONELOAD_H_
+#pragma once
 
-#include <stdio.h>
-
-#include "libknot/zone/zone.h"
-#include "knot/zone/semantic-check.h"
-#include "zscanner/zscanner.h"
-
-/* TODO this structure is highly redundant, remove. Maybe use oh-so-great BIRD lists. */
-/*!
- * \brief One-purpose linked list holding pointers to RRSets.
- */
-struct rrset_list {
-	knot_rrset_t *data; /*!< List data. */
-	struct rrset_list *next; /*!< Next node. */
-};
-
-typedef struct rrset_list rrset_list_t;
-
-
-struct parser_context {
-	rrset_list_t *node_rrsigs;
-	knot_zone_contents_t *current_zone;
-	knot_rrset_t *current_rrset;
-	knot_dname_t *origin_from_config;
-	knot_node_t *last_node;
-	err_handler_t *err_handler;
-	hattrie_t *lookup_tree;
-	int ret;
-};
-
-typedef struct parser_context parser_context_t;
+#include "knot/conf/conf.h"
+#include "knot/server/journal.h"
+#include "knot/zone/contents.h"
+#include "knot/zone/zone.h"
 
 /*!
- * \brief Zone loader structure.
+ * \brief Load zone contents according to the configuration.
+ *
+ * \param zone_config
+ * \return new zone contents or NULL
  */
-typedef struct zloader_t
-{
-	char *source;             /*!< Zone source file. */
-	char *origin;             /*!< Zone's origin string. */
-	int semantic_checks;      /*!< Wanted level of semantic checks. */
-	err_handler_t *err_handler; /*!< Semantic checks error handler. */
-	file_loader_t *file_loader; /*!< Scanner's file loader. */
-	parser_context_t *context; /*!< Loader context. */
-
-} zloader_t;
+zone_contents_t *zone_load_contents(conf_zone_t *zone_config);
 
 /*!
- * \brief Initializes zone loader from file..
+ * \brief Check loaded zone contents validity.
  *
- * \param filename File containing the compiled zone.
- * \param loader Will create new loader in *loader.
- *
- * \retval Initialized loader on success.
- * \retval NULL on error.
+ * \param contents
+ * \param zone_config
+ * \return KNOT_EOK or an error
  */
-int knot_zload_open(zloader_t **loader, const char *source, const char *origin,
-                    int semantic_checks);
+int zone_load_check(zone_contents_t *contents, conf_zone_t *zone_config);
 
 /*!
- * \brief Loads zone from a compiled and serialized zone file.
+ * \brief Update zone contents from the journal.
  *
- * \param loader Zone loader instance.
- *
- * \retval Loaded zone on success.
- * \retval NULL otherwise.
+ * \param contents
+ * \param zone_config
+ * \return KNOT_EOK or an error
  */
-knot_zone_t *knot_zload_load(zloader_t *loader);
+int zone_load_journal(zone_contents_t *contents, conf_zone_t *zone_config);
 
 /*!
- * \brief Free zone loader.
+ * \brief Zone loading post-actions (zone resign, calculation of delta)
  *
- * \param loader Zone loader instance.
+ * \param contents
+ * \param zone
+ * \return KNOT_EOK or an error
  */
-void knot_zload_close(zloader_t *loader);
+int zone_load_post(zone_contents_t *contents, zone_t *zone, uint32_t *dnssec_refresh);
 
-void process_error(const scanner_t *scanner);
-
-#endif /* _KNOTD_ZONELOAD_H_ */
-
-/*! @} */
+/*!
+ * \brief Check if zone can be bootstrapped.
+ */
+bool zone_load_can_bootstrap(const conf_zone_t *zone_config);

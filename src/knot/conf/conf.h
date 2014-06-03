@@ -25,8 +25,7 @@
  * @{
  */
 
-#ifndef _KNOTD_CONF_H_
-#define _KNOTD_CONF_H_
+#pragma once
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -35,14 +34,15 @@
 #include <urcu.h>
 
 #include "libknot/dname.h"
-#include "libknot/tsig.h"
+#include "libknot/rrtype/tsig.h"
 #include "libknot/dnssec/key.h"
 #include "libknot/dnssec/policy.h"
 #include "common/lists.h"
 #include "common/log.h"
-#include "common/acl.h"
+#include "knot/updates/acl.h"
 #include "common/sockaddr.h"
 #include "common/hattrie/hat-trie.h"
+#include "knot/nameserver/query_module.h"
 
 /* Constants. */
 #define CONFIG_DEFAULT_PORT 53
@@ -66,13 +66,11 @@
  */
 typedef struct conf_iface_t {
 	node_t n;
-	char *name;           /*!< Internal name for the interface. */
-	char *address;        /*!< IP (IPv4/v6) address for this interface */
-	unsigned prefix;      /*!< IP subnet prefix. */
-	int port;             /*!< Port number for this interface */
-	int family;           /*!< Address family. */
-	knot_tsig_key_t *key; /*!< TSIG key (only valid for remotes). */
-	sockaddr_t  via;      /*!< Used for remotes to specify qry endpoint.*/
+	char *name;                   /*!< Internal name for the interface. */
+	knot_tsig_key_t *key;         /*!< TSIG key (only applic for remotes). */
+	unsigned prefix;              /*!< IP subnet prefix (only applic for remotes). */
+	struct sockaddr_storage addr; /*!< Interface address. */
+	struct sockaddr_storage via;  /*!< Used for remotes to specify qry endpoint.*/
 } conf_iface_t;
 
 /*!
@@ -114,7 +112,6 @@ typedef struct conf_group_t {
  * zone transfers.  Same logic applies for the NOTIFY.
  */
 typedef struct conf_zone_t {
-	node_t n;
 	char *name;                /*!< Zone name. */
 	uint16_t cls;              /*!< Zone class (IN or CH). */
 	char *file;                /*!< Path to a zone file. */
@@ -138,6 +135,9 @@ typedef struct conf_zone_t {
 		list_t notify_out; /*!< Remotes accepted for notify-out.*/
 		list_t update_in;  /*!< Remotes accepted for DDNS.*/
 	} acl;
+
+	struct query_plan *query_plan;
+	list_t query_modules;
 } conf_zone_t;
 
 /*!
@@ -192,7 +192,6 @@ typedef struct conf_key_t {
 typedef struct conf_control_t {
 	conf_iface_t *iface; /*!< Remote control interface. */
 	list_t allow;        /*!< List of allowed remotes. */
-	acl_t* acl;          /*!< ACL. */
 	bool have;           /*!< Set if configured. */
 } conf_control_t;
 
@@ -214,6 +213,7 @@ typedef struct conf_t {
 	size_t nsid_len;/*!< Server's NSID length. */
 	size_t max_udp_payload; /*!< Maximal UDP payload size. */
 	int   workers;  /*!< Number of workers per interface. */
+	int   bg_workers; /*!< Number of background workers. */
 	int   uid;      /*!< Specified user id. */
 	int   gid;      /*!< Specified group id. */
 	int   max_conn_idle; /*!< TCP idle timeout. */
@@ -228,25 +228,21 @@ typedef struct conf_t {
 	 * Log
 	 */
 	list_t logs;      /*!< List of logging facilites. */
-	int logs_count;   /*!< Count of logging facilities. */
 
 	/*
 	 * Interfaces
 	 */
 	list_t ifaces;    /*!< List of interfaces. */
-	int ifaces_count; /*!< Count of interfaces. */
 
 	/*
 	 * TSIG keys
 	 */
 	list_t keys;   /*!< List of TSIG keys. */
-	int key_count; /*!< Count of TSIG keys. */
 
 	/*
 	 * Remotes
 	 */
 	list_t remotes;    /*!< List of remotes. */
-	int remotes_count; /*!< Count of remotes. */
 
 	/*
 	 * Groups of remotes.
@@ -256,8 +252,7 @@ typedef struct conf_t {
 	/*
 	 * Zones
 	 */
-	list_t zones;        /*!< List of zones. */
-	int zones_count;     /*!< Count of zones. */
+	hattrie_t *zones;    /*!< List of zones. */
 	int zone_checks;     /*!< Semantic checks for parser.*/
 	int disable_any;     /*!< Disable ANY type queries for AA.*/
 	int notify_retries;  /*!< NOTIFY query retries. */
@@ -265,12 +260,13 @@ typedef struct conf_t {
 	int dbsync_timeout;  /*!< Default interval between syncing to zonefile.*/
 	size_t ixfr_fslimit; /*!< File size limit for IXFR journal. */
 	int build_diffs;     /*!< Calculate differences from changes. */
-	hattrie_t *names;    /*!< Zone tree for duplicate checking. */
 	char *storage;       /*!< Storage dir. */
 	char *dnssec_keydir; /*!< DNSSEC: Path to key directory. */
 	int dnssec_enable;   /*!< DNSSEC: Online signing enabled. */
 	int sig_lifetime;    /*!< DNSSEC: Signature lifetime. */
 	int serial_policy;   /*!< Serial policy when updating zone. */
+	struct query_plan *query_plan;
+	list_t query_modules;
 
 	/*
 	 * Remote control interface.
@@ -281,7 +277,6 @@ typedef struct conf_t {
 	 * Implementation specifics
 	 */
 	list_t hooks;    /*!< List of config hooks. */
-	int hooks_count; /*!< Count of config hooks. */
 	int _touched;    /*!< Bitmask of sections touched by last update. */
 } conf_t;
 
@@ -306,7 +301,7 @@ typedef struct conf_hook_t {
  * \retval new structure if successful.
  * \retval NULL on error.
  */
-conf_t *conf_new(const char* path);
+conf_t *conf_new(char *path);
 
 /*!
  * \brief Register on-update callback.
@@ -369,13 +364,9 @@ void conf_free(conf_t *conf);
 /*!
  * \brief Find implicit configuration file.
  *
- * Ordering:
- * 1. ~/.knot/knot.conf (if exists)
- * 2. /etc/knot/knot.conf (fallback)
- *
  * \return Path to implicit configuration file.
  */
-char* conf_find_default();
+const char* conf_find_default();
 
 /*!
  * \brief Open singleton configuration from file.
@@ -415,6 +406,15 @@ static inline conf_t* conf() {
  */
 char* strcpath(char *path);
 
+/*! \brief Return the number of UDP threads according to the configuration. */
+size_t conf_udp_threads(const conf_t *conf);
+
+/*! \brief Return the number of TCP threads according to the configuration. */
+size_t conf_tcp_threads(const conf_t *conf);
+
+/* \brief Initialize zone config. */
+void conf_init_zone(conf_zone_t *zone);
+
 /*! \brief Free zone config. */
 void conf_free_zone(conf_zone_t *zone);
 
@@ -432,7 +432,5 @@ void conf_free_group(conf_group_t *group);
 
 /*! \brief Free log config. */
 void conf_free_log(conf_log_t *log);
-
-#endif /* _KNOTD_CONF_H_ */
 
 /*! @} */

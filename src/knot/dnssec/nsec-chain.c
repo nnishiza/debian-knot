@@ -1,0 +1,299 @@
+/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <assert.h>
+#include <stdint.h>
+
+#include "common/debug.h"
+#include "knot/dnssec/nsec-chain.h"
+#include "knot/dnssec/zone-sign.h"
+#include "libknot/dnssec/rrset-sign.h"
+#include "knot/dnssec/zone-nsec.h"
+
+/* - NSEC chain construction ------------------------------------------------ */
+
+/*!
+ * \brief Create NSEC RR set.
+ *
+ * \param from       Node that should contain the new RRSet
+ * \param to         Node that should be pointed to from 'from'
+ * \param ttl        Record TTL (SOA's minimum TTL).
+ *
+ * \return NSEC RR set, NULL on error.
+ */
+static knot_rrset_t *create_nsec_rrset(const zone_node_t *from,
+                                       const zone_node_t *to,
+                                       uint32_t ttl)
+{
+	assert(from);
+	assert(to);
+	knot_rrset_t *rrset = knot_rrset_new(from->owner, KNOT_RRTYPE_NSEC,
+					     KNOT_CLASS_IN, NULL);
+	if (!rrset) {
+		return NULL;
+	}
+
+	// Create bitmap
+	bitmap_t rr_types = { 0 };
+	bitmap_add_node_rrsets(&rr_types, from);
+	bitmap_add_type(&rr_types, KNOT_RRTYPE_NSEC);
+	bitmap_add_type(&rr_types, KNOT_RRTYPE_RRSIG);
+	if (node_rrtype_exists(from, KNOT_RRTYPE_SOA)) {
+		bitmap_add_type(&rr_types, KNOT_RRTYPE_DNSKEY);
+	}
+
+	// Create RDATA
+	assert(to->owner);
+	size_t next_owner_size = knot_dname_size(to->owner);
+	size_t rdata_size = next_owner_size + bitmap_size(&rr_types);
+	uint8_t rdata[rdata_size];
+
+	// Fill RDATA
+	memcpy(rdata, to->owner, next_owner_size);
+	bitmap_write(&rr_types, rdata + next_owner_size);
+
+	int ret = knot_rrset_add_rdata(rrset, rdata, rdata_size, ttl, NULL);
+	if (ret != KNOT_EOK) {
+		knot_rrset_free(&rrset, NULL);
+		return NULL;
+	}
+
+	return rrset;
+}
+
+/*!
+ * \brief Connect two nodes by adding a NSEC RR into the first node.
+ *
+ * Callback function, signature chain_iterate_cb.
+ *
+ * \param a     First node.
+ * \param b     Second node (immediate follower of a).
+ * \param data  Pointer to nsec_chain_iterate_data_t holding parameters
+ *              including changeset.
+ *
+ * \return Error code, KNOT_EOK if successful.
+ */
+static int connect_nsec_nodes(zone_node_t *a, zone_node_t *b,
+                              nsec_chain_iterate_data_t *data)
+{
+	assert(a);
+	assert(b);
+	assert(data);
+
+	if (b->rrset_count == 0 || b->flags & NODE_FLAGS_NONAUTH) {
+		return NSEC_NODE_SKIP;
+	}
+
+	int ret = 0;
+
+	/*!
+	 * If the node has no other RRSets than NSEC (and possibly RRSIGs),
+	 * just remove the NSEC and its RRSIG, they are redundant
+	 */
+	if (node_rrtype_exists(b, KNOT_RRTYPE_NSEC)
+	    && knot_nsec_empty_nsec_and_rrsigs_in_node(b)) {
+		ret = knot_nsec_changeset_remove(b, data->changeset);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		// Skip the 'b' node
+		return NSEC_NODE_SKIP;
+	}
+
+	// create new NSEC
+	knot_rrset_t *new_nsec = create_nsec_rrset(a, b, data->ttl);
+	if (!new_nsec) {
+		dbg_dnssec_detail("Failed to create new NSEC.\n");
+		return KNOT_ENOMEM;
+	}
+
+	knot_rrset_t old_nsec = node_rrset(a, KNOT_RRTYPE_NSEC);
+	if (!knot_rrset_empty(&old_nsec)) {
+		if (knot_rrset_equal(new_nsec, &old_nsec,
+		                     KNOT_RRSET_COMPARE_WHOLE)) {
+			// current NSEC is valid, do nothing
+			dbg_dnssec_detail("NSECs equal.\n");
+			knot_rrset_free(&new_nsec, NULL);
+			return KNOT_EOK;
+		}
+
+		dbg_dnssec_detail("NSECs not equal, replacing.\n");
+		// Mark the node so that we do not sign this NSEC
+		a->flags |= NODE_FLAGS_REMOVED_NSEC;
+		ret = knot_nsec_changeset_remove(a, data->changeset);
+		if (ret != KNOT_EOK) {
+			knot_rrset_free(&new_nsec, NULL);
+			return ret;
+		}
+	}
+
+	dbg_dnssec_detail("Adding new NSEC to changeset.\n");
+	// Add new NSEC to the changeset (no matter if old was removed)
+	return changeset_add_rrset(data->changeset, new_nsec, CHANGESET_ADD);
+}
+
+/* - API - iterations ------------------------------------------------------- */
+
+/*!
+ * \brief Call a function for each piece of the chain formed by sorted nodes.
+ */
+int knot_nsec_chain_iterate_create(zone_tree_t *nodes,
+                                   chain_iterate_create_cb callback,
+                                   nsec_chain_iterate_data_t *data)
+{
+	assert(nodes);
+	assert(callback);
+
+	bool sorted = true;
+	hattrie_iter_t *it = hattrie_iter_begin(nodes, sorted);
+
+	if (!it) {
+		return KNOT_ENOMEM;
+	}
+
+	if (hattrie_iter_finished(it)) {
+		hattrie_iter_free(it);
+		return KNOT_EINVAL;
+	}
+
+	zone_node_t *first = (zone_node_t *)*hattrie_iter_val(it);
+	zone_node_t *previous = first;
+	zone_node_t *current = first;
+
+	hattrie_iter_next(it);
+
+	int result = KNOT_EOK;
+	while (!hattrie_iter_finished(it)) {
+		current = (zone_node_t *)*hattrie_iter_val(it);
+
+		result = callback(previous, current, data);
+		if (result == NSEC_NODE_SKIP) {
+			// No NSEC should be created for 'current' node, skip
+			;
+		} else if (result == KNOT_EOK) {
+			previous = current;
+		} else {
+			hattrie_iter_free(it);
+			return result;
+		}
+		hattrie_iter_next(it);
+	}
+
+	hattrie_iter_free(it);
+
+	return result == NSEC_NODE_SKIP ? callback(previous, first, data) :
+	                 callback(current, first, data);
+}
+
+/* - API - utility functions ------------------------------------------------ */
+
+/*!
+ * \brief Add entry for removed NSEC to the changeset.
+ */
+int knot_nsec_changeset_remove(const zone_node_t *n,
+                               changeset_t *changeset)
+{
+	if (changeset == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	int result = KNOT_EOK;
+
+	knot_rrset_t *nsec = node_create_rrset(n, KNOT_RRTYPE_NSEC);
+	if (nsec == NULL) {
+		nsec = node_create_rrset(n, KNOT_RRTYPE_NSEC3);
+	}
+	if (nsec) {
+		// update changeset
+		result = changeset_add_rrset(changeset, nsec, CHANGESET_REMOVE);
+		if (result != KNOT_EOK) {
+			knot_rrset_free(&nsec, NULL);
+			return result;
+		}
+	}
+
+	knot_rrset_t rrsigs = node_rrset(n, KNOT_RRTYPE_RRSIG);
+	if (!knot_rrset_empty(&rrsigs)) {
+		knot_rrset_t *synth_rrsigs = knot_rrset_new(n->owner,
+							    KNOT_RRTYPE_RRSIG,
+							    KNOT_CLASS_IN,
+							    NULL);
+		if (synth_rrsigs == NULL) {
+			return KNOT_ENOMEM;
+		}
+		result = knot_synth_rrsig(KNOT_RRTYPE_NSEC, &rrsigs.rrs,
+		                          &synth_rrsigs->rrs, NULL);
+		if (result == KNOT_ENOENT) {
+			// Try removing NSEC3 RRSIGs
+			result = knot_synth_rrsig(KNOT_RRTYPE_NSEC3, &rrsigs.rrs,
+			                          &synth_rrsigs->rrs, NULL);
+		}
+
+		if (result != KNOT_EOK) {
+			knot_rrset_free(&synth_rrsigs, NULL);
+			if (result != KNOT_ENOENT) {
+				return result;
+			}
+			return KNOT_EOK;
+		}
+
+		// store RRSIG
+		result = changeset_add_rrset(changeset, synth_rrsigs,
+		                             CHANGESET_REMOVE);
+		if (result != KNOT_EOK) {
+			knot_rrset_free(&synth_rrsigs, NULL);
+			return result;
+		}
+	}
+
+	return KNOT_EOK;
+}
+
+/*!
+ * \brief Checks whether the node is empty or eventually contains only NSEC and
+ *        RRSIGs.
+ */
+bool knot_nsec_empty_nsec_and_rrsigs_in_node(const zone_node_t *n)
+{
+	assert(n);
+	for (int i = 0; i < n->rrset_count; ++i) {
+		knot_rrset_t rrset = node_rrset_at(n, i);
+		if (rrset.type != KNOT_RRTYPE_NSEC &&
+		    rrset.type != KNOT_RRTYPE_RRSIG) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/* - API - Chain creation --------------------------------------------------- */
+
+/*!
+ * \brief Create new NSEC chain, add differences from current into a changeset.
+ */
+int knot_nsec_create_chain(const zone_contents_t *zone, uint32_t ttl,
+                           changeset_t *changeset)
+{
+	assert(zone);
+	assert(zone->nodes);
+	assert(changeset);
+
+	nsec_chain_iterate_data_t data = { ttl, changeset, zone };
+
+	return knot_nsec_chain_iterate_create(zone->nodes,
+	                                      connect_nsec_nodes, &data);
+}

@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -24,11 +23,12 @@
 #include "knot/server/rrl.h"
 #include "knot/knot.h"
 #include "libknot/consts.h"
-#include "libknot/util/wire.h"
+#include "libknot/packet/wire.h"
 #include "common/hattrie/murmurhash3.h"
 #include "libknot/dnssec/random.h"
 #include "common/descriptor.h"
 #include "common/errors.h"
+#include "knot/zone/zone.h"
 
 /* Hopscotch defines. */
 #define HOP_LEN (sizeof(unsigned)*8)
@@ -94,13 +94,13 @@ static uint8_t rrl_clsid(rrl_req_t *p)
 	}
 
 	/* Check if answered from a qname */
-	if (ret == CLS_NORMAL && p->flags & KNOT_PF_WILDCARD) {
+	if (ret == CLS_NORMAL && p->flags & RRL_WILDCARD) {
 		return CLS_WILDCARD;
 	}
 
 	/* Check query type for spec. classes. */
 	if (p->query) {
-		switch(knot_packet_qtype(p->query)) {
+		switch(knot_pkt_qtype(p->query)) {
 		case KNOT_RRTYPE_ANY:      /* ANY spec. class */
 			return CLS_ANY;
 			break;
@@ -128,14 +128,15 @@ static uint8_t rrl_clsid(rrl_req_t *p)
 }
 
 static int rrl_clsname(char *dst, size_t maxlen, uint8_t cls,
-                       rrl_req_t *req, const knot_zone_t *zone)
+                       rrl_req_t *req, const zone_t *zone)
 {
 	/* Fallback zone (for errors etc.) */
 	const knot_dname_t *dn = (const knot_dname_t*)"\x00";
 
 	/* Found associated zone. */
-	if (zone != NULL)
-		dn = knot_zone_name(zone);
+	if (zone != NULL) {
+		dn = zone->name;
+	}
 
 	switch (cls) {
 	case CLS_ERROR:    /* Could be a non-existent zone or garbage. */
@@ -146,7 +147,7 @@ static int rrl_clsname(char *dst, size_t maxlen, uint8_t cls,
 	default:
 		/* Use QNAME */
 		if (req->query)
-			dn = knot_packet_qname(req->query);
+			dn = knot_pkt_qname(req->query);
 		break;
 	}
 
@@ -154,8 +155,8 @@ static int rrl_clsname(char *dst, size_t maxlen, uint8_t cls,
 	return knot_dname_to_wire((uint8_t *)dst, dn, maxlen);
 }
 
-static int rrl_classify(char *dst, size_t maxlen, const sockaddr_t *a,
-                        rrl_req_t *p, const knot_zone_t *z, uint32_t seed)
+static int rrl_classify(char *dst, size_t maxlen, const struct sockaddr_storage *a,
+                        rrl_req_t *p, const zone_t *z, uint32_t seed)
 {
 	if (!dst || !p || !a || maxlen == 0) {
 		return KNOT_EINVAL;
@@ -168,10 +169,12 @@ static int rrl_classify(char *dst, size_t maxlen, const sockaddr_t *a,
 
 	/* Address (in network byteorder, adjust masks). */
 	uint64_t nb = 0;
-	if (sockaddr_family(a) == AF_INET6) { /* Take the /56 prefix. */
-		nb = *((uint64_t*)&a->addr6.sin6_addr) & RRL_V6_PREFIX;
-	} else {                     /* Take the /24 prefix */
-		nb = (uint32_t)a->addr4.sin_addr.s_addr & RRL_V4_PREFIX;
+	if (a->ss_family == AF_INET6) {
+		struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)a;
+		nb = *((uint64_t*)(&ipv6->sin6_addr)) & RRL_V6_PREFIX;
+	} else {
+		struct sockaddr_in *ipv4 = (struct sockaddr_in *)a;
+		nb = ((uint32_t)ipv4->sin_addr.s_addr) & RRL_V4_PREFIX;
 	}
 	if (blklen + sizeof(nb) > maxlen) return KNOT_ESPACE;
 	memcpy(dst + blklen, (void*)&nb, sizeof(nb));
@@ -272,19 +275,19 @@ static inline unsigned reduce_dist(rrl_table_t *t, unsigned id, unsigned d, unsi
 	return d;
 }
 
-static void rrl_log_state(const sockaddr_t *a, uint16_t flags, uint8_t cls)
+static void rrl_log_state(const struct sockaddr_storage *ss, uint16_t flags, uint8_t cls)
 {
 #ifdef RRL_ENABLE_LOG
-	char saddr[SOCKADDR_STRLEN];
-	memset(saddr, 0, sizeof(saddr));
-	sockaddr_tostr(a, saddr, sizeof(saddr));
+	char addr_str[SOCKADDR_STRLEN] = {0};
+	sockaddr_tostr(ss, addr_str, sizeof(addr_str));
+
 	const char *what = "leaves";
 	if (flags & RRL_BF_ELIMIT) {
 		what = "enters";
 	}
 
 	log_server_notice("Address '%s' %s rate-limiting (class '%s').\n",
-	                  saddr, what, rrl_clsstr(cls));
+	                  addr_str, what, rrl_clsstr(cls));
 #endif
 }
 
@@ -354,8 +357,8 @@ int rrl_setlocks(rrl_table_t *rrl, unsigned granularity)
 	return KNOT_EOK;
 }
 
-rrl_item_t* rrl_hash(rrl_table_t *t, const sockaddr_t *a, rrl_req_t *p,
-                     const knot_zone_t *zone, uint32_t stamp, int *lock)
+rrl_item_t* rrl_hash(rrl_table_t *t, const struct sockaddr_storage *a, rrl_req_t *p,
+                     const zone_t *zone, uint32_t stamp, int *lock)
 {
 	char buf[RRL_CLSBLK_MAXLEN];
 	int len = rrl_classify(buf, sizeof(buf), a, p, zone, t->seed);
@@ -419,8 +422,8 @@ rrl_item_t* rrl_hash(rrl_table_t *t, const sockaddr_t *a, rrl_req_t *p,
 	return b;
 }
 
-int rrl_query(rrl_table_t *rrl, const sockaddr_t *a, rrl_req_t *req,
-              const knot_zone_t *zone)
+int rrl_query(rrl_table_t *rrl, const struct sockaddr_storage *a, rrl_req_t *req,
+              const zone_t *zone)
 {
 	if (!rrl || !req || !a) return KNOT_EINVAL;
 
@@ -480,6 +483,16 @@ int rrl_query(rrl_table_t *rrl, const sockaddr_t *a, rrl_req_t *req,
 
 	if (lock > -1) rrl_unlock(rrl, lock);
 	return ret;
+}
+
+bool rrl_slip_roll(int n_slip)
+{
+	/* Now n_slip means every Nth answer slips.
+	 * That represents a chance of 1/N that answer slips.
+	 * Therefore, on average, from 100 answers 100/N will slip. */
+	int threshold = RRL_SLIP_MAX / n_slip;
+	int roll = knot_random_uint16_t() % RRL_SLIP_MAX;
+	return (roll < threshold);
 }
 
 int rrl_destroy(rrl_table_t *rrl)

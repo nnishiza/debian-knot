@@ -24,17 +24,16 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KNOT_DNAME_H_
-#define _KNOT_DNAME_H_
+#pragma once
 
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
 
+#include "common/mempattern.h"
 #include "libknot/consts.h"
 
-#define KNOT_DNAME_MAX_LENGTH 255
 typedef uint8_t knot_dname_t;
 
 /*!
@@ -59,10 +58,12 @@ int knot_dname_wire_check(const uint8_t *name, const uint8_t *endp,
  * \param pkt Message in wire format.
  * \param pos Position of the domain name on wire.
  * \param maxpos Domain name length.
+ * \param mm Memory context.
  *
  * \return parsed domain name or NULL.
  */
-knot_dname_t *knot_dname_parse(const uint8_t *pkt, size_t *pos, size_t maxpos);
+knot_dname_t *knot_dname_parse(const uint8_t *pkt, size_t *pos, size_t maxpos,
+                               mm_ctx_t *mm);
 
 /*!
  * \brief Duplicates the given domain name.
@@ -71,7 +72,7 @@ knot_dname_t *knot_dname_parse(const uint8_t *pkt, size_t *pos, size_t maxpos);
  *
  * \return New domain name which is an exact copy of \a dname.
  */
-knot_dname_t *knot_dname_copy(const knot_dname_t *name);
+knot_dname_t *knot_dname_copy(const knot_dname_t *name, mm_ctx_t *mm);
 
 /*!
  * \brief Duplicates part of the given domain name.
@@ -81,7 +82,7 @@ knot_dname_t *knot_dname_copy(const knot_dname_t *name);
  *
  * \return New domain name which is an partial copy of \a dname.
  */
-knot_dname_t *knot_dname_copy_part(const knot_dname_t *name, unsigned len);
+knot_dname_t *knot_dname_copy_part(const knot_dname_t *name, unsigned len, mm_ctx_t *mm);
 
 /*!
  * \brief Copy name to wire as is, no compression pointer expansion will be done.
@@ -237,7 +238,7 @@ knot_dname_t *knot_dname_replace_suffix(const knot_dname_t *name,
  *
  * \param name Domain name to be destroyed.
  */
-void knot_dname_free(knot_dname_t **name);
+void knot_dname_free(knot_dname_t **name, mm_ctx_t *mm);
 
 /*!
  * \brief Compares two domain names (case sensitive).
@@ -347,7 +348,5 @@ int knot_dname_align(const uint8_t **d1, uint8_t d1_labels,
  * \retval KNOT_EINVAL on invalid parameters
  */
 int knot_dname_lf(uint8_t *dst, const knot_dname_t *src, const uint8_t *pkt);
-
-#endif /* _KNOT_DNAME_H_ */
 
 /*! @} */

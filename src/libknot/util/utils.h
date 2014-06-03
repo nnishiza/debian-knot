@@ -24,8 +24,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KNOT_UTILS_H_
-#define _KNOT_UTILS_H_
+#pragma once
 
 #include "libknot/util/endian.h"
 #include <string.h>
@@ -176,15 +175,12 @@ static inline void knot_wire_write_u64(uint8_t *pos, uint64_t data)
 }
 
 /*!
- * \brief Helper function for simple locking.
+ * \brief Compares two zone serials.
  *
- * \param type Type of lock.
- * \param type Starting position of lock.
- *
- * \return Locking structure.
+ * \retval < 0 if s1 is less than s2.
+ * \retval > 0 if s1 is larger than s2.
+ * \retval == 0 if s1 is equal to s2.
  */
-struct flock* knot_file_lock(short type, short whence);
-
-#endif /* _KNOT_UTILS_H_ */
+int knot_serial_compare(uint32_t s1, uint32_t s2);
 
 /*! @} */

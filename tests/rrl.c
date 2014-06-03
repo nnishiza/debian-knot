@@ -20,13 +20,9 @@
 #include <tap/basic.h>
 
 #include "knot/server/rrl.h"
-#include "knot/server/dthreads.h"
-#include "knot/knot.h"
-#include "libknot/packet/response.h"
-#include "libknot/packet/query.h"
-#include "libknot/nameserver/name-server.h"
+#include "knot/zone/zone.h"
+#include "knot/conf/conf.h"
 #include "common/descriptor.h"
-#include "libknot/dnssec/random.h"
 
 /* Enable time-dependent tests. */
 //#define ENABLE_TIMED_TESTS
@@ -50,7 +46,7 @@ struct runnable_data {
 	rrl_table_t *rrl;
 	sockaddr_t *addr;
 	rrl_req_t *rq;
-	knot_zone_t *zone;
+	zone_t *zone;
 };
 
 static void* rrl_runnable(void *arg)
@@ -98,28 +94,24 @@ int main(int argc, char *argv[])
 	plan(10);
 
 	/* Prepare query. */
-	knot_packet_t *query = knot_packet_new();
-	if (knot_packet_set_max_size(query, 512) < 0) {
-		knot_packet_free(&query);
+	knot_pkt_t *query = knot_pkt_new(NULL, 512, NULL);
+	if (query == NULL) {
 		return KNOT_ERROR; /* Fatal */
 	}
-	knot_query_init(query);
 
 	knot_dname_t *qname = knot_dname_from_str("beef.");
-	int ret = knot_query_set_question(query, qname, KNOT_CLASS_IN, KNOT_RRTYPE_A);
-	knot_dname_free(&qname);
+	int ret = knot_pkt_put_question(query, qname, KNOT_CLASS_IN, KNOT_RRTYPE_A);
+	knot_dname_free(&qname, NULL);
 	if (ret != KNOT_EOK) {
-		knot_packet_free(&query);
+		knot_pkt_free(&query);
 		return KNOT_ERROR; /* Fatal */
 	}
 
-
 	/* Prepare response */
-	knot_nameserver_t *ns = knot_ns_create();
 	uint8_t rbuf[65535];
 	size_t rlen = sizeof(rbuf);
-	memset(rbuf, 0, sizeof(rbuf));
-	knot_ns_error_response_from_query(ns, query, KNOT_RCODE_NOERROR, rbuf, &rlen);
+	memcpy(rbuf, query->wire, query->size);
+	knot_wire_flags_set_qr(rbuf);
 
 	rrl_req_t rq;
 	rq.w = rbuf;
@@ -141,10 +133,13 @@ int main(int argc, char *argv[])
 	is_int(KNOT_EOK, ret, "rrl: setlocks");
 
 	/* 4. N unlimited requests. */
-	knot_dname_t *apex = knot_dname_from_str("rrl.");
-	knot_zone_t *zone = knot_zone_new(knot_node_new(apex, NULL, 0));
-	sockaddr_t addr;
-	sockaddr_t addr6;
+	conf_zone_t *zone_conf = malloc(sizeof(conf_zone_t));
+	conf_init_zone(zone_conf);
+	zone_conf->name = strdup("rrl.");
+	zone_t *zone = zone_new(zone_conf);
+
+	struct sockaddr_storage addr;
+	struct sockaddr_storage addr6;
 	sockaddr_set(&addr, AF_INET, "1.2.3.4", 0);
 	sockaddr_set(&addr6, AF_INET6, "1122:3344:5566:7788::aabb", 0);
 	ret = 0;
@@ -199,10 +194,8 @@ int main(int argc, char *argv[])
 	skip_block(3, "Timed tests not enabled");
 #endif
 
-	knot_dname_free(&apex);
-	knot_zone_deep_free(&zone);
-	knot_ns_destroy(&ns);
-	knot_packet_free(&query);
+	zone_free(&zone);
+	knot_pkt_free(&query);
 	rrl_destroy(rrl);
 	return 0;
 }

@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include "utils/common/netio.h"
 
 #include <stdlib.h>			// free
@@ -32,6 +31,7 @@
 #include "utils/common/msg.h"		// WARN
 #include "common/descriptor.h"		// KNOT_CLASS_IN
 #include "common/errcode.h"		// KNOT_E
+#include "common/sockaddr.h"		// sockaddr_tostr, sockaddr_portnum
 
 srv_info_t* srv_info_create(const char *name, const char *service)
 {
@@ -103,21 +103,14 @@ int get_socktype(const protocol_t proto, const uint16_t type)
 
 const char* get_sockname(const int socktype)
 {
-	const char *proto;
-
 	switch (socktype) {
 	case SOCK_STREAM:
-		proto = "TCP";
-		break;
+		return "TCP";
 	case SOCK_DGRAM:
-		proto = "UDP";
-		break;
+		return "UDP";
 	default:
-		proto = "UNKNOWN";
-		break;
+		return "UNKNOWN";
 	}
-
-	return proto;
 }
 
 static int get_addr(const srv_info_t *server,
@@ -142,36 +135,27 @@ static int get_addr(const srv_info_t *server,
 	return 0;
 }
 
-static void get_addr_str(const struct sockaddr_storage *ss,
-                         const int                     socktype,
-                         char                          **dst)
+void get_addr_str(const struct sockaddr_storage *ss,
+                  const int                     socktype,
+                  char                          **dst)
 {
-	char     addr[INET6_ADDRSTRLEN] = "NULL";
-	char     buf[128] = "NULL";
-	uint16_t port;
+	char addr_str[SOCKADDR_STRLEN] = {0};
 
 	// Get network address string and port number.
-	if (ss->ss_family == AF_INET) {
-		struct sockaddr_in *s = (struct sockaddr_in *)ss;
-		inet_ntop(ss->ss_family, &s->sin_addr, addr, sizeof(addr));
-		port = ntohs(s->sin_port);
-	} else {
-		struct sockaddr_in6 *s = (struct sockaddr_in6 *)ss;
-		inet_ntop(ss->ss_family, &s->sin6_addr, addr, sizeof(addr));
-		port = ntohs(s->sin6_port);
-	}
+	sockaddr_tostr(ss, addr_str, sizeof(addr_str));
 
-	// Free previous string if any.
+	// Calculate needed buffer size
+	const char *sock_name = get_sockname(socktype);
+	size_t buflen = strlen(addr_str) + strlen(sock_name) + 3 /* () */;
+
+	// Free previous string if any and write result
 	free(*dst);
-	*dst = NULL;
-
-	// Write formated information string.
-	int ret = snprintf(buf, sizeof(buf), "%s#%u(%s)", addr, port,
-	                   get_sockname(socktype));
-	if (ret > 0) {
-		*dst = strdup(buf);
-	} else {
-		*dst = strdup("NULL");
+	*dst = malloc(buflen);
+	if (*dst != NULL) {
+		int ret = snprintf(*dst, buflen, "%s(%s)", addr_str, sock_name);
+		if (ret <= 0 || ret >= buflen) {
+			**dst = '\0';
+		}
 	}
 }
 
@@ -250,13 +234,9 @@ int net_connect(net_t *net)
 
 	// Bind address to socket if specified.
 	if (net->local_info != NULL) {
-		// Set local information string.
-		get_addr_str((struct sockaddr_storage *)net->local_info->ai_addr,
-		             net->socktype, &net->local_str);
-
 		if (bind(sockfd, net->local_info->ai_addr,
 		         net->local_info->ai_addrlen) == -1) {
-			WARN("can't assign address %s\n", net->local_str);
+			WARN("can't assign address %s\n", net->local->name);
 			return KNOT_NET_ESOCKET;
 		}
 	}
@@ -288,6 +268,40 @@ int net_connect(net_t *net)
 
 	// Store socket descriptor.
 	net->sockfd = sockfd;
+
+	return KNOT_EOK;
+}
+
+int net_set_local_info(net_t *net)
+{
+	if (net == NULL) {
+		DBG_NULL;
+		return KNOT_EINVAL;
+	}
+
+	if (net->local_info != NULL) {
+		freeaddrinfo(net->local_info);
+	}
+
+	socklen_t local_addr_len = sizeof(struct sockaddr_storage);
+	struct sockaddr_storage *local_addr = calloc(1, local_addr_len);
+
+	if (getsockname(net->sockfd, (struct sockaddr *)local_addr,
+	                &local_addr_len) == -1) {
+		WARN("can't get local address\n");
+		free(local_addr);
+		return KNOT_NET_ESOCKET;
+	}
+
+	net->local_info = calloc(1, sizeof(struct addrinfo));
+	net->local_info->ai_family = net->srv->ai_family;
+	net->local_info->ai_socktype = net->srv->ai_socktype;
+	net->local_info->ai_protocol = net->srv->ai_protocol;
+	net->local_info->ai_addrlen = local_addr_len;
+	net->local_info->ai_addr = (struct sockaddr *)local_addr;
+
+	get_addr_str((struct sockaddr_storage *)net->local_info->ai_addr,
+	             net->socktype, &net->local_str);
 
 	return KNOT_EOK;
 }
@@ -411,7 +425,7 @@ int net_receive(const net_t *net, uint8_t *buf, const size_t buf_len)
 
 			// Receive whole UDP datagram.
 			ret = recvfrom(net->sockfd, buf, buf_len, 0,
-				       (struct sockaddr *)&from, &from_len);
+			               (struct sockaddr *)&from, &from_len);
 			if (ret <= 0) {
 				WARN("can't receive reply from %s\n",
 				     net->remote_str);

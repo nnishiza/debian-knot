@@ -24,8 +24,7 @@
  * @{
  */
 
-#ifndef _KNOTD_KNOT_H_
-#define _KNOTD_KNOT_H_
+#pragma once
 
 #include <signal.h>
 #include <stdint.h>
@@ -35,14 +34,9 @@
 #include "common/errcode.h"
 #include "knot/other/debug.h"
 
-#define CPU_ESTIMATE_MAGIC 0 /*!< \brief Extra threads to the number of cores.*/
 #define DEFAULT_THR_COUNT 2  /*!< \brief Default thread count. */
 #define TCP_BACKLOG_SIZE 10  /*!< \brief TCP listen backlog size. */
-#define XFR_THREADS_COUNT 3  /*!< \brief Number of threads for XFR handler. */
 #define RECVMMSG_BATCHLEN 64 /*!< \brief Define for recvmmsg() batch size. */
-
-///*! \brief If defined, the statistics module will be enabled. */
-//#define STAT_COMPILE
 
 /* Workarounds for clock_gettime() not available on some platforms. */
 #ifdef HAVE_CLOCK_GETTIME
@@ -54,7 +48,5 @@ typedef struct timeval timev_t;
 #else
 #error Neither clock_gettime() nor gettimeofday() found. At least one is required.
 #endif
-
-#endif /* _KNOTD_KNOT_H_ */
 
 /*! @} */

@@ -28,12 +28,11 @@
  * @{
  */
 
-#ifndef _KNOTD_TCPHANDLER_H_
-#define _KNOTD_TCPHANDLER_H_
+#pragma once
 
 #include <stdint.h>
 
-#include "knot/server/socket.h"
+#include "knot/server/net.h"
 #include "knot/server/server.h"
 #include "knot/server/dthreads.h"
 
@@ -50,7 +49,19 @@
 int tcp_accept(int fd);
 
 /*!
- * \brief Send TCP message.
+ * \brief Receive a block of data from TCP socket with wait.
+ *
+ * \param fd  File descriptor.
+ * \param buf Data buffer.
+ * \param len Block length.
+ * \param timeout Timeout for the operation, NULL for infinite.
+ *
+ * \return number of bytes received or an error
+ */
+int tcp_recv_data(int fd, uint8_t *buf, int len, struct timeval *timeout);
+
+/*!
+ * \brief Send a TCP message.
  *
  * \param fd Associated socket.
  * \param msg Buffer for a query wireformat.
@@ -59,55 +70,39 @@ int tcp_accept(int fd);
  * \retval Number of sent data on success.
  * \retval KNOT_ERROR on error.
  */
-int tcp_send(int fd, uint8_t *msg, size_t msglen);
+int tcp_send_msg(int fd, const uint8_t *msg, size_t msglen);
 
 /*!
- * \brief Send TCP message.
+ * \brief Receive a TCP message.
  *
  * \param fd Associated socket.
  * \param buf Buffer for incoming bytestream.
  * \param len Buffer maximum size.
- * \param addr Source address.
+ * \param timeout Message receive timeout.
  *
  * \retval Number of read bytes on success.
  * \retval KNOT_ERROR on error.
  * \retval KNOT_ENOMEM on potential buffer overflow.
  */
-int tcp_recv(int fd, uint8_t *buf, size_t len, sockaddr_t *addr);
+int tcp_recv_msg(int fd, uint8_t *buf, size_t len, struct timeval *timeout);
 
 /*!
- * \brief TCP event loop for accepting connections.
+ * \brief TCP handler thread runnable.
+ *
+ * Listens to both bound TCP sockets for client connections and
+ * serves TCP clients. This runnable is designed to be used as coherent
+ * and implements cancellation point.
  *
  * \param thread Associated thread from DThreads unit.
  *
  * \retval KNOT_EOK on success.
  * \retval KNOT_EINVAL invalid parameters.
  */
-int tcp_loop_master(dthread_t *thread);
+int tcp_master(dthread_t *thread);
 
 /*!
- * \brief TCP event loop for processing requests.
- *
- * \param thread Associated thread from DThreads unit.
- *
- * \retval KNOT_EOK on success.
- * \retval KNOT_EINVAL invalid parameters.
+ * \brief Destructor for TCP handler thread.
  */
-int tcp_loop_worker(dthread_t *thread);
-
-/*!
- * \brief Create TCP event handler from threading unit.
- *
- * Set-up threading unit for processing TCP requests.
- *
- * \param ioh Associated I/O handler.
- * \param thread Associated thread from DThreads unit.
- *
- * \retval KNOT_EOK on success.
- * \retval KNOT_EINVAL invalid parameters.
- */
-int tcp_loop_unit(iohandler_t *ioh, dt_unit_t *unit);
-
-#endif // _KNOTD_TCPHANDLER_H_
+int tcp_master_destruct(dthread_t *thread);
 
 /*! @} */

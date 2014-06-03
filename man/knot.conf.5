@@ -1,4 +1,4 @@
-.TH "knot.conf" "5" "22 May 2014" "CZ.NIC Labs" "Knot DNS, version 1.4.6"
+.TH "knot.conf" "5" "2014-06-03" "CZ.NIC Labs" "Knot DNS, version 1.5.0-rc1"
 .SH "NAME"
 .LP
 .B knot.conf
@@ -47,6 +47,12 @@ serves as an example of the configuration for knotc(8) and knotd(8).
   # This option is used to force number of threads used per interface
   # Default: unset (auto-estimates optimal value from the number of online CPUs)
   # workers 3;
+
+  # Number of background workers
+  # This option is used to set number of threads used to execute background
+  # operations (e.g., zone loading, zone signing, XFR zone updates, ...)
+  # Default: unset (auto-estimates optimal value from the number of online CPUs)
+  # background-workers 4;
 
   # User for running server
   # May also specify user.group (e.g. knot.users)
@@ -244,10 +250,10 @@ serves as an example of the configuration for knotc(8) and knotd(8).
 
   # Timeout for syncing changes from zone database to zonefile
   # Possible values: <1..INT_MAX> (seconds)
-  # Default value: 1h (1 hour)
+  # Default value: 0s (immediately)
   # It is also possible to suffix with unit size [s/m/h/d]
   # f.e. 1s = 1 day, 1m = 1 minute, 1h = 1 hour, 1d = 1 day
-  zonefile-sync 1h;
+  zonefile-sync 0s;
 
   # File size limit for IXFR journal
   # Possible values: <1..INT_MAX>
@@ -369,6 +375,13 @@ serves as an example of the configuration for knotc(8) and knotd(8).
 
     # List of servers to allow UPDATE queries
     update-in server0, admins;
+
+	# Query modules are dynamically loaded modules that can alter query plan
+	# Configuration is always module-specific, but passed as a simple string
+	query_module {
+		module_one "configuration string";
+		module_two "specific configuration string";
+	}
   }
  }
 

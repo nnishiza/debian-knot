@@ -24,14 +24,13 @@
  * @{
  */
 
-#ifndef _NSUPDATE__NSUPDATE_PARAMS_H_
-#define _NSUPDATE__NSUPDATE_PARAMS_H_
+#pragma once
 
 #include <stdint.h>
 
 #include "libknot/libknot.h"
 #include "common/lists.h"		// list
-#include "zscanner/zscanner.h"		// scanner_t
+#include "zscanner/zscanner.h"		// zs_scanner_t
 #include "utils/common/netio.h"		// server_t
 #include "utils/common/params.h"	// protocol_t
 #include "libknot/dnssec/key.h"		// knot_key_params_t
@@ -68,24 +67,25 @@ typedef struct {
 	/*!< Current zone. */
 	char		*zone;
 	/*!< RR parser. */
-	scanner_t	*rrp;
+	zs_scanner_t	*parser;
 	/*!< Current packet. */
-	knot_packet_t	*pkt;
+	knot_pkt_t	*query;
 	/*!< Current response. */
-	knot_packet_t	*resp;
-	/*!< Buffer for response. */
-	uint8_t		rwire[MAX_PACKET_SIZE];
+	knot_pkt_t	*answer;
+	/*< Lists of RRSets. */
+	list_t		update_list, prereq_list;
 	/*!< Key parameters. */
 	knot_key_params_t key_params;
 	/*!< Default output settings. */
 	style_t		style;
+	/*!< Memory context. */
+	mm_ctx_t	mm;
 } nsupdate_params_t;
 
 int nsupdate_parse(nsupdate_params_t *params, int argc, char *argv[]);
 int nsupdate_set_ttl(nsupdate_params_t *params, const uint32_t ttl);
 int nsupdate_set_origin(nsupdate_params_t *params, const char *origin);
 void nsupdate_clean(nsupdate_params_t *params);
-
-#endif // _NSUPDATE__NSUPDATE_PARAMS_H_
+void nsupdate_reset(nsupdate_params_t *params);
 
 /*! @} */

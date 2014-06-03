@@ -23,8 +23,7 @@
  * @{
  */
 
-#ifndef _KNOT_DESCRIPTOR_H_
-#define _KNOT_DESCRIPTOR_H_
+#pragma once
 
 #include <stdint.h>			// uint16_t
 #include <stdio.h>			// size_t
@@ -287,6 +286,16 @@ int knot_rrtype_is_metatype(const uint16_t type);
  */
 int knot_rrtype_is_ddns_forbidden(const uint16_t type);
 
-#endif // _KNOT_DESCRIPTOR_H_
+/*!
+ * \brief Checks whether the given type requires additional processing.
+ *
+ * Only MX, NS and SRV types require additional processing.
+ *
+ * \param type Type to check.
+ *
+ * \retval <> 0 if additional processing is needed for \a qtype.
+ * \retval 0 otherwise.
+ */
+int knot_rrtype_additional_needed(const uint16_t type);
 
 /*! @} */

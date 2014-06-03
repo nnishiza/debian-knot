@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <stdio.h>			// snprintf
 #include <stdlib.h>			// strtoul
 #include <strings.h>			// strcasecmp
@@ -167,7 +166,7 @@ const rdata_descriptor_t *get_rdata_descriptor(const uint16_t type)
 const rdata_descriptor_t *get_obsolete_rdata_descriptor(const uint16_t type)
 {
 	if (type <= KNOT_RRTYPE_NXT &&
-	    obsolete_rdata_descriptors[type].type_name != 0) {
+	    obsolete_rdata_descriptors[type].type_name != NULL) {
 		return &obsolete_rdata_descriptors[type];
 	} else {
 		return &obsolete_rdata_descriptors[0];
@@ -320,7 +319,15 @@ int knot_rrtype_is_metatype(const uint16_t type)
 
 int knot_rrtype_is_ddns_forbidden(const uint16_t type)
 {
-	return type == KNOT_RRTYPE_RRSIG      ||
-	       type == KNOT_RRTYPE_NSEC       ||
+	return type == KNOT_RRTYPE_RRSIG ||
+	       type == KNOT_RRTYPE_NSEC  ||
 	       type == KNOT_RRTYPE_NSEC3;
 }
+
+int knot_rrtype_additional_needed(const uint16_t type)
+{
+	return type == KNOT_RRTYPE_NS ||
+	       type == KNOT_RRTYPE_MX ||
+	       type == KNOT_RRTYPE_SRV;
+}
+

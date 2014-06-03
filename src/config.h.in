@@ -12,10 +12,13 @@
 /* microseconds in log messages */
 #undef ENABLE_MICROSECONDS_LOG
 
+/* Use systemd notifications. */
+#undef ENABLE_SYSTEMD_NOTIFY
+
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
-/* Define to 1 if you have the `be64toh' function. */
+/* Define to 1 if you have the 'be64toh' function. */
 #undef HAVE_BE64TOH
 
 /* Define to 1 if you have the <cap-ng.h> header file. */
@@ -117,6 +120,12 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the `strlcat' function. */
+#undef HAVE_STRLCAT
+
+/* Define to 1 if you have the `strlcpy' function. */
+#undef HAVE_STRLCPY
+
 /* Define to 1 if you have the <sys/select.h> header file. */
 #undef HAVE_SYS_SELECT_H
 
@@ -137,13 +146,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* Define to 1 or 0, depending whether the compiler supports simple visibility
-   declarations. */
-#undef HAVE_VISIBILITY
-
-/* integrity check in knotd */
-#undef INTEGRITY_CHECK
 
 /* Server debug. */
 #undef KNOTD_SERVER_DEBUG
@@ -169,7 +171,7 @@
 /* Zones debug. */
 #undef KNOT_ZONES_DEBUG
 
-/* Define to 1 if you want IDN support. */
+/* Define to 1 to enable IDN support */
 #undef LIBIDN
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
@@ -202,6 +204,9 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Define to 1 to enable dnstap support */
+#undef USE_DNSTAP
 
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE

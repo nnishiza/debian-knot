@@ -1,7 +1,9 @@
 ACLOCAL_AMFLAGS = -I $(top_srcdir)/m4
-AM_CFLAGS = -I$(top_srcdir)/src
+AM_CPPFLAGS = \
+	-include $(top_builddir)/src/config.h \
+	-I$(top_srcdir)/src
 
-noinst_LTLIBRARIES = libzscanner.la
+lib_LTLIBRARIES = libzscanner.la
 
 EXTRA_DIST =				\
 	scanner.rl			\
@@ -9,47 +11,35 @@ EXTRA_DIST =				\
 	scanner.c.g2			\
 	scanner.c.t0
 
-BUILT_SOURCES = descriptor.h descriptor.c
-CLEANFILES = descriptor.h descriptor.c
-nodist_libzscanner_la_SOURCES = descriptor.h descriptor.c scanner.c
+BUILT_SOURCES = scanner.c
+CLEANFILES = scanner.c
 
-descriptor.h: $(top_srcdir)/src/common/descriptor.h
-	cp $(top_srcdir)/src/common/descriptor.h $@
-
-descriptor.c: $(top_srcdir)/src/common/descriptor.c
-	cp $(top_srcdir)/src/common/descriptor.c $@
-
-BUILT_SOURCES += scanner.c
-CLEANFILES += scanner.c
-
-if HAVE_RAGEL
-scanner.c: scanner.rl scanner_body.rl
-	$(RAGEL) $(FSM_TYPE) -o $@ $(srcdir)/scanner.rl
-else
-
-if G2_PARSER
+if FAST_PARSER
 scanner.c: scanner.c.g2
 	cp $(srcdir)/$@.g2 $@
 	@echo "NOTE: Compilation of scanner.c can take several minutes!"
-endif
-
-if T0_PARSER
+else
 scanner.c: scanner.c.t0
 	cp $(srcdir)/$@.t0 $@
 endif
-
-endif #HAVE_RAGEL
 
 libzscanner_la_SOURCES =		\
 	zscanner.h			\
 	scanner.h			\
 	error.h				\
 	error.c				\
-	file_loader.h			\
-	file_loader.c			\
-	scanner_functions.h		\
-	scanner_functions.c
+	loader.h			\
+	loader.c			\
+	functions.h			\
+	functions.c
 
-libzscanner_la_LIBADD = @LIBOBJS@
+nodist_libzscanner_la_SOURCES =		\
+	scanner.c
+
+libzscanner_la_CFLAGS = $(CODE_COVERAGE_CFLAGS)
+libzscanner_la_LDFLAGS =		\
+	$(CODE_COVERAGE_LDFLAGS)		\
+	-version-info 0:1:0		\
+	-export-symbols-regex '^zs_'
 
 include $(srcdir)/tests/Makefile.inc

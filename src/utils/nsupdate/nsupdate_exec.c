@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
@@ -32,7 +31,10 @@
 #include "common/errcode.h"
 #include "common/mempattern.h"
 #include "common/descriptor.h"
+#include "common/strlcpy.h"
+#include "libknot/common.h"
 #include "libknot/libknot.h"
+#include "libknot/dnssec/random.h"
 
 /* Declarations of cmd parse functions. */
 typedef int (*cmd_handle_f)(const char *lp, nsupdate_params_t *params);
@@ -132,18 +134,18 @@ static int dname_isvalid(const char *lp, size_t len) {
 	if (dn == NULL) {
 		return 0;
 	}
-	knot_dname_free(&dn);
+	knot_dname_free(&dn, NULL);
 	return 1;
 }
 
 /* This is probably redundant, but should be a bit faster so let's keep it. */
-static int parse_full_rr(scanner_t *s, const char* lp)
+static int parse_full_rr(zs_scanner_t *s, const char* lp)
 {
-	if (scanner_process(lp, lp + strlen(lp), 0, s) < 0) {
+	if (zs_scanner_process(lp, lp + strlen(lp), 0, s) < 0) {
 		return KNOT_EPARSEFAIL;
 	}
 	char nl = '\n'; /* Ensure newline after complete RR */
-	if (scanner_process(&nl, &nl+sizeof(char), 1, s) < 0) { /* Terminate */
+	if (zs_scanner_process(&nl, &nl+sizeof(char), 1, s) < 0) { /* Terminate */
 		return KNOT_EPARSEFAIL;
 	}
 
@@ -158,7 +160,7 @@ static int parse_full_rr(scanner_t *s, const char* lp)
 	return KNOT_EOK;
 }
 
-static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
+static int parse_partial_rr(zs_scanner_t *s, const char *lp, unsigned flags) {
 	int ret = KNOT_EOK;
 	char b1[32], b2[32]; /* Should suffice for both class/type */
 
@@ -187,7 +189,7 @@ static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
 
 	/* Parse only name? */
 	if (flags & PARSE_NAMEONLY) {
-		knot_dname_free(&owner);
+		knot_dname_free(&owner, NULL);
 		return KNOT_EOK;
 	}
 
@@ -203,7 +205,7 @@ static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
 
 	len = strcspn(lp, SEP_CHARS); /* Try to find class */
 	memset(b1, 0, sizeof(b1));
-	strncpy(b1, lp, len < sizeof(b1) ? len : sizeof(b1));
+	strlcpy(b1, lp, sizeof(b1));
 
 	uint16_t v;
 	if (knot_rrclass_from_string(b1, &v) == 0) {
@@ -217,13 +219,13 @@ static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
 		char cls_s[16] = {0};
 		knot_rrclass_to_string(s->default_class, cls_s, sizeof(cls_s));
 		ERR("class mismatch: '%s'\n", cls_s);
-		knot_dname_free(&owner);
+		knot_dname_free(&owner, NULL);
 		return KNOT_EPARSEFAIL;
 	}
 
 	len = strcspn(lp, SEP_CHARS); /* Type */
 	memset(b2, 0, sizeof(b2));
-	strncpy(b2, lp, len < sizeof(b2) ? len : sizeof(b2));
+	strlcpy(b2, lp, sizeof(b2));
 	if (knot_rrtype_from_string(b2, &v) == 0) {
 		s->r_type = v;
 		DBG("%s: parsed type=%u '%s'\n", __func__, s->r_type, b2);
@@ -232,7 +234,7 @@ static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
 
 	/* Remainder */
 	if (*lp == '\0') {
-		knot_dname_free(&owner);
+		knot_dname_free(&owner, NULL);
 		return ret; /* No RDATA */
 	}
 
@@ -244,13 +246,13 @@ static int parse_partial_rr(scanner_t *s, const char *lp, unsigned flags) {
 	/* Need to parse rdata, synthetize input. */
 	char *rr = sprintf_alloc("%s %u %s %s %s\n",
 	                         owner_s, s->r_ttl, b1, b2, lp);
-	if (scanner_process(rr, rr + strlen(rr), 1, s) < 0) {
+	if (rr == NULL || zs_scanner_process(rr, rr + strlen(rr), 1, s) < 0) {
 		ret = KNOT_EPARSEFAIL;
 	}
 
 	free(owner_s);
 	free(rr);
-	knot_dname_free(&owner);
+	knot_dname_free(&owner, NULL);
 	return ret;
 }
 
@@ -286,89 +288,97 @@ static srv_info_t *parse_host(const char *lp, const char* default_port)
 	return srv;
 }
 
-static int pkt_append(nsupdate_params_t *p, int sect)
+/* Append parsed RRSet to list. */
+static int rr_list_append(zs_scanner_t *s, list_t *target_list, mm_ctx_t *mm)
 {
-	/* Check packet state first. */
-	int ret = KNOT_EOK;
-	knot_dname_t * qname = NULL;
-	scanner_t *s = p->rrp;
-	if (!p->pkt) {
-		p->pkt = create_empty_packet(MAX_PACKET_SIZE);
-		qname = knot_dname_from_str(p->zone);
-		ret = knot_query_set_question(p->pkt, qname, p->class_num, p->type_num);
-		knot_dname_free(&qname);
-		if (ret != KNOT_EOK)
-			return ret;
-
-		knot_query_set_opcode(p->pkt, KNOT_OPCODE_UPDATE);
-	}
-
-	/* Form a rrset. */
-	knot_dname_t *o = knot_dname_copy(s->r_owner);
-	if (!o) {
-		DBG("%s: failed to create dname - %s\n",
-		    __func__, knot_strerror(ret));
-		return KNOT_ENOMEM;
-	}
-	knot_rrset_t *rr = knot_rrset_new(o, s->r_type, s->r_class, s->r_ttl);
+	knot_rrset_t *rr = knot_rrset_new(s->r_owner, s->r_type, s->r_class,
+	                                  NULL);
 	if (!rr) {
-		DBG("%s: failed to create rrset - %s\n",
-		    __func__, knot_strerror(ret));
-		knot_dname_free(&o);
+		DBG("%s: failed to create rrset\n", __func__);
 		return KNOT_ENOMEM;
 	}
 
-	/* Create RDATA (not for NXRRSET prereq). */
-	if (s->r_data_length > 0 && sect != PQ_NXRRSET) {
+	/* Create RDATA. */
+	if (s->r_data_length > 0) {
 		size_t pos = 0;
-		ret = knot_rrset_rdata_from_wire_one(rr, s->r_data, &pos,
-		                                     s->r_data_length,
-		                                     s->r_data_length);
+		int ret = knot_rrset_rdata_from_wire_one(rr, s->r_data, &pos,
+		                                         s->r_data_length,
+		                                         s->r_ttl,
+		                                         s->r_data_length,
+		                                         NULL);
 		if (ret != KNOT_EOK) {
 			DBG("%s: failed to set rrset from wire - %s\n",
 			    __func__, knot_strerror(ret));
-			knot_rrset_free(&rr);
+			knot_rrset_free(&rr, NULL);
 			return ret;
 		}
 	}
 
-	/* Add to correct section.
-	 * ZONES  ... QD section.
-	 * UPDATE ... NS section.
-	 * PREREQ ... AN section.
-	 * ADDIT. ... same.
-	 */
-	switch(sect) {
-	case UP_ADD:
-	case UP_DEL:
-		ret = knot_response_add_rrset_authority(p->pkt, rr, KNOT_PF_NOTRUNC);
-		break;
-	case PQ_NXDOMAIN:
-	case PQ_NXRRSET:
-	case PQ_YXDOMAIN:
-	case PQ_YXRRSET:
-		ret = knot_response_add_rrset_answer(p->pkt, rr, KNOT_PF_NOTRUNC);
-		break;
-	default:
-		assert(0); /* Should never happen. */
-		break;
+	if (ptrlist_add(target_list, rr, mm) == NULL) {
+		knot_rrset_free(&rr, NULL);
+		return KNOT_ENOMEM;
 	}
 
-	if (ret != KNOT_EOK) {
-		DBG("%s: failed to append rdata to appropriate section - %s\n",
-		    __func__, knot_strerror(ret));
-		if (ret == KNOT_ESPACE) {
-			ERR("exceeded UPDATE message maximum size %zu\n",
-			    knot_packet_max_size(p->pkt));
+	return KNOT_EOK;
+}
+
+/*! \brief Write RRSet list to packet section. */
+static int rr_list_to_packet(knot_pkt_t *dst, list_t *list)
+{
+	assert(dst != NULL);
+	assert(list != NULL);
+
+	int ret = KNOT_EOK;
+	ptrnode_t *node = NULL;
+	WALK_LIST(node, *list) {
+		ret = knot_pkt_put(dst, COMPR_HINT_NONE, (knot_rrset_t *)node->d, 0);
+		if (ret != KNOT_EOK) {
+			break;
 		}
 	}
 
 	return ret;
 }
 
-static int pkt_sendrecv(nsupdate_params_t *params,
-                        uint8_t *qwire, size_t qlen,
-                        uint8_t *rwire, size_t rlen)
+/*! \brief Build UPDATE query. */
+static int build_query(nsupdate_params_t *params)
+{
+	/* Clear old query. */
+	knot_pkt_t *query = params->query;
+	knot_pkt_clear(query);
+
+	/* Write question. */
+	knot_wire_set_id(query->wire, knot_random_uint16_t());
+	knot_wire_set_opcode(query->wire, KNOT_OPCODE_UPDATE);
+	knot_dname_t *qname = knot_dname_from_str(params->zone);
+	int ret = knot_pkt_put_question(query, qname, params->class_num, params->type_num);
+	knot_dname_free(&qname, NULL);
+	if (ret != KNOT_EOK)
+		return ret;
+
+	/* Now, PREREQ => ANSWER section. */
+	ret = knot_pkt_begin(query, KNOT_ANSWER);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	/* Write PREREQ. */
+	ret = rr_list_to_packet(query, &params->prereq_list);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	/* Now, UPDATE data => AUTHORITY section. */
+	ret = knot_pkt_begin(query, KNOT_AUTHORITY);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	/* Write UPDATE data. */
+	return rr_list_to_packet(query, &params->update_list);
+}
+
+static int pkt_sendrecv(nsupdate_params_t *params)
 {
 	net_t net;
 	int   ret;
@@ -389,20 +399,25 @@ static int pkt_sendrecv(nsupdate_params_t *params,
 		return -1;
 	}
 
-	ret = net_send(&net, qwire, qlen);
+	ret = net_send(&net, params->query->wire, params->query->size);
 	if (ret != KNOT_EOK) {
 		net_close(&net);
 		net_clean(&net);
 		return -1;
 	}
 
+	/* Clear response buffer. */
+	knot_pkt_clear(params->answer);
+
 	/* Wait for reception. */
-	int rb = net_receive(&net, rwire, rlen);
+	int rb = net_receive(&net, params->answer->wire, params->answer->max_size);
 	DBG("%s: receive_msg = %d\n", __func__, rb);
 	if (rb <= 0) {
 		net_close(&net);
 		net_clean(&net);
 		return -1;
+	} else {
+		params->answer->size = rb;
 	}
 
 	net_close(&net);
@@ -430,31 +445,24 @@ static int nsupdate_process_line(char *lp, int len, void *arg)
 
 	int ret = tok_find(lp, cmd_array);
 	if (ret < 0) {
-		return KNOT_EOK; /* Syntax error - do nothing. */
+		return ret; /* Syntax error - do nothing. */
 	}
 
 	const char *cmd = cmd_array[ret];
 	const char *val = tok_skipspace(lp + TOK_L(cmd));
 	ret = cmd_handle[ret](val, params);
 	if (ret != KNOT_EOK) {
-		DBG("operation '%s' failed (%s)\n",
-		    TOK_S(cmd), knot_strerror(ret));
+		DBG("operation '%s' failed (%s) on line '%s'\n",
+		    TOK_S(cmd), knot_strerror(ret), lp);
 	}
 
-	return KNOT_EOK;
+	return ret;
 }
 
 static int nsupdate_process(nsupdate_params_t *params, FILE *fp)
 {
 	/* Process lines. */
-	int ret = tok_process_lines(fp, nsupdate_process_line, params);
-
-	/* Free last answer. */
-	if (params->resp) {
-		knot_packet_free(&params->resp);
-	}
-
-	return ret;
+	return tok_process_lines(fp, nsupdate_process_line, params);
 }
 
 int nsupdate_exec(nsupdate_params_t *params)
@@ -471,16 +479,17 @@ int nsupdate_exec(nsupdate_params_t *params)
 	}
 
 	/* Read from each specified file. */
-	strnode_t *n = NULL;
+	ptrnode_t *n = NULL;
 	WALK_LIST(n, params->qfiles) {
-		if (strcmp(n->str, "-") == 0) {
+		const char *filename = (const char*)n->d;
+		if (strcmp(filename, "-") == 0) {
 			ret = nsupdate_process(params, stdin);
 			continue;
 		}
-		FILE *fp = fopen(n->str, "r");
+		FILE *fp = fopen(filename, "r");
 		if (!fp) {
 			ERR("could not open '%s': %s\n",
-			    n->str, strerror(errno));
+			    filename, strerror(errno));
 			return KNOT_ERROR;
 		}
 		ret = nsupdate_process(params, fp);
@@ -509,28 +518,22 @@ int cmd_update(const char* lp, nsupdate_params_t *params)
 	return h[bp](tok_skipspace(lp + TOK_L(cmd_array[bp])), params);
 }
 
-
 int cmd_add(const char* lp, nsupdate_params_t *params)
 {
 	DBG("%s: lp='%s'\n", __func__, lp);
 
-	scanner_t *rrp = params->rrp;
-	if (parse_full_rr(rrp, lp) != KNOT_EOK) {
+	if (parse_full_rr(params->parser, lp) != KNOT_EOK) {
 		return KNOT_EPARSEFAIL;
 	}
 
-	/* Parsed RR */
-	DBG("%s: parsed rr cls=%u, ttl=%u, type=%u (rdata len=%u)\n",
-	    __func__, rrp->r_class, rrp->r_ttl,rrp->r_type, rrp->r_data_length);
-
-	return pkt_append(params, UP_ADD); /* Append to packet. */
+	return rr_list_append(params->parser, &params->update_list, &params->mm);
 }
 
 int cmd_del(const char* lp, nsupdate_params_t *params)
 {
 	DBG("%s: lp='%s'\n", __func__, lp);
 
-	scanner_t *rrp = params->rrp;
+	zs_scanner_t *rrp = params->parser;
 	if (parse_partial_rr(rrp, lp, PARSE_NODEFAULT) != KNOT_EOK) {
 		return KNOT_EPARSEFAIL;
 	}
@@ -550,11 +553,7 @@ int cmd_del(const char* lp, nsupdate_params_t *params)
 		rrp->r_class = KNOT_CLASS_NONE;
 	}
 
-	/* Parsed RR */
-	DBG("%s: parsed rr cls=%u, ttl=%u, type=%u (rdata len=%u)\n",
-	    __func__, rrp->r_class, rrp->r_ttl,rrp->r_type, rrp->r_data_length);
-
-	return pkt_append(params, UP_DEL); /* Append to packet. */
+	return rr_list_append(rrp, &params->update_list, &params->mm);
 }
 
 int cmd_class(const char* lp, nsupdate_params_t *params)
@@ -568,7 +567,7 @@ int cmd_class(const char* lp, nsupdate_params_t *params)
 		return KNOT_EPARSEFAIL;
 	} else {
 		params->class_num = cls;
-		scanner_t *s = params->rrp;
+		zs_scanner_t *s = params->parser;
 		s->default_class = params->class_num;
 	}
 
@@ -602,7 +601,7 @@ int cmd_prereq_domain(const char *lp, nsupdate_params_t *params, unsigned type)
 	UNUSED(type);
 	DBG("%s: lp='%s'\n", __func__, lp);
 
-	scanner_t *s = params->rrp;
+	zs_scanner_t *s = params->parser;
 	int ret = parse_partial_rr(s, lp, PARSE_NODEFAULT|PARSE_NAMEONLY);
 	if (ret != KNOT_EOK) {
 		return ret;
@@ -616,7 +615,7 @@ int cmd_prereq_rrset(const char *lp, nsupdate_params_t *params, unsigned type)
 	UNUSED(type);
 	DBG("%s: lp='%s'\n", __func__, lp);
 
-	scanner_t *rrp = params->rrp;
+	zs_scanner_t *rrp = params->parser;
 	if (parse_partial_rr(rrp, lp, 0) != KNOT_EOK) {
 		return KNOT_EPARSEFAIL;
 	}
@@ -627,10 +626,6 @@ int cmd_prereq_rrset(const char *lp, nsupdate_params_t *params, unsigned type)
 		return KNOT_EPARSEFAIL;
 	}
 
-	/* Parsed RR */
-	DBG("%s: parsed rr cls=%u, ttl=%u, type=%u (rdata len=%u)\n",
-	    __func__, rrp->r_class, rrp->r_ttl,rrp->r_type, rrp->r_data_length);
-
 	return KNOT_EOK;
 }
 
@@ -640,20 +635,20 @@ int cmd_prereq(const char* lp, nsupdate_params_t *params)
 
 	/* Scan prereq specifier ([ny]xrrset|[ny]xdomain) */
 	int ret = KNOT_EOK;
-	int bp = tok_find(lp, pq_array);
-	if (bp < 0) return bp; /* Syntax error. */
+	int prereq_type = tok_find(lp, pq_array);
+	if (prereq_type < 0) return prereq_type; /* Syntax error. */
 
-	const char *tok = pq_array[bp];
+	const char *tok = pq_array[prereq_type];
 	DBG("%s: type %s\n", __func__, TOK_S(tok));
 	lp = tok_skipspace(lp + TOK_L(tok));
-	switch(bp) {
+	switch(prereq_type) {
 	case PQ_NXDOMAIN:
 	case PQ_YXDOMAIN:
-		ret = cmd_prereq_domain(lp, params, bp);
+		ret = cmd_prereq_domain(lp, params, prereq_type);
 		break;
 	case PQ_NXRRSET:
 	case PQ_YXRRSET:
-		ret = cmd_prereq_rrset(lp, params, bp);
+		ret = cmd_prereq_rrset(lp, params, prereq_type);
 		break;
 	default:
 		return KNOT_ERROR;
@@ -661,16 +656,16 @@ int cmd_prereq(const char* lp, nsupdate_params_t *params)
 
 	/* Append to packet. */
 	if (ret == KNOT_EOK) {
-		scanner_t *s = params->rrp;
+		zs_scanner_t *s = params->parser;
 		s->r_ttl = 0; /* Set TTL = 0 for prereq. */
 		/* YX{RRSET,DOMAIN} - cls ANY */
-		if (bp == PQ_YXRRSET || bp == PQ_YXDOMAIN) {
+		if (prereq_type == PQ_YXRRSET || prereq_type == PQ_YXDOMAIN) {
 			s->r_class = KNOT_CLASS_ANY;
 		} else { /* NX{RRSET,DOMAIN} - cls NONE */
 			s->r_class = KNOT_CLASS_NONE;
 		}
 
-		ret = pkt_append(params, bp);
+		ret = rr_list_append(s, &params->prereq_list, &params->mm);
 	}
 
 	return ret;
@@ -681,13 +676,10 @@ int cmd_send(const char* lp, nsupdate_params_t *params)
 	DBG("%s: lp='%s'\n", __func__, lp);
 	DBG("sending packet\n");
 
-	/* Create wireformat. */
-	int ret = KNOT_EOK;
-	uint8_t *wire = NULL;
-	size_t len = 0;
-
-	if ((ret = knot_packet_to_wire(params->pkt, &wire, &len))!= KNOT_EOK) {
-		ERR("couldn't serialize packet, %s\n", knot_strerror(ret));
+	/* Build query packet. */
+	int ret = build_query(params);
+	if (ret != KNOT_EOK) {
+		ERR("failed to build UPDATE message - %s\n", knot_strerror(ret));
 		return ret;
 	}
 
@@ -696,32 +688,20 @@ int cmd_send(const char* lp, nsupdate_params_t *params)
 
 	/* Sign if key specified. */
 	if (params->key_params.name) {
-		ret = sign_packet(params->pkt, &sign_ctx, &params->key_params);
+		ret = sign_packet(params->query, &sign_ctx, &params->key_params);
 		if (ret != KNOT_EOK) {
 			ERR("failed to sign UPDATE message - %s\n",
 			    knot_strerror(ret));
 			return ret;
 		}
-		len = params->pkt->size;
 	}
 
 	int rb = 0;
 	/* Send/recv message (1 try + N retries). */
 	int tries = 1 + params->retries;
 	for (; tries > 0; --tries) {
-		memset(params->rwire, 0, sizeof(params->rwire));
-		rb = pkt_sendrecv(params, wire, len,
-		                  params->rwire, sizeof(params->rwire));
+		rb = pkt_sendrecv(params);
 		if (rb > 0) break;
-	}
-
-	/* Clear sent packet. */
-	knot_packet_free_rrsets(params->pkt);
-	knot_packet_free(&params->pkt);
-
-	/* Clear previous response. */
-	if (params->resp) {
-		knot_packet_free(&params->resp);
 	}
 
 	/* Check Send/recv result. */
@@ -731,12 +711,7 @@ int cmd_send(const char* lp, nsupdate_params_t *params)
 	}
 
 	/* Parse response. */
-	params->resp = knot_packet_new();
-	if (!params->resp) {
-		free_sign_context(&sign_ctx);
-		return KNOT_ENOMEM;
-	}
-	ret = knot_packet_parse_from_wire(params->resp, params->rwire, rb, 0, 0);
+	ret = knot_pkt_parse(params->answer, 0);
 	if (ret != KNOT_EOK) {
 		ERR("failed to parse response, %s\n", knot_strerror(ret));
 		free_sign_context(&sign_ctx);
@@ -745,7 +720,7 @@ int cmd_send(const char* lp, nsupdate_params_t *params)
 
 	/* Check signature if expected. */
 	if (params->key_params.name) {
-		ret = verify_packet(params->resp, &sign_ctx, &params->key_params);
+		ret = verify_packet(params->answer, &sign_ctx, &params->key_params);
 		free_sign_context(&sign_ctx);
 		if (ret != KNOT_EOK) { /* Collect TSIG error. */
 			fprintf(stderr, "%s: %s\n", "; TSIG error with server",
@@ -754,16 +729,17 @@ int cmd_send(const char* lp, nsupdate_params_t *params)
 		}
 	}
 
+	/* Free RRSet lists. */
+	nsupdate_reset(params);
+
 	/* Check return code. */
 	knot_lookup_table_t *rcode;
-	int rc = knot_packet_rcode(params->resp);
+	int rc = knot_wire_get_rcode(params->answer->wire);
 	DBG("%s: received rcode=%d\n", __func__, rc);
 	rcode = knot_lookup_by_id(knot_rcode_names, rc);
 	if (rcode && rcode->id > KNOT_RCODE_NOERROR) {
 		ERR("update failed: %s\n", rcode->name);
 	}
-
-	/*! \todo Should we check TC bit? */
 
 	return KNOT_EOK;
 }
@@ -822,10 +798,10 @@ int cmd_show(const char* lp, nsupdate_params_t *params)
 	DBG("%s: lp='%s'\n", __func__, lp);
 
 	/* Show current packet. */
-	if (!params->pkt) return KNOT_EOK;
-	printf("Outgoing update query:\n");
-	size_t len = knot_packet_size(params->pkt);
-	print_packet(params->pkt, len, NULL, -1, false, &params->style);
+	if (!params->query) return KNOT_EOK;
+	printf("Update query:\n");
+	build_query(params);
+	print_packet(params->query, NULL, 0, -1, 0, false, &params->style);
 	printf("\n");
 	return KNOT_EOK;
 }
@@ -835,10 +811,9 @@ int cmd_answer(const char* lp, nsupdate_params_t *params)
 	DBG("%s: lp='%s'\n", __func__, lp);
 
 	/* Show current answer. */
-	if (!params->resp) return KNOT_EOK;
+	if (!params->answer) return KNOT_EOK;
 	printf("\nAnswer:\n");
-	size_t len = knot_packet_size(params->resp);
-	print_packet(params->resp, len, NULL, -1, true, &params->style);
+	print_packet(params->answer, NULL, 0, -1, 0, true, &params->style);
 	return KNOT_EOK;
 }
 

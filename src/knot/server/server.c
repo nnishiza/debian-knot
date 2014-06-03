@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,12 +25,9 @@
 #include "knot/server/server.h"
 #include "knot/server/udp-handler.h"
 #include "knot/server/tcp-handler.h"
-#include "knot/server/xfr-handler.h"
-#include "knot/server/zones.h"
 #include "knot/conf/conf.h"
-#include "knot/stat/stat.h"
-#include "libknot/nameserver/name-server.h"
-#include "libknot/zone/zonedb.h"
+#include "knot/worker/pool.h"
+#include "knot/zone/zonedb-load.h"
 #include "libknot/dname.h"
 #include "libknot/dnssec/crypto.h"
 #include "libknot/dnssec/random.h"
@@ -46,23 +42,18 @@ static int evsched_run(dthread_t *thread)
 
 	/* Run event loop. */
 	event_t *ev = 0;
-	while((ev = evsched_next(s))) {
+	while((ev = evsched_begin_process(s))) {
 
-		/* Process termination event. */
-		if (ev->type == EVSCHED_TERM) {
-			evsched_event_finished(s);
-			evsched_event_free(s, ev);
+		/* Process termination event (NULL function). */
+		if (ev->cb == NULL) {
+			evsched_end_process(s);
+			evsched_event_free(ev);
 			break;
 		}
 
 		/* Process event. */
-		if (ev->type == EVSCHED_CB && ev->cb) {
-			ev->cb(ev);
-			evsched_event_finished(s);
-		} else {
-			evsched_event_finished(s);
-			evsched_event_free(s, ev);
-		}
+		ev->cb(ev);
+		evsched_end_process(s);
 
 		/* Check for thread cancellation. */
 		if (dt_is_cancelled(thread)) {
@@ -100,7 +91,6 @@ static void server_remove_iface(iface_t *iface)
 	}
 
 	/* Free interface. */
-	free(iface->addr);
 	free(iface);
 }
 
@@ -119,90 +109,47 @@ static int server_init_iface(iface_t *new_if, conf_iface_t *cfg_if)
 {
 	/* Initialize interface. */
 	int ret = 0;
-	int sock = 0;
-	char errbuf[256] = {0};
 	memset(new_if, 0, sizeof(iface_t));
+	memcpy(&new_if->addr, &cfg_if->addr, sizeof(struct sockaddr_storage));
 
-	/* Create UDP socket. */
-	ret = socket_create(cfg_if->family, SOCK_DGRAM, IPPROTO_UDP);
-	if (ret < 0) {
-		if (strerror_r(errno, errbuf, sizeof(errbuf)) == 0) {
-			log_server_error("Could not create UDP socket: %s.\n",
-					 errbuf);
-		}
-		return ret;
-	} else {
-		sock = ret;
-	}
+	/* Convert to string address format. */
+	char addr_str[SOCKADDR_STRLEN] = {0};
+	sockaddr_tostr(&cfg_if->addr, addr_str, sizeof(addr_str));
 
-	/* Set socket options. */
-	int flag = 1;
-#ifndef DISABLE_IPV6
-	if (cfg_if->family == AF_INET6) {
-		/* Disable dual-stack for performance reasons. */
-		if(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &flag, sizeof(flag)) < 0) {
-			dbg_net("udp: failed to set IPV6_V6ONLY to socket, using default config\n");
-		}
-	}
-#endif
-	ret = socket_bind(sock, cfg_if->family, cfg_if->address, cfg_if->port);
-	if (ret < 0) {
-		socket_close(sock);
-		log_server_error("Could not bind to "
-		                 "UDP interface %s port %d.\n",
-		                 cfg_if->address, cfg_if->port);
-		return ret;
+	/* Create bound UDP socket. */
+	int sock = net_bound_socket(SOCK_DGRAM, &cfg_if->addr);
+	if (sock < 0) {
+		return sock;
 	}
 
 	new_if->fd[IO_UDP] = sock;
-	new_if->type = cfg_if->family;
-	new_if->port = cfg_if->port;
-	new_if->addr = strdup(cfg_if->address);
 
-	/* Create TCP socket. */
-	ret = socket_create(cfg_if->family, SOCK_STREAM, IPPROTO_TCP);
-	if (ret < 0) {
-		socket_close(new_if->fd[IO_UDP]);
-		if (strerror_r(errno, errbuf, sizeof(errbuf)) == 0) {
-			log_server_error("Could not create TCP socket: %s.\n",
-					 errbuf);
-		}
-		return ret;
-	} else {
-		sock = ret;
-	}
-
-	/* Set socket options. */
-#ifndef DISABLE_IPV6
-	if (cfg_if->family == AF_INET6) {
-		if(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &flag, sizeof(flag)) < 0) {
-			dbg_net("tcp: failed to set IPV6_V6ONLY to socket, using default config\n");
-		}
-	}
-#endif
-	ret = socket_bind(sock, cfg_if->family, cfg_if->address, cfg_if->port);
-	if (ret < 0) {
-		free(new_if->addr);
-		socket_close(new_if->fd[IO_UDP]);
-		socket_close(sock);
-		log_server_error("Could not bind to "
-		                 "TCP interface %s port %d.\n",
-		                 cfg_if->address, cfg_if->port);
-		return ret;
-	}
-
-	ret = socket_listen(sock, TCP_BACKLOG_SIZE);
-	if (ret < 0) {
-		free(new_if->addr);
-		socket_close(new_if->fd[IO_UDP]);
-		socket_close(sock);
-		log_server_error("Failed to listen on "
-		                 "TCP interface %s port %d.\n",
-		                 cfg_if->address, cfg_if->port);
-		return ret;
+	/* Create bound TCP socket. */
+	sock = net_bound_socket(SOCK_STREAM, &cfg_if->addr);
+	if (sock < 0) {
+		close(new_if->fd[IO_UDP]);
+		return sock;
 	}
 
 	new_if->fd[IO_TCP] = sock;
+
+	/* Listen for incoming connections. */
+	ret = listen(sock, TCP_BACKLOG_SIZE);
+	if (ret < 0) {
+		close(new_if->fd[IO_UDP]);
+		close(new_if->fd[IO_TCP]);
+		log_server_error("Failed to listen on TCP interface '%s'.\n", addr_str);
+		return KNOT_ERROR;
+	}
+
+	/* accept() must not block */
+	if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
+		close(new_if->fd[IO_UDP]);
+		close(new_if->fd[IO_TCP]);
+		log_server_error("Failed to listen on '%s' in non-blocking mode.\n", addr_str);
+		return KNOT_ERROR;
+	}
+
 	return KNOT_EOK;
 }
 
@@ -211,10 +158,11 @@ static void remove_ifacelist(struct ref_t *p)
 	ifacelist_t *ifaces = (ifacelist_t *)p;
 
 	/* Remove deprecated interfaces. */
+	char addr_str[SOCKADDR_STRLEN] = {0};
 	iface_t *n = NULL, *m = NULL;
 	WALK_LIST_DELSAFE(n, m, ifaces->u) {
-		log_server_info("Removing interface %s port %d.\n",
-		                n->addr, n->port);
+		sockaddr_tostr(&n->addr, addr_str, sizeof(addr_str));
+		log_server_info("Removing interface '%s'.\n", addr_str);
 		server_remove_iface(n);
 	}
 	WALK_LIST_DELSAFE(n, m, ifaces->l) {
@@ -230,24 +178,18 @@ static void remove_ifacelist(struct ref_t *p)
  * \param server Server instance.
  * \return number of added sockets.
  */
-static int server_bind_sockets(server_t *s)
+static int reconfigure_sockets(const struct conf_t *conf, server_t *s)
 {
-	/*! \todo This requires locking to disable parallel updates (issue #278).
-	 *  However, this is only used when RCU is read-locked, so count with that.
-	 */
-
-	/* Lock configuration. */
-	rcu_read_lock();
-
 	/* Prepare helper lists. */
+	char addr_str[SOCKADDR_STRLEN] = {0};
 	int bound = 0;
 	iface_t *m = 0;
+	ifacelist_t *oldlist = s->ifaces;
 	ifacelist_t *newlist = malloc(sizeof(ifacelist_t));
 	ref_init(&newlist->ref, &remove_ifacelist);
 	ref_retain(&newlist->ref);
 	init_list(&newlist->u);
 	init_list(&newlist->l);
-
 
 	/* Duplicate current list. */
 	/*! \note Pointers to addr, handlers etc. will be shared. */
@@ -257,7 +199,7 @@ static int server_bind_sockets(server_t *s)
 
 	/* Update bound interfaces. */
 	node_t *n = 0;
-	WALK_LIST(n, conf()->ifaces) {
+	WALK_LIST(n, conf->ifaces) {
 
 		/* Find already matching interface. */
 		int found_match = 0;
@@ -265,11 +207,9 @@ static int server_bind_sockets(server_t *s)
 		if (s->ifaces) {
 			WALK_LIST(m, s->ifaces->u) {
 				/* Matching port and address. */
-				if (cfg_if->port == m->port) {
-					if (strcmp(cfg_if->address, m->addr) == 0) {
-						found_match = 1;
-						break;
-					}
+				if (sockaddr_cmp(&cfg_if->addr, &m->addr) == 0) {
+					found_match = 1;
+					break;
 				}
 			}
 		}
@@ -278,8 +218,8 @@ static int server_bind_sockets(server_t *s)
 		if (found_match) {
 			rem_node((node_t *)m);
 		} else {
-			log_server_info("Binding to interface %s port %d.\n",
-			                cfg_if->address, cfg_if->port);
+			sockaddr_tostr(&cfg_if->addr, addr_str, sizeof(addr_str));
+			log_server_info("Binding to interface %s.\n", addr_str);
 
 			/* Create new interface. */
 			m = malloc(sizeof(iface_t));
@@ -296,33 +236,34 @@ static int server_bind_sockets(server_t *s)
 		}
 	}
 
-	/* Publish new list. */
-	ifacelist_t *oldlist = rcu_xchg_pointer(&s->ifaces, newlist);
-
-	/* Unlock configuration. */
-	rcu_read_unlock();
-
-	/* Ensure no one is reading old interfaces. */
-	synchronize_rcu();
-
-	/* Update UDP ifacelist (reload all threads). */
-	dt_unit_t *tu = s->h[IO_UDP].unit;
-	for (unsigned i = 0; i < tu->size; ++i) {
-		ref_retain((ref_t *)newlist);
-		s->h[IO_UDP].state[i].s |= ServerReload;
-		if (s->state & ServerRunning) {
-			dt_activate(tu->threads[i]);
-			dt_signalize(tu->threads[i], SIGALRM);
+	/* Wait for readers that are reconfiguring right now. */
+	/*! \note This subsystem will be reworked in #239 */
+	for (unsigned proto = IO_UDP; proto <= IO_TCP; ++proto) {
+		dt_unit_t *tu = s->handler[proto].unit;
+		iohandler_t *ioh = &s->handler[proto];
+		for (unsigned i = 0; i < tu->size; ++i) {
+			while (ioh->thread_state[i] & ServerReload) {
+				sleep(1);
+			}
 		}
 	}
 
-	/* Update TCP ifacelist (reload master thread). */
-	tu = s->h[IO_TCP].unit;
-	ref_retain((ref_t *)newlist);
-	s->h[IO_TCP].state[0].s |= ServerReload;
-	if (s->state & ServerRunning) {
-		dt_activate(tu->threads[0]);
-		dt_signalize(tu->threads[0], SIGALRM);
+	/* Publish new list. */
+	s->ifaces = newlist;
+
+	/* Update TCP+UDP ifacelist (reload all threads). */
+	unsigned thread_count = 0;
+	for (unsigned proto = IO_UDP; proto <= IO_TCP; ++proto) {
+		dt_unit_t *tu = s->handler[proto].unit;
+		for (unsigned i = 0; i < tu->size; ++i) {
+			ref_retain((ref_t *)newlist);
+			s->handler[proto].thread_state[i] |= ServerReload;
+			s->handler[proto].thread_id[i] = thread_count++;
+			if (s->state & ServerRunning) {
+				dt_activate(tu->threads[i]);
+				dt_signalize(tu->threads[i], SIGALRM);
+			}
+		}
 	}
 
 	ref_release(&oldlist->ref);
@@ -330,69 +271,107 @@ static int server_bind_sockets(server_t *s)
 	return bound;
 }
 
-server_t *server_create()
+int server_init(server_t *server, int bg_workers)
 {
-	// Create server structure
-	server_t *server = malloc(sizeof(server_t));
+	/* Clear the structure. */
+	dbg_server("%s(%p)\n", __func__, server);
 	if (server == NULL) {
-		ERR_ALLOC_FAILED;
-		return NULL;
+		return KNOT_EINVAL;
 	}
+
 	memset(server, 0, sizeof(server_t));
 
-	// Create event scheduler
-	dbg_server("server: creating event scheduler\n");
-	server->sched = evsched_new();
-	server->iosched = dt_create_coherent(1, evsched_run, evsched_destruct,
-	                                     server->sched);
-
-	// Create name server
-	dbg_server("server: creating Name Server structure\n");
-	server->nameserver = knot_ns_create();
-	if (server->nameserver == NULL) {
-		free(server);
-		return NULL;
+	/* Initialize event scheduler. */
+	if (evsched_init(&server->sched, server) != KNOT_EOK) {
+		return KNOT_ENOMEM;
 	}
-	knot_ns_set_data(server->nameserver, server);
-
-	// Create XFR handler
-	server->xfr = xfr_create(XFR_THREADS_COUNT, server->nameserver);
-	if (!server->xfr) {
-		knot_ns_destroy(&server->nameserver);
-		free(server);
-		return NULL;
+	server->iosched = dt_create(1, evsched_run, evsched_destruct, &server->sched);
+	if (server->iosched == NULL) {
+		evsched_deinit(&server->sched);
+		return KNOT_ENOMEM;
 	}
 
-	dbg_server("server: created server instance\n");
-	return server;
-}
+	/* Create zone events threads. */
+	if (bg_workers < 1) {
+		bg_workers = dt_optimal_size();
+	}
+	assert(bg_workers > 0);
 
-int server_init_handler(iohandler_t * h, server_t *s, dt_unit_t *tu, void *d)
-{
-	/* Initialize */
-	memset(h, 0, sizeof(iohandler_t));
-	h->server = s;
-	h->unit = tu;
-	h->data = d;
-	h->state = malloc(tu->size * sizeof(iostate_t));
-
-	/* Update unit data object */
-	for (int i = 0; i < tu->size; ++i) {
-		dthread_t *thread = tu->threads[i];
-		h->state[i].h = h;
-		h->state[i].s = 0;
-		if (thread->run) {
-			dt_repurpose(thread, thread->run, h->state + i);
-		}
+	server->workers = worker_pool_create(bg_workers);
+	if (server->workers == NULL) {
+		dt_delete(&server->iosched);
+		evsched_deinit(&server->sched);
+		return KNOT_ENOMEM;
 	}
 
 	return KNOT_EOK;
 }
 
-int server_free_handler(iohandler_t *h)
+void server_deinit(server_t *server)
 {
-	if (!h || !h->server) {
-		return KNOT_EINVAL;
+	dbg_server("%s(%p)\n", __func__, server);
+	if (server == NULL) {
+		return;
+	}
+
+	/* Free remaining interfaces. */
+	if (server->ifaces) {
+		iface_t *n = NULL, *m = NULL;
+		WALK_LIST_DELSAFE(n, m, server->ifaces->l) {
+			server_remove_iface(n);
+		}
+		free(server->ifaces);
+	}
+
+	/* Free threads and event handlers. */
+	worker_pool_destroy(server->workers);
+	dt_delete(&server->iosched);
+
+	/* Free rate limits. */
+	rrl_destroy(server->rrl);
+
+	/* Free zone database. */
+	knot_zonedb_deep_free(&server->zone_db);
+
+	/* Free remaining events. */
+	evsched_deinit(&server->sched);
+
+	/* Clear the structure. */
+	memset(server, 0, sizeof(server_t));
+}
+
+static int server_init_handler(server_t *server, int index, int thread_count,
+                               runnable_t runnable, runnable_t destructor)
+{
+	/* Initialize */
+	iohandler_t *h = &server->handler[index];
+	memset(h, 0, sizeof(iohandler_t));
+	h->server = server;
+	h->unit = dt_create(thread_count, runnable, destructor, h);
+	if (h->unit == NULL) {
+		return KNOT_ENOMEM;
+	}
+
+	h->thread_state = calloc(thread_count, sizeof(unsigned));
+	if (h->thread_state == NULL) {
+		dt_delete(&h->unit);
+		return KNOT_ENOMEM;
+	}
+
+	h->thread_id = calloc(thread_count, sizeof(unsigned));
+	if (h->thread_id == NULL) {
+		free(h->thread_state);
+		dt_delete(&h->unit);
+		return KNOT_ENOMEM;
+	}
+
+	return KNOT_EOK;
+}
+
+static void server_free_handler(iohandler_t *h)
+{
+	if (h == NULL || h->server == NULL) {
+		return;
 	}
 
 	/* Wait for threads to finish */
@@ -402,14 +381,10 @@ int server_free_handler(iohandler_t *h)
 	}
 
 	/* Destroy worker context. */
-	if (h->dtor) {
-		h->dtor(h->data);
-		h->data = NULL;
-	}
 	dt_delete(&h->unit);
-	free(h->state);
+	free(h->thread_state);
+	free(h->thread_id);
 	memset(h, 0, sizeof(iohandler_t));
-	return KNOT_EOK;
 }
 
 int server_start(server_t *s)
@@ -421,77 +396,42 @@ int server_start(server_t *s)
 
 	dbg_server("server: starting server instance\n");
 
-	/* Start XFR handler. */
-	xfr_start(s->xfr);
-
 	/* Start evsched handler. */
 	dt_start(s->iosched);
+
+	/* Start workers. */
+	worker_pool_start(s->workers);
 
 	/* Start I/O handlers. */
 	int ret = KNOT_EOK;
 	s->state |= ServerRunning;
 	if (s->tu_size > 0) {
 		for (unsigned i = 0; i < IO_COUNT; ++i) {
-			ret = dt_start(s->h[i].unit);
+			ret = dt_start(s->handler[i].unit);
 		}
 	}
-
 
 	dbg_server("server: server started\n");
 
 	return ret;
 }
 
-int server_wait(server_t *s)
+void server_wait(server_t *s)
 {
-	if (!s) return KNOT_EINVAL;
+	if (s == NULL) {
+		return;
+	}
 
-	xfr_join(s->xfr);
 	dt_join(s->iosched);
+	worker_pool_join(s->workers);
+
 	if (s->tu_size == 0) {
-		return KNOT_EOK;
+		return;
 	}
 
-	int ret = KNOT_EOK;
 	for (unsigned i = 0; i < IO_COUNT; ++i) {
-		if ((ret = server_free_handler(s->h + i)) != KNOT_EOK) {
-			break;
-		}
+		server_free_handler(s->handler + i);
 	}
-
-	return ret;
-}
-
-int server_refresh(server_t *server)
-{
-	if (server == NULL || server->nameserver == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	/* Lock RCU and fetch zones. */
-	rcu_read_lock();
-	knot_nameserver_t *ns =  server->nameserver;
-	evsched_t *sch = ((server_t *)knot_ns_get_data(ns))->sched;
-	const knot_zone_t **zones = knot_zonedb_zones(ns->zone_db);
-
-	/* REFRESH zones. */
-	for (unsigned i = 0; i < knot_zonedb_zone_count(ns->zone_db); ++i) {
-		zonedata_t *zd = (zonedata_t *)zones[i]->data;
-		if (zd == NULL) {
-			continue;
-		}
-		/* Expire REFRESH timer. */
-		if (zd->xfr_in.timer && zd->xfr_in.has_master) {
-			evsched_cancel(sch, zd->xfr_in.timer);
-			evsched_schedule(sch, zd->xfr_in.timer,
-			                 knot_random_int() % 500 + i/2);
-			/* Cumulative delay. */
-		}
-	}
-
-	/* Unlock RCU. */
-	rcu_read_unlock();
-	return KNOT_EOK;
 }
 
 int server_reload(server_t *server, const char *cf)
@@ -528,92 +468,64 @@ void server_stop(server_t *server)
 	log_server_info("Stopping server...\n");
 
 	/* Send termination event. */
-	evsched_schedule_term(server->sched, 0);
+	event_t *term_ev = evsched_event_create(&server->sched, NULL, NULL);
+	evsched_schedule(term_ev, 0);
 	dt_stop(server->iosched);
 
-	/* Interrupt XFR handler execution. */
-	xfr_stop(server->xfr);
+	/* Interrupt background workers. */
+	worker_pool_stop(server->workers);
 
 	/* Clear 'running' flag. */
 	server->state &= ~ServerRunning;
 }
 
-void server_destroy(server_t **server)
+/*! \brief Reconfigure UDP and TCP query processing threads. */
+static int reconfigure_threads(const struct conf_t *conf, server_t *server)
 {
-	// Check server
-	if (!server || !*server) {
-		return;
-	}
-
-	dbg_server("server: destroying server instance\n");
-
-	/* Free remaining interfaces. */
-	ifacelist_t *ifaces = (*server)->ifaces;
-	iface_t *n = NULL, *m = NULL;
-	if (ifaces) {
-		WALK_LIST_DELSAFE(n, m, ifaces->l) {
-			server_remove_iface(n);
-		}
-		free(ifaces);
-		(*server)->ifaces = NULL;
-	}
-
-	xfr_free((*server)->xfr);
-	stat_static_gath_free();
-	knot_ns_destroy(&(*server)->nameserver);
-	evsched_delete(&(*server)->sched);
-	dt_delete(&(*server)->iosched);
-	rrl_destroy((*server)->rrl);
-	free(*server);
-	*server = NULL;
-}
-
-int server_conf_hook(const struct conf_t *conf, void *data)
-{
-	server_t *server = (server_t *)data;
-
-	if (!server) {
-		return KNOT_EINVAL;
-	}
-
-	if (!(server->state & ServerRunning)) {
-		log_server_info("Knot DNS %s starting.\n", PACKAGE_VERSION);
-	}
-
 	/* Estimate number of threads/manager. */
 	int ret = KNOT_EOK;
-	int tu_size = conf->workers;
-	if (tu_size < 1) {
-		tu_size = dt_optimal_size();
-	}
+	int tu_size = conf_udp_threads(conf);
 	if ((unsigned)tu_size != server->tu_size) {
 		/* Free old handlers */
 		if (server->tu_size > 0) {
 			for (unsigned i = 0; i < IO_COUNT; ++i) {
-				ret = server_free_handler(server->h + i);
+				server_free_handler(server->handler + i);
 			}
 		}
 
 		/* Initialize I/O handlers. */
-		size_t udp_size = tu_size;
-		if (udp_size < 2) udp_size = 2;
-		dt_unit_t *tu = dt_create_coherent(udp_size, &udp_master,
-		                                   &udp_master_destruct, NULL);
-		server_init_handler(server->h + IO_UDP, server, tu, NULL);
+		ret = server_init_handler(server, IO_UDP, conf_udp_threads(conf),
+		                          &udp_master, &udp_master_destruct);
+		if (ret != KNOT_EOK) {
+			log_server_error("Failed to create UDP threads: %s\n",
+			                 knot_strerror(ret));
+			return ret;
+		}
 
 		/* Create at least CONFIG_XFERS threads for TCP for faster
 		 * processing of massive bootstrap queries. */
-		tu = dt_create(MAX(tu_size * 2, CONFIG_XFERS));
-		server_init_handler(server->h + IO_TCP, server, tu, NULL);
-		tcp_loop_unit(server->h + IO_TCP, tu);
+		ret = server_init_handler(server, IO_TCP, conf_tcp_threads(conf),
+		                          &tcp_master, &tcp_master_destruct);
+		if (ret != KNOT_EOK) {
+			log_server_error("Failed to create TCP threads: %s\n",
+			                 knot_strerror(ret));
+			return ret;
+		}
+
+		/* Start if server is running. */
 		if (server->state & ServerRunning) {
 			for (unsigned i = 0; i < IO_COUNT; ++i) {
-				ret = dt_start(server->h[i].unit);
+				ret = dt_start(server->handler[i].unit);
 			}
 		}
 		server->tu_size = tu_size;
 	}
 
+	return ret;
+}
+
+static int reconfigure_rate_limits(const struct conf_t *conf, server_t *server)
+{
 	/* Rate limiting. */
 	if (!server->rrl && conf->rrl > 0) {
 		server->rrl = rrl_create(conf->rrl_size);
@@ -638,10 +550,65 @@ int server_conf_hook(const struct conf_t *conf, void *data)
 		} /* At this point, old buckets will converge to new rate. */
 	}
 
+	return KNOT_EOK;
+}
+
+int server_reconfigure(const struct conf_t *conf, void *data)
+{
+	server_t *server = (server_t *)data;
+	dbg_server("%s(%p, %p)\n", __func__, conf, server);
+	if (server == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	/* First reconfiguration. */
+	if (!(server->state & ServerRunning)) {
+		log_server_info("Knot DNS %s starting.\n", PACKAGE_VERSION);
+	}
+
+	/* Reconfigure rate limits. */
+	int ret = KNOT_EOK;
+	if ((ret = reconfigure_rate_limits(conf, server)) < 0) {
+		log_server_error("Failed to reconfigure rate limits.\n");
+		return ret;
+	}
+
+	/* Reconfigure server threads. */
+	if ((ret = reconfigure_threads(conf, server)) < 0) {
+		log_server_error("Failed to reconfigure server threads.\n");
+		return ret;
+	}
+
 	/* Update bound sockets. */
-	if ((ret = server_bind_sockets(server)) < 0) {
-		log_server_error("Failed to bind configured "
-		                 "interfaces.\n");
+	if ((ret = reconfigure_sockets(conf, server)) < 0) {
+		log_server_error("Failed to reconfigure server sockets.\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+int server_update_zones(const struct conf_t *conf, void *data)
+{
+	server_t *server = (server_t *)data;
+
+	/* Prevent new events on zones waiting to be replaced. */
+	if (server->zone_db) {
+		knot_zonedb_foreach(server->zone_db, zone_events_freeze);
+	}
+
+	/* Finish operations already in the queue. */
+	worker_pool_wait(server->workers);
+
+	/* Reload zone database and free old zones. */
+	int ret = zonedb_reload(conf, server);
+
+	/* Trim extra heap. */
+	mem_trim();
+
+	/* Plan events on new zones. */
+	if (server->zone_db) {
+		knot_zonedb_foreach(server->zone_db, zone_events_start);
 	}
 
 	return ret;

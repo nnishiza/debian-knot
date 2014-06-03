@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -223,17 +222,6 @@ static inline int slab_cache_free_slabs(slab_t* slab)
 /*
  * Slab helper functions.
  */
-
-/*! \brief Return number of slabs in a linked list. */
-static inline unsigned slab_list_walk(slab_t* slab)
-{
-	unsigned count = 0;
-	while(slab) {
-		slab = slab->next;
-		++count;
-	}
-	return count;
-}
 
 /*! \brief Remove slab from a linked list. */
 static void slab_list_remove(slab_t* slab)

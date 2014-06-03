@@ -13,10 +13,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <config.h>
 
-#ifndef _KNOT_ENDIAN_H
-#define _KNOT_ENDIAN_H
+#pragma once
 
 #if defined(__linux__)
 #	include <endian.h>
@@ -47,5 +45,3 @@
 #       define htobe32(x) OSSwapHostToBigInt32(x)
 #       define htobe64(x) OSSwapHostToBigInt64(x)
 #endif
-
-#endif /* _KNOT_ENDIAN_H_ */

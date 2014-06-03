@@ -14,17 +14,16 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include <inttypes.h>			// PRIu64
 #include <stdio.h>			// printf
 #include <stdlib.h>			// atoi
 #include <getopt.h>			// getopt
 #include <pthread.h>			// pthread_t
 
-#include "error.h"		// knot_strerror
-#include "file_loader.h"	// file_loader
-#include "tests/processing.h"	// processing functions
-#include "tests/tests.h"	// test functions
+#include "error.h"
+#include "loader.h"
+#include "tests/processing.h"
+#include "tests/tests.h"
 
 #define DEFAULT_MODE	1
 #define DEFAULT_CLASS	1
@@ -55,10 +54,7 @@ int main(int argc, char *argv[])
 {
 	// Parsed command line arguments.
 	int c = 0, li = 0;
-	int ret, mode = DEFAULT_MODE, test = 0;
-	file_loader_t *fl;
-	const char *origin;
-	const char *zone_file;
+	int mode = DEFAULT_MODE, test = 0;
 
 	// Command line long options.
 	struct option opts[] = {
@@ -102,19 +98,21 @@ int main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 	} else {
+		zs_loader_t *fl;
+
 		// Check if there are 2 remaining non-options.
 		if (argc - optind != 2) {
 			help();
 			return EXIT_FAILURE;
 		}
 
-		origin = argv[optind];
-		zone_file = argv[optind + 1];
+		const char *origin = argv[optind];
+		const char *zone_file = argv[optind + 1];
 
 		// Create appropriate file loader.
 		switch (mode) {
 		case 0:
-			fl = file_loader_create(zone_file,
+			fl = zs_loader_create(zone_file,
 			                        origin,
 			                        DEFAULT_CLASS,
 			                        DEFAULT_TTL,
@@ -123,7 +121,7 @@ int main(int argc, char *argv[])
 			                        NULL);
 			break;
 		case 1:
-			fl = file_loader_create(zone_file,
+			fl = zs_loader_create(zone_file,
 			                        origin,
 			                        DEFAULT_CLASS,
 			                        DEFAULT_TTL,
@@ -132,7 +130,7 @@ int main(int argc, char *argv[])
 			                        NULL);
 			break;
 		case 2:
-			fl = file_loader_create(zone_file,
+			fl = zs_loader_create(zone_file,
 			                        origin,
 			                        DEFAULT_CLASS,
 			                        DEFAULT_TTL,
@@ -148,31 +146,31 @@ int main(int argc, char *argv[])
 
 		// Check file loader.
 		if (fl != NULL) {
-			ret = file_loader_process(fl);
+			int ret = zs_loader_process(fl);
 
 			switch (ret) {
-			case ZSCANNER_OK:
+			case ZS_OK:
 				if (mode == DEFAULT_MODE) {
 					printf("Zone file has been processed "
 					       "successfully\n");
 				}
-				file_loader_free(fl);
+				zs_loader_free(fl);
 				break;
 
-			case FLOADER_ESCANNER:
+			case ZS_LOADER_SCANNER:
 				if (mode == DEFAULT_MODE) {
 					printf("Zone processing has stopped with "
 					       "%"PRIu64" warnings/errors!\n",
 					       fl->scanner->error_counter);
 				}
-				file_loader_free(fl);
+				zs_loader_free(fl);
 				return EXIT_FAILURE;
 
 			default:
 				if (mode == DEFAULT_MODE) {
-					printf("%s\n", zscanner_strerror(ret));
+					printf("%s\n", zs_strerror(ret));
 				}
-				file_loader_free(fl);
+				zs_loader_free(fl);
 				return EXIT_FAILURE;
 			}
 		} else {

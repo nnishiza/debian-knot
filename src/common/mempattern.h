@@ -24,10 +24,12 @@
  * @{
  */
 
-#ifndef _KNOTD_COMMON_MALLOC_H_
-#define _KNOTD_COMMON_MALLOC_H_
+#pragma once
 
 #include <stddef.h>
+
+/* Default memory block size. */
+#define DEFAULT_BLKSIZE 4096
 
 /* Memory allocation function prototypes. */
 typedef void* (*mm_alloc_t)(void* ctx, size_t len);
@@ -43,9 +45,16 @@ typedef struct mm_ctx {
 	mm_alloc_t alloc;
 	mm_free_t free;
 } mm_ctx_t;
+/*! \brief Allocs using 'mm' if any, uses system malloc() otherwise. */
+void *mm_alloc(mm_ctx_t *mm, size_t size);
+/*! \brief Reallocs using 'mm' if any, uses system realloc() otherwise. */
+void mm_free(mm_ctx_t *mm, void *what);
 
 /*! \brief Initialize default memory allocation context. */
 void mm_ctx_init(mm_ctx_t *mm);
+
+/*! \brief Memory pool context. */
+void mm_ctx_mempool(mm_ctx_t *mm, size_t chunk_size);
 
 /*! \brief Allocate memory or die. */
 void* xmalloc(size_t l);
@@ -112,7 +121,5 @@ void usage_dump();
 
 /*! \brief Trim excess heap memory. */
 void mem_trim(void);
-
-#endif // _KNOTD_COMMON_MALLOC_H_
 
 /*! @} */

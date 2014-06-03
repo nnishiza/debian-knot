@@ -82,6 +82,13 @@ host_triplet = @host@
 sbin_PROGRAMS = knotc$(EXEEXT) knotd$(EXEEXT)
 bin_PROGRAMS = kdig$(EXEEXT) khost$(EXEEXT) knsupdate$(EXEEXT) \
 	knsec3hash$(EXEEXT)
+@HAVE_DNSTAP_TRUE@am__append_1 = \
+@HAVE_DNSTAP_TRUE@	knot/modules/dnstap.c			\
+@HAVE_DNSTAP_TRUE@	knot/modules/dnstap.h
+
+@HAVE_DNSTAP_TRUE@am__append_2 = dnstap/libdnstap.la
+@HAVE_DNSTAP_TRUE@am__append_3 = dnstap/libdnstap.la
+@HAVE_DNSTAP_TRUE@am__append_4 = dnstap/libdnstap.la
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/config.h.in knot/conf/libknotd_la-cf-lex.c \
@@ -90,104 +97,196 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
+	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
-	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/visibility.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-LTLIBRARIES = $(noinst_LTLIBRARIES)
-libknot_la_LIBADD =
+am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
+am__vpath_adj = case $$p in \
+    $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
+    *) f=$$p;; \
+  esac;
+am__strip_dir = f=`echo $$p | sed -e 's|^.*/||'`;
+am__install_max = 40
+am__nobase_strip_setup = \
+  srcdirstrip=`echo "$(srcdir)" | sed 's/[].[^$$\\*|]/\\\\&/g'`
+am__nobase_strip = \
+  for p in $$list; do echo "$$p"; done | sed -e "s|$$srcdirstrip/||"
+am__nobase_list = $(am__nobase_strip_setup); \
+  for p in $$list; do echo "$$p $$p"; done | \
+  sed "s| $$srcdirstrip/| |;"' / .*\//!s/ .*/ ./; s,\( .*\)/[^/]*$$,\1,' | \
+  $(AWK) 'BEGIN { files["."] = "" } { files[$$2] = files[$$2] " " $$1; \
+    if (++n[$$2] == $(am__install_max)) \
+      { print $$2, files[$$2]; n[$$2] = 0; files[$$2] = "" } } \
+    END { for (dir in files) print dir, files[dir] }'
+am__base_list = \
+  sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
+  sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
+am__uninstall_files_from_dir = { \
+  test -z "$$files" \
+    || { test ! -d "$$dir" && test ! -f "$$dir" && test ! -r "$$dir"; } \
+    || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
+         $(am__cd) "$$dir" && rm -f $$files; }; \
+  }
+am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
+	"$(DESTDIR)$(sbindir)"
+LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
+libknot_la_DEPENDENCIES = libknots.la zscanner/libzscanner.la
 am__dirstamp = $(am__leading_dot)dirstamp
-am_libknot_la_OBJECTS = libknot/consts.lo libknot/util/utils.lo \
-	libknot/util/debug.lo libknot/util/tolower.lo \
-	libknot/packet/query.lo libknot/packet/response.lo \
-	libknot/packet/packet.lo libknot/zone/zone.lo \
-	libknot/zone/zone-contents.lo libknot/zone/zone-tree.lo \
-	libknot/zone/zonedb.lo libknot/zone/node.lo \
-	libknot/zone/zone-diff.lo libknot/nameserver/name-server.lo \
-	libknot/nameserver/chaos.lo libknot/updates/changesets.lo \
-	libknot/updates/xfr-in.lo libknot/updates/ddns.lo \
-	libknot/dname.lo libknot/edns.lo libknot/rrset.lo \
-	libknot/rrset-dump.lo libknot/tsig.lo libknot/tsig-op.lo \
-	libknot/binary.lo libknot/dnssec/crypto.lo \
-	libknot/dnssec/key.lo libknot/dnssec/nsec3.lo \
-	libknot/dnssec/policy.lo libknot/dnssec/rrset-sign.lo \
-	libknot/dnssec/sig0.lo libknot/dnssec/sign.lo \
-	libknot/dnssec/zone-events.lo libknot/dnssec/zone-keys.lo \
-	libknot/dnssec/zone-nsec.lo libknot/dnssec/zone-sign.lo
+am_libknot_la_OBJECTS = libknot/binary.lo libknot/consts.lo \
+	libknot/dname.lo libknot/dnssec/crypto.lo \
+	libknot/dnssec/key.lo libknot/dnssec/policy.lo \
+	libknot/dnssec/rrset-sign.lo libknot/dnssec/sig0.lo \
+	libknot/dnssec/sign.lo libknot/rrtype/opt.lo \
+	libknot/packet/compr.lo libknot/packet/pkt.lo \
+	libknot/processing/process.lo libknot/rrtype/nsec3.lo \
+	libknot/rrtype/nsec3param.lo libknot/rrtype/tsig.lo \
+	libknot/rrset-dump.lo libknot/rdata.lo libknot/rdataset.lo \
+	libknot/rrset.lo libknot/tsig-op.lo libknot/util/tolower.lo \
+	libknot/util/utils.lo
 libknot_la_OBJECTS = $(am_libknot_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-libknotd_la_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
+libknot_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(libknot_la_LDFLAGS) $(LDFLAGS) -o $@
+libknotd_la_DEPENDENCIES = libknots.la libknot.la $(am__append_4)
+am__libknotd_la_SOURCES_DIST = knot/conf/cf-lex.l knot/conf/cf-parse.y \
+	knot/conf/conf.c knot/conf/conf.h knot/conf/extra.c \
+	knot/conf/extra.h knot/conf/includes.c knot/conf/includes.h \
+	knot/conf/logconf.c knot/conf/logconf.h knot/ctl/process.c \
+	knot/ctl/process.h knot/ctl/remote.c knot/ctl/remote.h \
+	knot/dnssec/nsec-chain.c knot/dnssec/nsec-chain.h \
+	knot/dnssec/nsec3-chain.c knot/dnssec/nsec3-chain.h \
+	knot/dnssec/zone-events.c knot/dnssec/zone-events.h \
+	knot/dnssec/zone-keys.c knot/dnssec/zone-keys.h \
+	knot/dnssec/zone-nsec.c knot/dnssec/zone-nsec.h \
+	knot/dnssec/zone-sign.c knot/dnssec/zone-sign.h knot/knot.h \
+	knot/nameserver/axfr.c knot/nameserver/axfr.h \
+	knot/nameserver/chaos.c knot/nameserver/chaos.h \
+	knot/nameserver/internet.c knot/nameserver/internet.h \
+	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
+	knot/nameserver/nsec_proofs.c knot/nameserver/nsec_proofs.h \
+	knot/nameserver/process_query.c \
+	knot/nameserver/process_query.h \
+	knot/nameserver/process_answer.c \
+	knot/nameserver/process_answer.h knot/nameserver/requestor.c \
+	knot/nameserver/requestor.h knot/nameserver/query_module.c \
+	knot/nameserver/query_module.h knot/nameserver/update.c \
+	knot/nameserver/update.h knot/nameserver/notify.c \
+	knot/nameserver/notify.h knot/nameserver/tsig_ctx.c \
+	knot/nameserver/tsig_ctx.h knot/modules/synth_record.c \
+	knot/modules/synth_record.h knot/other/debug.h \
+	knot/server/dthreads.c knot/server/dthreads.h \
+	knot/server/journal.c knot/server/journal.h knot/server/rrl.c \
+	knot/server/rrl.h knot/server/server.c knot/server/server.h \
+	knot/server/net.c knot/server/net.h knot/server/tcp-handler.c \
+	knot/server/tcp-handler.h knot/server/udp-handler.c \
+	knot/server/udp-handler.h knot/server/serialization.c \
+	knot/server/serialization.h knot/updates/acl.c \
+	knot/updates/acl.h knot/updates/changesets.c \
+	knot/updates/changesets.h knot/updates/ddns.c \
+	knot/updates/ddns.h knot/updates/apply.c knot/updates/apply.h \
+	knot/worker/pool.c knot/worker/pool.h knot/worker/queue.c \
+	knot/worker/queue.h knot/zone/contents.c knot/zone/contents.h \
+	knot/zone/estimator.c knot/zone/estimator.h knot/zone/events.c \
+	knot/zone/events.h knot/zone/node.c knot/zone/node.h \
+	knot/zone/semantic-check.c knot/zone/semantic-check.h \
+	knot/zone/zone-diff.c knot/zone/zone-diff.h \
+	knot/zone/zone-dump.c knot/zone/zone-dump.h \
+	knot/zone/zone-tree.c knot/zone/zone-tree.h knot/zone/zone.c \
+	knot/zone/zone.h knot/zone/zone-load.c knot/zone/zone-load.h \
+	knot/zone/zonedb.c knot/zone/zonedb.h knot/zone/zonedb-load.c \
+	knot/zone/zonedb-load.h knot/zone/zonefile.c \
+	knot/zone/zonefile.h knot/modules/dnstap.c \
+	knot/modules/dnstap.h
+@HAVE_DNSTAP_TRUE@am__objects_1 = knot/modules/dnstap.lo
 am_libknotd_la_OBJECTS = knot/conf/libknotd_la-cf-lex.lo \
 	knot/conf/libknotd_la-cf-parse.lo knot/conf/conf.lo \
 	knot/conf/extra.lo knot/conf/includes.lo knot/conf/logconf.lo \
-	knot/ctl/process.lo knot/ctl/remote.lo knot/server/dthreads.lo \
-	knot/server/journal.lo knot/server/notify.lo \
-	knot/server/rrl.lo knot/server/server.lo knot/server/socket.lo \
+	knot/ctl/process.lo knot/ctl/remote.lo \
+	knot/dnssec/nsec-chain.lo knot/dnssec/nsec3-chain.lo \
+	knot/dnssec/zone-events.lo knot/dnssec/zone-keys.lo \
+	knot/dnssec/zone-nsec.lo knot/dnssec/zone-sign.lo \
+	knot/nameserver/axfr.lo knot/nameserver/chaos.lo \
+	knot/nameserver/internet.lo knot/nameserver/ixfr.lo \
+	knot/nameserver/nsec_proofs.lo \
+	knot/nameserver/process_query.lo \
+	knot/nameserver/process_answer.lo knot/nameserver/requestor.lo \
+	knot/nameserver/query_module.lo knot/nameserver/update.lo \
+	knot/nameserver/notify.lo knot/nameserver/tsig_ctx.lo \
+	knot/modules/synth_record.lo knot/server/dthreads.lo \
+	knot/server/journal.lo knot/server/rrl.lo \
+	knot/server/server.lo knot/server/net.lo \
 	knot/server/tcp-handler.lo knot/server/udp-handler.lo \
-	knot/server/xfr-handler.lo knot/server/zone-load.lo \
-	knot/server/zones.lo knot/stat/gatherer.lo knot/stat/stat.lo \
-	knot/zone/estimator.lo knot/zone/semantic-check.lo \
-	knot/zone/zone-dump.lo knot/zone/zone-load.lo
+	knot/server/serialization.lo knot/updates/acl.lo \
+	knot/updates/changesets.lo knot/updates/ddns.lo \
+	knot/updates/apply.lo knot/worker/pool.lo knot/worker/queue.lo \
+	knot/zone/contents.lo knot/zone/estimator.lo \
+	knot/zone/events.lo knot/zone/node.lo \
+	knot/zone/semantic-check.lo knot/zone/zone-diff.lo \
+	knot/zone/zone-dump.lo knot/zone/zone-tree.lo \
+	knot/zone/zone.lo knot/zone/zone-load.lo knot/zone/zonedb.lo \
+	knot/zone/zonedb-load.lo knot/zone/zonefile.lo \
+	$(am__objects_1)
 libknotd_la_OBJECTS = $(am_libknotd_la_OBJECTS)
-libknots_la_DEPENDENCIES = zscanner/libzscanner.la @LIBOBJS@
-am_libknots_la_OBJECTS = common/slab/slab.lo common/mempattern.lo \
-	common/descriptor.lo common/lists.lo common/base64.lo \
-	common/heap.lo common/print.lo common/base32hex.lo \
-	common/evqueue.lo common/evsched.lo common/acl.lo \
-	common/sockaddr.lo common/ref.lo common/errors.lo \
-	common/errcode.lo common/fdset.lo common/getline.lo \
-	common/log.lo common/mempool.lo common/hhash.lo \
+libknots_la_LIBADD =
+am_libknots_la_OBJECTS = common/base32hex.lo common/base64.lo \
+	common/descriptor.lo common/errcode.lo common/errors.lo \
+	common/evsched.lo common/fdset.lo common/getline.lo \
 	common/hattrie/hat-trie.lo common/hattrie/murmurhash3.lo \
-	common/hex.lo
+	common/heap.lo common/hex.lo common/hhash.lo common/lists.lo \
+	common/log.lo common/mempattern.lo common/mempool.lo \
+	common/print.lo common/ref.lo common/slab/slab.lo \
+	common/sockaddr.lo common/strlcat.lo common/strlcpy.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
-am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)"
+libknotus_la_LIBADD =
+am_libknotus_la_OBJECTS = utils/common/exec.lo utils/common/msg.lo \
+	utils/common/netio.lo utils/common/params.lo \
+	utils/common/resolv.lo utils/common/token.lo
+libknotus_la_OBJECTS = $(am_libknotus_la_OBJECTS)
+libknotus_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(libknotus_la_LDFLAGS) $(LDFLAGS) -o $@
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
-am_kdig_OBJECTS = utils/common/msg.$(OBJEXT) \
-	utils/common/exec.$(OBJEXT) utils/common/params.$(OBJEXT) \
-	utils/common/resolv.$(OBJEXT) utils/common/netio.$(OBJEXT) \
-	utils/common/token.$(OBJEXT) utils/dig/dig_main.$(OBJEXT) \
-	utils/dig/dig_params.$(OBJEXT) utils/dig/dig_exec.$(OBJEXT)
+am_kdig_OBJECTS = utils/dig/dig_exec.$(OBJEXT) \
+	utils/dig/dig_main.$(OBJEXT) utils/dig/dig_params.$(OBJEXT)
 kdig_OBJECTS = $(am_kdig_OBJECTS)
-kdig_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
-am_khost_OBJECTS = utils/common/msg.$(OBJEXT) \
-	utils/common/exec.$(OBJEXT) utils/common/params.$(OBJEXT) \
-	utils/common/resolv.$(OBJEXT) utils/common/netio.$(OBJEXT) \
-	utils/common/token.$(OBJEXT) utils/host/host_main.$(OBJEXT) \
-	utils/dig/dig_params.$(OBJEXT) \
-	utils/host/host_params.$(OBJEXT) utils/dig/dig_exec.$(OBJEXT)
+am__DEPENDENCIES_1 =
+kdig_DEPENDENCIES = libknotus.la libknots.la libknot.la \
+	$(am__DEPENDENCIES_1) $(am__append_2)
+am_khost_OBJECTS = utils/dig/dig_exec.$(OBJEXT) \
+	utils/dig/dig_params.$(OBJEXT) utils/host/host_main.$(OBJEXT) \
+	utils/host/host_params.$(OBJEXT)
 khost_OBJECTS = $(am_khost_OBJECTS)
-khost_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
+khost_DEPENDENCIES = libknotus.la libknots.la libknot.la \
+	$(am__DEPENDENCIES_1) $(am__append_3)
 am_knotc_OBJECTS = knot/ctl/knotc_main.$(OBJEXT)
 knotc_OBJECTS = $(am_knotc_OBJECTS)
-knotc_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
-am_knotd_OBJECTS = knot/main.$(OBJEXT)
+knotc_DEPENDENCIES = libknot.la libknotd.la
+am_knotd_OBJECTS = knot/knotd-main.$(OBJEXT)
 knotd_OBJECTS = $(am_knotd_OBJECTS)
-knotd_DEPENDENCIES = libknotd.la libknot.la libknots.la @LIBOBJS@
-am_knsec3hash_OBJECTS = utils/common/msg.$(OBJEXT) \
-	utils/common/netio.$(OBJEXT) utils/common/resolv.$(OBJEXT) \
-	utils/common/params.$(OBJEXT) \
-	utils/nsec3hash/nsec3hash_main.$(OBJEXT)
+knotd_DEPENDENCIES = libknot.la libknotd.la
+knotd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(knotd_LDFLAGS) $(LDFLAGS) -o $@
+am_knsec3hash_OBJECTS = utils/nsec3hash/nsec3hash_main.$(OBJEXT)
 knsec3hash_OBJECTS = $(am_knsec3hash_OBJECTS)
-knsec3hash_DEPENDENCIES = libknot.la libknots.la @LIBOBJS@
-am_knsupdate_OBJECTS = utils/common/msg.$(OBJEXT) \
-	utils/common/params.$(OBJEXT) utils/common/resolv.$(OBJEXT) \
-	utils/common/netio.$(OBJEXT) utils/common/token.$(OBJEXT) \
-	utils/common/exec.$(OBJEXT) \
+knsec3hash_DEPENDENCIES = libknotus.la libknots.la libknot.la
+am_knsupdate_OBJECTS = utils/nsupdate/nsupdate_exec.$(OBJEXT) \
 	utils/nsupdate/nsupdate_main.$(OBJEXT) \
-	utils/nsupdate/nsupdate_params.$(OBJEXT) \
-	utils/nsupdate/nsupdate_exec.$(OBJEXT)
+	utils/nsupdate/nsupdate_params.$(OBJEXT)
 knsupdate_OBJECTS = $(am_knsupdate_OBJECTS)
-knsupdate_DEPENDENCIES = libknotd.la libknot.la libknots.la \
-	zscanner/libzscanner.la @LIBOBJS@
+knsupdate_DEPENDENCIES = libknotus.la libknots.la libknot.la \
+	zscanner/libzscanner.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -240,13 +339,13 @@ am__v_YACC_ = $(am__v_YACC_@AM_DEFAULT_V@)
 am__v_YACC_0 = @echo "  YACC    " $@;
 am__v_YACC_1 = 
 SOURCES = $(libknot_la_SOURCES) $(libknotd_la_SOURCES) \
-	$(libknots_la_SOURCES) $(kdig_SOURCES) $(khost_SOURCES) \
-	$(knotc_SOURCES) $(knotd_SOURCES) $(knsec3hash_SOURCES) \
-	$(knsupdate_SOURCES)
-DIST_SOURCES = $(libknot_la_SOURCES) $(libknotd_la_SOURCES) \
-	$(libknots_la_SOURCES) $(kdig_SOURCES) $(khost_SOURCES) \
-	$(knotc_SOURCES) $(knotd_SOURCES) $(knsec3hash_SOURCES) \
-	$(knsupdate_SOURCES)
+	$(libknots_la_SOURCES) $(libknotus_la_SOURCES) $(kdig_SOURCES) \
+	$(khost_SOURCES) $(knotc_SOURCES) $(knotd_SOURCES) \
+	$(knsec3hash_SOURCES) $(knsupdate_SOURCES)
+DIST_SOURCES = $(libknot_la_SOURCES) $(am__libknotd_la_SOURCES_DIST) \
+	$(libknots_la_SOURCES) $(libknotus_la_SOURCES) $(kdig_SOURCES) \
+	$(khost_SOURCES) $(knotc_SOURCES) $(knotd_SOURCES) \
+	$(knsec3hash_SOURCES) $(knsupdate_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -326,7 +425,9 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
-CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
+CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
+CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
+CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -341,14 +442,14 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
-FSM_TYPE = @FSM_TYPE@
+GENHTML = @GENHTML@
 GREP = @GREP@
-HAVE_VISIBILITY = @HAVE_VISIBILITY@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+LCOV = @LCOV@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LEX = @LEX@
@@ -377,15 +478,17 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PDFLATEX = @PDFLATEX@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
-RAGEL = @RAGEL@
+PROTOC_C = @PROTOC_C@
 RANLIB = @RANLIB@
 RELEASE_DATE = @RELEASE_DATE@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
 YACC = @YACC@
@@ -428,6 +531,12 @@ libcrypto_CFLAGS = @libcrypto_CFLAGS@
 libcrypto_LIBS = @libcrypto_LIBS@
 libdir = @libdir@
 libexecdir = @libexecdir@
+libfstrm_CFLAGS = @libfstrm_CFLAGS@
+libfstrm_LIBS = @libfstrm_LIBS@
+libidn_CFLAGS = @libidn_CFLAGS@
+libidn_LIBS = @libidn_LIBS@
+libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
+libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
 localedir = @localedir@
@@ -445,18 +554,27 @@ sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
 storage_dir = @storage_dir@
 sysconfdir = @sysconfdir@
+systemd_daemon_CFLAGS = @systemd_daemon_CFLAGS@
+systemd_daemon_LIBS = @systemd_daemon_LIBS@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I $(top_srcdir)/m4
-SUBDIRS = zscanner .
-noinst_LTLIBRARIES = libknot.la libknotd.la libknots.la
+SUBDIRS = zscanner dnstap .
+lib_LTLIBRARIES = libknot.la
+noinst_LTLIBRARIES = libknotd.la libknots.la libknotus.la
 
 # $(YACC) will generate header file
-AM_CPPFLAGS = -DCONFIG_DIR='"${config_dir}"' -DSTORAGE_DIR='"${storage_dir}"' \
-	      -DRUN_DIR='"${run_dir}"'
+AM_CPPFLAGS = \
+	-include $(top_builddir)/src/config.h \
+	-DCONFIG_DIR='"${config_dir}"' \
+	-DSTORAGE_DIR='"${storage_dir}"' \
+	-DRUN_DIR='"${run_dir}"' \
+	$(libidn_CFLAGS)
 
+AM_CFLAGS = $(CODE_COVERAGE_CFLAGS)
+AM_LDFLAGS = $(CODE_COVERAGE_LDFLAGS)
 AM_YFLAGS = -d
 libknotd_la_YFLAGS = -pcf_ -d
 libknotd_la_LFLAGS = # TODO: reentrant parser, prefix
@@ -477,140 +595,126 @@ knotd_SOURCES = \
 	knot/main.c
 
 kdig_SOURCES = \
-	utils/common/msg.h			\
-	utils/common/msg.c			\
-	utils/common/exec.c			\
-	utils/common/exec.h			\
-	utils/common/params.c			\
-	utils/common/params.h			\
-	utils/common/resolv.c			\
-	utils/common/resolv.h			\
-	utils/common/netio.c			\
-	utils/common/netio.h			\
-	utils/common/token.c			\
-	utils/common/token.h			\
+	utils/dig/dig_exec.c			\
+	utils/dig/dig_exec.h			\
 	utils/dig/dig_main.c			\
 	utils/dig/dig_params.c			\
-	utils/dig/dig_params.h			\
-	utils/dig/dig_exec.c			\
-	utils/dig/dig_exec.h
+	utils/dig/dig_params.h
 
 khost_SOURCES = \
-	utils/common/msg.h			\
-	utils/common/msg.c			\
-	utils/common/exec.c			\
-	utils/common/exec.h			\
-	utils/common/params.c			\
-	utils/common/params.h			\
-	utils/common/resolv.c			\
-	utils/common/resolv.h			\
-	utils/common/netio.c			\
-	utils/common/netio.h			\
-	utils/common/token.c			\
-	utils/common/token.h			\
-	utils/host/host_main.c			\
+	utils/dig/dig_exec.c			\
+	utils/dig/dig_exec.h			\
 	utils/dig/dig_params.c			\
 	utils/dig/dig_params.h			\
+	utils/host/host_main.c			\
 	utils/host/host_params.c		\
-	utils/host/host_params.h		\
-	utils/dig/dig_exec.c			\
-	utils/dig/dig_exec.h
+	utils/host/host_params.h
 
 knsupdate_SOURCES = \
-	utils/common/msg.h			\
-	utils/common/msg.c			\
-	utils/common/params.c			\
-	utils/common/params.h			\
-	utils/common/resolv.c			\
-	utils/common/resolv.h			\
-	utils/common/netio.c			\
-	utils/common/netio.h			\
-	utils/common/token.c			\
-	utils/common/token.h			\
-	utils/common/exec.c			\
-	utils/common/exec.h			\
-	utils/nsupdate/nsupdate_main.c		\
-	utils/nsupdate/nsupdate_params.h	\
-	utils/nsupdate/nsupdate_params.c	\
+	utils/nsupdate/nsupdate_exec.c		\
 	utils/nsupdate/nsupdate_exec.h		\
-	utils/nsupdate/nsupdate_exec.c
+	utils/nsupdate/nsupdate_main.c		\
+	utils/nsupdate/nsupdate_params.c	\
+	utils/nsupdate/nsupdate_params.h
 
 knsec3hash_SOURCES = \
-	utils/common/msg.h			\
-	utils/common/msg.c			\
-	utils/common/netio.h			\
-	utils/common/netio.c			\
-	utils/common/resolv.h			\
-	utils/common/resolv.c			\
-	utils/common/params.h			\
-	utils/common/params.c			\
 	utils/nsec3hash/nsec3hash_main.c
 
+
+# static: shared
+libknots_la_SOURCES = \
+	common/array-sort.h			\
+	common/base32hex.c			\
+	common/base32hex.h			\
+	common/base64.c				\
+	common/base64.h				\
+	common/binsearch.h			\
+	common/crc.h				\
+	common/debug.h				\
+	common/descriptor.c			\
+	common/descriptor.h			\
+	common/errcode.c			\
+	common/errcode.h			\
+	common/errors.c				\
+	common/errors.h				\
+	common/evsched.c			\
+	common/evsched.h			\
+	common/fdset.c				\
+	common/fdset.h				\
+	common/getline.c			\
+	common/getline.h			\
+	common/hattrie/hat-trie.c		\
+	common/hattrie/hat-trie.h		\
+	common/hattrie/murmurhash3.c		\
+	common/hattrie/murmurhash3.h		\
+	common/heap.c				\
+	common/heap.h				\
+	common/hex.c				\
+	common/hex.h				\
+	common/hhash.c				\
+	common/hhash.h				\
+	common/lists.c				\
+	common/lists.h				\
+	common/log.c				\
+	common/log.h				\
+	common/memdup.h				\
+	common/mempattern.c			\
+	common/mempattern.h			\
+	common/mempool.c			\
+	common/mempool.h			\
+	common/print.c				\
+	common/print.h				\
+	common/ref.c				\
+	common/ref.h				\
+	common/slab/alloc-common.h		\
+	common/slab/slab.c			\
+	common/slab/slab.h			\
+	common/sockaddr.c			\
+	common/sockaddr.h			\
+	common/strlcat.c			\
+	common/strlcat.h			\
+	common/strlcpy.c			\
+	common/strlcpy.h			\
+	common/strtonum.h
+
+
+# static: utilities shared
+libknotus_la_SOURCES = \
+	utils/common/exec.c			\
+	utils/common/exec.h			\
+	utils/common/msg.c			\
+	utils/common/msg.h			\
+	utils/common/netio.c			\
+	utils/common/netio.h			\
+	utils/common/params.c			\
+	utils/common/params.h			\
+	utils/common/resolv.c			\
+	utils/common/resolv.h			\
+	utils/common/token.c			\
+	utils/common/token.h
+
+
+# dynamic: libknot
+libknot_la_LDFLAGS = \
+	$(AM_LDFLAGS)				\
+	-version-info 0:1:0			\
+	-export-symbols-regex '^(knot|KNOT|rrset|tsig|zone)_'
+
 libknot_la_SOURCES = \
-	libknot/common.h			\
-	libknot/consts.h			\
-	libknot/consts.c			\
-	libknot/util/utils.c			\
-	libknot/util/debug.c			\
-	libknot/util/debug.h			\
-	libknot/util/utils.h			\
-	libknot/util/tolower.h			\
-	libknot/util/tolower.c			\
-	libknot/util/wire.h			\
-	libknot/util/endian.h			\
-	libknot/packet/query.c			\
-	libknot/packet/response.c		\
-	libknot/packet/packet.c			\
-	libknot/packet/packet.h			\
-	libknot/packet/query.h			\
-	libknot/packet/response.h		\
-	libknot/zone/zone.c			\
-	libknot/zone/zone-contents.c		\
-	libknot/zone/zone-tree.c		\
-	libknot/zone/zone-tree.h		\
-	libknot/zone/node.h			\
-	libknot/zone/zone.h			\
-	libknot/zone/zone-contents.h		\
-	libknot/zone/zonedb.c			\
-	libknot/zone/zonedb.h			\
-	libknot/zone/node.c			\
-	libknot/zone/zone-diff.h		\
-	libknot/zone/zone-diff.c		\
-	libknot/nameserver/name-server.h	\
-	libknot/nameserver/name-server.c	\
-	libknot/nameserver/chaos.h		\
-	libknot/nameserver/chaos.c		\
-	libknot/updates/changesets.h		\
-	libknot/updates/changesets.c		\
-	libknot/updates/xfr-in.h		\
-	libknot/updates/xfr-in.c		\
-	libknot/updates/ddns.h			\
-	libknot/updates/ddns.c			\
-	libknot/dname.c				\
-	libknot/consts.h			\
-	libknot/edns.h				\
-	libknot/edns.c				\
-	libknot/libknot.h			\
-	libknot/dname.h				\
-	libknot/rdata.h				\
-	libknot/rrset.h				\
-	libknot/rrset.c				\
-	libknot/rrset-dump.h			\
-	libknot/rrset-dump.c			\
-	libknot/tsig.h				\
-	libknot/tsig.c				\
-	libknot/tsig-op.h			\
-	libknot/tsig-op.c			\
-	libknot/binary.h			\
 	libknot/binary.c			\
+	libknot/binary.h			\
+	libknot/common.h			\
+	libknot/consts.c			\
+	libknot/consts.h			\
+	libknot/consts.h			\
+	libknot/dname.c				\
+	libknot/dname.h				\
 	libknot/dnssec/config.h			\
 	libknot/dnssec/crypto.c			\
 	libknot/dnssec/crypto.h			\
 	libknot/dnssec/key.c			\
 	libknot/dnssec/key.h			\
-	libknot/dnssec/nsec-bitmap.h		\
-	libknot/dnssec/nsec3.c			\
-	libknot/dnssec/nsec3.h			\
+	libknot/dnssec/bitmap.h			\
 	libknot/dnssec/policy.c			\
 	libknot/dnssec/policy.h			\
 	libknot/dnssec/random.h			\
@@ -620,131 +724,113 @@ libknot_la_SOURCES = \
 	libknot/dnssec/sig0.h			\
 	libknot/dnssec/sign.c			\
 	libknot/dnssec/sign.h			\
-	libknot/dnssec/zone-events.c		\
-	libknot/dnssec/zone-events.h		\
-	libknot/dnssec/zone-keys.c		\
-	libknot/dnssec/zone-keys.h		\
-	libknot/dnssec/zone-nsec.c		\
-	libknot/dnssec/zone-nsec.h		\
-	libknot/dnssec/zone-sign.c		\
-	libknot/dnssec/zone-sign.h
+	libknot/rrtype/opt.c			\
+	libknot/rrtype/opt.h			\
+	libknot/libknot.h			\
+	libknot/packet/compr.c			\
+	libknot/packet/compr.h			\
+	libknot/packet/pkt.c			\
+	libknot/packet/pkt.h			\
+	libknot/packet/wire.h			\
+	libknot/processing/process.c		\
+	libknot/processing/process.h		\
+	libknot/rrtype/rdname.h			\
+	libknot/rrtype/dnskey.h			\
+	libknot/rrtype/nsec.h			\
+	libknot/rrtype/nsec3.c			\
+	libknot/rrtype/nsec3.h			\
+	libknot/rrtype/nsec3param.h		\
+	libknot/rrtype/nsec3param.c		\
+	libknot/rrtype/nsec.h			\
+	libknot/rrtype/rrsig.h			\
+	libknot/rrtype/soa.h			\
+	libknot/rrtype/tsig.c			\
+	libknot/rrtype/tsig.h			\
+	libknot/rrset-dump.c			\
+	libknot/rrset-dump.h			\
+	libknot/rdata.c				\
+	libknot/rdata.h				\
+	libknot/rdataset.c			\
+	libknot/rdataset.h			\
+	libknot/rrset.c				\
+	libknot/rrset.h				\
+	libknot/tsig-op.c			\
+	libknot/tsig-op.h			\
+	libknot/util/endian.h			\
+	libknot/util/tolower.c			\
+	libknot/util/tolower.h			\
+	libknot/util/utils.c			\
+	libknot/util/utils.h
 
-libknots_la_SOURCES = \
-	common/slab/slab.c			\
-	common/slab/slab.h			\
-	common/slab/alloc-common.h		\
-	common/array-sort.h			\
-	common/atomic.h				\
-	common/binsearch.h			\
-	common/memdup.h				\
-	common/mempattern.h			\
-	common/mempattern.c			\
-	common/descriptor.h			\
-	common/descriptor.c			\
-	common/lists.c				\
-	common/base64.c				\
-	common/base64.h				\
-	common/lists.h				\
-	common/heap.h				\
-	common/heap.c				\
-	common/print.c				\
-	common/print.h				\
-	common/base32hex.c			\
-	common/base32hex.h			\
-	common/evqueue.h			\
-	common/evqueue.c			\
-	common/evsched.h			\
-	common/evsched.c			\
-	common/acl.h				\
-	common/acl.c				\
-	common/sockaddr.h			\
-	common/sockaddr.c			\
-	common/crc.h				\
-	common/ref.h				\
-	common/ref.c				\
-	common/errors.h				\
-	common/errors.c				\
-	common/errcode.h			\
-	common/errcode.c			\
-	common/fdset.h				\
-	common/fdset.c				\
-	common/getline.h			\
-	common/getline.c			\
-	common/log.c				\
-	common/log.h				\
-	common/mempool.c			\
-	common/mempool.h			\
-	common/hhash.c				\
-	common/hhash.h				\
-	common/hattrie/hat-trie.c		\
-	common/hattrie/hat-trie.h		\
-	common/hattrie/murmurhash3.c		\
-	common/hattrie/murmurhash3.h		\
-	common/hex.c				\
-	common/hex.h				\
-	common/strtonum.h
 
-libknotd_la_SOURCES = \
-	knot/conf/cf-lex.l			\
-	knot/conf/cf-parse.y			\
-	knot/conf/conf.c			\
-	knot/conf/conf.h			\
-	knot/conf/extra.c			\
-	knot/conf/extra.h			\
-	knot/conf/includes.c			\
-	knot/conf/includes.h			\
-	knot/conf/logconf.c			\
-	knot/conf/logconf.h			\
-	knot/ctl/process.c			\
-	knot/ctl/process.h			\
-	knot/ctl/remote.c			\
-	knot/ctl/remote.h			\
-	knot/knot.h				\
-	knot/other/debug.h			\
-	knot/server/dthreads.c			\
-	knot/server/dthreads.h			\
-	knot/server/journal.c			\
-	knot/server/journal.h			\
-	knot/server/notify.c			\
-	knot/server/notify.h			\
-	knot/server/rrl.c			\
-	knot/server/rrl.h			\
-	knot/server/server.c			\
-	knot/server/server.h			\
-	knot/server/socket.c			\
-	knot/server/socket.h			\
-	knot/server/tcp-handler.c		\
-	knot/server/tcp-handler.h		\
-	knot/server/udp-handler.c		\
-	knot/server/udp-handler.h		\
-	knot/server/xfr-handler.c		\
-	knot/server/xfr-handler.h		\
-	knot/server/zone-load.c			\
-	knot/server/zone-load.h			\
-	knot/server/zones.c			\
-	knot/server/zones.h			\
-	knot/stat/gatherer.c			\
-	knot/stat/gatherer.h			\
-	knot/stat/stat-common.h			\
-	knot/stat/stat.c			\
-	knot/stat/stat.h			\
-	knot/zone/estimator.c			\
-	knot/zone/estimator.h			\
-	knot/zone/semantic-check.c		\
-	knot/zone/semantic-check.h		\
-	knot/zone/zone-dump.c			\
-	knot/zone/zone-dump.h			\
-	knot/zone/zone-load.c			\
-	knot/zone/zone-load.h
+# static: server shared
+libknotd_la_SOURCES = knot/conf/cf-lex.l knot/conf/cf-parse.y \
+	knot/conf/conf.c knot/conf/conf.h knot/conf/extra.c \
+	knot/conf/extra.h knot/conf/includes.c knot/conf/includes.h \
+	knot/conf/logconf.c knot/conf/logconf.h knot/ctl/process.c \
+	knot/ctl/process.h knot/ctl/remote.c knot/ctl/remote.h \
+	knot/dnssec/nsec-chain.c knot/dnssec/nsec-chain.h \
+	knot/dnssec/nsec3-chain.c knot/dnssec/nsec3-chain.h \
+	knot/dnssec/zone-events.c knot/dnssec/zone-events.h \
+	knot/dnssec/zone-keys.c knot/dnssec/zone-keys.h \
+	knot/dnssec/zone-nsec.c knot/dnssec/zone-nsec.h \
+	knot/dnssec/zone-sign.c knot/dnssec/zone-sign.h knot/knot.h \
+	knot/nameserver/axfr.c knot/nameserver/axfr.h \
+	knot/nameserver/chaos.c knot/nameserver/chaos.h \
+	knot/nameserver/internet.c knot/nameserver/internet.h \
+	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
+	knot/nameserver/nsec_proofs.c knot/nameserver/nsec_proofs.h \
+	knot/nameserver/process_query.c \
+	knot/nameserver/process_query.h \
+	knot/nameserver/process_answer.c \
+	knot/nameserver/process_answer.h knot/nameserver/requestor.c \
+	knot/nameserver/requestor.h knot/nameserver/query_module.c \
+	knot/nameserver/query_module.h knot/nameserver/update.c \
+	knot/nameserver/update.h knot/nameserver/notify.c \
+	knot/nameserver/notify.h knot/nameserver/tsig_ctx.c \
+	knot/nameserver/tsig_ctx.h knot/modules/synth_record.c \
+	knot/modules/synth_record.h knot/other/debug.h \
+	knot/server/dthreads.c knot/server/dthreads.h \
+	knot/server/journal.c knot/server/journal.h knot/server/rrl.c \
+	knot/server/rrl.h knot/server/server.c knot/server/server.h \
+	knot/server/net.c knot/server/net.h knot/server/tcp-handler.c \
+	knot/server/tcp-handler.h knot/server/udp-handler.c \
+	knot/server/udp-handler.h knot/server/serialization.c \
+	knot/server/serialization.h knot/updates/acl.c \
+	knot/updates/acl.h knot/updates/changesets.c \
+	knot/updates/changesets.h knot/updates/ddns.c \
+	knot/updates/ddns.h knot/updates/apply.c knot/updates/apply.h \
+	knot/worker/pool.c knot/worker/pool.h knot/worker/queue.c \
+	knot/worker/queue.h knot/zone/contents.c knot/zone/contents.h \
+	knot/zone/estimator.c knot/zone/estimator.h knot/zone/events.c \
+	knot/zone/events.h knot/zone/node.c knot/zone/node.h \
+	knot/zone/semantic-check.c knot/zone/semantic-check.h \
+	knot/zone/zone-diff.c knot/zone/zone-diff.h \
+	knot/zone/zone-dump.c knot/zone/zone-dump.h \
+	knot/zone/zone-tree.c knot/zone/zone-tree.h knot/zone/zone.c \
+	knot/zone/zone.h knot/zone/zone-load.c knot/zone/zone-load.h \
+	knot/zone/zonedb.c knot/zone/zonedb.h knot/zone/zonedb-load.c \
+	knot/zone/zonedb-load.h knot/zone/zonefile.c \
+	knot/zone/zonefile.h $(am__append_1)
 
-libknotd_la_LIBADD = libknot.la libknots.la @LIBOBJS@
-libknots_la_LIBADD = zscanner/libzscanner.la @LIBOBJS@
-knotd_LDADD = libknotd.la libknot.la libknots.la @LIBOBJS@
-knotc_LDADD = libknotd.la libknot.la libknots.la @LIBOBJS@
-kdig_LDADD = libknotd.la libknot.la libknots.la @LIBOBJS@
-khost_LDADD = libknotd.la libknot.la libknots.la @LIBOBJS@
-knsupdate_LDADD = libknotd.la libknot.la libknots.la zscanner/libzscanner.la @LIBOBJS@
-knsec3hash_LDADD = libknot.la libknots.la @LIBOBJS@
+# libraries
+libknot_la_LIBADD = libknots.la zscanner/libzscanner.la
+libknotd_la_LIBADD = libknots.la libknot.la $(am__append_4)
+libknotus_la_LDFLAGS = $(libidn_LIBS)
+
+# sbin programs
+knotd_LDADD = libknot.la libknotd.la
+knotd_CPPFLAGS = $(AM_CPPFLAGS) ${systemd_daemon_CFLAGS}
+knotd_LDFLAGS = $(AM_LDFLAGS) ${systemd_daemon_LIBS}
+knotc_LDADD = libknot.la libknotd.la
+
+# bin programs
+kdig_LDADD = libknotus.la libknots.la libknot.la $(libidn_LIBS) \
+	$(am__append_2)
+khost_LDADD = libknotus.la libknots.la libknot.la $(libidn_LIBS) \
+	$(am__append_3)
+knsupdate_LDADD = libknotus.la libknots.la libknot.la zscanner/libzscanner.la
+knsec3hash_LDADD = libknotus.la libknots.la libknot.la
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -796,6 +882,41 @@ $(srcdir)/config.h.in:  $(am__configure_deps)
 distclean-hdr:
 	-rm -f config.h stamp-h1
 
+install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+	@$(NORMAL_INSTALL)
+	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
+	list2=; for p in $$list; do \
+	  if test -f $$p; then \
+	    list2="$$list2 $$p"; \
+	  else :; fi; \
+	done; \
+	test -z "$$list2" || { \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libdir)" || exit 1; \
+	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 '$(DESTDIR)$(libdir)'"; \
+	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 "$(DESTDIR)$(libdir)"; \
+	}
+
+uninstall-libLTLIBRARIES:
+	@$(NORMAL_UNINSTALL)
+	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
+	for p in $$list; do \
+	  $(am__strip_dir) \
+	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f '$(DESTDIR)$(libdir)/$$f'"; \
+	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f "$(DESTDIR)$(libdir)/$$f"; \
+	done
+
+clean-libLTLIBRARIES:
+	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
+	@list='$(lib_LTLIBRARIES)'; \
+	locs=`for p in $$list; do echo $$p; done | \
+	      sed 's|^[^/]*$$|.|; s|/[^/]*$$||; s|$$|/so_locations|' | \
+	      sort -u`; \
+	test -z "$$locs" || { \
+	  echo rm -f $${locs}; \
+	  rm -f $${locs}; \
+	}
+
 clean-noinstLTLIBRARIES:
 	-test -z "$(noinst_LTLIBRARIES)" || rm -f $(noinst_LTLIBRARIES)
 	@list='$(noinst_LTLIBRARIES)'; \
@@ -812,85 +933,11 @@ libknot/$(am__dirstamp):
 libknot/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) libknot/$(DEPDIR)
 	@: > libknot/$(DEPDIR)/$(am__dirstamp)
+libknot/binary.lo: libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
 libknot/consts.lo: libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/util/$(am__dirstamp):
-	@$(MKDIR_P) libknot/util
-	@: > libknot/util/$(am__dirstamp)
-libknot/util/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) libknot/util/$(DEPDIR)
-	@: > libknot/util/$(DEPDIR)/$(am__dirstamp)
-libknot/util/utils.lo: libknot/util/$(am__dirstamp) \
-	libknot/util/$(DEPDIR)/$(am__dirstamp)
-libknot/util/debug.lo: libknot/util/$(am__dirstamp) \
-	libknot/util/$(DEPDIR)/$(am__dirstamp)
-libknot/util/tolower.lo: libknot/util/$(am__dirstamp) \
-	libknot/util/$(DEPDIR)/$(am__dirstamp)
-libknot/packet/$(am__dirstamp):
-	@$(MKDIR_P) libknot/packet
-	@: > libknot/packet/$(am__dirstamp)
-libknot/packet/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) libknot/packet/$(DEPDIR)
-	@: > libknot/packet/$(DEPDIR)/$(am__dirstamp)
-libknot/packet/query.lo: libknot/packet/$(am__dirstamp) \
-	libknot/packet/$(DEPDIR)/$(am__dirstamp)
-libknot/packet/response.lo: libknot/packet/$(am__dirstamp) \
-	libknot/packet/$(DEPDIR)/$(am__dirstamp)
-libknot/packet/packet.lo: libknot/packet/$(am__dirstamp) \
-	libknot/packet/$(DEPDIR)/$(am__dirstamp)
-libknot/zone/$(am__dirstamp):
-	@$(MKDIR_P) libknot/zone
-	@: > libknot/zone/$(am__dirstamp)
-libknot/zone/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) libknot/zone/$(DEPDIR)
-	@: > libknot/zone/$(DEPDIR)/$(am__dirstamp)
-libknot/zone/zone.lo: libknot/zone/$(am__dirstamp) \
-	libknot/zone/$(DEPDIR)/$(am__dirstamp)
-libknot/zone/zone-contents.lo: libknot/zone/$(am__dirstamp) \
-	libknot/zone/$(DEPDIR)/$(am__dirstamp)
-libknot/zone/zone-tree.lo: libknot/zone/$(am__dirstamp) \
-	libknot/zone/$(DEPDIR)/$(am__dirstamp)
-libknot/zone/zonedb.lo: libknot/zone/$(am__dirstamp) \
-	libknot/zone/$(DEPDIR)/$(am__dirstamp)
-libknot/zone/node.lo: libknot/zone/$(am__dirstamp) \
-	libknot/zone/$(DEPDIR)/$(am__dirstamp)
-libknot/zone/zone-diff.lo: libknot/zone/$(am__dirstamp) \
-	libknot/zone/$(DEPDIR)/$(am__dirstamp)
-libknot/nameserver/$(am__dirstamp):
-	@$(MKDIR_P) libknot/nameserver
-	@: > libknot/nameserver/$(am__dirstamp)
-libknot/nameserver/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) libknot/nameserver/$(DEPDIR)
-	@: > libknot/nameserver/$(DEPDIR)/$(am__dirstamp)
-libknot/nameserver/name-server.lo: libknot/nameserver/$(am__dirstamp) \
-	libknot/nameserver/$(DEPDIR)/$(am__dirstamp)
-libknot/nameserver/chaos.lo: libknot/nameserver/$(am__dirstamp) \
-	libknot/nameserver/$(DEPDIR)/$(am__dirstamp)
-libknot/updates/$(am__dirstamp):
-	@$(MKDIR_P) libknot/updates
-	@: > libknot/updates/$(am__dirstamp)
-libknot/updates/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) libknot/updates/$(DEPDIR)
-	@: > libknot/updates/$(DEPDIR)/$(am__dirstamp)
-libknot/updates/changesets.lo: libknot/updates/$(am__dirstamp) \
-	libknot/updates/$(DEPDIR)/$(am__dirstamp)
-libknot/updates/xfr-in.lo: libknot/updates/$(am__dirstamp) \
-	libknot/updates/$(DEPDIR)/$(am__dirstamp)
-libknot/updates/ddns.lo: libknot/updates/$(am__dirstamp) \
-	libknot/updates/$(DEPDIR)/$(am__dirstamp)
 libknot/dname.lo: libknot/$(am__dirstamp) \
-	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/edns.lo: libknot/$(am__dirstamp) \
-	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/rrset.lo: libknot/$(am__dirstamp) \
-	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/rrset-dump.lo: libknot/$(am__dirstamp) \
-	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/tsig.lo: libknot/$(am__dirstamp) \
-	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/tsig-op.lo: libknot/$(am__dirstamp) \
-	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/binary.lo: libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/$(am__dirstamp):
 	@$(MKDIR_P) libknot/dnssec
@@ -902,8 +949,6 @@ libknot/dnssec/crypto.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/key.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
-libknot/dnssec/nsec3.lo: libknot/dnssec/$(am__dirstamp) \
-	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/policy.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/rrset-sign.lo: libknot/dnssec/$(am__dirstamp) \
@@ -912,17 +957,61 @@ libknot/dnssec/sig0.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/dnssec/sign.lo: libknot/dnssec/$(am__dirstamp) \
 	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
-libknot/dnssec/zone-events.lo: libknot/dnssec/$(am__dirstamp) \
-	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
-libknot/dnssec/zone-keys.lo: libknot/dnssec/$(am__dirstamp) \
-	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
-libknot/dnssec/zone-nsec.lo: libknot/dnssec/$(am__dirstamp) \
-	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
-libknot/dnssec/zone-sign.lo: libknot/dnssec/$(am__dirstamp) \
-	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
+libknot/rrtype/$(am__dirstamp):
+	@$(MKDIR_P) libknot/rrtype
+	@: > libknot/rrtype/$(am__dirstamp)
+libknot/rrtype/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) libknot/rrtype/$(DEPDIR)
+	@: > libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
+libknot/rrtype/opt.lo: libknot/rrtype/$(am__dirstamp) \
+	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
+libknot/packet/$(am__dirstamp):
+	@$(MKDIR_P) libknot/packet
+	@: > libknot/packet/$(am__dirstamp)
+libknot/packet/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) libknot/packet/$(DEPDIR)
+	@: > libknot/packet/$(DEPDIR)/$(am__dirstamp)
+libknot/packet/compr.lo: libknot/packet/$(am__dirstamp) \
+	libknot/packet/$(DEPDIR)/$(am__dirstamp)
+libknot/packet/pkt.lo: libknot/packet/$(am__dirstamp) \
+	libknot/packet/$(DEPDIR)/$(am__dirstamp)
+libknot/processing/$(am__dirstamp):
+	@$(MKDIR_P) libknot/processing
+	@: > libknot/processing/$(am__dirstamp)
+libknot/processing/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) libknot/processing/$(DEPDIR)
+	@: > libknot/processing/$(DEPDIR)/$(am__dirstamp)
+libknot/processing/process.lo: libknot/processing/$(am__dirstamp) \
+	libknot/processing/$(DEPDIR)/$(am__dirstamp)
+libknot/rrtype/nsec3.lo: libknot/rrtype/$(am__dirstamp) \
+	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
+libknot/rrtype/nsec3param.lo: libknot/rrtype/$(am__dirstamp) \
+	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
+libknot/rrtype/tsig.lo: libknot/rrtype/$(am__dirstamp) \
+	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
+libknot/rrset-dump.lo: libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+libknot/rdata.lo: libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+libknot/rdataset.lo: libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+libknot/rrset.lo: libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+libknot/tsig-op.lo: libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+libknot/util/$(am__dirstamp):
+	@$(MKDIR_P) libknot/util
+	@: > libknot/util/$(am__dirstamp)
+libknot/util/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) libknot/util/$(DEPDIR)
+	@: > libknot/util/$(DEPDIR)/$(am__dirstamp)
+libknot/util/tolower.lo: libknot/util/$(am__dirstamp) \
+	libknot/util/$(DEPDIR)/$(am__dirstamp)
+libknot/util/utils.lo: libknot/util/$(am__dirstamp) \
+	libknot/util/$(DEPDIR)/$(am__dirstamp)
 
 libknot.la: $(libknot_la_OBJECTS) $(libknot_la_DEPENDENCIES) $(EXTRA_libknot_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(LINK)  $(libknot_la_OBJECTS) $(libknot_la_LIBADD) $(LIBS)
+	$(AM_V_CCLD)$(libknot_la_LINK) -rpath $(libdir) $(libknot_la_OBJECTS) $(libknot_la_LIBADD) $(LIBS)
 knot/conf/$(am__dirstamp):
 	@$(MKDIR_P) knot/conf
 	@: > knot/conf/$(am__dirstamp)
@@ -954,6 +1043,62 @@ knot/ctl/process.lo: knot/ctl/$(am__dirstamp) \
 	knot/ctl/$(DEPDIR)/$(am__dirstamp)
 knot/ctl/remote.lo: knot/ctl/$(am__dirstamp) \
 	knot/ctl/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/$(am__dirstamp):
+	@$(MKDIR_P) knot/dnssec
+	@: > knot/dnssec/$(am__dirstamp)
+knot/dnssec/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/dnssec/$(DEPDIR)
+	@: > knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/nsec-chain.lo: knot/dnssec/$(am__dirstamp) \
+	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/nsec3-chain.lo: knot/dnssec/$(am__dirstamp) \
+	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/zone-events.lo: knot/dnssec/$(am__dirstamp) \
+	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/zone-keys.lo: knot/dnssec/$(am__dirstamp) \
+	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/zone-nsec.lo: knot/dnssec/$(am__dirstamp) \
+	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/zone-sign.lo: knot/dnssec/$(am__dirstamp) \
+	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/$(am__dirstamp):
+	@$(MKDIR_P) knot/nameserver
+	@: > knot/nameserver/$(am__dirstamp)
+knot/nameserver/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/nameserver/$(DEPDIR)
+	@: > knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/axfr.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/chaos.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/internet.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/ixfr.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/nsec_proofs.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/process_query.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/process_answer.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/requestor.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/query_module.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/update.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/notify.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/tsig_ctx.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/modules/$(am__dirstamp):
+	@$(MKDIR_P) knot/modules
+	@: > knot/modules/$(am__dirstamp)
+knot/modules/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/modules/$(DEPDIR)
+	@: > knot/modules/$(DEPDIR)/$(am__dirstamp)
+knot/modules/synth_record.lo: knot/modules/$(am__dirstamp) \
+	knot/modules/$(DEPDIR)/$(am__dirstamp)
 knot/server/$(am__dirstamp):
 	@$(MKDIR_P) knot/server
 	@: > knot/server/$(am__dirstamp)
@@ -964,99 +1109,100 @@ knot/server/dthreads.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
 knot/server/journal.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
-knot/server/notify.lo: knot/server/$(am__dirstamp) \
-	knot/server/$(DEPDIR)/$(am__dirstamp)
 knot/server/rrl.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
 knot/server/server.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
-knot/server/socket.lo: knot/server/$(am__dirstamp) \
+knot/server/net.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
 knot/server/tcp-handler.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
 knot/server/udp-handler.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
-knot/server/xfr-handler.lo: knot/server/$(am__dirstamp) \
+knot/server/serialization.lo: knot/server/$(am__dirstamp) \
 	knot/server/$(DEPDIR)/$(am__dirstamp)
-knot/server/zone-load.lo: knot/server/$(am__dirstamp) \
-	knot/server/$(DEPDIR)/$(am__dirstamp)
-knot/server/zones.lo: knot/server/$(am__dirstamp) \
-	knot/server/$(DEPDIR)/$(am__dirstamp)
-knot/stat/$(am__dirstamp):
-	@$(MKDIR_P) knot/stat
-	@: > knot/stat/$(am__dirstamp)
-knot/stat/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) knot/stat/$(DEPDIR)
-	@: > knot/stat/$(DEPDIR)/$(am__dirstamp)
-knot/stat/gatherer.lo: knot/stat/$(am__dirstamp) \
-	knot/stat/$(DEPDIR)/$(am__dirstamp)
-knot/stat/stat.lo: knot/stat/$(am__dirstamp) \
-	knot/stat/$(DEPDIR)/$(am__dirstamp)
+knot/updates/$(am__dirstamp):
+	@$(MKDIR_P) knot/updates
+	@: > knot/updates/$(am__dirstamp)
+knot/updates/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/updates/$(DEPDIR)
+	@: > knot/updates/$(DEPDIR)/$(am__dirstamp)
+knot/updates/acl.lo: knot/updates/$(am__dirstamp) \
+	knot/updates/$(DEPDIR)/$(am__dirstamp)
+knot/updates/changesets.lo: knot/updates/$(am__dirstamp) \
+	knot/updates/$(DEPDIR)/$(am__dirstamp)
+knot/updates/ddns.lo: knot/updates/$(am__dirstamp) \
+	knot/updates/$(DEPDIR)/$(am__dirstamp)
+knot/updates/apply.lo: knot/updates/$(am__dirstamp) \
+	knot/updates/$(DEPDIR)/$(am__dirstamp)
+knot/worker/$(am__dirstamp):
+	@$(MKDIR_P) knot/worker
+	@: > knot/worker/$(am__dirstamp)
+knot/worker/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/worker/$(DEPDIR)
+	@: > knot/worker/$(DEPDIR)/$(am__dirstamp)
+knot/worker/pool.lo: knot/worker/$(am__dirstamp) \
+	knot/worker/$(DEPDIR)/$(am__dirstamp)
+knot/worker/queue.lo: knot/worker/$(am__dirstamp) \
+	knot/worker/$(DEPDIR)/$(am__dirstamp)
 knot/zone/$(am__dirstamp):
 	@$(MKDIR_P) knot/zone
 	@: > knot/zone/$(am__dirstamp)
 knot/zone/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) knot/zone/$(DEPDIR)
 	@: > knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/contents.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/estimator.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/events.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/node.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/semantic-check.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/zone-diff.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/zone-dump.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/zone-tree.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/zone.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/zone-load.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/zonedb.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/zonedb-load.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/zone/zonefile.lo: knot/zone/$(am__dirstamp) \
+	knot/zone/$(DEPDIR)/$(am__dirstamp)
+knot/modules/dnstap.lo: knot/modules/$(am__dirstamp) \
+	knot/modules/$(DEPDIR)/$(am__dirstamp)
 
 libknotd.la: $(libknotd_la_OBJECTS) $(libknotd_la_DEPENDENCIES) $(EXTRA_libknotd_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(LINK)  $(libknotd_la_OBJECTS) $(libknotd_la_LIBADD) $(LIBS)
-common/slab/$(am__dirstamp):
-	@$(MKDIR_P) common/slab
-	@: > common/slab/$(am__dirstamp)
-common/slab/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) common/slab/$(DEPDIR)
-	@: > common/slab/$(DEPDIR)/$(am__dirstamp)
-common/slab/slab.lo: common/slab/$(am__dirstamp) \
-	common/slab/$(DEPDIR)/$(am__dirstamp)
 common/$(am__dirstamp):
 	@$(MKDIR_P) common
 	@: > common/$(am__dirstamp)
 common/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) common/$(DEPDIR)
 	@: > common/$(DEPDIR)/$(am__dirstamp)
-common/mempattern.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/descriptor.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/lists.lo: common/$(am__dirstamp) \
+common/base32hex.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/base64.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
-common/heap.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/print.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/base32hex.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/evqueue.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/evsched.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/acl.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
-common/sockaddr.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/ref.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
-common/errors.lo: common/$(am__dirstamp) \
+common/descriptor.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/errcode.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/errors.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/evsched.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/fdset.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/getline.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/log.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
-common/mempool.lo: common/$(am__dirstamp) \
-	common/$(DEPDIR)/$(am__dirstamp)
-common/hhash.lo: common/$(am__dirstamp) \
 	common/$(DEPDIR)/$(am__dirstamp)
 common/hattrie/$(am__dirstamp):
 	@$(MKDIR_P) common/hattrie
@@ -1068,10 +1214,59 @@ common/hattrie/hat-trie.lo: common/hattrie/$(am__dirstamp) \
 	common/hattrie/$(DEPDIR)/$(am__dirstamp)
 common/hattrie/murmurhash3.lo: common/hattrie/$(am__dirstamp) \
 	common/hattrie/$(DEPDIR)/$(am__dirstamp)
+common/heap.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
 common/hex.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
+common/hhash.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/lists.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/log.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
+common/mempattern.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/mempool.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/print.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/ref.lo: common/$(am__dirstamp) common/$(DEPDIR)/$(am__dirstamp)
+common/slab/$(am__dirstamp):
+	@$(MKDIR_P) common/slab
+	@: > common/slab/$(am__dirstamp)
+common/slab/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) common/slab/$(DEPDIR)
+	@: > common/slab/$(DEPDIR)/$(am__dirstamp)
+common/slab/slab.lo: common/slab/$(am__dirstamp) \
+	common/slab/$(DEPDIR)/$(am__dirstamp)
+common/sockaddr.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/strlcat.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
+common/strlcpy.lo: common/$(am__dirstamp) \
+	common/$(DEPDIR)/$(am__dirstamp)
 
 libknots.la: $(libknots_la_OBJECTS) $(libknots_la_DEPENDENCIES) $(EXTRA_libknots_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(LINK)  $(libknots_la_OBJECTS) $(libknots_la_LIBADD) $(LIBS)
+utils/common/$(am__dirstamp):
+	@$(MKDIR_P) utils/common
+	@: > utils/common/$(am__dirstamp)
+utils/common/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/common/$(DEPDIR)
+	@: > utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/exec.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/msg.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/netio.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/params.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/resolv.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/token.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
+
+libknotus.la: $(libknotus_la_OBJECTS) $(libknotus_la_DEPENDENCIES) $(EXTRA_libknotus_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(libknotus_la_LINK)  $(libknotus_la_OBJECTS) $(libknotus_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
@@ -1202,35 +1397,17 @@ installcheck-sbinPROGRAMS: $(sbin_PROGRAMS)
 	    else echo "$$f does not support $$opt" 1>&2; bad=1; fi; \
 	  done; \
 	done; rm -f c$${pid}_.???; exit $$bad
-utils/common/$(am__dirstamp):
-	@$(MKDIR_P) utils/common
-	@: > utils/common/$(am__dirstamp)
-utils/common/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) utils/common/$(DEPDIR)
-	@: > utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/msg.$(OBJEXT): utils/common/$(am__dirstamp) \
-	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/exec.$(OBJEXT): utils/common/$(am__dirstamp) \
-	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/params.$(OBJEXT): utils/common/$(am__dirstamp) \
-	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/resolv.$(OBJEXT): utils/common/$(am__dirstamp) \
-	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/netio.$(OBJEXT): utils/common/$(am__dirstamp) \
-	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/token.$(OBJEXT): utils/common/$(am__dirstamp) \
-	utils/common/$(DEPDIR)/$(am__dirstamp)
 utils/dig/$(am__dirstamp):
 	@$(MKDIR_P) utils/dig
 	@: > utils/dig/$(am__dirstamp)
 utils/dig/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) utils/dig/$(DEPDIR)
 	@: > utils/dig/$(DEPDIR)/$(am__dirstamp)
+utils/dig/dig_exec.$(OBJEXT): utils/dig/$(am__dirstamp) \
+	utils/dig/$(DEPDIR)/$(am__dirstamp)
 utils/dig/dig_main.$(OBJEXT): utils/dig/$(am__dirstamp) \
 	utils/dig/$(DEPDIR)/$(am__dirstamp)
 utils/dig/dig_params.$(OBJEXT): utils/dig/$(am__dirstamp) \
-	utils/dig/$(DEPDIR)/$(am__dirstamp)
-utils/dig/dig_exec.$(OBJEXT): utils/dig/$(am__dirstamp) \
 	utils/dig/$(DEPDIR)/$(am__dirstamp)
 
 kdig$(EXEEXT): $(kdig_OBJECTS) $(kdig_DEPENDENCIES) $(EXTRA_kdig_DEPENDENCIES) 
@@ -1262,12 +1439,12 @@ knot/$(am__dirstamp):
 knot/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) knot/$(DEPDIR)
 	@: > knot/$(DEPDIR)/$(am__dirstamp)
-knot/main.$(OBJEXT): knot/$(am__dirstamp) \
+knot/knotd-main.$(OBJEXT): knot/$(am__dirstamp) \
 	knot/$(DEPDIR)/$(am__dirstamp)
 
 knotd$(EXEEXT): $(knotd_OBJECTS) $(knotd_DEPENDENCIES) $(EXTRA_knotd_DEPENDENCIES) 
 	@rm -f knotd$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(knotd_OBJECTS) $(knotd_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(knotd_LINK) $(knotd_OBJECTS) $(knotd_LDADD) $(LIBS)
 utils/nsec3hash/$(am__dirstamp):
 	@$(MKDIR_P) utils/nsec3hash
 	@: > utils/nsec3hash/$(am__dirstamp)
@@ -1287,13 +1464,13 @@ utils/nsupdate/$(am__dirstamp):
 utils/nsupdate/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) utils/nsupdate/$(DEPDIR)
 	@: > utils/nsupdate/$(DEPDIR)/$(am__dirstamp)
+utils/nsupdate/nsupdate_exec.$(OBJEXT):  \
+	utils/nsupdate/$(am__dirstamp) \
+	utils/nsupdate/$(DEPDIR)/$(am__dirstamp)
 utils/nsupdate/nsupdate_main.$(OBJEXT):  \
 	utils/nsupdate/$(am__dirstamp) \
 	utils/nsupdate/$(DEPDIR)/$(am__dirstamp)
 utils/nsupdate/nsupdate_params.$(OBJEXT):  \
-	utils/nsupdate/$(am__dirstamp) \
-	utils/nsupdate/$(DEPDIR)/$(am__dirstamp)
-utils/nsupdate/nsupdate_exec.$(OBJEXT):  \
 	utils/nsupdate/$(am__dirstamp) \
 	utils/nsupdate/$(DEPDIR)/$(am__dirstamp)
 
@@ -1314,27 +1491,34 @@ mostlyclean-compile:
 	-rm -f knot/conf/*.lo
 	-rm -f knot/ctl/*.$(OBJEXT)
 	-rm -f knot/ctl/*.lo
+	-rm -f knot/dnssec/*.$(OBJEXT)
+	-rm -f knot/dnssec/*.lo
+	-rm -f knot/modules/*.$(OBJEXT)
+	-rm -f knot/modules/*.lo
+	-rm -f knot/nameserver/*.$(OBJEXT)
+	-rm -f knot/nameserver/*.lo
 	-rm -f knot/server/*.$(OBJEXT)
 	-rm -f knot/server/*.lo
-	-rm -f knot/stat/*.$(OBJEXT)
-	-rm -f knot/stat/*.lo
+	-rm -f knot/updates/*.$(OBJEXT)
+	-rm -f knot/updates/*.lo
+	-rm -f knot/worker/*.$(OBJEXT)
+	-rm -f knot/worker/*.lo
 	-rm -f knot/zone/*.$(OBJEXT)
 	-rm -f knot/zone/*.lo
 	-rm -f libknot/*.$(OBJEXT)
 	-rm -f libknot/*.lo
 	-rm -f libknot/dnssec/*.$(OBJEXT)
 	-rm -f libknot/dnssec/*.lo
-	-rm -f libknot/nameserver/*.$(OBJEXT)
-	-rm -f libknot/nameserver/*.lo
 	-rm -f libknot/packet/*.$(OBJEXT)
 	-rm -f libknot/packet/*.lo
-	-rm -f libknot/updates/*.$(OBJEXT)
-	-rm -f libknot/updates/*.lo
+	-rm -f libknot/processing/*.$(OBJEXT)
+	-rm -f libknot/processing/*.lo
+	-rm -f libknot/rrtype/*.$(OBJEXT)
+	-rm -f libknot/rrtype/*.lo
 	-rm -f libknot/util/*.$(OBJEXT)
 	-rm -f libknot/util/*.lo
-	-rm -f libknot/zone/*.$(OBJEXT)
-	-rm -f libknot/zone/*.lo
 	-rm -f utils/common/*.$(OBJEXT)
+	-rm -f utils/common/*.lo
 	-rm -f utils/dig/*.$(OBJEXT)
 	-rm -f utils/host/*.$(OBJEXT)
 	-rm -f utils/nsec3hash/*.$(OBJEXT)
@@ -1343,13 +1527,11 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/acl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/base32hex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/base64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/descriptor.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/errcode.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/errors.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/evqueue.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/evsched.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/fdset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/getline.Plo@am__quote@
@@ -1363,10 +1545,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/print.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/ref.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/sockaddr.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/strlcat.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@common/$(DEPDIR)/strlcpy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/hattrie/$(DEPDIR)/hat-trie.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/hattrie/$(DEPDIR)/murmurhash3.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@common/slab/$(DEPDIR)/slab.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/$(DEPDIR)/main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/$(DEPDIR)/knotd-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/conf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/extra.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/includes.Plo@am__quote@
@@ -1376,65 +1560,82 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/knotc_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/process.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/remote.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/nsec-chain.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/nsec3-chain.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/zone-events.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/zone-keys.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/zone-nsec.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/zone-sign.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/dnstap.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/synth_record.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/axfr.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/chaos.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/internet.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/ixfr.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/notify.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/nsec_proofs.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/process_answer.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/process_query.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/query_module.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/requestor.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/tsig_ctx.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/update.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/dthreads.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/journal.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/notify.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/net.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/rrl.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/serialization.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/server.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/socket.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/tcp-handler.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/udp-handler.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/xfr-handler.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/zone-load.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/zones.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/stat/$(DEPDIR)/gatherer.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/stat/$(DEPDIR)/stat.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/updates/$(DEPDIR)/acl.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/updates/$(DEPDIR)/apply.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/updates/$(DEPDIR)/changesets.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/updates/$(DEPDIR)/ddns.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/worker/$(DEPDIR)/pool.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/worker/$(DEPDIR)/queue.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/contents.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/estimator.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/events.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/node.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/semantic-check.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zone-diff.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zone-dump.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zone-load.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zone-tree.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zone.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zonedb-load.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zonedb.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/zonefile.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/binary.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/consts.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/dname.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/edns.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/rdata.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/rdataset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/rrset-dump.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/rrset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/tsig-op.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/tsig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/crypto.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/key.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/nsec3.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/policy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/rrset-sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/sig0.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/sign.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/zone-events.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/zone-keys.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/zone-nsec.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/zone-sign.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/nameserver/$(DEPDIR)/chaos.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/nameserver/$(DEPDIR)/name-server.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/packet.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/query.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/response.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/updates/$(DEPDIR)/changesets.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/updates/$(DEPDIR)/ddns.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/updates/$(DEPDIR)/xfr-in.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/util/$(DEPDIR)/debug.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/compr.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/pkt.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/processing/$(DEPDIR)/process.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/nsec3.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/nsec3param.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/opt.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/tsig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/util/$(DEPDIR)/tolower.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/util/$(DEPDIR)/utils.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/zone/$(DEPDIR)/node.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/zone/$(DEPDIR)/zone-contents.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/zone/$(DEPDIR)/zone-diff.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/zone/$(DEPDIR)/zone-tree.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/zone/$(DEPDIR)/zone.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/zone/$(DEPDIR)/zonedb.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/exec.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/msg.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/netio.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/params.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/resolv.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/token.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/exec.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/msg.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/netio.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/params.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/resolv.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/token.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/dig/$(DEPDIR)/dig_exec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/dig/$(DEPDIR)/dig_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/dig/$(DEPDIR)/dig_params.Po@am__quote@
@@ -1469,6 +1670,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
+knot/knotd-main.o: knot/main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/knotd-main.o -MD -MP -MF knot/$(DEPDIR)/knotd-main.Tpo -c -o knot/knotd-main.o `test -f 'knot/main.c' || echo '$(srcdir)/'`knot/main.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/$(DEPDIR)/knotd-main.Tpo knot/$(DEPDIR)/knotd-main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/main.c' object='knot/knotd-main.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/knotd-main.o `test -f 'knot/main.c' || echo '$(srcdir)/'`knot/main.c
+
+knot/knotd-main.obj: knot/main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/knotd-main.obj -MD -MP -MF knot/$(DEPDIR)/knotd-main.Tpo -c -o knot/knotd-main.obj `if test -f 'knot/main.c'; then $(CYGPATH_W) 'knot/main.c'; else $(CYGPATH_W) '$(srcdir)/knot/main.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/$(DEPDIR)/knotd-main.Tpo knot/$(DEPDIR)/knotd-main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/main.c' object='knot/knotd-main.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/knotd-main.obj `if test -f 'knot/main.c'; then $(CYGPATH_W) 'knot/main.c'; else $(CYGPATH_W) '$(srcdir)/knot/main.c'; fi`
+
 .l.c:
 	$(AM_V_LEX)$(am__skiplex) $(SHELL) $(YLWRAP) $< $(LEX_OUTPUT_ROOT).c $@ -- $(LEXCOMPILE)
 
@@ -1495,16 +1710,20 @@ clean-libtool:
 	-rm -rf common/slab/.libs common/slab/_libs
 	-rm -rf knot/conf/.libs knot/conf/_libs
 	-rm -rf knot/ctl/.libs knot/ctl/_libs
+	-rm -rf knot/dnssec/.libs knot/dnssec/_libs
+	-rm -rf knot/modules/.libs knot/modules/_libs
+	-rm -rf knot/nameserver/.libs knot/nameserver/_libs
 	-rm -rf knot/server/.libs knot/server/_libs
-	-rm -rf knot/stat/.libs knot/stat/_libs
+	-rm -rf knot/updates/.libs knot/updates/_libs
+	-rm -rf knot/worker/.libs knot/worker/_libs
 	-rm -rf knot/zone/.libs knot/zone/_libs
 	-rm -rf libknot/.libs libknot/_libs
 	-rm -rf libknot/dnssec/.libs libknot/dnssec/_libs
-	-rm -rf libknot/nameserver/.libs libknot/nameserver/_libs
 	-rm -rf libknot/packet/.libs libknot/packet/_libs
-	-rm -rf libknot/updates/.libs libknot/updates/_libs
+	-rm -rf libknot/processing/.libs libknot/processing/_libs
+	-rm -rf libknot/rrtype/.libs libknot/rrtype/_libs
 	-rm -rf libknot/util/.libs libknot/util/_libs
-	-rm -rf libknot/zone/.libs libknot/zone/_libs
+	-rm -rf utils/common/.libs utils/common/_libs
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run 'make' without going through this Makefile.
@@ -1664,9 +1883,11 @@ check-am: all-am
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-recursive
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) config.h
+install-binPROGRAMS: install-libLTLIBRARIES
+
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -1709,26 +1930,32 @@ distclean-generic:
 	-rm -f knot/conf/$(am__dirstamp)
 	-rm -f knot/ctl/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/ctl/$(am__dirstamp)
+	-rm -f knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/dnssec/$(am__dirstamp)
+	-rm -f knot/modules/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/modules/$(am__dirstamp)
+	-rm -f knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/nameserver/$(am__dirstamp)
 	-rm -f knot/server/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/server/$(am__dirstamp)
-	-rm -f knot/stat/$(DEPDIR)/$(am__dirstamp)
-	-rm -f knot/stat/$(am__dirstamp)
+	-rm -f knot/updates/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/updates/$(am__dirstamp)
+	-rm -f knot/worker/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/worker/$(am__dirstamp)
 	-rm -f knot/zone/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/zone/$(am__dirstamp)
 	-rm -f libknot/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/$(am__dirstamp)
 	-rm -f libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/dnssec/$(am__dirstamp)
-	-rm -f libknot/nameserver/$(DEPDIR)/$(am__dirstamp)
-	-rm -f libknot/nameserver/$(am__dirstamp)
 	-rm -f libknot/packet/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/packet/$(am__dirstamp)
-	-rm -f libknot/updates/$(DEPDIR)/$(am__dirstamp)
-	-rm -f libknot/updates/$(am__dirstamp)
+	-rm -f libknot/processing/$(DEPDIR)/$(am__dirstamp)
+	-rm -f libknot/processing/$(am__dirstamp)
+	-rm -f libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
+	-rm -f libknot/rrtype/$(am__dirstamp)
 	-rm -f libknot/util/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/util/$(am__dirstamp)
-	-rm -f libknot/zone/$(DEPDIR)/$(am__dirstamp)
-	-rm -f libknot/zone/$(am__dirstamp)
 	-rm -f utils/common/$(DEPDIR)/$(am__dirstamp)
 	-rm -f utils/common/$(am__dirstamp)
 	-rm -f utils/dig/$(DEPDIR)/$(am__dirstamp)
@@ -1749,11 +1976,12 @@ maintainer-clean-generic:
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-recursive
 
-clean-am: clean-binPROGRAMS clean-generic clean-libtool \
-	clean-noinstLTLIBRARIES clean-sbinPROGRAMS mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic clean-libLTLIBRARIES \
+	clean-libtool clean-noinstLTLIBRARIES clean-sbinPROGRAMS \
+	mostlyclean-am
 
 distclean: distclean-recursive
-	-rm -rf common/$(DEPDIR) common/hattrie/$(DEPDIR) common/slab/$(DEPDIR) knot/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/server/$(DEPDIR) knot/stat/$(DEPDIR) knot/zone/$(DEPDIR) libknot/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/nameserver/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/updates/$(DEPDIR) libknot/util/$(DEPDIR) libknot/zone/$(DEPDIR) utils/common/$(DEPDIR) utils/dig/$(DEPDIR) utils/host/$(DEPDIR) utils/nsec3hash/$(DEPDIR) utils/nsupdate/$(DEPDIR)
+	-rm -rf common/$(DEPDIR) common/hattrie/$(DEPDIR) common/slab/$(DEPDIR) knot/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) libknot/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/util/$(DEPDIR) utils/common/$(DEPDIR) utils/dig/$(DEPDIR) utils/host/$(DEPDIR) utils/nsec3hash/$(DEPDIR) utils/nsupdate/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -1777,7 +2005,8 @@ install-dvi: install-dvi-recursive
 
 install-dvi-am:
 
-install-exec-am: install-binPROGRAMS install-sbinPROGRAMS
+install-exec-am: install-binPROGRAMS install-libLTLIBRARIES \
+	install-sbinPROGRAMS
 
 install-html: install-html-recursive
 
@@ -1800,7 +2029,7 @@ install-ps-am:
 installcheck-am: installcheck-binPROGRAMS installcheck-sbinPROGRAMS
 
 maintainer-clean: maintainer-clean-recursive
-	-rm -rf common/$(DEPDIR) common/hattrie/$(DEPDIR) common/slab/$(DEPDIR) knot/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/server/$(DEPDIR) knot/stat/$(DEPDIR) knot/zone/$(DEPDIR) libknot/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/nameserver/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/updates/$(DEPDIR) libknot/util/$(DEPDIR) libknot/zone/$(DEPDIR) utils/common/$(DEPDIR) utils/dig/$(DEPDIR) utils/host/$(DEPDIR) utils/nsec3hash/$(DEPDIR) utils/nsupdate/$(DEPDIR)
+	-rm -rf common/$(DEPDIR) common/hattrie/$(DEPDIR) common/slab/$(DEPDIR) knot/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) libknot/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/util/$(DEPDIR) utils/common/$(DEPDIR) utils/dig/$(DEPDIR) utils/host/$(DEPDIR) utils/nsec3hash/$(DEPDIR) utils/nsupdate/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -1817,28 +2046,31 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS uninstall-sbinPROGRAMS
+uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
+	uninstall-sbinPROGRAMS
 
 .MAKE: $(am__recursive_targets) all check install install-am \
 	install-data-am install-strip
 
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am check \
-	check-am clean clean-binPROGRAMS clean-generic clean-libtool \
-	clean-noinstLTLIBRARIES clean-sbinPROGRAMS cscopelist-am ctags \
-	ctags-am distclean distclean-compile distclean-generic \
-	distclean-hdr distclean-libtool distclean-tags distdir dvi \
-	dvi-am html html-am info info-am install install-am \
-	install-binPROGRAMS install-data install-data-am \
-	install-data-hook install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
+	check-am clean clean-binPROGRAMS clean-generic \
+	clean-libLTLIBRARIES clean-libtool clean-noinstLTLIBRARIES \
+	clean-sbinPROGRAMS cscopelist-am ctags ctags-am distclean \
+	distclean-compile distclean-generic distclean-hdr \
+	distclean-libtool distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am install-binPROGRAMS \
+	install-data install-data-am install-data-hook install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am \
+	install-libLTLIBRARIES install-man install-pdf install-pdf-am \
 	install-ps install-ps-am install-sbinPROGRAMS install-strip \
 	installcheck installcheck-am installcheck-binPROGRAMS \
 	installcheck-sbinPROGRAMS installdirs installdirs-am \
 	maintainer-clean maintainer-clean-generic mostlyclean \
 	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
 	pdf pdf-am ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-binPROGRAMS uninstall-sbinPROGRAMS
+	uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
+	uninstall-sbinPROGRAMS
 
 
 # Create storage and run-time directories

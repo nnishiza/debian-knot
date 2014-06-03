@@ -33,37 +33,30 @@
  * @{
  */
 
-#ifndef _KNOTD_SERVER_H_
-#define _KNOTD_SERVER_H_
+#pragma once
 
-#include "libknot/nameserver/name-server.h"
-#include "knot/server/xfr-handler.h"
-#include "knot/server/socket.h"
-#include "knot/server/dthreads.h"
-#include "knot/server/rrl.h"
-#include "libknot/zone/zonedb.h"
 #include "common/evsched.h"
 #include "common/lists.h"
+#include "common/fdset.h"
+#include "knot/server/dthreads.h"
+#include "knot/server/net.h"
+#include "knot/server/rrl.h"
+#include "knot/worker/pool.h"
+#include "knot/zone/zonedb.h"
 
 /* Forwad declarations. */
 struct iface_t;
 struct server_t;
 struct conf_t;
 
-typedef struct iostate {
-	volatile unsigned s;
-	struct iohandler* h;
-} iostate_t;
-
 /*! \brief I/O handler structure.
   */
 typedef struct iohandler {
 	struct node        n;
-	dt_unit_t          *unit;   /*!< Threading unit */
 	struct server_t    *server; /*!< Reference to server */
-	void               *data;   /*!< Persistent data for I/O handler. */
-	iostate_t          *state;
-	void (*dtor)(void *data); /*!< Data destructor. */
+	dt_unit_t          *unit;   /*!< Threading unit */
+	unsigned           *thread_state; /*!< Thread state */
+	unsigned           *thread_id; /*!< Thread identifier. */
 } iohandler_t;
 
 /*! \brief Round-robin mechanism of switching.
@@ -85,9 +78,7 @@ typedef enum {
 typedef struct iface_t {
 	struct node n;
 	int fd[2];
-	int type;
-	int port;    /*!< \brief Socket port. */
-	char* addr;  /*!< \brief Socket address. */
+	struct sockaddr_storage addr;
 } iface_t;
 
 /* Handler types. */
@@ -113,17 +104,18 @@ typedef struct server_t {
 	/*! \brief Server state tracking. */
 	volatile unsigned state;
 
-	/*! \brief Reference to the name server structure. */
-	knot_nameserver_t *nameserver;
+	knot_zonedb_t *zone_db; /*!< Zone database. */
 
 	/*! \brief I/O handlers. */
 	unsigned tu_size;
-	xfrhandler_t *xfr;
-	iohandler_t h[IO_COUNT];
+	iohandler_t handler[IO_COUNT];
+
+	/*! \brief Background jobs. */
+	worker_pool_t *workers;
 
 	/*! \brief Event scheduler. */
 	dt_unit_t *iosched;
-	evsched_t *sched;
+	evsched_t sched;
 
 	/*! \brief List of interfaces. */
 	ifacelist_t* ifaces;
@@ -134,37 +126,19 @@ typedef struct server_t {
 } server_t;
 
 /*!
- * \brief Allocates and initializes the server structure.
- *
- * Creates all other main structures.
- *
- * \retval New instance if successful.
- * \retval NULL If an error occured.
- */
-server_t *server_create();
-
-/*!
- * \brief Create I/O handler.
- *
- * \param h Initialized handler.
- * \param s Server structure to be used for operation.
- * \param u Threading unit to serve given filedescriptor.
- * \param d Handler data.
- *
- * \retval Handler instance if successful.
- * \retval NULL If an error occured.
- */
-int server_init_handler(iohandler_t * h, server_t *s, dt_unit_t *u, void *d);
-
-/*!
- * \brief Delete handler.
- *
-  * \param ref I/O handler instance.
+ * \brief Initializes the server structure.
  *
  * \retval KNOT_EOK on success.
  * \retval KNOT_EINVAL on invalid parameters.
  */
-int server_free_handler(iohandler_t *h);
+int server_init(server_t *server, int bg_workers);
+
+/*!
+ * \brief Properly destroys the server structure.
+ *
+ * \param server Server structure to be used for operation.
+ */
+void server_deinit(server_t *server);
 
 /*!
  * \brief Starts the server.
@@ -182,20 +156,8 @@ int server_start(server_t *server);
  *
  * \param server Server structure to be used for operation.
  *
- * \retval  0 On success (EOK).
- * \retval <0 If an error occured (EINVAL).
  */
-int server_wait(server_t *server);
-
-/*!
- * \brief Refresh served zones.
- *
- * \param server Server structure to be used for operation.
- *
- * \retval  0 On success (EOK).
- * \retval <0 If an error occured (EINVAL).
- */
-int server_refresh(server_t *server);
+void server_wait(server_t *server);
 
 /*!
  * \brief Reload server configuration.
@@ -214,14 +176,7 @@ int server_reload(server_t *server, const char *cf);
 void server_stop(server_t *server);
 
 /*!
- * \brief Properly destroys the server structure.
- *
- * \param server Server structure to be used for operation.
- */
-void server_destroy(server_t **server);
-
-/*!
- * \brief Server config hook.
+ * \brief Server reconfiguration routine.
  *
  * Routine for dynamic server reconfiguration.
  *
@@ -230,7 +185,16 @@ void server_destroy(server_t **server);
  * \retval KNOT_EINVAL on invalid parameters.
  * \retval KNOT_ERROR unspecified error.
  */
-int server_conf_hook(const struct conf_t *conf, void *data);
+int server_reconfigure(const struct conf_t *conf, void *data);
+
+/*!
+ * \brief Reconfigure zone database.
+ *
+ * Routine for dynamic server reconfiguration.
+ *
+ * \return KNOT_EOK on success or KNOT_ error
+ */
+int server_update_zones(const struct conf_t *conf, void *data);
 
 /*!
  * \brief Update fdsets from current interfaces list.
@@ -240,7 +204,5 @@ int server_conf_hook(const struct conf_t *conf, void *data);
  * \return new interface list
  */
 ref_t *server_set_ifaces(server_t *s, fdset_t *fds, int type);
-
-#endif // _KNOTD_SERVER_H_
 
 /*! @} */

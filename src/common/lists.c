@@ -26,7 +26,6 @@
 
 #define _BIRD_LISTS_C_
 
-#include <config.h>
 #include <stdlib.h>
 #include <string.h>
 #include "common/lists.h"
@@ -176,4 +175,52 @@ size_t list_size(const list_t *l)
 	}
 
 	return count;
+}
+
+/**
+ * ptrlist_add - add pointer to pointer list
+ * @to: destination list
+ * @val: added pointer
+ * @mm: memory context
+ */
+ptrnode_t *ptrlist_add(list_t *to, const void *val, mm_ctx_t *mm)
+{
+	ptrnode_t *node = mm_alloc(mm , sizeof(ptrnode_t));
+	if (node == NULL) {
+		return NULL;
+	} else {
+		node->d = val;
+	}
+	add_tail(to, &node->n);
+	return node;
+}
+
+/**
+ * ptrlist_free - free all nodes in pointer list
+ * @list: list nodes
+ * @mm: memory context
+ */
+void ptrlist_free(list_t *list, mm_ctx_t *mm)
+{
+	node_t *n = NULL, *nxt = NULL;
+	WALK_LIST_DELSAFE(n, nxt, *list) {
+		mm_free(mm, n);
+	}
+	init_list(list);
+}
+
+/**
+ * ptrlist_contains - check if list contains pointer
+ * @list: target list
+ * @val: searched pointer
+ */
+bool ptrlist_contains(list_t *list, const void *val)
+{
+	ptrnode_t *n = NULL;
+	WALK_LIST(n, *list) {
+		if (n->d == val) {
+			return true;
+		}
+	}
+	return false;
 }

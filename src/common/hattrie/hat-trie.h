@@ -15,8 +15,7 @@
  *
  */
 
-#ifndef HATTRIE_HATTRIE_H
-#define HATTRIE_HATTRIE_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,16 +29,18 @@ extern "C" {
 
 /* Hat-trie defines. */
 #define TRIE_ZEROBUCKETS  0    /* Do not use hash buckets (pure trie). */
-#define TRIE_BUCKET_SIZE  765  /* Exactly 3x4K pages for 1 hhash. */
+#define TRIE_BUCKET_SIZE  253  /* 253, 509, 765 for n*4K pages per 1 hhash. */
+#define TRIE_BUCKET_INCR  256  /* Size increase. */
+#define TRIE_BUCKET_MAX   4    /* Maximum N table increments. */
 #define TRIE_MAXCHAR      0xff /* Use 7-bit ASCII alphabet. */
 #define TRIE_EOK          KNOT_EOK
 
 typedef struct hattrie_t_ hattrie_t;
 
-hattrie_t* hattrie_create (void);             //< Create an empty hat-trie.
-void       hattrie_free   (hattrie_t*);       //< Free all memory used by a trie.
-void       hattrie_clear  (hattrie_t*);       //< Remove all entries.
-size_t     hattrie_weight (hattrie_t*);       //< Number of entries
+hattrie_t* hattrie_create (void);              //< Create an empty hat-trie.
+void       hattrie_free   (hattrie_t*);        //< Free all memory used by a trie.
+void       hattrie_clear  (hattrie_t*);        //< Remove all entries.
+size_t     hattrie_weight (const hattrie_t*);  //< Number of entries
 
 /** Create new trie with custom bucket size and memory management.
  */
@@ -73,10 +74,6 @@ value_t* hattrie_tryget (hattrie_t*, const char* key, size_t len);
  * exist. Also set prev to point to previous node. */
 int hattrie_find_leq (hattrie_t*, const char* key, size_t len, value_t** dst);
 
-/** Find a longest prefix match. */
-int hattrie_find_lpr (hattrie_t*, const char* key, size_t len, value_t** dst);
-
-
 /** Delete a given key from trie. Returns 0 if successful or -1 if not found.
  */
 int hattrie_del(hattrie_t* T, const char* key, size_t len);
@@ -92,6 +89,4 @@ value_t*        hattrie_iter_val       (hattrie_iter_t*);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

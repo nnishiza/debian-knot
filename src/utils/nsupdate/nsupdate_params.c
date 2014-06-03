@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include <string.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -26,6 +25,8 @@
 #include "utils/common/netio.h"
 #include "common/errcode.h"
 #include "common/descriptor.h"
+#include "common/mempattern.h"
+#include "common/mempool.h"
 #include "libknot/libknot.h"
 
 #define DEFAULT_RETRIES_NSUPDATE	3
@@ -38,6 +39,7 @@ static const style_t DEFAULT_STYLE_NSUPDATE = {
 		.show_class = true,
 		.show_ttl = true,
 		.verbose = false,
+		.empty_ttl = false,
 		.human_ttl = false,
 		.human_tmstamp = true,
 		.ascii_to_idn = NULL
@@ -49,14 +51,15 @@ static const style_t DEFAULT_STYLE_NSUPDATE = {
 	.show_answer = true,
 	.show_authority = true,
 	.show_additional = true,
-	.show_footer = false,
+	.show_tsig = true,
+	.show_footer = false
 };
 
-static void parse_err(const scanner_t *s) {
-	ERR("failed to parse RR, %s\n", knot_strerror(s->error_code));
+static void parse_err(zs_scanner_t *s) {
+	ERR("failed to parse RR: %s\n", zs_strerror(s->error_code));
 }
 
-static int parser_set_default(scanner_t *s, const char *fmt, ...)
+static int parser_set_default(zs_scanner_t *s, const char *fmt, ...)
 {
 	/* Format string. */
 	char buf[512]; /* Must suffice for domain name and TTL. */
@@ -70,7 +73,7 @@ static int parser_set_default(scanner_t *s, const char *fmt, ...)
 	}
 
 	/* fmt must contain newline */
-	if (scanner_process(buf, buf + n, 1, s) < 0) {
+	if (zs_scanner_process(buf, buf + n, 1, s) < 0) {
 		return KNOT_EPARSEFAIL;
 	}
 
@@ -81,10 +84,13 @@ static int nsupdate_init(nsupdate_params_t *params)
 {
 	memset(params, 0, sizeof(nsupdate_params_t));
 
-	params->stop = false;
-
-	/* Initialize list. */
+	/* Initialize lists. */
 	init_list(&params->qfiles);
+	init_list(&params->update_list);
+	init_list(&params->prereq_list);
+
+	/* Initialize memory context. */
+	mm_ctx_mempool(&params->mm, DEFAULT_BLKSIZE);
 
 	/* Default server. */
 	params->server = srv_info_create(DEFAULT_IPV4_NAME, DEFAULT_DNS_PORT);
@@ -102,40 +108,67 @@ static int nsupdate_init(nsupdate_params_t *params)
 	params->zone = strdup(".");
 
 	/* Initialize RR parser. */
-	params->rrp = scanner_create(NULL, ".", params->class_num, 0, NULL,
-	                             parse_err, NULL);
-	if (!params->rrp)
+	params->parser = zs_scanner_create(NULL, ".", params->class_num, 0,
+	                                   NULL, parse_err, NULL);
+	if (!params->parser)
 		return KNOT_ENOMEM;
 
 	/* Default style. */
 	params->style = DEFAULT_STYLE_NSUPDATE;
+
+	/* Create query/answer packets. */
+	params->query = knot_pkt_new(NULL, KNOT_WIRE_MAX_PKTSIZE, &params->mm);
+	params->answer = knot_pkt_new(NULL, KNOT_WIRE_MAX_PKTSIZE, &params->mm);
 
 	return KNOT_EOK;
 }
 
 void nsupdate_clean(nsupdate_params_t *params)
 {
-	strnode_t *n = NULL, *nxt = NULL;
-
 	if (params == NULL) {
 		return;
 	}
 
+	/* Clear current query. */
+	nsupdate_reset(params);
+
 	/* Free qfiles. */
-	WALK_LIST_DELSAFE(n, nxt, params->qfiles) {
-		free(n);
-	}
+	ptrlist_free(&params->qfiles, &params->mm);
 
 	srv_info_free(params->server);
 	srv_info_free(params->srcif);
 	free(params->zone);
-	scanner_free(params->rrp);
-	knot_packet_free(&params->pkt);
-	knot_packet_free(&params->resp);
+	zs_scanner_free(params->parser);
+	knot_pkt_free(&params->query);
+	knot_pkt_free(&params->answer);
 	knot_free_key_params(&params->key_params);
 
 	/* Clean up the structure. */
+	mp_delete(params->mm.ctx);
 	memset(params, 0, sizeof(*params));
+}
+
+/*! \brief Free RRSet list. */
+static void rr_list_free(list_t *list, mm_ctx_t *mm)
+{
+	assert(list != NULL);
+	assert(mm != NULL);
+
+	ptrnode_t *node = NULL;
+	WALK_LIST(node, *list) {
+		knot_rrset_t *rrset = (knot_rrset_t *)node->d;
+		knot_rrset_free(&rrset, NULL);
+	}
+	ptrlist_free(list, mm);
+}
+
+void nsupdate_reset(nsupdate_params_t *params)
+{
+	/* Free ADD/REMOVE RRSets. */
+	rr_list_free(&params->update_list, &params->mm);
+
+	/* Free PREREQ RRSets. */
+	rr_list_free(&params->prereq_list, &params->mm);
 }
 
 static void nsupdate_help(void)
@@ -229,12 +262,7 @@ int nsupdate_parse(nsupdate_params_t *params, int argc, char *argv[])
 
 	/* Process non-option parameters. */
 	for (; optind < argc; ++optind) {
-		strnode_t *n = malloc(sizeof(strnode_t));
-		if (!n) { /* Params will be cleaned on exit. */
-			return KNOT_ENOMEM;
-		}
-		n->str = argv[optind];
-		add_tail(&params->qfiles, &n->n);
+		ptrlist_add(&params->qfiles, argv[optind], &params->mm);
 	}
 
 	return ret;
@@ -242,7 +270,7 @@ int nsupdate_parse(nsupdate_params_t *params, int argc, char *argv[])
 
 int nsupdate_set_ttl(nsupdate_params_t *params, const uint32_t ttl)
 {
-	int ret = parser_set_default(params->rrp, "$TTL %u\n", ttl);
+	int ret = parser_set_default(params->parser, "$TTL %u\n", ttl);
 	if (ret == KNOT_EOK) {
 		params->ttl = ttl;
 	} else {
@@ -255,7 +283,7 @@ int nsupdate_set_origin(nsupdate_params_t *params, const char *origin)
 {
 	char *fqdn = get_fqd_name(origin);
 
-	int ret = parser_set_default(params->rrp, "$ORIGIN %s\n", fqdn);
+	int ret = parser_set_default(params->parser, "$ORIGIN %s\n", fqdn);
 
 	free(fqdn);
 
