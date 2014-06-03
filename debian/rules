@@ -30,8 +30,8 @@ override_dh_auto_configure:
 	  $(RECVMMSG) \
 	  --disable-silent-rules
 
-override_dh_auto_make:
-	dh_auto_make -- info pdf html
+override_dh_auto_build:
+	dh_auto_build -- all info pdf html
 
 override_dh_auto_install:
 	dh_auto_install -- install-info install-pdf install-html
