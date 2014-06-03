@@ -1,3 +1,12 @@
+knot (1.5.0~rc1-1) experimental; urgency=medium
+
+  * New upstream version 1.5.0~rc1
+  * Update patches for 1.5.0~rc1 release
+  * New documentation is using sphinx, reflect that in d/control
+  * d/control: New knot-libs package containing internal shared libraries
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 03 Jun 2014 23:43:05 +0200
+
 knot (1.4.6+hotfix-1) unstable; urgency=medium
 
   * New upstream version 1.4.6+hotfix
