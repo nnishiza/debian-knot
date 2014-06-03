@@ -21,17 +21,17 @@
 #include "knot/conf/conf.h"
 
 /* Resources. */
-#include "tests/sample_conf.h"
+#include "sample_conf.h"
 
 /*! Run all scheduled tests for given parameters.
  */
 int main(int argc, char *argv[])
 {
-	plan(21);
+	plan(19);
 
 	// Test 1: Allocate new config
 	const char *config_fn = "rc:/sample_conf";
-	conf_t *conf = conf_new(config_fn);
+	conf_t *conf = conf_new(strdup(config_fn));
 	ok(conf != 0, "config_new()");
 
 	// Test 2: Parse config
@@ -48,18 +48,20 @@ int main(int argc, char *argv[])
 	// Test 4: Test interfaces (1-level depth)
 	ok(!EMPTY_LIST(conf->ifaces), "configured interfaces exist");
 
-	// Test 5,6,7,8: Interfaces content (2-level depth)
+	// Test 5,6: Interfaces content (2-level depth)
 	struct node *n = HEAD(conf->ifaces);
 	conf_iface_t *iface = (conf_iface_t*)n;
-	is_string("10.10.1.1", iface->address, "interface0 address check");
-	is_int(53531, iface->port, "interface0 port check");
+	struct sockaddr_storage addr_ref;
+	sockaddr_set(&addr_ref, AF_INET, "10.10.1.1", 53531);
+	is_int(0, sockaddr_cmp(&iface->addr, &addr_ref), "interface0 address check");
+
 	n = n->next;
 	iface = (conf_iface_t*)n;
-	is_string("::0", iface->address, "interface1 address check");
-	is_int(53, iface->port, "interface1 default port check");
+	sockaddr_set(&addr_ref, AF_INET6, "::0", 53);
+	is_int(0, sockaddr_cmp(&iface->addr, &addr_ref), "interface1 address check");
 
 	// Test 9,10: Check server key
-	if(conf->key_count <= 0) {
+	if (EMPTY_LIST(conf->keys)) {
 		ok(0, "TSIG key algorithm check - NO KEY FOUND");
 		ok(0, "TSIG key secret check - NO KEY FOUND");
 	} else {
@@ -75,7 +77,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Test 11,12,13,14,15,16,17,18: Check logging facilities
-	ok(conf->logs_count == 4, "log facilites count check");
+	ok(list_size(&conf->logs) == 4, "log facilites count check");
 	n = HEAD(conf->logs);
 	ok(!EMPTY_LIST(conf->logs), "log facilities not empty");
 
@@ -114,14 +116,14 @@ int main(int argc, char *argv[])
 	// Test 21: Load key dname
 	const char *sample_str = "key0.example.net";
 	knot_dname_t *sample = knot_dname_from_str(sample_str);
-	if (conf->key_count > 0) {
+	if (list_size(&conf->keys) > 0) {
 		knot_tsig_key_t *k = &((conf_key_t *)HEAD(conf->keys))->k;
 		ok(knot_dname_cmp(sample, k->name) == 0,
 		   "TSIG key dname check");
 	} else {
 		ok(0, "TSIG key dname check - NO KEY FOUND");
 	}
-	knot_dname_free(&sample);
+	knot_dname_free(&sample, NULL);
 
 skip_all:
 

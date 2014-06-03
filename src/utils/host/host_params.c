@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include "utils/host/host_params.h"
 
 #include <string.h>			// strncmp
@@ -41,6 +40,7 @@ static const style_t DEFAULT_STYLE_HOST = {
 		.show_class = true,
 		.show_ttl = true,
 		.verbose = false,
+		.empty_ttl = false,
 		.human_ttl = false,
 		.human_tmstamp = true,
 		.ascii_to_idn = name_to_idn
@@ -52,7 +52,8 @@ static const style_t DEFAULT_STYLE_HOST = {
 	.show_answer = true,
 	.show_authority = true,
 	.show_additional = true,
-	.show_footer = false,
+	.show_tsig = false,
+	.show_footer = false
 };
 
 static int host_init(dig_params_t *params)
@@ -237,6 +238,7 @@ int host_parse(dig_params_t *params, int argc, char *argv[])
 	query_t  *conf = params->config;
 	uint16_t rclass, rtype;
 	uint32_t serial;
+	bool     notify;
 
 	// Long options.
 	struct option opts[] = {
@@ -300,13 +302,19 @@ int host_parse(dig_params_t *params, int argc, char *argv[])
 			conf->class_num = rclass;
 			break;
 		case 't':
-			if (params_parse_type(optarg, &rtype, &serial)
+			if (params_parse_type(optarg, &rtype, &serial, &notify)
 			    != KNOT_EOK) {
 				ERR("bad type %s\n", optarg);
 				return KNOT_EINVAL;
 			}
 			conf->type_num = rtype;
 			conf->xfr_serial = serial;
+			conf->notify = notify;
+
+			// If NOTIFY, reset default RD flag.
+			if (conf->notify) {
+				conf->flags.rd_flag = false;
+			}
 			break;
 		case 'R':
 			if (params_parse_num(optarg, &conf->retries)

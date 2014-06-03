@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -31,24 +30,19 @@
 #include "knot/ctl/process.h"
 #include "knot/ctl/remote.h"
 #include "knot/conf/conf.h"
+#include "knot/zone/zonefile.h"
 #include "knot/zone/zone-load.h"
-#include "knot/server/socket.h"
 #include "knot/server/tcp-handler.h"
-#include "libknot/util/wire.h"
-#include "libknot/packet/query.h"
-#include "libknot/packet/response.h"
-#include "knot/zone/zone-load.h"
+#include "libknot/packet/wire.h"
 #include "knot/zone/estimator.h"
 
 /*! \brief Controller flags. */
 enum knotc_flag_t {
-	F_NULL = 0 << 0,
-	F_FORCE = 1 << 0,
-	F_VERBOSE = 1 << 1,
-	F_INTERACTIVE = 1 << 3,
-	F_UNPRIVILEGED = 1 << 5,
-	F_NOCONF = 1 << 6,
-	F_DRYRUN = 1 << 7
+	F_NULL =         0 << 0,
+	F_FORCE =        1 << 0,
+	F_VERBOSE =      1 << 1,
+	F_INTERACTIVE =  1 << 2,
+	F_NOCONF =       1 << 3,
 };
 
 /*! \brief Check if flag is present. */
@@ -85,7 +79,7 @@ static int cmd_signzone(int argc, char *argv[], unsigned flags);
 knot_cmd_t knot_cmd_tbl[] = {
 	{&cmd_stop,       0, "stop",       "",       "\t\tStop server."},
 	{&cmd_reload,     0, "reload",     "",       "\tReload configuration and changed zones."},
-	{&cmd_refresh,    0, "refresh",    "[zone]", "\tRefresh slave zone (all if not specified)."},
+	{&cmd_refresh,    0, "refresh",    "[zone]", "\tRefresh slave zone (all if not specified). Flag '-f' forces retransfer."},
 	{&cmd_flush,      0, "flush",      "",       "\t\tFlush journal and update zone files."},
 	{&cmd_status,     0, "status",     "",       "\tCheck if server is running."},
 	{&cmd_zonestatus, 0, "zonestatus", "",       "\tShow status of configured zones."},
@@ -123,11 +117,12 @@ void help(void)
 static int cmd_remote_print_reply(const knot_rrset_t *rr)
 {
 	/* Process first RRSet in data section. */
-	if (knot_rrset_type(rr) != KNOT_RRTYPE_TXT) {
+	if (rr->type != KNOT_RRTYPE_TXT) {
 		return KNOT_EMALF;
 	}
 
-	for (uint16_t i = 0; i < knot_rrset_rdata_rr_count(rr); i++) {
+	uint16_t rr_count = rr->rrs.rr_count;
+	for (uint16_t i = 0; i < rr_count; i++) {
 		/* Parse TXT. */
 		remote_print_txt(rr, i);
 	}
@@ -137,46 +132,46 @@ static int cmd_remote_print_reply(const knot_rrset_t *rr)
 
 static int cmd_remote_reply(int c)
 {
-	uint8_t *rwire = malloc(SOCKET_MTU_SZ);
-	knot_packet_t *reply = knot_packet_new();
-	if (!rwire || !reply) {
-		free(rwire);
-		knot_packet_free(&reply);
+	knot_pkt_t *pkt = knot_pkt_new(NULL, KNOT_WIRE_MAX_PKTSIZE, NULL);
+	if (!pkt) {
 		return KNOT_ENOMEM;
 	}
 
 	/* Read response packet. */
-	int n = tcp_recv(c, rwire, SOCKET_MTU_SZ, NULL);
+	int n = tcp_recv_msg(c, pkt->wire, pkt->max_size, NULL);
 	if (n <= 0) {
-		dbg_server("remote: couldn't receive response = %d\n", n);
-		knot_packet_free(&reply);
-		free(rwire);
+		dbg_server("remote: couldn't receive response = %s\n", knot_strerror(n));
+		knot_pkt_free(&pkt);
 		return KNOT_ECONN;
+	} else {
+		pkt->size = n;
 	}
 
 	/* Parse packet and check response. */
-	int ret = remote_parse(reply, rwire, n);
-	if (ret == KNOT_EOK) {
-		/* Check RCODE */
-		ret = knot_packet_rcode(reply);
-		switch(ret) {
-		case KNOT_RCODE_NOERROR:
-			if (knot_packet_authority_rrset_count(reply) > 0) {
-				ret = cmd_remote_print_reply(reply->authority[0]);
-			}
-			break;
-		case KNOT_RCODE_REFUSED:
-			ret = KNOT_EDENIED;
-			break;
-		default:
-			ret = KNOT_ERROR;
-			break;
-		}
+	int ret = remote_parse(pkt);
+	if (ret != KNOT_EOK) {
+		knot_pkt_free(&pkt);
+		return ret;
 	}
 
-	/* Response cleanup. */
-	knot_packet_free(&reply);
-	free(rwire);
+	/* Check RCODE */
+	const knot_pktsection_t *authority = knot_pkt_section(pkt, KNOT_AUTHORITY);
+	ret = knot_wire_get_rcode(pkt->wire);
+	switch(ret) {
+	case KNOT_RCODE_NOERROR:
+		if (authority->count > 0) {
+			ret = cmd_remote_print_reply(&authority->rr[0]);
+		}
+		break;
+	case KNOT_RCODE_REFUSED:
+		ret = KNOT_EDENIED;
+		break;
+	default:
+		ret = KNOT_ERROR;
+		break;
+	}
+
+	knot_pkt_free(&pkt);
 	return ret;
 }
 
@@ -186,82 +181,113 @@ static int cmd_remote(const char *cmd, uint16_t rrt, int argc, char *argv[])
 
 	/* Check remote address. */
 	conf_iface_t *r = conf()->ctl.iface;
-	if (!r || !r->address) {
+	if (!r || r->addr.ss_family == AF_UNSPEC) {
 		log_server_error("No remote address for '%s' configured.\n",
 		                 cmd);
 		return 1;
 	}
 
 	/* Make query. */
-	uint8_t *buf = NULL;
-	size_t buflen = 0;
-	knot_packet_t *qr = remote_query(cmd, r->key);
-	if (!qr) {
+	knot_pkt_t *pkt = remote_query(cmd, r->key);
+	if (!pkt) {
 		log_server_warning("Could not prepare query for '%s'.\n",
 		                   cmd);
 		return 1;
 	}
 
 	/* Build query data. */
-	knot_rrset_t *rr = NULL;
+	knot_pkt_begin(pkt, KNOT_AUTHORITY);
 	if (argc > 0) {
-		rr = remote_build_rr("data.", rrt);
+		knot_rrset_t rr;
+		int res = remote_build_rr(&rr, "data.", rrt);
+		if (res != KNOT_EOK) {
+			log_server_error("Couldn't create the query.\n");
+			knot_pkt_free(&pkt);
+			return 1;
+		}
 		for (int i = 0; i < argc; ++i) {
 			switch(rrt) {
 			case KNOT_RRTYPE_NS:
-				remote_create_ns(rr, argv[i]);
+				remote_create_ns(&rr, argv[i]);
 				break;
 			case KNOT_RRTYPE_TXT:
 			default:
-				remote_create_txt(rr, argv[i], strlen(argv[i]));
+				remote_create_txt(&rr, argv[i], strlen(argv[i]));
 				break;
 			}
 		}
-		remote_query_append(qr, rr);
-	}
-
-	if (knot_packet_to_wire(qr, &buf, &buflen) != KNOT_EOK) {
-		knot_rrset_deep_free(&rr, 1);
-		knot_packet_free(&qr);
-		return 1;
+		res = knot_pkt_put(pkt, 0, &rr, KNOT_PF_FREE);
+		if (res != KNOT_EOK) {
+			log_server_error("Couldn't create the query.\n");
+			knot_rrset_clear(&rr, NULL);
+			knot_pkt_free(&pkt);
+			return 1;
+		}
 	}
 
 	if (r->key) {
-		remote_query_sign(buf, &buflen, qr->max_size, r->key);
+		int res = remote_query_sign(pkt->wire, &pkt->size, pkt->max_size, r->key);
+		if (res != KNOT_EOK) {
+			log_server_error("Couldn't sign the packet.\n");
+			knot_pkt_free(&pkt);
+			return 1;
+		}
 	}
 
-	/* Send query. */
-	int s = socket_create(r->family, SOCK_STREAM, 0);
-	int conn_state = socket_connect(s, r->family, r->address, r->port);
-	if (conn_state != KNOT_EOK || tcp_send(s, buf, buflen) <= 0) {
-		char portstr[32] = { '\0' };
-		if (r->family != AF_UNIX)
-			snprintf(portstr, sizeof(portstr), "@%d", r->port);
-		log_server_error("Couldn't connect to remote host "
-		                 "%s%s\n", r->address, portstr);
-		rc = 1;
+	dbg_server("%s: sending query size %zu\n", __func__, pkt->size);
+
+	/* Connect to remote. */
+	char addr_str[SOCKADDR_STRLEN] = {0};
+	sockaddr_tostr(&r->addr, addr_str, sizeof(addr_str));
+
+	int s = net_connected_socket(SOCK_STREAM, &r->addr, &r->via, 0);
+	if (s < 0) {
+		log_server_error("Couldn't connect to remote host '%s'.\n", addr_str);
+		knot_pkt_free(&pkt);
+		return 1;
+	}
+
+	/* Wait for availability. */
+	struct pollfd pfd = { s, POLLOUT, 0 };
+	if (poll(&pfd, 1, conf()->max_conn_reply) != 1) {
+		log_server_error("Couldn't connect to remote host '%s'.\n", addr_str);
+		close(s);
+		knot_pkt_free(&pkt);
+		return 1;
+	}
+
+	/* Send and free packet. */
+	int ret = tcp_send_msg(s, pkt->wire, pkt->size);
+	knot_pkt_free(&pkt);
+
+	/* Evaluate and wait for reply. */
+	if (ret <= 0) {
+		log_server_error("Couldn't connect to remote host '%s'.\n", addr_str);
+		close(s);
+		return 1;
 	}
 
 	/* Wait for reply. */
-	if (rc == 0) {
-		int ret = KNOT_EOK;
-		while (ret == KNOT_EOK) {
-			ret = cmd_remote_reply(s);
-			if (ret != KNOT_EOK && ret != KNOT_ECONN) {
+	ret = KNOT_EOK;
+	while (ret == KNOT_EOK) {
+		ret = cmd_remote_reply(s);
+		if (ret != KNOT_EOK) {
+			if (ret != KNOT_ECONN) {
 				log_server_warning("Remote command reply: %s\n",
 				                   knot_strerror(ret));
 				rc = 1;
 			}
+			break;
 		}
 	}
 
 	/* Cleanup. */
-	if (rc == 0) printf("\n");
-	knot_rrset_deep_free(&rr, 1);
+	if (rc == 0) {
+		printf("\n");
+	}
 
 	/* Close connection. */
-	socket_close(s);
-	knot_packet_free(&qr);
+	close(s);
 	return rc;
 }
 
@@ -393,8 +419,7 @@ int main(int argc, char **argv)
 	/* Parse command line arguments */
 	int c = 0, li = 0, rc = 0;
 	unsigned flags = F_NULL;
-	char *config_fn = NULL;
-	char *default_config = conf_find_default();
+	const char *config_fn = conf_find_default();
 
 	/* Remote server descriptor. */
 	const char *r_addr = NULL;
@@ -455,7 +480,7 @@ int main(int argc, char **argv)
 			flags |= F_INTERACTIVE;
 			break;
 		case 'c':
-			config_fn = strdup(optarg);
+			config_fn = optarg;
 			break;
 		case 'V':
 			rc = 0;
@@ -496,26 +521,33 @@ int main(int argc, char **argv)
 		goto exit;
 	}
 
-	/* Open config, allow if not exists. */
+	/* Open config, create empty if not exists. */
 	if (conf_open(config_fn) != KNOT_EOK) {
-		if(conf_open(default_config) != KNOT_EOK) {
-			flags |= F_NOCONF;
-		}
+		s_config = conf_new("");
+		flags |= F_NOCONF;
+	}
+
+	/* Check if config file is required. */
+	if (has_flag(flags, F_NOCONF) && cmd->need_conf) {
+		log_server_error("Couldn't find a config file, refusing to "
+		                 "continue.\n");
+		rc = 1;
+		goto exit;
 	}
 
 	/* Create remote iface if not present in config. */
 	conf_iface_t *ctl_if = conf()->ctl.iface;
 	if (!ctl_if) {
 		ctl_if = malloc(sizeof(conf_iface_t));
-		assert(ctl_if);
-		conf()->ctl.iface = ctl_if;
 		memset(ctl_if, 0, sizeof(conf_iface_t));
+		conf()->ctl.iface = ctl_if;
 
 		/* Fill defaults. */
-		if (!r_addr)
+		if (!r_addr) {
 			r_addr = RUN_DIR "/knot.sock";
-		else if (r_port < 0)
+		} else if (r_port < 0) {
 			r_port = REMOTE_DPORT;
+		}
 	}
 
 	/* Install the key. */
@@ -525,25 +557,26 @@ int main(int argc, char **argv)
 
 	/* Override from command line. */
 	if (r_addr) {
-		free(ctl_if->address);
-		ctl_if->address = strdup(r_addr);
-		ctl_if->family = AF_INET;
-
 		/* Check for v6 address. */
-		if (strchr(r_addr, ':'))
-			ctl_if->family = AF_INET6;
+		int family = AF_INET;
+		if (strchr(r_addr, ':')) {
+			family = AF_INET6;
+		}
 
 		/* Is a valid UNIX socket or at least contains slash ? */
 		struct stat st;
 		bool has_slash = strchr(r_addr, '/') != NULL;
 		bool is_file = stat(r_addr, &st) == 0;
 		if (has_slash || (is_file && S_ISSOCK(st.st_mode))) {
-			ctl_if->family = AF_UNIX;
-			r_port = 0; /* Override. */
+			family = AF_UNIX;
 		}
 
+		sockaddr_set(&ctl_if->addr, family, r_addr, sockaddr_port(&ctl_if->addr));
 	}
-	if (r_port > -1) ctl_if->port = r_port;
+
+	if (r_port > 0) {
+		sockaddr_port_set(&ctl_if->addr, r_port);
+	}
 
 	/* Verbose mode. */
 	if (has_flag(flags, F_VERBOSE)) {
@@ -558,8 +591,6 @@ exit:
 	/* Finish */
 	knot_tsig_key_free(&r_key);
 	log_close();
-	free(config_fn);
-	free(default_config);
 	return rc;
 }
 
@@ -585,7 +616,7 @@ static int cmd_refresh(int argc, char *argv[], unsigned flags)
 {
 	UNUSED(flags);
 
-	if (has_flag(flags, F_FORCE)) {
+	if (flags & F_FORCE) {
 		return cmd_remote("retransfer", KNOT_RRTYPE_NS, argc, argv);
 	} else {
 		return cmd_remote("refresh", KNOT_RRTYPE_NS, argc, argv);
@@ -628,14 +659,7 @@ static int cmd_checkconf(int argc, char *argv[], unsigned flags)
 	UNUSED(argv);
 	UNUSED(flags);
 
-	/* Check config. */
-	if (has_flag(flags, F_NOCONF)) {
-		log_server_error("Couldn't parse config file, refusing to "
-		                 "continue.\n");
-		return 1;
-	} else {
-		log_server_info("OK, configuration is valid.\n");
-	}
+	log_server_info("OK, configuration is valid.\n");
 
 	return 0;
 }
@@ -646,12 +670,17 @@ static int cmd_checkzone(int argc, char *argv[], unsigned flags)
 
 	/* Zone checking */
 	int rc = 0;
-	node_t *n = 0;
 
 	/* Generate databases for all zones */
-	WALK_LIST(n, conf()->zones) {
+	const bool sorted = false;
+	hattrie_iter_t *z_iter = hattrie_iter_begin(conf()->zones, sorted);
+	if (z_iter == NULL) {
+		return KNOT_ERROR;
+	}
+	for (; !hattrie_iter_finished(z_iter); hattrie_iter_next(z_iter)) {
+		conf_zone_t *zone = (conf_zone_t *)*hattrie_iter_val(z_iter);
+
 		/* Fetch zone */
-		conf_zone_t *zone = (conf_zone_t *) n;
 		int zone_match = 0;
 		for (unsigned i = 0; i < (unsigned)argc; ++i) {
 			size_t len = strlen(zone->name);
@@ -667,35 +696,21 @@ static int cmd_checkzone(int argc, char *argv[], unsigned flags)
 		}
 
 		if (!zone_match && argc > 0) {
-			/* WALK_LIST is a for-cycle. */
+			conf_free_zone(zone);
 			continue;
 		}
 
 		/* Create zone loader context. */
-		zloader_t *l = NULL;
-		int ret = knot_zload_open(&l, zone->file, zone->name,
-		                          zone->enable_checks);
-		if (ret != KNOT_EOK) {
-			log_zone_error("Could not open zone %s (%s).\n",
-			               zone->name, knot_strerror(ret));
-			knot_zload_close(l);
+		zone_contents_t *loaded_zone = zone_load_contents(zone);
+		if (loaded_zone == NULL) {
 			rc = 1;
 			continue;
 		}
 
-		knot_zone_t *z = knot_zload_load(l);
-		if (z == NULL) {
-			log_zone_error("Loading of zone %s failed.\n",
-			               zone->name);
-			knot_zload_close(l);
-			rc = 1;
-			continue;
-		}
-
-		knot_zone_deep_free(&z);
-		knot_zload_close(l);
-		log_zone_info("Zone %s OK.\n", zone->name);
+		log_zone_info("Zone '%s' OK.\n", zone->name);
+		zone_contents_deep_free(&loaded_zone);
 	}
+	hattrie_iter_free(z_iter);
 
 	return rc;
 }
@@ -706,13 +721,18 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 
 	/* Zone checking */
 	int rc = 0;
-	node_t *n = 0;
-	size_t total_size = 0;
+	double total_size = 0;
 
 	/* Generate databases for all zones */
-	WALK_LIST(n, conf()->zones) {
+	const bool sorted = false;
+	hattrie_iter_t *z_iter = hattrie_iter_begin(conf()->zones, sorted);
+	if (z_iter == NULL) {
+		return KNOT_ERROR;
+	}
+	for (; !hattrie_iter_finished(z_iter); hattrie_iter_next(z_iter)) {
+		conf_zone_t *zone = (conf_zone_t *)*hattrie_iter_val(z_iter);
+
 		/* Fetch zone */
-		conf_zone_t *zone = (conf_zone_t *) n;
 		int zone_match = 0;
 		for (unsigned i = 0; i < (unsigned)argc; ++i) {
 			size_t len = strlen(zone->name);
@@ -728,7 +748,7 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 		}
 
 		if (!zone_match && argc > 0) {
-			/* WALK_LIST is a for-cycle. */
+			conf_free_zone(zone);
 			continue;
 		}
 
@@ -740,62 +760,62 @@ static int cmd_memstats(int argc, char *argv[], unsigned flags)
 
 		/* Init memory estimation context. */
 		zone_estim_t est = {.node_table = hattrie_create_n(TRIE_BUCKET_SIZE, &mem_ctx),
-		                    .dname_size = 0, .rrset_size = 0,
-		                    .node_size = 0, .ahtable_size = 0,
-		                    .rdata_size = 0, .record_count = 0 };
+		                    .dname_size = 0, .node_size = 0,
+		                    .htable_size = 0, .rdata_size = 0,
+		                    .record_count = 0 };
 		if (est.node_table == NULL) {
 			log_server_error("Not enough memory.\n");
 			continue;
 		}
 
 		/* Create file loader. */
-		file_loader_t *loader = file_loader_create(zone->file, zone->name,
-		                                           KNOT_CLASS_IN, 3600,
-		                                           estimator_rrset_memsize_wrap,
-		                                           process_error,
-		                                           &est);
+		zs_loader_t *loader = zs_loader_create(zone->file, zone->name,
+		                                       KNOT_CLASS_IN, 3600,
+		                                       estimator_rrset_memsize_wrap,
+		                                       process_error,
+		                                       &est);
 		if (loader == NULL) {
 			rc = 1;
 			log_zone_error("Could not load zone %s\n", zone->name);
-			hattrie_apply_rev(est.node_table, estimator_free_trie_node, NULL);
 			hattrie_free(est.node_table);
-			break;
+			continue;
 		}
 
 		/* Do a parser run, but do not actually create the zone. */
-		int ret = file_loader_process(loader);
+		int ret = zs_loader_process(loader);
 		if (ret != KNOT_EOK) {
 			rc = 1;
 			log_zone_error("Failed to parse zone %s.\n", zone->name);
 			hattrie_apply_rev(est.node_table, estimator_free_trie_node, NULL);
 			hattrie_free(est.node_table);
-			file_loader_free(loader);
-			break;
+			zs_loader_free(loader);
+			continue;
 		}
 
 		/* Only size of ahtables inside trie's nodes is missing. */
-		assert(est.ahtable_size == 0);
-		est.ahtable_size = estimator_trie_ahtable_memsize(est.node_table);
+		assert(est.htable_size == 0);
+		est.htable_size = estimator_trie_htable_memsize(est.node_table);
 
 		/* Cleanup */
 		hattrie_apply_rev(est.node_table, estimator_free_trie_node, NULL);
 		hattrie_free(est.node_table);
 
-		size_t zone_size = (size_t)(((double)(est.rdata_size +
+		double zone_size = ((double)(est.rdata_size +
 		                   est.node_size +
-		                   est.rrset_size +
 		                   est.dname_size +
-		                   est.ahtable_size +
-		                   malloc_size) * ESTIMATE_MAGIC) / (1024.0 * 1024.0));
+		                   est.htable_size +
+		                   malloc_size) * ESTIMATE_MAGIC) / (1024.0 * 1024.0);
 
 		log_zone_info("Zone %s: %zu RRs, used memory estimation is %zuMB.\n",
-		              zone->name, est.record_count, zone_size);
-		file_loader_free(loader);
+		              zone->name, est.record_count, (size_t)zone_size);
+		zs_loader_free(loader);
 		total_size += zone_size;
+		conf_free_zone(zone);
 	}
+	hattrie_iter_free(z_iter);
 
 	if (rc == 0 && argc == 0) { // for all zones
-		log_zone_info("Estimated memory consumption for all zones is %zuMB.\n", total_size);
+		log_zone_info("Estimated memory consumption for all zones is %zuMB.\n", (size_t)total_size);
 	}
 
 	return rc;

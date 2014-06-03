@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,14 +27,14 @@
 #include "common/lists.h"
 #include "knot/knot.h"
 
-int log_conf_hook(const struct conf_t *conf, void *data)
+int log_reconfigure(const struct conf_t *conf, void *data)
 {
 	// Data not used
 	int ret = 0;
 	UNUSED(data);
 
 	// Use defaults if no 'log' section is configured.
-	if (conf->logs_count < 0) {
+	if (EMPTY_LIST(conf->logs)) {
 		log_close();
 		log_init();
 		return KNOT_EOK;

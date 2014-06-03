@@ -29,20 +29,20 @@
 #include <arpa/inet.h>			// inet_pton
 
 #include "zscanner/scanner.h"
-#include "zscanner/error.h"		// error codes
-#include "zscanner/file_loader.h"	// file_loader
-#include "zscanner/scanner_functions.h"	// Base64
-#include "zscanner/descriptor.h"	// KNOT_RRTYPE_A
+#include "zscanner/loader.h"		// loader in includes
+#include "zscanner/error.h"
+#include "zscanner/functions.h"
+#include "common/descriptor.h"
 
 /*! \brief Shorthand for setting warning data. */
 #define WARN(code) { s->error_code = code; }
 /*! \brief Shorthand for setting error data. */
-#define ERR(code)   { s->error_code = code; s->stop = true; }
+#define ERR(code) { s->error_code = code; s->stop = true; }
 
 /*!
  * \brief Empty function which is called if no callback function is specified.
  */
-static inline void noop(const scanner_t *s)
+static inline void noop(zs_scanner_t *s)
 {
 	(void)s;
 }
@@ -65,7 +65,7 @@ static inline void type_num(const uint16_t type, uint8_t **rdata_tail)
  * \param type		Type number.
  * \param s		Scanner context.
  */
-static inline void window_add_bit(const uint16_t type, scanner_t *s) {
+static inline void window_add_bit(const uint16_t type, zs_scanner_t *s) {
 	uint8_t win      = type / 256;
 	uint8_t bit_pos  = type % 256;
 	uint8_t byte_pos = bit_pos / 8;
@@ -4875,64 +4875,23 @@ static const short _zone_scanner_eof_actions[] = {
 };
 
 static const int zone_scanner_start = 1056;
-static const int zone_scanner_first_final = 1056;
 static const int zone_scanner_error = 0;
 
-static const int zone_scanner_en_err_line = 246;
-static const int zone_scanner_en_dname_ = 248;
-static const int zone_scanner_en_text_ = 257;
-static const int zone_scanner_en_default_ttl_ = 269;
-static const int zone_scanner_en_zone_origin_ = 278;
-static const int zone_scanner_en_include_file_ = 290;
-static const int zone_scanner_en_base64_ = 307;
-static const int zone_scanner_en_bitmap_ = 314;
-static const int zone_scanner_en_nonempty_hex_r_data = 434;
-static const int zone_scanner_en_hex_r_data = 443;
-static const int zone_scanner_en_dns_alg_ = 453;
-static const int zone_scanner_en_cert_type_ = 548;
-static const int zone_scanner_en_r_data_a = 589;
-static const int zone_scanner_en_r_data_ns = 591;
-static const int zone_scanner_en_r_data_soa = 593;
-static const int zone_scanner_en_r_data_hinfo = 625;
-static const int zone_scanner_en_r_data_minfo = 630;
-static const int zone_scanner_en_r_data_mx = 635;
-static const int zone_scanner_en_r_data_txt = 640;
-static const int zone_scanner_en_r_data_aaaa = 644;
-static const int zone_scanner_en_r_data_loc = 646;
-static const int zone_scanner_en_r_data_srv = 701;
-static const int zone_scanner_en_r_data_naptr = 712;
-static const int zone_scanner_en_r_data_cert = 729;
-static const int zone_scanner_en_r_data_apl = 740;
-static const int zone_scanner_en_r_data_ds = 751;
-static const int zone_scanner_en_r_data_sshfp = 764;
-static const int zone_scanner_en_r_data_ipseckey = 774;
-static const int zone_scanner_en_r_data_rrsig = 813;
-static const int zone_scanner_en_r_data_nsec = 955;
-static const int zone_scanner_en_r_data_dnskey = 958;
-static const int zone_scanner_en_r_data_dhcid = 969;
-static const int zone_scanner_en_r_data_nsec3 = 971;
-static const int zone_scanner_en_r_data_nsec3param = 1000;
-static const int zone_scanner_en_r_data_tlsa = 1013;
-static const int zone_scanner_en_r_data_l32 = 1026;
-static const int zone_scanner_en_r_data_l64 = 1031;
-static const int zone_scanner_en_r_data_eui48 = 1044;
-static const int zone_scanner_en_r_data_eui64 = 1050;
-static const int zone_scanner_en_main = 1056;
 
 
 
 
-scanner_t* scanner_create(const char     *file_name,
-                          const char     *origin,
-                          const uint16_t rclass,
-                          const uint32_t ttl,
-                          void (*process_record)(const scanner_t *),
-                          void (*process_error)(const scanner_t *),
-                          void *data)
+zs_scanner_t* zs_scanner_create(const char     *file_name,
+                                const char     *origin,
+                                const uint16_t rclass,
+                                const uint32_t ttl,
+                                void (*process_record)(zs_scanner_t *),
+                                void (*process_error)(zs_scanner_t *),
+                                void *data)
 {
 	char settings[1024];
 
-	scanner_t *s = calloc(1, sizeof(scanner_t));
+	zs_scanner_t *s = calloc(1, sizeof(zs_scanner_t));
 	if (s == NULL) {
 		return NULL;
 	}
@@ -4971,8 +4930,8 @@ scanner_t* scanner_create(const char     *file_name,
 	}
 	int ret = snprintf(settings, sizeof(settings), format, origin);
 	if (ret <= 0 || (size_t)ret >= sizeof(settings) ||
-	    scanner_process(settings, settings + ret, true, s) != 0) {
-		scanner_free(s);
+	    zs_scanner_process(settings, settings + ret, true, s) != 0) {
+		zs_scanner_free(s);
 		return NULL;
 	}
 
@@ -4987,7 +4946,7 @@ scanner_t* scanner_create(const char     *file_name,
 	return s;
 }
 
-void scanner_free(scanner_t *s)
+void zs_scanner_free(zs_scanner_t *s)
 {
 	if (s != NULL) {
 		free(s->file_name);
@@ -4996,10 +4955,10 @@ void scanner_free(scanner_t *s)
 	}
 }
 
-int scanner_process(const char *start,
-                    const char *end,
-                    const bool is_complete,
-                    scanner_t  *s)
+int zs_scanner_process(const char   *start,
+                       const char   *end,
+                       const bool   is_complete,
+                       zs_scanner_t *s)
 {
 	// Necessary scanner variables.
 	const char *p = start;
@@ -5237,7 +5196,7 @@ _match:
 	case 2:
 	{
 		if (s->multiline == true) {
-			ERR(ZSCANNER_ELEFT_PARENTHESIS);
+			ERR(ZS_LEFT_PARENTHESIS);
 			p--; {cs = 246; goto _again;}
 		}
 		s->multiline = true;
@@ -5246,7 +5205,7 @@ _match:
 	case 3:
 	{
 		if (s->multiline == false) {
-			ERR(ZSCANNER_ERIGHT_PARENTHESIS);
+			ERR(ZS_RIGHT_PARENTHESIS);
 			p--; {cs = 246; goto _again;}
 		}
 		s->multiline = false;
@@ -5254,7 +5213,7 @@ _match:
 	break;
 	case 4:
 	{
-		WARN(ZSCANNER_EBAD_REST);
+		WARN(ZS_BAD_REST);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5266,7 +5225,7 @@ _match:
 	case 6:
 	{
 		if ((*p) == '\r') {
-			ERR(ZSCANNER_DOS_NEWLINE);
+			ERR(ZS_DOS_NEWLINE);
 		}
 
 		if (s->buffer_length < sizeof(s->buffer) - 1) {
@@ -5289,7 +5248,7 @@ _match:
 		s->process_error(s);
 
 		// Reset.
-		s->error_code = ZSCANNER_OK;
+		s->error_code = ZS_OK;
 		s->multiline = false;
 
 		// In case of serious error, stop scanner.
@@ -5313,7 +5272,7 @@ _match:
 			(s->dname)[s->dname_tmp_length++] = (*p);
 			s->item_length++;
 		} else {
-			WARN(ZSCANNER_ELABEL_OVERFLOW);
+			WARN(ZS_LABEL_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5324,7 +5283,7 @@ _match:
 			(s->dname)[s->item_length_position] =
 				(uint8_t)(s->item_length);
 		} else {
-			WARN(ZSCANNER_EDNAME_OVERFLOW);
+			WARN(ZS_DNAME_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5335,7 +5294,7 @@ _match:
 			(s->dname)[s->dname_tmp_length] = 0;
 			s->item_length++;
 		} else {
-			WARN(ZSCANNER_ELABEL_OVERFLOW);
+			WARN(ZS_LABEL_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5353,7 +5312,7 @@ _match:
 	break;
 	case 15:
 	{
-		WARN(ZSCANNER_EBAD_NUMBER);
+		WARN(ZS_BAD_NUMBER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5371,7 +5330,7 @@ _match:
 		s->dname_tmp_length += s->zone_origin_length;
 
 		if (s->dname_tmp_length > MAX_DNAME_LENGTH) {
-			WARN(ZSCANNER_EDNAME_OVERFLOW);
+			WARN(ZS_DNAME_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5393,7 +5352,7 @@ _match:
 	break;
 	case 20:
 	{
-		WARN(ZSCANNER_EBAD_DNAME_CHAR);
+		WARN(ZS_BAD_DNAME_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5412,7 +5371,7 @@ _match:
 		if (s->item_length <= MAX_ITEM_LENGTH) {
 			*(s->item_length_location) = (uint8_t)(s->item_length);
 		} else {
-			WARN(ZSCANNER_EITEM_OVERFLOW);
+			WARN(ZS_ITEM_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5431,7 +5390,7 @@ _match:
 	case 26:
 	{
 		if (s->r_owner_length == 0) {
-			WARN(ZSCANNER_EBAD_PREVIOUS_OWNER);
+			WARN(ZS_BAD_PREVIOUS_OWNER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5439,7 +5398,7 @@ _match:
 	case 27:
 	{
 		s->r_owner_length = 0;
-		WARN(ZSCANNER_EBAD_OWNER);
+		WARN(ZS_BAD_OWNER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5464,7 +5423,7 @@ _match:
 			s->number64 *= 10;
 			s->number64 += digit_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ENUMBER64_OVERFLOW);
+			WARN(ZS_NUMBER64_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5476,7 +5435,7 @@ _match:
 	break;
 	case 32:
 	{
-		WARN(ZSCANNER_EBAD_NUMBER);
+		WARN(ZS_BAD_NUMBER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5504,7 +5463,7 @@ _match:
 			s->number64 *= pow(10, s->decimals - s->decimal_counter);
 			s->number64 += s->number64_tmp * pow(10, s->decimals);
 		} else {
-			WARN(ZSCANNER_EFLOAT_OVERFLOW);
+			WARN(ZS_FLOAT_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5525,7 +5484,7 @@ _match:
 			*rdata_tail = (uint8_t)(s->number64);
 			rdata_tail += 1;
 		} else {
-			WARN(ZSCANNER_ENUMBER8_OVERFLOW);
+			WARN(ZS_NUMBER8_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5536,7 +5495,7 @@ _match:
 			*((uint16_t *)rdata_tail) = htons((uint16_t)(s->number64));
 			rdata_tail += 2;
 		} else {
-			WARN(ZSCANNER_ENUMBER16_OVERFLOW);
+			WARN(ZS_NUMBER16_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5547,7 +5506,7 @@ _match:
 			*((uint32_t *)rdata_tail) = htonl((uint32_t)(s->number64));
 			rdata_tail += 4;
 		} else {
-			WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+			WARN(ZS_NUMBER32_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5557,7 +5516,7 @@ _match:
 		if (s->number64 <= UINT16_MAX) {
 			s->r_type = (uint16_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_ENUMBER16_OVERFLOW);
+			WARN(ZS_NUMBER16_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5567,14 +5526,14 @@ _match:
 		if (s->number64 <= UINT16_MAX) {
 			s->r_data_length = (uint16_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_ENUMBER16_OVERFLOW);
+			WARN(ZS_NUMBER16_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 44:
 	{
-		WARN(ZSCANNER_EBAD_TIME_UNIT);
+		WARN(ZS_BAD_TIME_UNIT);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5582,7 +5541,7 @@ _match:
 	{ if (s->number64 <= (UINT32_MAX / 60)) {
 	                  s->number64 *= 60;
 	              } else {
-	                  WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+	                  WARN(ZS_NUMBER32_OVERFLOW);
 	                  p--; {cs = 246; goto _again;}
 	              }
 	            }
@@ -5591,7 +5550,7 @@ _match:
 	{ if (s->number64 <= (UINT32_MAX / 3600)) {
 	                  s->number64 *= 3600;
 	              } else {
-	                  WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+	                  WARN(ZS_NUMBER32_OVERFLOW);
 	                  p--; {cs = 246; goto _again;}
 	              }
 	            }
@@ -5600,7 +5559,7 @@ _match:
 	{ if (s->number64 <= (UINT32_MAX / 86400)) {
 	                  s->number64 *= 86400;
 	              } else {
-	                  WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+	                  WARN(ZS_NUMBER32_OVERFLOW);
 	                  p--; {cs = 246; goto _again;}
 	              }
 	            }
@@ -5609,7 +5568,7 @@ _match:
 	{ if (s->number64 <= (UINT32_MAX / 604800)) {
 	                  s->number64 *= 604800;
 	              } else {
-	                  WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+	                  WARN(ZS_NUMBER32_OVERFLOW);
 	                  p--; {cs = 246; goto _again;}
 	              }
 	            }
@@ -5624,7 +5583,7 @@ _match:
 		if (s->number64 + s->number64_tmp < UINT32_MAX) {
 			s->number64 += s->number64_tmp;
 		} else {
-			WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+			WARN(ZS_NUMBER32_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5639,7 +5598,7 @@ _match:
 		if (s->buffer_length < MAX_RDATA_LENGTH) {
 			s->buffer[s->buffer_length++] = (*p);
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5651,7 +5610,7 @@ _match:
 		if (s->buffer_length == 14) { // Date; 14 = len("YYYYMMDDHHmmSS").
 			ret = date_to_timestamp(s->buffer, &timestamp);
 
-			if (ret == ZSCANNER_OK) {
+			if (ret == ZS_OK) {
 				*((uint32_t *)rdata_tail) = htonl(timestamp);
 				rdata_tail += 4;
 			} else {
@@ -5664,7 +5623,7 @@ _match:
 			s->number64 = strtoull((char *)(s->buffer), &end,  10);
 
 			if (end == (char *)(s->buffer) || *end != '\0') {
-				WARN(ZSCANNER_EBAD_TIMESTAMP);
+				WARN(ZS_BAD_TIMESTAMP);
 				p--; {cs = 246; goto _again;}
 			}
 
@@ -5672,18 +5631,18 @@ _match:
 				*((uint32_t *)rdata_tail) = htonl((uint32_t)s->number64);
 				rdata_tail += 4;
 			} else {
-				WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+				WARN(ZS_NUMBER32_OVERFLOW);
 				p--; {cs = 246; goto _again;}
 			}
 		} else {
-			WARN(ZSCANNER_EBAD_TIMESTAMP_LENGTH);
+			WARN(ZS_BAD_TIMESTAMP_LENGTH);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 54:
 	{
-		WARN(ZSCANNER_EBAD_TIMESTAMP_CHAR);
+		WARN(ZS_BAD_TIMESTAMP_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5692,20 +5651,20 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*(rdata_tail++) = (*p);
 		} else {
-			WARN(ZSCANNER_ETEXT_OVERFLOW);
+			WARN(ZS_TEXT_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 56:
 	{
-		WARN(ZSCANNER_EBAD_TEXT_CHAR);
+		WARN(ZS_BAD_TEXT_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 57:
 	{
-		WARN(ZSCANNER_EBAD_TEXT);
+		WARN(ZS_BAD_TEXT);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5715,7 +5674,7 @@ _match:
 			*rdata_tail = 0;
 			s->item_length++;
 		} else {
-			WARN(ZSCANNER_ETEXT_OVERFLOW);
+			WARN(ZS_TEXT_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5730,7 +5689,7 @@ _match:
 			*rdata_tail *= 10;
 			*rdata_tail += digit_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ENUMBER8_OVERFLOW);
+			WARN(ZS_NUMBER8_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5742,7 +5701,7 @@ _match:
 	break;
 	case 61:
 	{
-		WARN(ZSCANNER_EBAD_NUMBER);
+		WARN(ZS_BAD_NUMBER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5754,14 +5713,14 @@ _match:
 		if (s->number64 <= UINT32_MAX) {
 			s->default_ttl = (uint32_t)(s->number64);
 		} else {
-			ERR(ZSCANNER_ENUMBER32_OVERFLOW);
+			ERR(ZS_NUMBER32_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 64:
 	{
-		ERR(ZSCANNER_EBAD_TTL);
+		ERR(ZS_BAD_TTL);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5780,7 +5739,7 @@ _match:
 	break;
 	case 68:
 	{
-		ERR(ZSCANNER_EBAD_ORIGIN);
+		ERR(ZS_BAD_ORIGIN);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5801,7 +5760,7 @@ _match:
 		// Check for correct string copy.
 		if (strlen(s->include_filename) !=
 		    (size_t)(rdata_tail - s->r_data)) {
-			ERR(ZSCANNER_EBAD_INCLUDE_FILENAME);
+			ERR(ZS_BAD_INCLUDE_FILENAME);
 			p--; {cs = 246; goto _again;}
 		}
 
@@ -5811,7 +5770,7 @@ _match:
 	break;
 	case 72:
 	{
-		ERR(ZSCANNER_EBAD_INCLUDE_FILENAME);
+		ERR(ZS_BAD_INCLUDE_FILENAME);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5827,7 +5786,7 @@ _match:
 	break;
 	case 75:
 	{
-		ERR(ZSCANNER_EBAD_INCLUDE_ORIGIN);
+		ERR(ZS_BAD_INCLUDE_ORIGIN);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5856,24 +5815,24 @@ _match:
 		}
 
 		// Create new file loader for included zone file.
-		file_loader_t *fl = file_loader_create((char*)(s->buffer),
-		                                       text_origin,
-		                                       s->default_class,
-		                                       s->default_ttl,
-		                                       s->process_record,
-		                                       s->process_error,
-		                                       s->data);
+		zs_loader_t *fl = zs_loader_create((char*)(s->buffer),
+		                                   text_origin,
+		                                   s->default_class,
+		                                   s->default_ttl,
+		                                   s->process_record,
+		                                   s->process_error,
+		                                   s->data);
 		if (fl != NULL) {
 			// Process included zone file.
-			ret = file_loader_process(fl);
-			file_loader_free(fl);
+			ret = zs_loader_process(fl);
+			zs_loader_free(fl);
 
 			if (ret != 0) {
-				ERR(ZSCANNER_EUNPROCESSED_INCLUDE);
+				ERR(ZS_UNPROCESSED_INCLUDE);
 				p--; {cs = 246; goto _again;}
 			}
 		} else {
-			ERR(ZSCANNER_EUNOPENED_INCLUDE);
+			ERR(ZS_UNOPENED_INCLUDE);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5893,7 +5852,7 @@ _match:
 	break;
 	case 80:
 	{
-		ERR(ZSCANNER_EBAD_DIRECTIVE);
+		ERR(ZS_BAD_DIRECTIVE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5917,7 +5876,7 @@ _match:
 		if (s->number64 <= UINT32_MAX) {
 			s->r_ttl = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_ENUMBER32_OVERFLOW);
+			WARN(ZS_NUMBER32_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5933,14 +5892,14 @@ _match:
 			s->buffer[s->buffer_length++] = (*p);
 		}
 		else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 87:
 	{
-		WARN(ZSCANNER_EBAD_ADDRESS_CHAR);
+		WARN(ZS_BAD_ADDRESS_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -5949,7 +5908,7 @@ _match:
 		s->buffer[s->buffer_length] = 0;
 
 		if (inet_pton(AF_INET, (char *)s->buffer, &addr4) <= 0) {
-			WARN(ZSCANNER_EBAD_IPV4);
+			WARN(ZS_BAD_IPV4);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -5965,7 +5924,7 @@ _match:
 		s->buffer[s->buffer_length] = 0;
 
 		if (inet_pton(AF_INET6, (char *)s->buffer, &addr6) <= 0) {
-			WARN(ZSCANNER_EBAD_IPV6);
+			WARN(ZS_BAD_IPV6);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6002,7 +5961,7 @@ _match:
 		    (s->apl.addr_family == 2 && s->number64 <= 128)) {
 			s->apl.prefix_length = (uint8_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_APL);
+			WARN(ZS_BAD_APL);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6027,7 +5986,7 @@ _match:
 			memcpy(s->buffer, &(addr6.s6_addr), len);
 			break;
 		default:
-			WARN(ZSCANNER_EBAD_APL);
+			WARN(ZS_BAD_APL);
 			p--; {cs = 246; goto _again;}
 		}
 		// Find prefix without trailing zeroes.
@@ -6047,7 +6006,7 @@ _match:
 	break;
 	case 98:
 	{
-		WARN(ZSCANNER_EBAD_APL);
+		WARN(ZS_BAD_APL);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6056,7 +6015,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = first_hex_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6069,21 +6028,21 @@ _match:
 	break;
 	case 101:
 	{
-		WARN(ZSCANNER_EBAD_HEX_CHAR);
+		WARN(ZS_BAD_HEX_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 102:
 	{
 		if ((rdata_tail - s->r_data) != s->r_data_length) {
-			WARN(ZSCANNER_EBAD_RDATA_LENGTH);
+			WARN(ZS_BAD_RDATA_LENGTH);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 103:
 	{
-		WARN(ZSCANNER_EBAD_HEX_RDATA);
+		WARN(ZS_BAD_HEX_RDATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6092,7 +6051,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = first_base64_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6104,7 +6063,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = second_right_base64_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6116,7 +6075,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = third_right_base64_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6128,7 +6087,7 @@ _match:
 	break;
 	case 108:
 	{
-		WARN(ZSCANNER_EBAD_BASE64_CHAR);
+		WARN(ZS_BAD_BASE64_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6140,7 +6099,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = first_base32hex_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6152,7 +6111,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = second_right_base32hex_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6169,7 +6128,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = fourth_right_base32hex_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6181,7 +6140,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = fifth_right_base32hex_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6198,7 +6157,7 @@ _match:
 		if (rdata_tail <= rdata_stop) {
 			*rdata_tail = seventh_right_base32hex_to_num[(uint8_t)(*p)];
 		} else {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6210,7 +6169,7 @@ _match:
 	break;
 	case 118:
 	{
-		WARN(ZSCANNER_EBAD_BASE32HEX_CHAR);
+		WARN(ZS_BAD_BASE32HEX_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6351,19 +6310,19 @@ _match:
 	break;
 	case 144:
 	{
-		WARN(ZSCANNER_EBAD_GATEWAY);
+		WARN(ZS_BAD_GATEWAY);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 145:
 	{
-		WARN(ZSCANNER_EBAD_GATEWAY_KEY);
+		WARN(ZS_BAD_GATEWAY_KEY);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 146:
 	{
-		WARN(ZSCANNER_EUNSUPPORTED_TYPE);
+		WARN(ZS_UNSUPPORTED_TYPE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6486,7 +6445,7 @@ _match:
 		if (s->number64 <= UINT16_MAX) {
 			window_add_bit(s->number64, s);
 		} else {
-			WARN(ZSCANNER_ENUMBER16_OVERFLOW);
+			WARN(ZS_NUMBER16_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6629,7 +6588,7 @@ _match:
 					       (s->windows[window]).length);
 					rdata_tail += (s->windows[window]).length;
 				} else {
-					WARN(ZSCANNER_ERDATA_OVERFLOW);
+					WARN(ZS_RDATA_OVERFLOW);
 					p--; {cs = 246; goto _again;}
 				}
 			}
@@ -6638,7 +6597,7 @@ _match:
 	break;
 	case 226:
 	{
-		WARN(ZSCANNER_EBAD_BITMAP);
+		WARN(ZS_BAD_BITMAP);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6650,7 +6609,7 @@ _match:
 		if (s->number64 <= 90) {
 			s->loc.d1 = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6660,7 +6619,7 @@ _match:
 		if (s->number64 <= 180) {
 			s->loc.d2 = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6670,7 +6629,7 @@ _match:
 		if (s->number64 <= 59) {
 			s->loc.m1 = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6680,7 +6639,7 @@ _match:
 		if (s->number64 <= 59) {
 			s->loc.m2 = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6690,7 +6649,7 @@ _match:
 		if (s->number64 <= 59999) {
 			s->loc.s1 = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6700,7 +6659,7 @@ _match:
 		if (s->number64 <= 59999) {
 			s->loc.s2 = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6712,7 +6671,7 @@ _match:
 		{
 			s->loc.alt = (uint32_t)(s->number64);
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6722,7 +6681,7 @@ _match:
 		if (s->number64 <= 9000000000ULL) {
 			s->loc.siz = s->number64;
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6732,7 +6691,7 @@ _match:
 		if (s->number64 <= 9000000000ULL) {
 			s->loc.hp = s->number64;
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6742,7 +6701,7 @@ _match:
 		if (s->number64 <= 9000000000ULL) {
 			s->loc.vp = s->number64;
 		} else {
-			WARN(ZSCANNER_EBAD_NUMBER);
+			WARN(ZS_BAD_NUMBER);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6804,13 +6763,13 @@ _match:
 	break;
 	case 243:
 	{
-		WARN(ZSCANNER_EBAD_LOC_DATA);
+		WARN(ZS_BAD_LOC_DATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 244:
 	{
-		WARN(ZSCANNER_EBAD_HEX_RDATA);
+		WARN(ZS_BAD_HEX_RDATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6827,7 +6786,7 @@ _match:
 	case 247:
 	{
 		if (s->item_length != 6) {
-			WARN(ZSCANNER_EBAD_EUI_LENGTH);
+			WARN(ZS_BAD_EUI_LENGTH);
 			p--; {cs = 246; goto _again;}
 		}
 	}
@@ -6835,14 +6794,14 @@ _match:
 	case 248:
 	{
 		if (s->item_length != 8) {
-			WARN(ZSCANNER_EBAD_EUI_LENGTH);
+			WARN(ZS_BAD_EUI_LENGTH);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 249:
 	{
-		WARN(ZSCANNER_EBAD_CHAR_DASH);
+		WARN(ZS_BAD_CHAR_DASH);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6859,26 +6818,26 @@ _match:
 	case 252:
 	{
 		if (s->item_length != 4) {
-			WARN(ZSCANNER_EBAD_L64_LENGTH);
+			WARN(ZS_BAD_L64_LENGTH);
 			p--; {cs = 246; goto _again;}
 		}
 	}
 	break;
 	case 253:
 	{
-		WARN(ZSCANNER_EBAD_CHAR_COLON);
+		WARN(ZS_BAD_CHAR_COLON);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 254:
 	{
-		WARN(ZSCANNER_EBAD_ALGORITHM);
+		WARN(ZS_BAD_ALGORITHM);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 255:
 	{
-		WARN(ZSCANNER_EBAD_CERT_TYPE);
+		WARN(ZS_BAD_CERT_TYPE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6895,7 +6854,7 @@ _match:
 	break;
 	case 259:
 	{
-		WARN(ZSCANNER_EBAD_RDATA);
+		WARN(ZS_BAD_RDATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -6969,7 +6928,7 @@ _match:
 		case KNOT_RRTYPE_EUI64:
 			{stack[top++] = cs; cs = 1050; goto _again;}
 		default:
-			WARN(ZSCANNER_ECANNOT_TEXT_DATA);
+			WARN(ZS_CANNOT_TEXT_DATA);
 			{cs = 246; goto _again;}
 		}
 	}
@@ -7028,7 +6987,7 @@ _match:
 	break;
 	case 263:
 	{
-		WARN(ZSCANNER_EUNSUPPORTED_TYPE);
+		WARN(ZS_UNSUPPORTED_TYPE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -7149,12 +7108,17 @@ _match:
 	case 302:
 	{
 		if (rdata_tail - s->r_data > UINT16_MAX) {
-			WARN(ZSCANNER_ERDATA_OVERFLOW);
+			WARN(ZS_RDATA_OVERFLOW);
 			p--; {cs = 246; goto _again;}
 		}
 		s->r_data_length = rdata_tail - s->r_data;
 
 		s->process_record(s);
+
+		// Stop scanner if required.
+		if (s->stop == true) {
+			return -1;
+		}
 	}
 	break;
 		}
@@ -7174,86 +7138,86 @@ _again:
 		switch ( *__acts++ ) {
 	case 4:
 	{
-		WARN(ZSCANNER_EBAD_REST);
+		WARN(ZS_BAD_REST);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 15:
 	{
-		WARN(ZSCANNER_EBAD_NUMBER);
+		WARN(ZS_BAD_NUMBER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 20:
 	{
-		WARN(ZSCANNER_EBAD_DNAME_CHAR);
+		WARN(ZS_BAD_DNAME_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 27:
 	{
 		s->r_owner_length = 0;
-		WARN(ZSCANNER_EBAD_OWNER);
+		WARN(ZS_BAD_OWNER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 32:
 	{
-		WARN(ZSCANNER_EBAD_NUMBER);
+		WARN(ZS_BAD_NUMBER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 44:
 	{
-		WARN(ZSCANNER_EBAD_TIME_UNIT);
+		WARN(ZS_BAD_TIME_UNIT);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 54:
 	{
-		WARN(ZSCANNER_EBAD_TIMESTAMP_CHAR);
+		WARN(ZS_BAD_TIMESTAMP_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 56:
 	{
-		WARN(ZSCANNER_EBAD_TEXT_CHAR);
+		WARN(ZS_BAD_TEXT_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 57:
 	{
-		WARN(ZSCANNER_EBAD_TEXT);
+		WARN(ZS_BAD_TEXT);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 61:
 	{
-		WARN(ZSCANNER_EBAD_NUMBER);
+		WARN(ZS_BAD_NUMBER);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 64:
 	{
-		ERR(ZSCANNER_EBAD_TTL);
+		ERR(ZS_BAD_TTL);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 68:
 	{
-		ERR(ZSCANNER_EBAD_ORIGIN);
+		ERR(ZS_BAD_ORIGIN);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 72:
 	{
-		ERR(ZSCANNER_EBAD_INCLUDE_FILENAME);
+		ERR(ZS_BAD_INCLUDE_FILENAME);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 75:
 	{
-		ERR(ZSCANNER_EBAD_INCLUDE_ORIGIN);
+		ERR(ZS_BAD_INCLUDE_ORIGIN);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -7264,115 +7228,115 @@ _again:
 	break;
 	case 80:
 	{
-		ERR(ZSCANNER_EBAD_DIRECTIVE);
+		ERR(ZS_BAD_DIRECTIVE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 87:
 	{
-		WARN(ZSCANNER_EBAD_ADDRESS_CHAR);
+		WARN(ZS_BAD_ADDRESS_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 98:
 	{
-		WARN(ZSCANNER_EBAD_APL);
+		WARN(ZS_BAD_APL);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 101:
 	{
-		WARN(ZSCANNER_EBAD_HEX_CHAR);
+		WARN(ZS_BAD_HEX_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 103:
 	{
-		WARN(ZSCANNER_EBAD_HEX_RDATA);
+		WARN(ZS_BAD_HEX_RDATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 108:
 	{
-		WARN(ZSCANNER_EBAD_BASE64_CHAR);
+		WARN(ZS_BAD_BASE64_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 118:
 	{
-		WARN(ZSCANNER_EBAD_BASE32HEX_CHAR);
+		WARN(ZS_BAD_BASE32HEX_CHAR);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 144:
 	{
-		WARN(ZSCANNER_EBAD_GATEWAY);
+		WARN(ZS_BAD_GATEWAY);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 145:
 	{
-		WARN(ZSCANNER_EBAD_GATEWAY_KEY);
+		WARN(ZS_BAD_GATEWAY_KEY);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 146:
 	{
-		WARN(ZSCANNER_EUNSUPPORTED_TYPE);
+		WARN(ZS_UNSUPPORTED_TYPE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 226:
 	{
-		WARN(ZSCANNER_EBAD_BITMAP);
+		WARN(ZS_BAD_BITMAP);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 243:
 	{
-		WARN(ZSCANNER_EBAD_LOC_DATA);
+		WARN(ZS_BAD_LOC_DATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 244:
 	{
-		WARN(ZSCANNER_EBAD_HEX_RDATA);
+		WARN(ZS_BAD_HEX_RDATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 249:
 	{
-		WARN(ZSCANNER_EBAD_CHAR_DASH);
+		WARN(ZS_BAD_CHAR_DASH);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 253:
 	{
-		WARN(ZSCANNER_EBAD_CHAR_COLON);
+		WARN(ZS_BAD_CHAR_COLON);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 254:
 	{
-		WARN(ZSCANNER_EBAD_ALGORITHM);
+		WARN(ZS_BAD_ALGORITHM);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 255:
 	{
-		WARN(ZSCANNER_EBAD_CERT_TYPE);
+		WARN(ZS_BAD_CERT_TYPE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 259:
 	{
-		WARN(ZSCANNER_EBAD_RDATA);
+		WARN(ZS_BAD_RDATA);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
 	case 263:
 	{
-		WARN(ZSCANNER_EUNSUPPORTED_TYPE);
+		WARN(ZS_UNSUPPORTED_TYPE);
 		p--; {cs = 246; goto _again;}
 	}
 	break;
@@ -7386,7 +7350,7 @@ _again:
 
 	// Check if scanner state machine is in uncovered state.
 	if (cs == zone_scanner_error) {
-		ERR(ZSCANNER_UNCOVERED_STATE);
+		ERR(ZS_UNCOVERED_STATE);
 		s->error_counter++;
 
 		// Fill error context data.
@@ -7413,7 +7377,7 @@ _again:
 
 	// Check unclosed multiline record.
 	if (is_complete && s->multiline) {
-		ERR(ZSCANNER_UNCLOSED_MULTILINE);
+		ERR(ZS_UNCLOSED_MULTILINE);
 		s->error_counter++;
 		s->process_error(s);
 	}

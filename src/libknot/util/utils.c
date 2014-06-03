@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <string.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -55,13 +54,17 @@ knot_lookup_table_t *knot_lookup_by_id(knot_lookup_table_t *table,
 
 /*----------------------------------------------------------------------------*/
 
-struct flock* knot_file_lock(short type, short whence)
+static int32_t serial_difference(uint32_t s1, uint32_t s2)
 {
-	static struct flock ret;
-	ret.l_type = type;
-	ret.l_start = 0;
-	ret.l_whence = whence;
-	ret.l_len = 0;
-	ret.l_pid = getpid();
-	return &ret;
+	return (((int64_t)s1 - s2) % ((int64_t)1 << 32));
+}
+
+int knot_serial_compare(uint32_t s1, uint32_t s2)
+{
+	int32_t diff = serial_difference(s1, s2);
+	return (s1 == s2) /* s1 equal to s2 */
+	        ? 0
+	        :((diff >= 1 && diff < ((uint32_t)1 << 31))
+	           ? 1	/* s1 larger than s2 */
+	           : -1); /* s1 less than s2 */
 }

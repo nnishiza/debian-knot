@@ -24,11 +24,16 @@
  * @{
  */
 
-#ifndef _KNOT_SEMANTIC_CHECK_H_
-#define _KNOT_SEMANTIC_CHECK_H_
+#pragma once
 
-#include "libknot/zone/node.h"
-#include "libknot/zone/zone-contents.h"
+#include "knot/zone/node.h"
+#include "knot/zone/contents.h"
+
+enum check_levels {
+	SEM_CHECK_UNSIGNED = 1,
+	SEM_CHECK_NSEC = 2,
+	SEM_CHECK_NSEC3 = 3
+};
 
 /*!
  *\brief Internal error constants. General errors are added for convenience,
@@ -39,8 +44,9 @@ enum zonechecks_errors {
 
 	ZC_ERR_MISSING_SOA,
 	ZC_ERR_MISSING_NS_DEL_POINT,
+	ZC_ERR_TTL_MISMATCH,
 
-	ZC_ERR_GENERIC_GENERAL_ERROR, /* isn't there a better name? */
+	ZC_ERR_GENERIC_GENERAL_ERROR, /* Generic error delimiter. */
 
 	ZC_ERR_RRSIG_RDATA_TYPE_COVERED,
 	ZC_ERR_RRSIG_RDATA_TTL,
@@ -55,7 +61,7 @@ enum zonechecks_errors {
 	ZC_ERR_RRSIG_CLASS,
 	ZC_ERR_RRSIG_TTL,
 
-	ZC_ERR_RRSIG_GENERAL_ERROR,
+	ZC_ERR_RRSIG_GENERAL_ERROR, /* RRSIG error delimiter. */
 
 	ZC_ERR_NO_NSEC,
 	ZC_ERR_NSEC_RDATA_BITMAP,
@@ -63,7 +69,7 @@ enum zonechecks_errors {
 	ZC_ERR_NSEC_RDATA_CHAIN,
 	ZC_ERR_NSEC_RDATA_CHAIN_NOT_CYCLIC,
 
-	ZC_ERR_NSEC_GENERAL_ERROR,
+	ZC_ERR_NSEC_GENERAL_ERROR, /* NSEC error delimiter. */
 
 	ZC_ERR_NSEC3_UNSECURED_DELEGATION,
 	ZC_ERR_NSEC3_NOT_FOUND,
@@ -73,7 +79,7 @@ enum zonechecks_errors {
 	ZC_ERR_NSEC3_RDATA_BITMAP,
 	ZC_ERR_NSEC3_EXTRA_RECORD,
 
-	ZC_ERR_NSEC3_GENERAL_ERROR,
+	ZC_ERR_NSEC3_GENERAL_ERROR, /* NSEC3 error delimiter. */
 
 	ZC_ERR_CNAME_EXTRA_RECORDS,
 	ZC_ERR_DNAME_CHILDREN,
@@ -83,12 +89,12 @@ enum zonechecks_errors {
 	ZC_ERR_CNAME_WILDCARD_SELF,
 	ZC_ERR_DNAME_WILDCARD_SELF,
 
-	ZC_ERR_CNAME_GENERAL_ERROR,
+	ZC_ERR_CNAME_GENERAL_ERROR, /* CNAME/DNAME error delimiter. */
 
 	ZC_ERR_GLUE_NODE,
 	ZC_ERR_GLUE_RECORD,
 
-	ZC_ERR_GLUE_GENERAL_ERROR,
+	ZC_ERR_GLUE_GENERAL_ERROR, /* GLUE error delimiter. */
 };
 
 /*!
@@ -161,8 +167,8 @@ err_handler_t *err_handler_new();
  * \retval ZC_ERR_ALLOC if memory error.
  */
 int err_handler_handle_error(err_handler_t *handler,
-				    const knot_node_t *node,
-				    int error, const char *data);
+                             const zone_node_t *node,
+                             int error, const char *data);
 
 /*!
  * \brief Checks if last node in NSEC/NSEC3 chain points to first node in the
@@ -174,11 +180,11 @@ int err_handler_handle_error(err_handler_t *handler,
  * \param do_checks Level of semantic checks.
  */
 void log_cyclic_errors_in_zone(err_handler_t *handler,
-				      knot_zone_contents_t *zone,
-				      knot_node_t *last_node,
-				      const knot_node_t *first_nsec3_node,
-				      const knot_node_t *last_nsec3_node,
-				      char do_checks);
+                               zone_contents_t *zone,
+                               zone_node_t *last_node,
+                               const zone_node_t *first_nsec3_node,
+                               const zone_node_t *last_nsec3_node,
+                               char do_checks);
 
 /*!
  * \brief This function prints all errors that occured in zone.
@@ -196,16 +202,25 @@ void err_handler_log_all(err_handler_t *handler);
  * \param handler Semantic error handler.
  * \param last_node Last checked node, that is a part of NSEC(3) chain.
  */
-int zone_do_sem_checks(knot_zone_contents_t *zone, int check_level,
-                       err_handler_t *handler, knot_node_t *first_nsec3_node,
-                       knot_node_t *last_nsec3_node);
+int zone_do_sem_checks(zone_contents_t *zone, int check_level,
+                       err_handler_t *handler, zone_node_t *first_nsec3_node,
+                       zone_node_t *last_nsec3_node);
 
-int sem_check_node_plain(const knot_zone_contents_t *zone,
-                         const knot_node_t *node,
+/*!
+ * \brief Does a non-DNSSEC semantic node check. Logs errors via error handler.
+ *
+ * \param zone            Zone containing the node.
+ * \param node            Node to be tested.
+ * \param handler         Error handler.
+ * \param only_mandatory  Mandatory/optional switch.
+ * \param fatal_error     Fatal error out param.
+ *
+ * \return KNOT_E*
+ */
+int sem_check_node_plain(const zone_contents_t *zone,
+                         const zone_node_t *node,
                          err_handler_t *handler,
                          bool only_mandatory,
                          bool *fatal_error);
-
-#endif // _KNOT_SEMANTIC_CHECK_H_
 
 /*! @} */

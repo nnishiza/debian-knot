@@ -17,8 +17,10 @@
 #include <config.h>
 #include <tap/basic.h>
 
-#include "libknot/zone/zonedb.h"
-#include "libknot/zone/zone.h"
+#include "common/strlcat.h"
+#include "common/strlcpy.h"
+#include "knot/zone/zone.h"
+#include "knot/zone/zonedb.h"
 
 #define ZONE_COUNT 10
 static const char *zone_list[ZONE_COUNT] = {
@@ -37,80 +39,81 @@ static const char *zone_list[ZONE_COUNT] = {
 int main(int argc, char *argv[])
 {
 	plan(6);
-	
+
 	/* Create database. */
-	char buf[KNOT_DNAME_MAX_LENGTH];
+	char buf[KNOT_DNAME_MAXLEN];
 	const char *prefix = "zzz.";
 	size_t nr_passed = 0;
 	knot_dname_t *dname = NULL;
-	knot_zone_t *zone = NULL;
-	knot_zone_t *zones[ZONE_COUNT] = {0};
+	zone_t *zones[ZONE_COUNT] = {0};
 	knot_zonedb_t *db = knot_zonedb_new(ZONE_COUNT);
 	ok(db != NULL, "zonedb: new");
-	
+
 	/* Populate. */
 	for (unsigned i = 0; i < ZONE_COUNT; ++i) {
-		dname = knot_dname_from_str(zone_list[i]);
-		zones[i] = knot_zone_new_empty(dname);
+		conf_zone_t *zone_conf = malloc(sizeof(conf_zone_t));
+		conf_init_zone(zone_conf);
+		zone_conf->name = strdup(zone_list[i]);
+
+		zones[i] = zone_new(zone_conf);
 		if (zones[i] == NULL) {
-			knot_dname_free(&dname);
 			goto cleanup;
 		}
-		if (knot_zonedb_add_zone(db, zones[i]) == KNOT_EOK) {
+		if (knot_zonedb_insert(db, zones[i]) == KNOT_EOK) {
 			++nr_passed;
 		} else {
 			diag("knot_zonedb_add_zone(%s) failed", zone_list[i]);
 		}
 	}
 	ok(nr_passed == ZONE_COUNT, "zonedb: add zones");
-	
+
 	/* Build search index. */
 	ok(knot_zonedb_build_index(db) == KNOT_EOK, "zonedb: build search index");
-	
+
 	/* Lookup of exact names. */
 	nr_passed = 0;
 	for (unsigned i = 0; i < ZONE_COUNT; ++i) {
 		dname = knot_dname_from_str(zone_list[i]);
-		if (knot_zonedb_find_zone(db, dname) == zones[i]) {
+		if (knot_zonedb_find(db, dname) == zones[i]) {
 			++nr_passed;
 		} else {
-			diag("knot_zonedb_find_zone(%s) failed", zone_list[i]);
+			diag("knot_zonedb_find(%s) failed", zone_list[i]);
 		}
-		knot_dname_free(&dname);
+		knot_dname_free(&dname, NULL);
 	}
 	ok(nr_passed == ZONE_COUNT, "zonedb: find exact zones");
-	
+
 	/* Lookup of sub-names. */
 	nr_passed = 0;
 	for (unsigned i = 0; i < ZONE_COUNT; ++i) {
-		strcpy(buf, prefix);
+		strlcpy(buf, prefix, sizeof(buf));
 		if (strcmp(zone_list[i], ".") != 0) {
-			strncat(buf, zone_list[i], strlen(zone_list[i]));
+			strlcat(buf, zone_list[i], sizeof(buf));
 		}
 		dname = knot_dname_from_str(buf);
-		if (knot_zonedb_find_zone_for_name(db, dname) == zones[i]) {
+		if (knot_zonedb_find_suffix(db, dname) == zones[i]) {
 			++nr_passed;
 		} else {
-			diag("knot_zonedb_find_zone(%s) failed", buf);
+			diag("knot_zonedb_find_suffix(%s) failed", buf);
 		}
-		knot_dname_free(&dname);
+		knot_dname_free(&dname, NULL);
 	}
 	ok(nr_passed == ZONE_COUNT, "zonedb: find zones for subnames");
-	
+
 	/* Remove all zones. */
 	nr_passed = 0;
 	for (unsigned i = 0; i < ZONE_COUNT; ++i) {
 		dname = knot_dname_from_str(zone_list[i]);
-		zone = knot_zonedb_remove_zone(db, dname);
-		if (zone == zones[i]) {
-			knot_zone_free(&zone);
+		if (knot_zonedb_del(db, dname) == KNOT_EOK) {
+			zone_free(&zones[i]);
 			++nr_passed;
 		} else {
 			diag("knot_zonedb_remove_zone(%s) failed", zone_list[i]);
 		}
+		knot_dname_free(&dname, NULL);
 	}
 	ok(nr_passed == ZONE_COUNT, "zonedb: removed all zones");
-	
+
 cleanup:
 	knot_zonedb_deep_free(&db);
 	return 0;

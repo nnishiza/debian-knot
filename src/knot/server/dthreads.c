@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -286,7 +285,7 @@ static void dt_delete_thread(dthread_t **thread)
  * Public APIs.
  */
 
-dt_unit_t *dt_create(int count)
+static dt_unit_t *dt_create_unit(int count)
 {
 	// Check count
 	if (count <= 0) {
@@ -379,8 +378,7 @@ dt_unit_t *dt_create(int count)
 	return unit;
 }
 
-dt_unit_t *dt_create_coherent(int count, runnable_t runnable,
-                              runnable_t destructor, void *data)
+dt_unit_t *dt_create(int count, runnable_t runnable, runnable_t destructor, void *data)
 {
 	// Check count
 	if (count <= 0) {
@@ -388,7 +386,7 @@ dt_unit_t *dt_create_coherent(int count, runnable_t runnable,
 	}
 
 	// Create unit
-	dt_unit_t *unit = dt_create(count);
+	dt_unit_t *unit = dt_create_unit(count);
 	if (unit == 0) {
 		return 0;
 	}
@@ -452,39 +450,7 @@ void dt_delete(dt_unit_t **unit)
 	*unit = 0;
 }
 
-int dt_start(dt_unit_t *unit)
-{
-	// Check input
-	if (unit == 0) {
-		return KNOT_EINVAL;
-	}
-
-	// Lock unit
-	pthread_mutex_lock(&unit->_notify_mx);
-	dt_unit_lock(unit);
-	for (int i = 0; i < unit->size; ++i) {
-
-		dthread_t *thread = unit->threads[i];
-		int res = dt_start_id(thread);
-		if (res != 0) {
-			dbg_dt("dthreads: failed to create thread '%d'.", i);
-			dt_unit_unlock(unit);
-			pthread_mutex_unlock(&unit->_notify_mx);
-			return res;
-		}
-
-		dbg_dt("dthreads: [%p] %s: thread started\n",
-		         thread, __func__);
-	}
-
-	// Unlock unit
-	dt_unit_unlock(unit);
-	pthread_cond_broadcast(&unit->_notify);
-	pthread_mutex_unlock(&unit->_notify_mx);
-	return KNOT_EOK;
-}
-
-int dt_start_id(dthread_t *thread)
+static int dt_start_id(dthread_t *thread)
 {
 	// Check input
 	if (thread == 0) {
@@ -518,6 +484,38 @@ int dt_start_id(dthread_t *thread)
 	// Unlock thread
 	unlock_thread_rw(thread);
 	return res;
+}
+
+int dt_start(dt_unit_t *unit)
+{
+	// Check input
+	if (unit == 0) {
+		return KNOT_EINVAL;
+	}
+
+	// Lock unit
+	pthread_mutex_lock(&unit->_notify_mx);
+	dt_unit_lock(unit);
+	for (int i = 0; i < unit->size; ++i) {
+
+		dthread_t *thread = unit->threads[i];
+		int res = dt_start_id(thread);
+		if (res != 0) {
+			dbg_dt("dthreads: failed to create thread '%d'.", i);
+			dt_unit_unlock(unit);
+			pthread_mutex_unlock(&unit->_notify_mx);
+			return res;
+		}
+
+		dbg_dt("dthreads: [%p] %s: thread started\n",
+		         thread, __func__);
+	}
+
+	// Unlock unit
+	dt_unit_unlock(unit);
+	pthread_cond_broadcast(&unit->_notify);
+	pthread_mutex_unlock(&unit->_notify_mx);
+	return KNOT_EOK;
 }
 
 int dt_signalize(dthread_t *thread, int signum)
@@ -594,32 +592,6 @@ int dt_join(dt_unit_t *unit)
 		// Wait for a thread to finish
 		pthread_cond_wait(&unit->_report, &unit->_report_mx);
 		pthread_mutex_unlock(&unit->_report_mx);
-	}
-
-	return KNOT_EOK;
-}
-
-int dt_stop_id(dthread_t *thread)
-{
-	// Check input
-	if (thread == 0) {
-		return KNOT_EINVAL;
-	}
-
-	// Signalize active thread to stop
-	lock_thread_rw(thread);
-	if (thread->state & (ThreadIdle | ThreadActive)) {
-		thread->state = ThreadDead | ThreadCancelled;
-		dt_signalize(thread, SIGALRM);
-	}
-	unlock_thread_rw(thread);
-
-	// Broadcast notification
-	dt_unit_t *unit = thread->unit;
-	if (unit != 0) {
-		pthread_mutex_lock(&unit->_notify_mx);
-		pthread_cond_broadcast(&unit->_notify);
-		pthread_mutex_unlock(&unit->_notify_mx);
 	}
 
 	return KNOT_EOK;
@@ -704,65 +676,6 @@ int dt_setaffinity(dthread_t *thread, unsigned* cpu_id, size_t cpu_count)
 	return KNOT_EOK;
 }
 
-/*!
- * \brief Set thread destructor to be called before physical thread termination.
- *
- * \param thread Target thread instance
- * \param destructor Destructor callback.
- */
-int dt_set_desctructor(dthread_t *thread, runnable_t destructor)
-{
-	if (thread == 0) {
-		return KNOT_EINVAL;
-	}
-
-	thread->destruct = destructor;
-
-	return KNOT_EOK;
-}
-
-int dt_repurpose(dthread_t *thread, runnable_t runnable, void *data)
-{
-	// Check
-	if (thread == 0) {
-		return KNOT_EINVAL;
-	}
-
-	// Stop here if thread isn't a member of a unit
-	dt_unit_t *unit = thread->unit;
-	if (unit == 0) {
-		lock_thread_rw(thread);
-		thread->state = ThreadActive | ThreadCancelled;
-		unlock_thread_rw(thread);
-		return KNOT_ENOTSUP;
-	}
-
-	// Lock thread state changes
-	pthread_mutex_lock(&unit->_notify_mx);
-	lock_thread_rw(thread);
-
-	// Repurpose it's object and runnable
-	thread->run = runnable;
-	thread->_adata = data;
-
-	// Cancel current runnable if running
-	if (thread->state & (ThreadIdle | ThreadActive)) {
-
-		// Update state
-		thread->state = ThreadActive | ThreadCancelled;
-		unlock_thread_rw(thread);
-
-		// Notify thread
-		pthread_cond_broadcast(&unit->_notify);
-		pthread_mutex_unlock(&unit->_notify_mx);
-	} else {
-		unlock_thread_rw(thread);
-		pthread_mutex_unlock(&unit->_notify_mx);
-	}
-
-	return KNOT_EOK;
-}
-
 int dt_activate(dthread_t *thread)
 {
 	return dt_update_thread(thread, ThreadActive);
@@ -830,7 +743,7 @@ int dt_compact(dt_unit_t *unit)
 	return KNOT_EOK;
 }
 
-int dt_online_cpus()
+int dt_online_cpus(void)
 {
 	int ret = -1;
 /* Linux, Solaris, OS X 10.4+ */
@@ -848,11 +761,11 @@ int dt_online_cpus()
 	return ret;
 }
 
-int dt_optimal_size()
+int dt_optimal_size(void)
 {
 	int ret = dt_online_cpus();
-	if (ret > 0) {
-		return ret + CPU_ESTIMATE_MAGIC;
+	if (ret > 1) {
+		return ret;
 	}
 
 	dbg_dt("dthreads: failed to fetch the number of online CPUs.");

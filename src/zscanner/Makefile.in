@@ -79,52 +79,71 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 DIST_COMMON = $(srcdir)/tests/Makefile.inc $(srcdir)/Makefile.in \
-	$(srcdir)/Makefile.am $(dist_check_SCRIPTS) \
-	$(top_srcdir)/depcomp
-check_PROGRAMS = tests/runtests$(EXEEXT) tests/zscanner-tool$(EXEEXT)
+	$(srcdir)/Makefile.am $(top_srcdir)/depcomp
+check_PROGRAMS = tests/zscanner-tool$(EXEEXT)
 subdir = src/zscanner
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
+	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
-	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/visibility.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/src/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-ARFLAGS = cru
-AM_V_AR = $(am__v_AR_@AM_V@)
-am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
-am__v_AR_0 = @echo "  AR      " $@;
-am__v_AR_1 = 
-tests_tap_libtap_a_AR = $(AR) $(ARFLAGS)
-tests_tap_libtap_a_LIBADD =
-am__dirstamp = $(am__leading_dot)dirstamp
-am_tests_tap_libtap_a_OBJECTS =  \
-	tests/tap/tests_tap_libtap_a-basic.$(OBJEXT) \
-	tests/tap/tests_tap_libtap_a-float.$(OBJEXT)
-tests_tap_libtap_a_OBJECTS = $(am_tests_tap_libtap_a_OBJECTS)
-LTLIBRARIES = $(noinst_LTLIBRARIES)
-libzscanner_la_DEPENDENCIES = @LIBOBJS@
-am_libzscanner_la_OBJECTS = error.lo file_loader.lo \
-	scanner_functions.lo
-nodist_libzscanner_la_OBJECTS = descriptor.lo scanner.lo
+am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
+am__vpath_adj = case $$p in \
+    $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
+    *) f=$$p;; \
+  esac;
+am__strip_dir = f=`echo $$p | sed -e 's|^.*/||'`;
+am__install_max = 40
+am__nobase_strip_setup = \
+  srcdirstrip=`echo "$(srcdir)" | sed 's/[].[^$$\\*|]/\\\\&/g'`
+am__nobase_strip = \
+  for p in $$list; do echo "$$p"; done | sed -e "s|$$srcdirstrip/||"
+am__nobase_list = $(am__nobase_strip_setup); \
+  for p in $$list; do echo "$$p $$p"; done | \
+  sed "s| $$srcdirstrip/| |;"' / .*\//!s/ .*/ ./; s,\( .*\)/[^/]*$$,\1,' | \
+  $(AWK) 'BEGIN { files["."] = "" } { files[$$2] = files[$$2] " " $$1; \
+    if (++n[$$2] == $(am__install_max)) \
+      { print $$2, files[$$2]; n[$$2] = 0; files[$$2] = "" } } \
+    END { for (dir in files) print dir, files[dir] }'
+am__base_list = \
+  sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
+  sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
+am__uninstall_files_from_dir = { \
+  test -z "$$files" \
+    || { test ! -d "$$dir" && test ! -f "$$dir" && test ! -r "$$dir"; } \
+    || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
+         $(am__cd) "$$dir" && rm -f $$files; }; \
+  }
+am__installdirs = "$(DESTDIR)$(libdir)"
+LTLIBRARIES = $(lib_LTLIBRARIES)
+libzscanner_la_LIBADD =
+am_libzscanner_la_OBJECTS = libzscanner_la-error.lo \
+	libzscanner_la-loader.lo libzscanner_la-functions.lo
+nodist_libzscanner_la_OBJECTS = libzscanner_la-scanner.lo
 libzscanner_la_OBJECTS = $(am_libzscanner_la_OBJECTS) \
 	$(nodist_libzscanner_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-tests_runtests_SOURCES = tests/runtests.c
-tests_runtests_OBJECTS = tests/tests_runtests-runtests.$(OBJEXT)
-tests_runtests_LDADD = $(LDADD)
+libzscanner_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(libzscanner_la_CFLAGS) $(CFLAGS) $(libzscanner_la_LDFLAGS) \
+	$(LDFLAGS) -o $@
+am__dirstamp = $(am__leading_dot)dirstamp
 am_tests_zscanner_tool_OBJECTS = tests/zscanner-tool.$(OBJEXT) \
 	tests/tests.$(OBJEXT) tests/processing.$(OBJEXT)
 tests_zscanner_tool_OBJECTS = $(am_tests_zscanner_tool_OBJECTS)
-tests_zscanner_tool_DEPENDENCIES = libzscanner.la @LIBOBJS@
+tests_zscanner_tool_LDADD = $(LDADD)
+tests_zscanner_tool_DEPENDENCIES =  \
+	$(top_builddir)/src/zscanner/libzscanner.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -159,11 +178,10 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(tests_tap_libtap_a_SOURCES) $(libzscanner_la_SOURCES) \
-	$(nodist_libzscanner_la_SOURCES) tests/runtests.c \
+SOURCES = $(libzscanner_la_SOURCES) $(nodist_libzscanner_la_SOURCES) \
 	$(tests_zscanner_tool_SOURCES)
-DIST_SOURCES = $(tests_tap_libtap_a_SOURCES) $(libzscanner_la_SOURCES) \
-	tests/runtests.c $(tests_zscanner_tool_SOURCES)
+DIST_SOURCES = $(libzscanner_la_SOURCES) \
+	$(tests_zscanner_tool_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -200,7 +218,9 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
-CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
+CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
+CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
+CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -215,14 +235,14 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
-FSM_TYPE = @FSM_TYPE@
+GENHTML = @GENHTML@
 GREP = @GREP@
-HAVE_VISIBILITY = @HAVE_VISIBILITY@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+LCOV = @LCOV@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LEX = @LEX@
@@ -251,15 +271,17 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PDFLATEX = @PDFLATEX@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
-RAGEL = @RAGEL@
+PROTOC_C = @PROTOC_C@
 RANLIB = @RANLIB@
 RELEASE_DATE = @RELEASE_DATE@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
 YACC = @YACC@
@@ -302,6 +324,12 @@ libcrypto_CFLAGS = @libcrypto_CFLAGS@
 libcrypto_LIBS = @libcrypto_LIBS@
 libdir = @libdir@
 libexecdir = @libexecdir@
+libfstrm_CFLAGS = @libfstrm_CFLAGS@
+libfstrm_LIBS = @libfstrm_LIBS@
+libidn_CFLAGS = @libidn_CFLAGS@
+libidn_LIBS = @libidn_LIBS@
+libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
+libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
 localedir = @localedir@
@@ -319,55 +347,58 @@ sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
 storage_dir = @storage_dir@
 sysconfdir = @sysconfdir@
+systemd_daemon_CFLAGS = @systemd_daemon_CFLAGS@
+systemd_daemon_LIBS = @systemd_daemon_LIBS@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I $(top_srcdir)/m4
-AM_CFLAGS = -I$(top_srcdir)/src
-noinst_LTLIBRARIES = libzscanner.la
+AM_CPPFLAGS = \
+	-include $(top_builddir)/src/config.h \
+	-I$(top_srcdir)/src
+
+lib_LTLIBRARIES = libzscanner.la
 EXTRA_DIST = scanner.rl scanner_body.rl scanner.c.g2 scanner.c.t0 \
-	tests/TESTS tests/zscanner-TESTS tests/data \
-	tests/tap/libtap.sh
-BUILT_SOURCES = descriptor.h descriptor.c scanner.c
-CLEANFILES = descriptor.h descriptor.c scanner.c
-nodist_libzscanner_la_SOURCES = descriptor.h descriptor.c scanner.c
+	tests/unittests.in tests/TESTS tests/data
+BUILT_SOURCES = scanner.c
+CLEANFILES = scanner.c $(check_SCRIPTS)
 libzscanner_la_SOURCES = \
 	zscanner.h			\
 	scanner.h			\
 	error.h				\
 	error.c				\
-	file_loader.h			\
-	file_loader.c			\
-	scanner_functions.h		\
-	scanner_functions.c
+	loader.h			\
+	loader.c			\
+	functions.h			\
+	functions.c
 
-libzscanner_la_LIBADD = @LIBOBJS@
-dist_check_SCRIPTS = \
-	tests/zscanner.sh
+nodist_libzscanner_la_SOURCES = \
+	scanner.c
 
-check_LIBRARIES = tests/tap/libtap.a
-AM_CPPFLAGS = \
-	-I$(top_srcdir)/src
+libzscanner_la_CFLAGS = $(CODE_COVERAGE_CFLAGS)
+libzscanner_la_LDFLAGS = \
+	$(CODE_COVERAGE_LDFLAGS)		\
+	-version-info 0:1:0		\
+	-export-symbols-regex '^zs_'
 
-tests_runtests_CPPFLAGS = \
-	-DSOURCE='"$(abs_srcdir)/tests"' \
-	-DBUILD='"$(abs_builddir)/tests"'
-
-tests_tap_libtap_a_CPPFLAGS = -I$(abs_srcdir)/tests
-tests_tap_libtap_a_SOURCES = \
-	tests/tap/basic.c tests/tap/basic.h \
-	tests/tap/float.c tests/tap/float.h \
-	tests/tap/macros.h
+LDADD = \
+	$(top_builddir)/src/zscanner/libzscanner.la
 
 tests_zscanner_tool_SOURCES = \
-	tests/zscanner-tool.c		\
-	tests/tests.h			\
-	tests/tests.c			\
-	tests/processing.h		\
+	tests/zscanner-tool.c	\
+	tests/tests.h		\
+	tests/tests.c		\
+	tests/processing.h	\
 	tests/processing.c
 
-tests_zscanner_tool_LDADD = libzscanner.la @LIBOBJS@
+check_SCRIPTS = \
+	tests/unittests
+
+edit = sed \
+	-e 's|@top_srcdir[@]|$(abs_top_srcdir)|g' \
+	-e 's|@top_builddir[@]|$(abs_top_builddir)|g'
+
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -405,27 +436,33 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
-clean-checkLIBRARIES:
-	-test -z "$(check_LIBRARIES)" || rm -f $(check_LIBRARIES)
-tests/tap/$(am__dirstamp):
-	@$(MKDIR_P) tests/tap
-	@: > tests/tap/$(am__dirstamp)
-tests/tap/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) tests/tap/$(DEPDIR)
-	@: > tests/tap/$(DEPDIR)/$(am__dirstamp)
-tests/tap/tests_tap_libtap_a-basic.$(OBJEXT):  \
-	tests/tap/$(am__dirstamp) tests/tap/$(DEPDIR)/$(am__dirstamp)
-tests/tap/tests_tap_libtap_a-float.$(OBJEXT):  \
-	tests/tap/$(am__dirstamp) tests/tap/$(DEPDIR)/$(am__dirstamp)
+install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+	@$(NORMAL_INSTALL)
+	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
+	list2=; for p in $$list; do \
+	  if test -f $$p; then \
+	    list2="$$list2 $$p"; \
+	  else :; fi; \
+	done; \
+	test -z "$$list2" || { \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libdir)" || exit 1; \
+	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 '$(DESTDIR)$(libdir)'"; \
+	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 "$(DESTDIR)$(libdir)"; \
+	}
 
-tests/tap/libtap.a: $(tests_tap_libtap_a_OBJECTS) $(tests_tap_libtap_a_DEPENDENCIES) $(EXTRA_tests_tap_libtap_a_DEPENDENCIES) tests/tap/$(am__dirstamp)
-	$(AM_V_at)-rm -f tests/tap/libtap.a
-	$(AM_V_AR)$(tests_tap_libtap_a_AR) tests/tap/libtap.a $(tests_tap_libtap_a_OBJECTS) $(tests_tap_libtap_a_LIBADD)
-	$(AM_V_at)$(RANLIB) tests/tap/libtap.a
+uninstall-libLTLIBRARIES:
+	@$(NORMAL_UNINSTALL)
+	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
+	for p in $$list; do \
+	  $(am__strip_dir) \
+	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f '$(DESTDIR)$(libdir)/$$f'"; \
+	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f "$(DESTDIR)$(libdir)/$$f"; \
+	done
 
-clean-noinstLTLIBRARIES:
-	-test -z "$(noinst_LTLIBRARIES)" || rm -f $(noinst_LTLIBRARIES)
-	@list='$(noinst_LTLIBRARIES)'; \
+clean-libLTLIBRARIES:
+	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
+	@list='$(lib_LTLIBRARIES)'; \
 	locs=`for p in $$list; do echo $$p; done | \
 	      sed 's|^[^/]*$$|.|; s|/[^/]*$$||; s|$$|/so_locations|' | \
 	      sort -u`; \
@@ -435,7 +472,7 @@ clean-noinstLTLIBRARIES:
 	}
 
 libzscanner.la: $(libzscanner_la_OBJECTS) $(libzscanner_la_DEPENDENCIES) $(EXTRA_libzscanner_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(LINK)  $(libzscanner_la_OBJECTS) $(libzscanner_la_LIBADD) $(LIBS)
+	$(AM_V_CCLD)$(libzscanner_la_LINK) -rpath $(libdir) $(libzscanner_la_OBJECTS) $(libzscanner_la_LIBADD) $(LIBS)
 
 clean-checkPROGRAMS:
 	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
@@ -451,12 +488,6 @@ tests/$(am__dirstamp):
 tests/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) tests/$(DEPDIR)
 	@: > tests/$(DEPDIR)/$(am__dirstamp)
-tests/tests_runtests-runtests.$(OBJEXT): tests/$(am__dirstamp) \
-	tests/$(DEPDIR)/$(am__dirstamp)
-
-tests/runtests$(EXEEXT): $(tests_runtests_OBJECTS) $(tests_runtests_DEPENDENCIES) $(EXTRA_tests_runtests_DEPENDENCIES) tests/$(am__dirstamp)
-	@rm -f tests/runtests$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(tests_runtests_OBJECTS) $(tests_runtests_LDADD) $(LIBS)
 tests/zscanner-tool.$(OBJEXT): tests/$(am__dirstamp) \
 	tests/$(DEPDIR)/$(am__dirstamp)
 tests/tests.$(OBJEXT): tests/$(am__dirstamp) \
@@ -471,22 +502,17 @@ tests/zscanner-tool$(EXEEXT): $(tests_zscanner_tool_OBJECTS) $(tests_zscanner_to
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f tests/*.$(OBJEXT)
-	-rm -f tests/tap/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/descriptor.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/error.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/file_loader.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scanner.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scanner_functions.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzscanner_la-error.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzscanner_la-functions.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzscanner_la-loader.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libzscanner_la-scanner.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/processing.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/tests.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/tests_runtests-runtests.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/zscanner-tool.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -512,47 +538,33 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
-tests/tap/tests_tap_libtap_a-basic.o: tests/tap/basic.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-basic.o -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo -c -o tests/tap/tests_tap_libtap_a-basic.o `test -f 'tests/tap/basic.c' || echo '$(srcdir)/'`tests/tap/basic.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/basic.c' object='tests/tap/tests_tap_libtap_a-basic.o' libtool=no @AMDEPBACKSLASH@
+libzscanner_la-error.lo: error.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -MT libzscanner_la-error.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-error.Tpo -c -o libzscanner_la-error.lo `test -f 'error.c' || echo '$(srcdir)/'`error.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzscanner_la-error.Tpo $(DEPDIR)/libzscanner_la-error.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='error.c' object='libzscanner_la-error.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-basic.o `test -f 'tests/tap/basic.c' || echo '$(srcdir)/'`tests/tap/basic.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -c -o libzscanner_la-error.lo `test -f 'error.c' || echo '$(srcdir)/'`error.c
 
-tests/tap/tests_tap_libtap_a-basic.obj: tests/tap/basic.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-basic.obj -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo -c -o tests/tap/tests_tap_libtap_a-basic.obj `if test -f 'tests/tap/basic.c'; then $(CYGPATH_W) 'tests/tap/basic.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/basic.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-basic.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/basic.c' object='tests/tap/tests_tap_libtap_a-basic.obj' libtool=no @AMDEPBACKSLASH@
+libzscanner_la-loader.lo: loader.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -MT libzscanner_la-loader.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-loader.Tpo -c -o libzscanner_la-loader.lo `test -f 'loader.c' || echo '$(srcdir)/'`loader.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzscanner_la-loader.Tpo $(DEPDIR)/libzscanner_la-loader.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='loader.c' object='libzscanner_la-loader.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-basic.obj `if test -f 'tests/tap/basic.c'; then $(CYGPATH_W) 'tests/tap/basic.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/basic.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -c -o libzscanner_la-loader.lo `test -f 'loader.c' || echo '$(srcdir)/'`loader.c
 
-tests/tap/tests_tap_libtap_a-float.o: tests/tap/float.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-float.o -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo -c -o tests/tap/tests_tap_libtap_a-float.o `test -f 'tests/tap/float.c' || echo '$(srcdir)/'`tests/tap/float.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/float.c' object='tests/tap/tests_tap_libtap_a-float.o' libtool=no @AMDEPBACKSLASH@
+libzscanner_la-functions.lo: functions.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -MT libzscanner_la-functions.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-functions.Tpo -c -o libzscanner_la-functions.lo `test -f 'functions.c' || echo '$(srcdir)/'`functions.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzscanner_la-functions.Tpo $(DEPDIR)/libzscanner_la-functions.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='functions.c' object='libzscanner_la-functions.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-float.o `test -f 'tests/tap/float.c' || echo '$(srcdir)/'`tests/tap/float.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -c -o libzscanner_la-functions.lo `test -f 'functions.c' || echo '$(srcdir)/'`functions.c
 
-tests/tap/tests_tap_libtap_a-float.obj: tests/tap/float.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tap/tests_tap_libtap_a-float.obj -MD -MP -MF tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo -c -o tests/tap/tests_tap_libtap_a-float.obj `if test -f 'tests/tap/float.c'; then $(CYGPATH_W) 'tests/tap/float.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/float.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Tpo tests/tap/$(DEPDIR)/tests_tap_libtap_a-float.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/tap/float.c' object='tests/tap/tests_tap_libtap_a-float.obj' libtool=no @AMDEPBACKSLASH@
+libzscanner_la-scanner.lo: scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -MT libzscanner_la-scanner.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-scanner.Tpo -c -o libzscanner_la-scanner.lo `test -f 'scanner.c' || echo '$(srcdir)/'`scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzscanner_la-scanner.Tpo $(DEPDIR)/libzscanner_la-scanner.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='scanner.c' object='libzscanner_la-scanner.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_tap_libtap_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tap/tests_tap_libtap_a-float.obj `if test -f 'tests/tap/float.c'; then $(CYGPATH_W) 'tests/tap/float.c'; else $(CYGPATH_W) '$(srcdir)/tests/tap/float.c'; fi`
-
-tests/tests_runtests-runtests.o: tests/runtests.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tests_runtests-runtests.o -MD -MP -MF tests/$(DEPDIR)/tests_runtests-runtests.Tpo -c -o tests/tests_runtests-runtests.o `test -f 'tests/runtests.c' || echo '$(srcdir)/'`tests/runtests.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/tests_runtests-runtests.Tpo tests/$(DEPDIR)/tests_runtests-runtests.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/runtests.c' object='tests/tests_runtests-runtests.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tests_runtests-runtests.o `test -f 'tests/runtests.c' || echo '$(srcdir)/'`tests/runtests.c
-
-tests/tests_runtests-runtests.obj: tests/runtests.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tests/tests_runtests-runtests.obj -MD -MP -MF tests/$(DEPDIR)/tests_runtests-runtests.Tpo -c -o tests/tests_runtests-runtests.obj `if test -f 'tests/runtests.c'; then $(CYGPATH_W) 'tests/runtests.c'; else $(CYGPATH_W) '$(srcdir)/tests/runtests.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) tests/$(DEPDIR)/tests_runtests-runtests.Tpo tests/$(DEPDIR)/tests_runtests-runtests.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tests/runtests.c' object='tests/tests_runtests-runtests.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tests_runtests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tests/tests_runtests-runtests.obj `if test -f 'tests/runtests.c'; then $(CYGPATH_W) 'tests/runtests.c'; else $(CYGPATH_W) '$(srcdir)/tests/runtests.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -c -o libzscanner_la-scanner.lo `test -f 'scanner.c' || echo '$(srcdir)/'`scanner.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -644,13 +656,15 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-	$(MAKE) $(AM_MAKEFLAGS) $(check_LIBRARIES) $(check_PROGRAMS) \
-	  $(dist_check_SCRIPTS)
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS) $(check_SCRIPTS)
 	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(LTLIBRARIES)
 installdirs:
+	for dir in "$(DESTDIR)$(libdir)"; do \
+	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
+	done
 install: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) install-am
 install-exec: install-exec-am
@@ -681,8 +695,6 @@ distclean-generic:
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
 	-rm -f tests/$(DEPDIR)/$(am__dirstamp)
 	-rm -f tests/$(am__dirstamp)
-	-rm -f tests/tap/$(DEPDIR)/$(am__dirstamp)
-	-rm -f tests/tap/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -690,11 +702,11 @@ maintainer-clean-generic:
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
-clean-am: clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
-	clean-libtool clean-noinstLTLIBRARIES mostlyclean-am
+clean-am: clean-checkPROGRAMS clean-generic clean-libLTLIBRARIES \
+	clean-libtool mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR) tests/$(DEPDIR) tests/tap/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) tests/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -717,7 +729,7 @@ install-dvi: install-dvi-am
 
 install-dvi-am:
 
-install-exec-am:
+install-exec-am: install-libLTLIBRARIES
 
 install-html: install-html-am
 
@@ -740,7 +752,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR) tests/$(DEPDIR) tests/tap/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) tests/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -757,46 +769,43 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am:
+uninstall-am: uninstall-libLTLIBRARIES
 
 .MAKE: all check check-am install install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am check check-am check-local clean \
-	clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
-	clean-libtool clean-noinstLTLIBRARIES cscopelist-am ctags \
-	ctags-am distclean distclean-compile distclean-generic \
-	distclean-libtool distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
+	clean-checkPROGRAMS clean-generic clean-libLTLIBRARIES \
+	clean-libtool cscopelist-am ctags ctags-am distclean \
+	distclean-compile distclean-generic distclean-libtool \
+	distclean-tags distdir dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am \
+	install-libLTLIBRARIES install-man install-pdf install-pdf-am \
 	install-ps install-ps-am install-strip installcheck \
 	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am
+	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES
 
 
-descriptor.h: $(top_srcdir)/src/common/descriptor.h
-	cp $(top_srcdir)/src/common/descriptor.h $@
+@FAST_PARSER_TRUE@scanner.c: scanner.c.g2
+@FAST_PARSER_TRUE@	cp $(srcdir)/$@.g2 $@
+@FAST_PARSER_TRUE@	@echo "NOTE: Compilation of scanner.c can take several minutes!"
+@FAST_PARSER_FALSE@scanner.c: scanner.c.t0
+@FAST_PARSER_FALSE@	cp $(srcdir)/$@.t0 $@
 
-descriptor.c: $(top_srcdir)/src/common/descriptor.c
-	cp $(top_srcdir)/src/common/descriptor.c $@
+tests/unittests:
+	$(edit) < $(top_srcdir)/src/zscanner/$@.in > $(top_builddir)/src/zscanner/$@
+	chmod +x $(top_builddir)/src/zscanner/$@
 
-@HAVE_RAGEL_TRUE@scanner.c: scanner.rl scanner_body.rl
-@HAVE_RAGEL_TRUE@	$(RAGEL) $(FSM_TYPE) -o $@ $(srcdir)/scanner.rl
-
-@G2_PARSER_TRUE@@HAVE_RAGEL_FALSE@scanner.c: scanner.c.g2
-@G2_PARSER_TRUE@@HAVE_RAGEL_FALSE@	cp $(srcdir)/$@.g2 $@
-@G2_PARSER_TRUE@@HAVE_RAGEL_FALSE@	@echo "NOTE: Compilation of scanner.c can take several minutes!"
-
-@HAVE_RAGEL_FALSE@@T0_PARSER_TRUE@scanner.c: scanner.c.t0
-@HAVE_RAGEL_FALSE@@T0_PARSER_TRUE@	cp $(srcdir)/$@.t0 $@
-
-check-compile-only: $(check_PROGRAMS)
+check-compile-only: $(check_SCRIPTS) $(check_PROGRAMS)
 
 check-local: $(check_PROGRAMS)
-	cd tests && ./runtests -l $(abs_srcdir)/tests/TESTS
+	$(top_builddir)/libtap/runtests \
+	-s $(top_srcdir)/src/zscanner/tests \
+	-b $(top_builddir)/src/zscanner/tests \
+	$(top_builddir)/src/zscanner/tests/unittests
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

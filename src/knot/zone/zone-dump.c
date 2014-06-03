@@ -14,15 +14,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <inttypes.h>
 
 #include "knot/zone/zone-dump.h"
 #include "common/descriptor.h"
 #include "knot/conf/conf.h"
-#include "knot/server/zones.h"
 #include "libknot/libknot.h"
-#include "libknot/dnssec/zone-nsec.h"
+#include "knot/dnssec/zone-nsec.h"
 
 /*! \brief Size of auxiliary buffer. */
 #define DUMP_BUF_LEN (70 * 1024)
@@ -33,69 +31,48 @@ typedef struct {
 	char     *buf;
 	size_t   buflen;
 	uint64_t rr_count;
-	bool     dump_rdata;
 	bool     dump_rrsig;
 	bool     dump_nsec;
 	const knot_dname_t *origin;
 	const knot_dump_style_t *style;
 } dump_params_t;
 
-static int apex_node_dump_text(knot_node_t *node, dump_params_t *params)
+static int apex_node_dump_text(zone_node_t *node, dump_params_t *params)
 {
-	const knot_rrset_t *soa = knot_node_rrset(node, KNOT_RRTYPE_SOA);
-
+	knot_rrset_t soa = node_rrset(node, KNOT_RRTYPE_SOA);
 	knot_dump_style_t soa_style = *params->style;
 
 	// Dump SOA record as a first.
 	if (!params->dump_nsec) {
-		if (params->dump_rdata) {
-			soa_style.show_class = true;
-		}
-		if (knot_rrset_txt_dump(soa, params->buf, params->buflen,
-					params->dump_rdata, params->dump_rrsig,
+		soa_style.show_class = true;
+		if (knot_rrset_txt_dump(&soa, params->buf, params->buflen,
 					&soa_style) < 0) {
 			return KNOT_ENOMEM;
 		}
-		if (params->dump_rdata) {
-			params->rr_count += soa->rdata_count;
-		}
-		if (params->dump_rrsig && soa->rrsigs != NULL) {
-			params->rr_count += soa->rrsigs->rdata_count;
-		}
+		params->rr_count += soa.rrs.rr_count;
 		fprintf(params->file, "%s", params->buf);
 		params->buf[0] = '\0';
 	}
 
-	const knot_rrset_t **rrsets = knot_node_rrsets_no_copy(node);
-
 	// Dump other records.
 	for (uint16_t i = 0; i < node->rrset_count; i++) {
-		switch (rrsets[i]->type) {
+		knot_rrset_t rrset = node_rrset_at(node, i);
+		switch (rrset.type) {
 		case KNOT_RRTYPE_NSEC:
-			if (params->dump_nsec) {
-				break;
-			}
+			continue;
+		case KNOT_RRTYPE_RRSIG:
 			continue;
 		case KNOT_RRTYPE_SOA:
 			continue;
 		default:
-			if (params->dump_nsec) {
-				continue;
-			}
 			break;
 		}
 
-		if (knot_rrset_txt_dump(rrsets[i], params->buf, params->buflen,
-		                        params->dump_rdata, params->dump_rrsig,
+		if (knot_rrset_txt_dump(&rrset, params->buf, params->buflen,
 		                        params->style) < 0) {
 			return KNOT_ENOMEM;
 		}
-		if (params->dump_rdata) {
-			params->rr_count += rrsets[i]->rdata_count;
-		}
-		if (params->dump_rrsig && rrsets[i]->rrsigs != NULL) {
-			params->rr_count += rrsets[i]->rrsigs->rdata_count;
-		}
+		params->rr_count +=  rrset.rrs.rr_count;
 		fprintf(params->file, "%s", params->buf);
 		params->buf[0] = '\0';
 	}
@@ -103,44 +80,48 @@ static int apex_node_dump_text(knot_node_t *node, dump_params_t *params)
 	return KNOT_EOK;
 }
 
-static int node_dump_text(knot_node_t *node, void *data)
+static int node_dump_text(zone_node_t *node, void *data)
 {
 	dump_params_t *params = (dump_params_t *)data;
 
 	// Zone apex rrsets.
-	if (node->owner == params->origin) {
+	if (node->owner == params->origin && !params->dump_rrsig &&
+	    !params->dump_nsec) {
 		apex_node_dump_text(node, params);
 		return KNOT_EOK;
 	}
 
-	const knot_rrset_t **rrsets = knot_node_rrsets_no_copy(node);
-
 	// Dump non-apex rrsets.
 	for (uint16_t i = 0; i < node->rrset_count; i++) {
-		switch (rrsets[i]->type) {
+		knot_rrset_t rrset = node_rrset_at(node, i);
+		switch (rrset.type) {
+		case KNOT_RRTYPE_RRSIG:
+			if (params->dump_rrsig) {
+				break;
+			}
+			continue;
 		case KNOT_RRTYPE_NSEC:
 			if (params->dump_nsec) {
 				break;
 			}
 			continue;
-		default:
+		case KNOT_RRTYPE_NSEC3:
 			if (params->dump_nsec) {
+				break;
+			}
+			continue;
+		default:
+			if (params->dump_nsec || params->dump_rrsig) {
 				continue;
 			}
 			break;
 		}
 
-		if (knot_rrset_txt_dump(rrsets[i], params->buf, params->buflen,
-		                        params->dump_rdata, params->dump_rrsig,
+		if (knot_rrset_txt_dump(&rrset, params->buf, params->buflen,
 		                        params->style) < 0) {
 			return KNOT_ENOMEM;
 		}
-		if (params->dump_rdata) {
-			params->rr_count += rrsets[i]->rdata_count;
-		}
-		if (params->dump_rrsig && rrsets[i]->rrsigs != NULL) {
-			params->rr_count += rrsets[i]->rrsigs->rdata_count;
-		}
+		params->rr_count += rrset.rrs.rr_count;
 		fprintf(params->file, "%s", params->buf);
 		params->buf[0] = '\0';
 	}
@@ -148,7 +129,7 @@ static int node_dump_text(knot_node_t *node, void *data)
 	return KNOT_EOK;
 }
 
-int zone_dump_text(knot_zone_contents_t *zone, FILE *file)
+int zone_dump_text(zone_contents_t *zone, const struct sockaddr_storage *from, FILE *file)
 {
 	if (zone == NULL || file == NULL) {
 		return KNOT_EINVAL;
@@ -164,63 +145,68 @@ int zone_dump_text(knot_zone_contents_t *zone, FILE *file)
 	fprintf(file, ";; Zone dump (Knot DNS %s)\n", PACKAGE_VERSION);
 
 	// Set structure with parameters.
+	zone_node_t *apex = zone->apex;
 	dump_params_t params;
 	params.file = file;
 	params.buf = buf;
 	params.buflen = DUMP_BUF_LEN;
 	params.rr_count = 0;
-	params.origin = knot_node_owner(knot_zone_contents_apex(zone));
+	params.origin = apex->owner;
 	params.style = &KNOT_DUMP_STYLE_DEFAULT;
 
 	int ret;
 
 	// Dump standard zone records without rrsigs.
-	params.dump_rdata = true;
 	params.dump_rrsig = false;
 	params.dump_nsec = false;
-	ret = knot_zone_contents_tree_apply_inorder(zone, node_dump_text, &params);
+	ret = zone_contents_tree_apply_inorder(zone, node_dump_text, &params);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
 
 	// Dump DNSSEC signatures if secured.
-	const knot_rrset_t *soa = knot_node_rrset(knot_zone_contents_apex(zone),
-	                                          KNOT_RRTYPE_SOA);
-	if (soa && soa->rrsigs) {
+	if (zone_contents_is_signed(zone)) {
 		fprintf(file, ";; DNSSEC signatures\n");
 
 		// Dump rrsig records.
-		params.dump_rdata = false;
 		params.dump_rrsig = true;
 		params.dump_nsec = false;
-		ret = knot_zone_contents_tree_apply_inorder(zone, node_dump_text,
-		                                            &params);
+		ret = zone_contents_tree_apply_inorder(zone, node_dump_text,
+		                                       &params);
 		if (ret != KNOT_EOK) {
 			return ret;
 		}
 	}
 
 	// Dump NSEC3 chain if available.
-	if (is_nsec3_enabled(zone)) {
+	if (knot_is_nsec3_enabled(zone)) {
 		fprintf(file, ";; DNSSEC NSEC3 chain\n");
 
-		params.dump_rdata = true;
-		params.dump_rrsig = true;
-		params.dump_nsec = false;
-		ret = knot_zone_contents_nsec3_apply_inorder(zone, node_dump_text,
-		                                             &params);
+		params.dump_rrsig = false;
+		params.dump_nsec = true;
+		ret = zone_contents_nsec3_apply_inorder(zone, node_dump_text,
+		                                        &params);
 		if (ret != KNOT_EOK) {
 			return ret;
 		}
-	} else if (soa && soa->rrsigs) {
+
+		fprintf(file, ";; DNSSEC NSEC3 signatures\n");
+
+		params.dump_rrsig = true;
+		params.dump_nsec = false;
+		ret = zone_contents_nsec3_apply_inorder(zone, node_dump_text,
+		                                        &params);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+	} else if (zone_contents_is_signed(zone)) {
 		fprintf(file, ";; DNSSEC NSEC chain\n");
 
-		// Dump nsec and rrsig records.
-		params.dump_rdata = true;
-		params.dump_rrsig = true;
+		// Dump nsec records.
+		params.dump_rrsig = false;
 		params.dump_nsec = true;
-		ret = knot_zone_contents_tree_apply_inorder(zone, node_dump_text,
-		                                            &params);
+		ret = zone_contents_tree_apply_inorder(zone, node_dump_text,
+		                                       &params);
 		if (ret != KNOT_EOK) {
 			return ret;
 		}
@@ -238,17 +224,12 @@ int zone_dump_text(knot_zone_contents_t *zone, FILE *file)
 	              ";; Time %s\n",
 	        params.rr_count, date);
 
-	// Get master information.
-	sockaddr_t *master = &((zonedata_t *)zone->zone->data)->xfr_in.master;
-
-	int port = sockaddr_portnum(master);
-
 	// If a master server is configured, dump info about it.
-	if (port >= 0) {
-		char addr[INET6_ADDRSTRLEN] = "NULL";
-		sockaddr_tostr(master, addr, sizeof(addr));
+	if (from) {
+		char addr_str[SOCKADDR_STRLEN] = {0};
+		sockaddr_tostr(from, addr_str, sizeof(addr_str));
 
-		fprintf(file, ";; Transfered from %s#%i\n", addr, port);
+		fprintf(file, ";; Transfered from %s\n", addr_str);
 	}
 
 	free(buf);

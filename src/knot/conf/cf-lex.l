@@ -117,6 +117,7 @@ update-in       { lval.t = yytext; return UPDATE_IN; }
 notify-in       { lval.t = yytext; return NOTIFY_IN; }
 notify-out      { lval.t = yytext; return NOTIFY_OUT; }
 workers         { lval.t = yytext; return WORKERS; }
+background-workers { lval.t = yytext; return BACKGROUND_WORKERS; }
 user            { lval.t = yytext; return USER; }
 pidfile         { lval.t = yytext; return PIDFILE; }
 rundir          { lval.t = yytext; return RUNDIR; }
@@ -132,6 +133,7 @@ transfers       { lval.t = yytext; return TRANSFERS; }
 dnssec-enable   { lval.t = yytext; return DNSSEC_ENABLE; }
 dnssec-keydir   { lval.t = yytext; return DNSSEC_KEYDIR; }
 signature-lifetime { lval.t = yytext; return SIGNATURE_LIFETIME; }
+query_module    { lval.t = yytext; return QUERY_MODULE; }
 
 interfaces      { lval.t = yytext; return INTERFACES; }
 address         { lval.t = yytext; return ADDRESS; }
@@ -237,11 +239,6 @@ include BEGIN(include);
 }
 
 \[({HEXA}*::|({HEXA}*:){3,})({HEXA}*|{DIGIT}+\.{DIGIT}+\.{DIGIT}+\.{DIGIT}+)\] {
-#ifdef DISABLE_IPV6
-  lval.t = strdup(yytext);
-  cf_error(yyscanner, "IPv6 address support not compiled.");
-  return TEXT;
-#else
   unsigned char buf[sizeof(struct in6_addr)];
   yytext[strlen(yytext)-1] = '\0';
   if (inet_pton(AF_INET6, yytext+1, buf)) {
@@ -249,22 +246,15 @@ include BEGIN(include);
 	  return IPA6;
   }
   cf_error(yyscanner, "Invalid IPv6 address.");
-#endif
   }
 
 ({HEXA}*::|({HEXA}*:){3,})({HEXA}*|{DIGIT}+\.{DIGIT}+\.{DIGIT}+\.{DIGIT}+) {
-#ifdef DISABLE_IPV6
-	lval.t = strdup(yytext);
-	cf_error(yyscanner, "IPv6 address support not compiled.");
-	return TEXT;
-#else
   unsigned char buf[sizeof(struct in6_addr)];
   if (inet_pton(AF_INET6, yytext, buf)) {
 	  lval.t = strdup(yytext);
 	  return IPA6;
   }
   cf_error(yyscanner, "Invalid IPv6 address.");
-#endif
 }
 
 [0][x]{HEXA}+ {

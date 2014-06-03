@@ -24,19 +24,16 @@
  * @{
  */
 
-#ifndef _ZSCANNER__TEST_FUNCTIONS_H_
-#define _ZSCANNER__TEST_FUNCTIONS_H_
+#pragma once
 
 #include "zscanner/scanner.h"
 
-void debug_process_error(const scanner_t *scanner);
+void debug_process_error(zs_scanner_t *scanner);
 
-void debug_process_record(const scanner_t *scanner);
+void debug_process_record(zs_scanner_t *scanner);
 
-void test_process_error(const scanner_t *scanner);
+void test_process_error(zs_scanner_t *scanner);
 
-void test_process_record(const scanner_t *scanner);
-
-#endif // _ZSCANNER__TEST_FUNCTIONS_H_
+void test_process_record(zs_scanner_t *scanner);
 
 /*! @} */

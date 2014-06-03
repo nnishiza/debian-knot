@@ -24,17 +24,24 @@
  * @{
  */
 
-#ifndef _KNOTD_RRL_H_
-#define _KNOTD_RRL_H_
+#pragma once
 
 #include <stdint.h>
 #include <pthread.h>
 #include "common/sockaddr.h"
-#include "libknot/packet/packet.h"
-#include "libknot/zone/zone.h"
+#include "libknot/packet/pkt.h"
 
 /* Defaults */
+#define RRL_SLIP_MAX 100
 #define RRL_LOCK_GRANULARITY 32 /* Last digit granularity */
+
+/*! \brief RRL flags. */
+enum {
+	RRL_NOFLAG    = 0 << 0, /*!< No flags. */
+	RRL_WILDCARD  = 1 << 1  /*!< Query to wildcard name. */
+};
+
+struct zone_t;
 
 /*!
  * \brief RRL hash bucket.
@@ -78,7 +85,7 @@ typedef struct rrl_req {
 	const uint8_t *w;
 	uint16_t len;
 	unsigned flags;
-	knot_packet_t *query;
+	knot_pkt_t *query;
 } rrl_req_t;
 
 /*!
@@ -126,8 +133,8 @@ int rrl_setlocks(rrl_table_t *rrl, unsigned granularity);
  * \param lock Held lock.
  * \return assigned bucket
  */
-rrl_item_t* rrl_hash(rrl_table_t *t, const sockaddr_t *a, rrl_req_t *p,
-                     const knot_zone_t *zone, uint32_t stamp, int* lock);
+rrl_item_t* rrl_hash(rrl_table_t *t, const struct sockaddr_storage *a, rrl_req_t *p,
+                     const struct zone_t *zone, uint32_t stamp, int* lock);
 
 /*!
  * \brief Query the RRL table for accept or deny, when the rate limit is reached.
@@ -139,8 +146,15 @@ rrl_item_t* rrl_hash(rrl_table_t *t, const sockaddr_t *a, rrl_req_t *p,
  * \retval KNOT_EOK if passed.
  * \retval KNOT_ELIMIT when the limit is reached.
  */
-int rrl_query(rrl_table_t *rrl, const sockaddr_t *a, rrl_req_t *req,
-              const knot_zone_t *zone);
+int rrl_query(rrl_table_t *rrl, const struct sockaddr_storage *a, rrl_req_t *req,
+              const struct zone_t *zone);
+
+/*!
+ * \brief Roll a dice whether answer slips or not.
+ * \param n_slip Number represents every Nth answer that is slipped.
+ * \return true or false
+ */
+bool rrl_slip_roll(int n_slip);
 
 /*!
  * \brief Destroy RRL table.
@@ -173,7 +187,5 @@ int rrl_lock(rrl_table_t *rrl, int lk_id);
  * \retval KNOT_ERROR
  */
 int rrl_unlock(rrl_table_t *rrl, int lk_id);
-
-#endif /* _KNOTD_RRL_H_ */
 
 /*! @} */

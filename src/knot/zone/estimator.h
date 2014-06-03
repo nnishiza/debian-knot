@@ -24,14 +24,13 @@
  * @{
  */
 
-#ifndef _KNOT_ESTIMATOR_H_
-#define _KNOT_ESTIMATOR_H_
+#pragma once
 
 #include "common/hattrie/hat-trie.h"
-#include "zscanner/scanner.h"
+#include "zscanner/zscanner.h"
 
 // Mutiplicative constant, needed because of malloc's fragmentation
-static const double ESTIMATE_MAGIC = 1.2;
+static const double ESTIMATE_MAGIC = 1.0;
 
 /*!
  * \brief Memory estimation context.
@@ -41,8 +40,7 @@ typedef struct zone_estim {
 	size_t rdata_size; /*!< Estimated RDATA size. */
 	size_t dname_size; /*!< Estimated DNAME size. */
 	size_t node_size; /*!< Estimated node size. */
-	size_t ahtable_size; /*!< Estimated ahtable size. */
-	size_t rrset_size; /*!< Estimated RRSet size. */
+	size_t htable_size; /*!< Estimated ahtable size. */
 	size_t record_count; /*!< Total record count for zone. */
 } zone_estim_t;
 
@@ -69,14 +67,14 @@ void estimator_free(void *p);
  *
  * \param table Trie to traverse.
  */
-size_t estimator_trie_ahtable_memsize(hattrie_t *table);
+size_t estimator_trie_htable_memsize(hattrie_t *table);
 
 /*!
  * \brief For use with scanner - counts memsize of RRSets.
  *
  * \param scanner Scanner context.
  */
-void estimator_rrset_memsize_wrap(const scanner_t *scanner);
+void estimator_rrset_memsize_wrap(zs_scanner_t *scanner);
 
 /*!
  * \brief Cleanup function for use with hattrie.
@@ -84,7 +82,5 @@ void estimator_rrset_memsize_wrap(const scanner_t *scanner);
  * \param p Data to free.
  */
 int estimator_free_trie_node(value_t *val, void *data);
-
-#endif /* _KNOT_ESTIMATOR_H_ */
 
 /*! @} */

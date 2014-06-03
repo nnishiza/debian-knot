@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include "common/errcode.h"
 #include "common/errors.h"
 
@@ -36,14 +35,13 @@ const error_table_t knot_error_msgs[] = {
 	{ KNOT_ECONNREFUSED, "Connection refused." },
 	{ KNOT_EISCONN, "Already connected." },
 	{ KNOT_EADDRINUSE, "Address already in use." },
-	{ KNOT_ENOENT, "Resource not found." },
+	{ KNOT_ENOENT, "Not exists." },
 	{ KNOT_ERANGE, "Value is out of range." },
 
 	/* General errors. */
-	{ KNOT_ERROR, "General error." },
+	{ -10000 /*KNOT_ERROR*/, "General error." },
 	{ KNOT_ENOTRUNNING, "Resource is not running." },
 	{ KNOT_EPARSEFAIL, "Parser failed." },
-	{ KNOT_ENOIPV6, "IPv6 support disabled." },
 	{ KNOT_EEXPIRED, "Resource is expired." },
 	{ KNOT_EUPTODATE, "Zone is up-to-date." },
 	{ KNOT_EFEWDATA, "Not enough data to parse." },
@@ -58,11 +56,11 @@ const error_table_t knot_error_msgs[] = {
 	{ KNOT_EZONENOENT, "Zone file not found." },
 	{ KNOT_ENOZONE, "No such zone found." },
 	{ KNOT_ENONODE, "No such node in zone found." },
-	{ KNOT_ENORRSET, "No such RRSet found." },
 	{ KNOT_EDNAMEPTR, "Domain name pointer larger than allowed." },
 	{ KNOT_EPAYLOAD, "Payload in OPT RR larger than max wire size." },
 	{ KNOT_ECRC, "CRC check failed." },
 	{ KNOT_EPREREQ, "UPDATE prerequisity not met." },
+	{ KNOT_ETTL, "TTL mismatch." },
 	{ KNOT_ENOXFR, "Transfer was not sent." },
 	{ KNOT_ENOIXFR, "Transfer is not IXFR (is in AXFR format)." },
 	{ KNOT_EXFRREFUSED, "Zone transfer refused by the server." },
@@ -75,6 +73,7 @@ const error_table_t knot_error_msgs[] = {
 	{ KNOT_ENOTSIG, "expected a TSIG or SIG(0)" },
 	{ KNOT_ELIMIT, "Exceeded response rate limit." },
 	{ KNOT_EWRITABLE, "File is not writable." },
+	{ KNOT_EOF, "End of file." },
 
 	/* Control states. */
 	{ KNOT_CTL_STOP, "Stopping server." },

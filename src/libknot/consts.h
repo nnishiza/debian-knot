@@ -24,8 +24,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KNOT_CONSTS_H_
-#define _KNOT_CONSTS_H_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -83,24 +82,13 @@ typedef enum {
 } knot_rcode_t;
 
 /*!
- * \brief DNS query types (internal use only).
- *
- * This type encompasses the different query types distinguished by both the
- * OPCODE and the QTYPE.
+ * \brief DNS packet section identifiers.
  */
 typedef enum {
-	KNOT_QUERY_INVALID,   /*!< Invalid query. */
-	KNOT_QUERY_NORMAL,    /*!< Normal query. */
-	KNOT_QUERY_AXFR,      /*!< Request for AXFR transfer. */
-	KNOT_QUERY_IXFR,      /*!< Request for IXFR transfer. */
-	KNOT_QUERY_NOTIFY,    /*!< NOTIFY query. */
-	KNOT_QUERY_UPDATE,    /*!< Dynamic update. */
-	KNOT_RESPONSE_NORMAL, /*!< Normal response. */
-	KNOT_RESPONSE_AXFR,   /*!< AXFR transfer response. */
-	KNOT_RESPONSE_IXFR,   /*!< IXFR transfer response. */
-	KNOT_RESPONSE_NOTIFY, /*!< NOTIFY response. */
-	KNOT_RESPONSE_UPDATE  /*!< Dynamic update response. */
-} knot_packet_type_t;
+	KNOT_ANSWER       = 0,
+	KNOT_AUTHORITY    = 1,
+	KNOT_ADDITIONAL   = 2
+} knot_section_t;
 
 /*!
  * \brief TSIG algorithm numbers.
@@ -240,7 +228,5 @@ size_t knot_ds_digest_length(const uint8_t algorithm);
  * \return Given algorithm is allowed for zone signing.
  */
 bool knot_dnssec_algorithm_is_zonesign(uint8_t algorithm, bool nsec3_enabled);
-
-#endif /* _KNOT_CONSTS_H_ */
 
 /*! @} */

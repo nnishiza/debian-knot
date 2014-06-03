@@ -31,9 +31,13 @@
 #include <pwd.h>
 #include <grp.h>
 #include "common/sockaddr.h"
+#include "common/strlcat.h"
+#include "common/strlcpy.h"
 #include "libknot/dname.h"
 #include "libknot/binary.h"
-#include "libknot/edns.h"
+#include "libknot/rrtype/opt.h"
+#include "knot/server/rrl.h"
+#include "knot/nameserver/query_module.h"
 #include "knot/conf/conf.h"
 #include "knot/conf/libknotd_la-cf-parse.h" /* Automake generated header. */
 
@@ -63,7 +67,7 @@ static conf_log_map_t *this_logmap = 0;
 #define SET_INT(out, in, name) SET_NUM(out, in, 0, INT_MAX, name);
 #define SET_SIZE(out, in, name) SET_NUM(out, in, 0, SIZE_MAX, name);
 
-static void conf_init_iface(void *scanner, char* ifname, int port)
+static void conf_init_iface(void *scanner, char* ifname)
 {
 	this_iface = malloc(sizeof(conf_iface_t));
 	if (this_iface == NULL) {
@@ -72,14 +76,22 @@ static void conf_init_iface(void *scanner, char* ifname, int port)
 	}
 	memset(this_iface, 0, sizeof(conf_iface_t));
 	this_iface->name = ifname;
-	this_iface->port = port;
+}
+
+static void conf_set_iface(void *scanner, struct sockaddr_storage *ss, int family, char* addr, int port)
+{
+	int ret = sockaddr_set(ss, family, addr, port);
+	if (ret != KNOT_EOK) {
+		cf_error(scanner, "invalid address for '%s': %s@%d\n",
+		                  this_iface->name, addr, port);
+	}
+	free(addr);
 }
 
 static void conf_start_iface(void *scanner, char* ifname)
 {
-	conf_init_iface(scanner, ifname, -1);
+	conf_init_iface(scanner, ifname);
 	add_tail(&new_config->ifaces, &this_iface->n);
-	++new_config->ifaces_count;
 }
 
 static conf_iface_t *conf_get_remote(const char *name)
@@ -110,8 +122,6 @@ static void conf_start_remote(void *scanner, char *remote)
 	memset(this_remote, 0, sizeof(conf_iface_t));
 	this_remote->name = remote;
 	add_tail(&new_config->remotes, &this_remote->n);
-	sockaddr_init(&this_remote->via, -1);
-	++new_config->remotes_count;
 }
 
 static void conf_remote_set_via(void *scanner, char *item) {
@@ -128,7 +138,7 @@ static void conf_remote_set_via(void *scanner, char *item) {
 	if (!found) {
 		cf_error(scanner, "interface '%s' is not defined", item);
 	} else {
-		sockaddr_set(&this_remote->via, found->family, found->address, 0);
+		memcpy(&this_remote->via, &found->addr, sizeof(struct sockaddr_storage));
 	}
 }
 
@@ -237,6 +247,17 @@ static bool set_remote_or_group(void *scanner, char *name,
 
 static void conf_acl_item_install(void *scanner, conf_iface_t *found)
 {
+
+	// additional check for transfers
+
+	if ((this_list == &this_zone->acl.xfr_in || this_list == &this_zone->acl.notify_out)
+	    && sockaddr_port(&found->addr) == 0)
+	{
+		cf_error(scanner, "remote specified for XFR/IN or "
+		"NOTIFY/OUT needs to have valid port!");
+		return;
+	}
+
 	// silently skip duplicates
 
 	conf_remote_t *remote;
@@ -244,16 +265,6 @@ static void conf_acl_item_install(void *scanner, conf_iface_t *found)
 		if (remote->remote == found) {
 			return;
 		}
-	}
-
-	// additional check for transfers
-
-	if ((this_list == &this_zone->acl.xfr_in ||
-	    this_list == &this_zone->acl.notify_out) && found->port == 0)
-	{
-		cf_error(scanner, "remote specified for XFR/IN or "
-		"NOTIFY/OUT needs to have valid port!");
-		return;
 	}
 
 	// add into the list
@@ -277,6 +288,21 @@ static void conf_acl_item(void *scanner, char *item)
 	free(item);
 }
 
+static void query_module_create(void *scanner, const char *name, const char *param, bool on_zone)
+{
+	struct query_module *module = query_module_open(new_config, name, param, NULL);
+	if (module == NULL) {
+		cf_error(scanner, "cannot load query module '%s'", name);
+		return;
+	}
+
+	if (on_zone) {
+		add_tail(&this_zone->query_modules, &module->node);
+	} else {
+		add_tail(&new_config->query_modules, &module->node);
+	}
+}
+
 static int conf_key_exists(void *scanner, char *item)
 {
 	/* Find existing node in keys. */
@@ -286,12 +312,12 @@ static int conf_key_exists(void *scanner, char *item)
 	WALK_LIST (r, new_config->keys) {
 		if (knot_dname_cmp(r->k.name, sample) == 0) {
 			cf_error(scanner, "key '%s' is already defined", item);
-			knot_dname_free(&sample);
+			knot_dname_free(&sample, NULL);
 			return 1;
 		}
 	}
 
-	knot_dname_free(&sample);
+	knot_dname_free(&sample, NULL);
 	return 0;
 }
 
@@ -308,13 +334,13 @@ static int conf_key_add(void *scanner, knot_tsig_key_t **key, char *item)
 	WALK_LIST (r, new_config->keys) {
 		if (knot_dname_cmp(r->k.name, sample) == 0) {
 			*key = &r->k;
-			knot_dname_free(&sample);
+			knot_dname_free(&sample, NULL);
 			return 0;
 		}
 	}
 
 	cf_error(scanner, "key '%s' is not defined", item);
-	knot_dname_free(&sample);
+	knot_dname_free(&sample, NULL);
 	return 1;
 }
 
@@ -324,14 +350,8 @@ static void conf_zone_start(void *scanner, char *name) {
 		cf_error(scanner, "out of memory while allocating zone config");
 		return;
 	}
-	memset(this_zone, 0, sizeof(conf_zone_t));
-	this_zone->enable_checks = -1; // Default policy applies
-	this_zone->notify_timeout = -1; // Default policy applies
-	this_zone->notify_retries = 0; // Default policy applies
-	this_zone->dbsync_timeout = -1; // Default policy applies
-	this_zone->disable_any = -1; // Default policy applies
-	this_zone->build_diffs = -1; // Default policy applies
-	this_zone->sig_lifetime = -1; // Default policy applies
+
+	conf_init_zone(this_zone);
 
 	// Append mising dot to ensure FQDN
 	size_t nlen = strlen(name);
@@ -352,16 +372,6 @@ static void conf_zone_start(void *scanner, char *name) {
 		this_zone->name[i] = tolower(this_zone->name[i]);
 	}
 
-	// DNSSEC configuration
-	this_zone->dnssec_enable = -1;
-
-	/* Initialize ACL lists. */
-	init_list(&this_zone->acl.xfr_in);
-	init_list(&this_zone->acl.xfr_out);
-	init_list(&this_zone->acl.notify_in);
-	init_list(&this_zone->acl.notify_out);
-	init_list(&this_zone->acl.update_in);
-
 	/* Check domain name. */
 	knot_dname_t *dn = NULL;
 	if (this_zone->name != NULL) {
@@ -374,11 +384,11 @@ static void conf_zone_start(void *scanner, char *name) {
 		cf_error(scanner, "invalid zone origin");
 	} else {
 	/* Check for duplicates. */
-	if (hattrie_tryget(new_config->names, (const char *)dn,
+	if (hattrie_tryget(new_config->zones, (const char *)dn,
 	                   knot_dname_size(dn)) != NULL) {
 		cf_error(scanner, "zone '%s' is already present, refusing to "
 		         "duplicate", this_zone->name);
-		knot_dname_free(&dn);
+		knot_dname_free(&dn, NULL);
 		free(this_zone->name);
 		this_zone->name = NULL;
 		/* Must not free, some versions of flex might continue after
@@ -388,12 +398,9 @@ static void conf_zone_start(void *scanner, char *name) {
 		return;
 	}
 
-	/* Directly discard dname, won't be needed. */
-	add_tail(&new_config->zones, &this_zone->n);
-	*hattrie_get(new_config->names, (const char *)dn,
-	             knot_dname_size(dn)) = (void *)1;
-	++new_config->zones_count;
-	knot_dname_free(&dn);
+	*hattrie_get(new_config->zones, (const char *)dn,
+	             knot_dname_size(dn)) = this_zone;
+	knot_dname_free(&dn, NULL);
 	}
 }
 
@@ -460,6 +467,7 @@ static void ident_auto(int tok, conf_t *conf, bool val)
 %token <tok> MAX_UDP_PAYLOAD
 %token <tok> TSIG_ALGO_NAME
 %token <tok> WORKERS
+%token <tok> BACKGROUND_WORKERS
 %token <tok> USER
 %token <tok> RUNDIR
 %token <tok> PIDFILE
@@ -493,6 +501,7 @@ static void ident_auto(int tok, conf_t *conf, bool val)
 %token <tok> SIGNATURE_LIFETIME
 %token <tok> SERIAL_POLICY
 %token <tok> SERIAL_POLICY_VAL
+%token <tok> QUERY_MODULE
 
 %token <tok> INTERFACES ADDRESS PORT
 %token <tok> IPA
@@ -526,60 +535,30 @@ interface_start:
 
 interface:
  | interface PORT NUM ';' {
-     if (this_iface->port > 0) {
-       cf_error(scanner, "only one port definition is allowed in interface section\n");
+     if (this_iface->addr.ss_family == AF_UNSPEC) {
+       cf_error(scanner, "can't set port number before interface address\n");
      } else {
-       SET_UINT16(this_iface->port, $3.i, "port");
+       sockaddr_port_set(&this_iface->addr, $3.i);
      }
    }
  | interface ADDRESS IPA ';' {
-     if (this_iface->address != 0) {
-       cf_error(scanner, "only one address is allowed in interface section\n");
-     } else {
-       this_iface->address = $3.t;
-       this_iface->family = AF_INET;
-     }
+     conf_set_iface(scanner, &this_iface->addr, AF_INET, $3.t, CONFIG_DEFAULT_PORT);
    }
  | interface ADDRESS IPA '@' NUM ';' {
-     if (this_iface->address != 0) {
-       cf_error(scanner, "only one address is allowed in interface section\n");
-     } else {
-       this_iface->address = $3.t;
-       this_iface->family = AF_INET;
-       if (this_iface->port > 0) {
-	 cf_error(scanner, "only one port definition is allowed in interface section\n");
-       } else {
-         SET_UINT16(this_iface->port, $5.i, "port");
-       }
-     }
+     conf_set_iface(scanner, &this_iface->addr, AF_INET, $3.t, $5.i);
    }
  | interface ADDRESS IPA6 ';' {
-     if (this_iface->address != 0) {
-       cf_error(scanner, "only one address is allowed in interface section\n");
-     } else {
-       this_iface->address = $3.t;
-       this_iface->family = AF_INET6;
-     }
+     conf_set_iface(scanner, &this_iface->addr, AF_INET6, $3.t, CONFIG_DEFAULT_PORT);
    }
  | interface ADDRESS IPA6 '@' NUM ';' {
-     if (this_iface->address != 0) {
-       cf_error(scanner, "only one address is allowed in interface section\n");
-     } else {
-       this_iface->address = $3.t;
-       this_iface->family = AF_INET6;
-       if (this_iface->port > 0) {
-          cf_error(scanner, "only one port definition is allowed in interface section\n");
-       } else {
-          SET_UINT16(this_iface->port, $5.i, "port");
-       }
-     }
+     conf_set_iface(scanner, &this_iface->addr, AF_INET6, $3.t, $5.i);
    }
  ;
 
 interfaces:
    INTERFACES '{'
  | interfaces interface_start '{' interface '}' {
-   if (this_iface->address == 0) {
+   if (this_iface->addr.ss_family == AF_UNSPEC) {
      cf_error(scanner, "interface '%s' has no defined address", this_iface->name);
    }
  }
@@ -600,8 +579,8 @@ system:
  | system NSID TEXT ';' { new_config->nsid = $3.t; new_config->nsid_len = strlen(new_config->nsid); }
  | system NSID BOOL ';' { ident_auto(NSID, new_config, $3.i); }
  | system MAX_UDP_PAYLOAD NUM ';' {
-     SET_NUM(new_config->max_udp_payload, $3.i, EDNS_MIN_UDP_PAYLOAD,
-             EDNS_MAX_UDP_PAYLOAD, "max-udp-payload");
+     SET_NUM(new_config->max_udp_payload, $3.i, KNOT_EDNS_MIN_UDP_PAYLOAD,
+             KNOT_EDNS_MAX_UDP_PAYLOAD, "max-udp-payload");
  }
  | system STORAGE TEXT ';' {
      fprintf(stderr, "warning: Config option 'system.storage' was relocated. "
@@ -617,6 +596,9 @@ system:
  }
  | system WORKERS NUM ';' {
      SET_NUM(new_config->workers, $3.i, 1, 255, "workers");
+ }
+ | system BACKGROUND_WORKERS NUM ';' {
+     SET_NUM(new_config->bg_workers, $3.i, 1, 255, "background-workers");
  }
  | system USER TEXT ';' {
      new_config->uid = new_config->gid = -1; // Invalidate
@@ -658,7 +640,7 @@ system:
 	SET_SIZE(new_config->rrl_size, $3.i, "rate-limit-size");
  }
  | system RATE_LIMIT_SLIP NUM ';' {
-	SET_INT(new_config->rrl_slip, $3.i, "rate-limit-slip");
+	SET_NUM(new_config->rrl_slip, $3.i, 1, RRL_SLIP_MAX, "rate-limit-slip");
  }
  | system TRANSFERS NUM ';' {
 	SET_INT(new_config->xfers, $3.i, "transfers");
@@ -683,13 +665,11 @@ keys:
 	   cf_error(scanner, "out of memory when allocating string");
 	   free(fqdn);
 	   fqdn = NULL;
-	   fqdnl = 0;
 	} else {
-	   strncpy(tmpdn, fqdn, fqdnl);
-	   strncat(tmpdn, ".", 1);
+	   strlcpy(tmpdn, fqdn, fqdnl);
+	   strlcat(tmpdn, ".", fqdnl);
 	   free(fqdn);
 	   fqdn = tmpdn;
-	   fqdnl = strlen(fqdn);
 	}
      }
 
@@ -706,11 +686,10 @@ keys:
              k->k.algorithm = $3.alg;
              if (knot_binary_from_base64($4.t, &(k->k.secret)) != 0) {
                  cf_error(scanner, "invalid key secret '%s'", $4.t);
-                 knot_dname_free(&dname);
+                 knot_dname_free(&dname, NULL);
                  free(k);
              } else {
                  add_tail(&new_config->keys, &k->n);
-                 ++new_config->key_count;
              }
          }
      }
@@ -729,75 +708,35 @@ remote_start:
 
 remote:
  | remote PORT NUM ';' {
-     if (this_remote->port != 0) {
-       cf_error(scanner, "only one port definition is allowed in remote section\n");
+     if (this_remote->addr.ss_family == AF_UNSPEC) {
+       cf_error(scanner, "can't set port number before interface address\n");
      } else {
-       SET_UINT16(this_remote->port, $3.i, "port");
+       sockaddr_port_set(&this_remote->addr, $3.i);
      }
    }
  | remote ADDRESS IPA ';' {
-     if (this_remote->address != 0) {
-       cf_error(scanner, "only one address is allowed in remote section\n");
-     } else {
-       this_remote->address = $3.t;
-       this_remote->prefix = IPV4_PREFIXLEN;
-       this_remote->family = AF_INET;
-     }
+     conf_set_iface(scanner, &this_remote->addr, AF_INET, $3.t, CONFIG_DEFAULT_PORT);
+     this_remote->prefix = IPV4_PREFIXLEN;
    }
-   | remote ADDRESS IPA '/' NUM ';' {
-       if (this_remote->address != 0) {
-         cf_error(scanner, "only one address is allowed in remote section\n");
-       } else {
-         this_remote->address = $3.t;
-         this_remote->family = AF_INET;
-         SET_NUM(this_remote->prefix, $5.i, 0, IPV4_PREFIXLEN, "prefix length");
-       }
-     }
+ | remote ADDRESS IPA '/' NUM ';' {
+     conf_set_iface(scanner, &this_remote->addr, AF_INET, $3.t, 0);
+     SET_NUM(this_remote->prefix, $5.i, 0, IPV4_PREFIXLEN, "prefix length");
+   }
  | remote ADDRESS IPA '@' NUM ';' {
-     if (this_remote->address != 0) {
-       cf_error(scanner, "only one address is allowed in remote section\n");
-     } else {
-       this_remote->address = $3.t;
-       this_remote->family = AF_INET;
-       this_remote->prefix = IPV4_PREFIXLEN;
-       if (this_remote->port != 0) {
-	 cf_error(scanner, "only one port definition is allowed in remote section\n");
-       } else {
-         SET_UINT16(this_remote->port, $5.i, "port");
-       }
-     }
+     conf_set_iface(scanner, &this_remote->addr, AF_INET, $3.t, $5.i);
+     this_remote->prefix = IPV4_PREFIXLEN;
    }
  | remote ADDRESS IPA6 ';' {
-     if (this_remote->address != 0) {
-       cf_error(scanner, "only one address is allowed in remote section\n");
-     } else {
-       this_remote->address = $3.t;
-       this_remote->family = AF_INET6;
-       this_remote->prefix = IPV6_PREFIXLEN;
-     }
+     conf_set_iface(scanner, &this_remote->addr, AF_INET6, $3.t, CONFIG_DEFAULT_PORT);
+     this_remote->prefix = IPV6_PREFIXLEN;
    }
-   | remote ADDRESS IPA6 '/' NUM ';' {
-       if (this_remote->address != 0) {
-         cf_error(scanner, "only one address is allowed in remote section\n");
-       } else {
-         this_remote->address = $3.t;
-         this_remote->family = AF_INET6;
-         SET_NUM(this_remote->prefix, $5.i, 0, IPV6_PREFIXLEN, "prefix length");
-       }
-     }
+ | remote ADDRESS IPA6 '/' NUM ';' {
+     conf_set_iface(scanner, &this_remote->addr, AF_INET6, $3.t, 0);
+     SET_NUM(this_remote->prefix, $5.i, 0, IPV6_PREFIXLEN, "prefix length");
+   }
  | remote ADDRESS IPA6 '@' NUM ';' {
-     if (this_remote->address != 0) {
-       cf_error(scanner, "only one address is allowed in remote section\n");
-     } else {
-       this_remote->address = $3.t;
-       this_remote->family = AF_INET6;
-       this_remote->prefix = IPV6_PREFIXLEN;
-       if (this_remote->port != 0) {
-	 cf_error(scanner, "only one port definition is allowed in remote section\n");
-       } else {
-         SET_UINT16(this_remote->port, $5.i, "port");
-       }
-     }
+     conf_set_iface(scanner, &this_remote->addr, AF_INET6, $3.t, $5.i);
+     this_remote->prefix = IPV6_PREFIXLEN;
    }
  | remote KEY TEXT ';' {
      if (this_remote->key != 0) {
@@ -808,12 +747,10 @@ remote:
      free($3.t);
    }
  | remote VIA IPA ';' {
-     sockaddr_set(&this_remote->via, AF_INET, $3.t, 0);
-     free($3.t);
+     conf_set_iface(scanner, &this_remote->via, AF_INET, $3.t, 0);
    }
  | remote VIA IPA6 ';' {
-     sockaddr_set(&this_remote->via, AF_INET6, $3.t, 0);
-     free($3.t);
+     conf_set_iface(scanner, &this_remote->via, AF_INET6, $3.t, 0);
    }
  | remote VIA TEXT ';' {
      conf_remote_set_via(scanner, $3.t);
@@ -824,7 +761,7 @@ remote:
 remotes:
    REMOTES '{'
  | remotes remote_start '{' remote '}' {
-     if (this_remote->address == 0) {
+     if (this_remote->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "remote '%s' has no defined address", this_remote->name);
      }
    }
@@ -909,6 +846,14 @@ zone_acl:
    }
  ;
 
+query_module:
+ TEXT TEXT { query_module_create(scanner, $1.t, $2.t, true); free($1.t); free($2.t); }
+ ;
+
+query_module_list:
+ | query_module ';' query_module_list
+ ;
+
 zone_start:
  | USER  { conf_zone_start(scanner, strdup($1.t)); }
  | REMOTES { conf_zone_start(scanner, strdup($1.t)); }
@@ -973,6 +918,14 @@ zone:
  | zone SERIAL_POLICY SERIAL_POLICY_VAL ';' {
 	this_zone->serial_policy = $3.i;
  }
+ | zone QUERY_MODULE '{' query_module_list '}'
+ ;
+
+query_genmodule:
+ TEXT TEXT { query_module_create(scanner, $1.t, $2.t, false); free($1.t); free($2.t); }
+ ;
+query_genmodule_list:
+ | query_genmodule ';' query_genmodule_list
  ;
 
 zones:
@@ -1011,6 +964,7 @@ zones:
  | zones SERIAL_POLICY SERIAL_POLICY_VAL ';' {
 	new_config->serial_policy = $3.i;
  }
+ | zones QUERY_MODULE '{' query_genmodule_list '}'
  ;
 
 log_prios_start: {
@@ -1052,7 +1006,6 @@ log_dest: LOG_DEST {
     this_log->file = 0;
     init_list(&this_log->map);
     add_tail(&new_config->logs, &this_log->n);
-    ++new_config->logs_count;
   }
 }
 ;
@@ -1079,7 +1032,6 @@ log_file: FILENAME TEXT {
     this_log->file = strcpath($2.t);
     init_list(&this_log->map);
     add_tail(&new_config->logs, &this_log->n);
-    ++new_config->logs_count;
   }
 }
 ;
@@ -1093,11 +1045,11 @@ log_start:
  | log_start log_file '{' log_src '}'
  ;
 
-log: LOG { new_config->logs_count = 0; } '{' log_start log_end
+log: LOG { } '{' log_start log_end
  ;
 
 ctl_listen_start:
-  LISTEN_ON { conf_init_iface(scanner, NULL, -1); }
+  LISTEN_ON { conf_init_iface(scanner, NULL); }
   ;
 
 ctl_allow_start:
@@ -1109,17 +1061,16 @@ ctl_allow_start:
 control:
    CONTROL '{' { new_config->ctl.have = true; }
  | control ctl_listen_start '{' interface '}' {
-     if (this_iface->address == 0) {
+     if (this_iface->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "control interface has no defined address");
      } else {
        new_config->ctl.iface = this_iface;
      }
  }
  | control ctl_listen_start TEXT ';' {
-     this_iface->address = $3.t;
-     this_iface->family = AF_UNIX;
-     this_iface->port = 0;
+     sockaddr_set(&this_iface->addr, AF_UNIX, $3.t, 0);
      new_config->ctl.iface = this_iface;
+     free($3.t);
  }
  | control ctl_allow_start '{' zone_acl '}'
  | control ctl_allow_start zone_acl_list

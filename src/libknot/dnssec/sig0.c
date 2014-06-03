@@ -14,14 +14,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include <assert.h>
 #include <time.h>
 #include "common/errcode.h"
 #include "libknot/dnssec/rrset-sign.h"
 #include "libknot/dnssec/sig0.h"
 #include "libknot/dnssec/sign.h"
-#include "libknot/util/wire.h"
+#include "libknot/packet/wire.h"
 
 /*!
  * \brief Lifetime fudge of the SIG(0) packets in seconds.
@@ -39,13 +38,7 @@
  */
 static knot_rrset_t *sig0_create_rrset(void)
 {
-	knot_dname_t *root = knot_dname_from_str(".");
-	uint32_t ttl = 0;
-
-	knot_rrset_t *sig_record = knot_rrset_new(root, KNOT_RRTYPE_SIG,
-	                                          KNOT_CLASS_ANY, ttl);
-
-	return sig_record;
+	return knot_rrset_new((uint8_t *)"", KNOT_RRTYPE_SIG, KNOT_CLASS_ANY, NULL);
 }
 
 static void sig0_write_rdata(uint8_t *rdata, const knot_dnssec_key_t *key)
@@ -74,14 +67,15 @@ static uint8_t *sig0_create_rdata(knot_rrset_t *rrset, knot_dnssec_key_t *key)
 	assert(key);
 
 	size_t rdata_size = knot_rrsig_rdata_size(key);
-	uint8_t *rdata = knot_rrset_create_rdata(rrset, rdata_size);
-	if (!rdata) {
+	const uint32_t ttl = 0;
+	uint8_t rdata[rdata_size];
+	sig0_write_rdata(rdata, key);
+	if (knot_rrset_add_rdata(rrset, rdata, rdata_size, ttl, NULL) != KNOT_EOK) {
 		return NULL;
 	}
 
-	sig0_write_rdata(rdata, key);
-
-	return rdata;
+	const knot_rdata_t *rr = knot_rdataset_at(&rrset->rrs, 0);
+	return knot_rdata_data(rr);
 }
 
 /*!
@@ -142,7 +136,7 @@ int knot_sig0_sign(uint8_t *wire, size_t *wire_size, size_t wire_max_size,
 
 	uint8_t *sig_rdata = sig0_create_rdata(sig_rrset, key);
 	if (!sig_rdata) {
-		knot_rrset_deep_free(&sig_rrset, 1);
+		knot_rrset_free(&sig_rrset, NULL);
 		return KNOT_ENOMEM;
 	}
 
@@ -156,7 +150,7 @@ int knot_sig0_sign(uint8_t *wire, size_t *wire_size, size_t wire_max_size,
 	int result = knot_rrset_to_wire(sig_rrset, wire_end, &wire_sig_size,
 	                                wire_avail_size, &written_rr_count,
 	                                NULL);
-	knot_rrset_deep_free(&sig_rrset, 1);
+	knot_rrset_free(&sig_rrset, NULL);
 	if (result != KNOT_EOK) {
 		return result;
 	}

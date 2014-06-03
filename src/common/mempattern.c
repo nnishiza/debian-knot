@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,6 +26,7 @@
 #include "common/mempattern.h"
 #include "common/log.h"
 #include "common/slab/alloc-common.h"
+#include "common/mempool.h"
 
 static void *mm_malloc(void *ctx, size_t n)
 {
@@ -34,11 +34,38 @@ static void *mm_malloc(void *ctx, size_t n)
 	return malloc(n);
 }
 
+void *mm_alloc(mm_ctx_t *mm, size_t size)
+{
+	if (mm) {
+		return mm->alloc(mm->ctx, size);
+	} else {
+		return malloc(size);
+	}
+}
+
+void mm_free(mm_ctx_t *mm, void *what)
+{
+	if (mm) {
+		if (mm->free) {
+			mm->free(what);
+		}
+	} else {
+		free(what);
+	}
+}
+
 void mm_ctx_init(mm_ctx_t *mm)
 {
 	mm->ctx = NULL;
 	mm->alloc = mm_malloc;
 	mm->free = free;
+}
+
+void mm_ctx_mempool(mm_ctx_t *mm, size_t chunk_size)
+{
+	mm->ctx = mp_new(chunk_size);
+	mm->alloc = (mm_alloc_t)mp_alloc;
+	mm->free = mm_nofree;
 }
 
 void* xmalloc(size_t l)
@@ -129,16 +156,17 @@ char* strcdup(const char *s1, const char *s2)
 		return NULL;
 	}
 
-	size_t slen = strlen(s1);
+	size_t s1len = strlen(s1);
 	size_t s2len = strlen(s2);
-	size_t nlen = slen + s2len + 1;
+	size_t nlen = s1len + s2len + 1;
+
 	char* dst = malloc(nlen);
 	if (dst == NULL) {
 		return NULL;
 	}
 
-	memcpy(dst, s1, slen);
-	strncpy(dst + slen, s2, s2len + 1); // With trailing '\0'
+	memcpy(dst, s1, s1len);
+	memcpy(dst + s1len, s2, s2len + 1);
 	return dst;
 }
 

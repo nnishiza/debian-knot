@@ -1,42 +1,38 @@
-# -*- mode: makefile; -*-
-check_PROGRAMS = \
-	tests/runtests \
-	tests/zscanner-tool
+LDADD = \
+	$(top_builddir)/src/zscanner/libzscanner.la
 
-dist_check_SCRIPTS = \
-	tests/zscanner.sh
-
-check_LIBRARIES = tests/tap/libtap.a
-
-AM_CPPFLAGS = \
-	-I$(top_srcdir)/src
-
-tests_runtests_CPPFLAGS = \
-	-DSOURCE='"$(abs_srcdir)/tests"' \
-	-DBUILD='"$(abs_builddir)/tests"'
-
-tests_tap_libtap_a_CPPFLAGS = -I$(abs_srcdir)/tests
-tests_tap_libtap_a_SOURCES = \
-	tests/tap/basic.c tests/tap/basic.h \
-	tests/tap/float.c tests/tap/float.h \
-	tests/tap/macros.h
-
-check-compile-only: $(check_PROGRAMS)
-
-check-local: $(check_PROGRAMS)
-	cd tests && ./runtests -l $(abs_srcdir)/tests/TESTS
-
-tests_zscanner_tool_SOURCES =		\
-	tests/zscanner-tool.c		\
-	tests/tests.h			\
-	tests/tests.c			\
-	tests/processing.h		\
+tests_zscanner_tool_SOURCES = \
+	tests/zscanner-tool.c	\
+	tests/tests.h		\
+	tests/tests.c		\
+	tests/processing.h	\
 	tests/processing.c
 
-tests_zscanner_tool_LDADD = libzscanner.la @LIBOBJS@
+check_PROGRAMS = \
+	tests/zscanner-tool
 
-EXTRA_DIST += 				\
-	tests/TESTS			\
-	tests/zscanner-TESTS		\
-	tests/data			\
-	tests/tap/libtap.sh
+check_SCRIPTS = \
+	tests/unittests
+
+CLEANFILES += $(check_SCRIPTS)
+
+edit = sed \
+	-e 's|@top_srcdir[@]|$(abs_top_srcdir)|g' \
+	-e 's|@top_builddir[@]|$(abs_top_builddir)|g'
+
+tests/unittests:
+	$(edit) < $(top_srcdir)/src/zscanner/$@.in > $(top_builddir)/src/zscanner/$@
+	chmod +x $(top_builddir)/src/zscanner/$@
+
+check-compile-only: $(check_SCRIPTS) $(check_PROGRAMS)
+
+check-local: $(check_PROGRAMS)
+	$(top_builddir)/libtap/runtests \
+	-s $(top_srcdir)/src/zscanner/tests \
+	-b $(top_builddir)/src/zscanner/tests \
+	$(top_builddir)/src/zscanner/tests/unittests
+
+EXTRA_DIST += \
+	tests/unittests.in \
+	tests/TESTS \
+	tests/data

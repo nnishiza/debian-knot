@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <config.h>
 #include <assert.h>
 #include <stdarg.h>
 #include <string.h>
@@ -26,21 +25,19 @@
 #include <errno.h>
 
 #include <urcu.h>
+#include "common/strlcat.h"
+#include "common/strlcpy.h"
 #include "knot/conf/conf.h"
 #include "knot/conf/extra.h"
 #include "knot/knot.h"
 #include "knot/ctl/remote.h"
+#include "knot/nameserver/internet.h"
 
 /*
  * Defaults.
  */
 
-/*! \brief Default config paths. */
-static const char *DEFAULT_CONFIG[] = {
-	CONFIG_DIR "/" "knot.conf",
-};
-
-#define DEFAULT_CONF_COUNT        1 /*!< \brief Number of default config paths. */
+#define DEFAULT_CONFIG CONFIG_DIR "/" "knot.conf" /*!< \brief Default config path. */
 #define ERROR_BUFFER_SIZE       512 /*!< \brief Error buffer size. */
 
 /*
@@ -105,19 +102,6 @@ void cf_error(void *scanner, const char *format, ...)
 	va_end(ap);
 
 	cf_print_error(scanner, buffer);
-}
-
-static void conf_parse_begin(conf_t *conf)
-{
-	conf->names = hattrie_create();
-}
-
-static void conf_parse_end(conf_t *conf)
-{
-	if (conf->names) {
-		hattrie_free(conf->names);
-		conf->names = NULL;
-	}
 }
 
 /*!
@@ -217,36 +201,36 @@ static int conf_process(conf_t *conf)
 		conf->max_conn_reply = CONFIG_REPLY_WD;
 	}
 
-	// Postprocess interfaces
-	conf_iface_t *cfg_if = NULL;
-	WALK_LIST(cfg_if, conf->ifaces) {
-		if (cfg_if->port <= 0) {
-			cfg_if->port = CONFIG_DEFAULT_PORT;
-		}
-	}
-
 	/* Default interface. */
 	conf_iface_t *ctl_if = conf->ctl.iface;
 	if (!conf->ctl.have && ctl_if == NULL) {
 		ctl_if = malloc(sizeof(conf_iface_t));
 		memset(ctl_if, 0, sizeof(conf_iface_t));
-		ctl_if->family = AF_UNIX;
-		ctl_if->address = strdup("knot.sock");
+		sockaddr_set(&ctl_if->addr, AF_UNIX, "knot.sock", 0);
 		conf->ctl.iface = ctl_if;
 	}
 
 	/* Control interface. */
 	if (ctl_if) {
-		if (ctl_if->family == AF_UNIX) {
-			ctl_if->address = conf_abs_path(conf->rundir,
-			                                ctl_if->address);
+		if (ctl_if->addr.ss_family == AF_UNIX) {
+			char *full_path = malloc(SOCKADDR_STRLEN);
+			memset(full_path, 0, SOCKADDR_STRLEN);
+			sockaddr_tostr(&ctl_if->addr, full_path, SOCKADDR_STRLEN);
+
+			/* Convert to absolute path. */
+			full_path = conf_abs_path(conf->rundir, full_path);
+			if(full_path) {
+				sockaddr_set(&ctl_if->addr, AF_UNIX, full_path, 0);
+				free(full_path);
+			}
+
 			/* Check for ACL existence. */
 			if (!EMPTY_LIST(conf->ctl.allow)) {
 				log_server_warning("Control 'allow' statement "
 				                   "does not affect UNIX sockets.\n");
 			}
-		} else if (ctl_if->port <= 0) {
-			ctl_if->port = REMOTE_DPORT;
+		} else if (sockaddr_port(&ctl_if->addr) <= 0) {
+			sockaddr_port_set(&ctl_if->addr, REMOTE_DPORT);
 		}
 	}
 
@@ -262,7 +246,6 @@ static int conf_process(conf_t *conf)
 	if (conf->xfers <= 0)
 		conf->xfers = CONFIG_XFERS;
 
-
 	/* Zones global configuration. */
 	if (conf->storage == NULL) {
 		conf->storage = strdup(STORAGE_DIR);
@@ -275,9 +258,32 @@ static int conf_process(conf_t *conf)
 
 	// Postprocess zones
 	int ret = KNOT_EOK;
-	node_t *n = NULL;
-	WALK_LIST (n, conf->zones) {
-		conf_zone_t *zone = (conf_zone_t*)n;
+
+	/* Initialize query plan if modules exist. */
+	if (!EMPTY_LIST(conf->query_modules)) {
+		conf->query_plan = query_plan_create(NULL);
+		if (conf->query_plan == NULL) {
+			return KNOT_ENOMEM;
+		}
+	}
+
+	/* Load query modules. */
+	struct query_module *module = NULL;
+	WALK_LIST(module, conf->query_modules) {
+		ret = module->load(conf->query_plan, module);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+	}
+
+	const bool sorted = false;
+	hattrie_iter_t *z_iter = hattrie_iter_begin(conf->zones, sorted);
+	if (z_iter == NULL) {
+		return KNOT_ERROR;
+	}
+	for (; !hattrie_iter_finished(z_iter) && ret == KNOT_EOK; hattrie_iter_next(z_iter)) {
+
+		conf_zone_t *zone = (conf_zone_t *)*hattrie_iter_val(z_iter);
 
 		// Default policy for dbsync timeout
 		if (zone->dbsync_timeout < 0) {
@@ -428,22 +434,33 @@ static int conf_process(conf_t *conf)
 		}
 		memcpy(dpos + zname_len, dbext, strlen(dbext) + 1);
 		zone->ixfr_db = dest;
+
+		/* Initialize query plan if modules exist. */
+		if (!EMPTY_LIST(zone->query_modules)) {
+			zone->query_plan = query_plan_create(NULL);
+			if (zone->query_plan == NULL) {
+				ret = KNOT_ENOMEM;
+				continue;
+			}
+
+			/* Only supported zone class is now IN. */
+			internet_query_plan(zone->query_plan);
+		}
+
+		/* Load query modules. */
+		struct query_module *module = NULL;
+		WALK_LIST(module, zone->query_modules) {
+			ret = module->load(zone->query_plan, module);
+			if (ret != KNOT_EOK) {
+				break;
+			}
+		}
 	}
+	hattrie_iter_free(z_iter);
 
 	/* Update UID and GID. */
 	if (conf->uid < 0) conf->uid = getuid();
 	if (conf->gid < 0) conf->gid = getgid();
-
-	/* Build remote control ACL. */
-	sockaddr_t addr;
-	conf_remote_t *r = NULL;
-	WALK_LIST(r, conf->ctl.allow) {
-		conf_iface_t *i = r->remote;
-		sockaddr_init(&addr, -1);
-		sockaddr_set(&addr, i->family, i->address, 0);
-		sockaddr_setprefix(&addr, i->prefix);
-		acl_insert(conf->ctl.acl, &addr, i);
-	}
 
 	return ret;
 }
@@ -453,68 +470,6 @@ static int conf_process(conf_t *conf)
  */
 
 conf_t *s_config = NULL; /*! \brief Singleton config instance. */
-
-/*! \brief Singleton config constructor (automatically called on load). */
-void __attribute__ ((constructor)) conf_init()
-{
-	// Create new config
-	s_config = conf_new(0);
-	if (!s_config) {
-		return;
-	}
-
-	/* Create default interface. */
-	conf_iface_t * iface = malloc(sizeof(conf_iface_t));
-	memset(iface, 0, sizeof(conf_iface_t));
-	iface->name = strdup("localhost");
-	iface->address = strdup("127.0.0.1");
-	iface->port = CONFIG_DEFAULT_PORT;
-	add_tail(&s_config->ifaces, &iface->n);
-	++s_config->ifaces_count;
-
-	/* Create default storage. */
-	s_config->storage = strdup(STORAGE_DIR);
-
-	/* Create default logs. */
-
-	/* Syslog */
-	conf_log_t *log = malloc(sizeof(conf_log_t));
-	log->type = LOGT_SYSLOG;
-	log->file = NULL;
-	init_list(&log->map);
-
-	conf_log_map_t *map = malloc(sizeof(conf_log_map_t));
-	map->source = LOG_ANY;
-	map->prios = LOG_MASK(LOG_WARNING)|LOG_MASK(LOG_ERR);
-	add_tail(&log->map, &map->n);
-	add_tail(&s_config->logs, &log->n);
-	s_config->logs_count = 1;
-
-	/* Stderr */
-	log = malloc(sizeof(conf_log_t));
-	log->type = LOGT_STDERR;
-	log->file = NULL;
-	init_list(&log->map);
-
-	map = malloc(sizeof(conf_log_map_t));
-	map->source = LOG_ANY;
-	map->prios = LOG_MASK(LOG_WARNING)|LOG_MASK(LOG_ERR);
-	add_tail(&log->map, &map->n);
-	add_tail(&s_config->logs, &log->n);
-	++s_config->logs_count;
-
-	/* Process config. */
-	conf_process(s_config);
-}
-
-/*! \brief Singleton config destructor (automatically called on exit). */
-void __attribute__ ((destructor)) conf_deinit()
-{
-	if (s_config) {
-		conf_free(s_config);
-		s_config = NULL;
-	}
-}
 
 /*!
  * \brief Parse config (from file).
@@ -593,32 +548,33 @@ static int conf_strparser(conf_t *conf, const char *src)
  * API functions.
  */
 
-conf_t *conf_new(const char* path)
+conf_t *conf_new(char* path)
 {
 	conf_t *c = malloc(sizeof(conf_t));
 	memset(c, 0, sizeof(conf_t));
 
 	/* Add path. */
-	if (path) {
-		c->filename = strdup(path);
-	}
+	c->filename = path;
 
 	/* Initialize lists. */
 	init_list(&c->logs);
 	init_list(&c->ifaces);
-	init_list(&c->zones);
 	init_list(&c->hooks);
 	init_list(&c->remotes);
 	init_list(&c->groups);
 	init_list(&c->keys);
 	init_list(&c->ctl.allow);
 
+	/* Zones container. */
+	c->zones = hattrie_create();
+	init_list(&c->query_modules);
+
 	/* Defaults. */
 	c->zone_checks = 0;
 	c->notify_retries = CONFIG_NOTIFY_RETRIES;
 	c->notify_timeout = CONFIG_NOTIFY_TIMEOUT;
 	c->dbsync_timeout = CONFIG_DBSYNC_TIMEOUT;
-	c->max_udp_payload = EDNS_MAX_UDP_PAYLOAD;
+	c->max_udp_payload = KNOT_EDNS_MAX_UDP_PAYLOAD;
 	c->sig_lifetime = KNOT_DNSSEC_DEFAULT_LIFETIME;
 	c->serial_policy = CONFIG_SERIAL_DEFAULT;
 	c->uid = -1;
@@ -626,18 +582,9 @@ conf_t *conf_new(const char* path)
 	c->xfers = -1;
 	c->rrl_slip = -1;
 	c->build_diffs = 0; /* Disable by default. */
-	c->logs_count = -1;
 
 	/* DNSSEC. */
 	c->dnssec_enable = 0;
-
-	/* ACLs. */
-	c->ctl.acl = acl_new();
-	if (!c->ctl.acl) {
-		free(c->filename);
-		free(c);
-		c = NULL;
-	}
 
 	return c;
 }
@@ -654,7 +601,6 @@ int conf_add_hook(conf_t * conf, int sections,
 	hook->update = on_update;
 	hook->data = data;
 	add_tail(&conf->hooks, &hook->n);
-	++conf->hooks_count;
 
 	return KNOT_EOK;
 }
@@ -662,9 +608,7 @@ int conf_add_hook(conf_t * conf, int sections,
 int conf_parse(conf_t *conf)
 {
 	/* Parse file. */
-	conf_parse_begin(conf);
 	int ret = conf_fparser(conf);
-	conf_parse_end(conf);
 
 	/* Postprocess config. */
 	if (ret == 0) {
@@ -683,9 +627,7 @@ int conf_parse(conf_t *conf)
 int conf_parse_str(conf_t *conf, const char* src)
 {
 	/* Parse config from string. */
-	conf_parse_begin(conf);
 	int ret = conf_strparser(conf, src);
-	conf_parse_end(conf);
 
 	/* Postprocess config. */
 	conf_process(conf);
@@ -714,7 +656,6 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 			/*! \todo Call hook unload (issue #1583) */
 			free((conf_hook_t*)n);
 		}
-		conf->hooks_count = 0;
 		init_list(&conf->hooks);
 	}
 
@@ -727,21 +668,18 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 	WALK_LIST_DELSAFE(n, nxt, conf->ifaces) {
 		conf_free_iface((conf_iface_t*)n);
 	}
-	conf->ifaces_count = 0;
 	init_list(&conf->ifaces);
 
 	// Free logs
 	WALK_LIST_DELSAFE(n, nxt, conf->logs) {
 		conf_free_log((conf_log_t*)n);
 	}
-	conf->logs_count = -1;
 	init_list(&conf->logs);
 
 	// Free remote interfaces
 	WALK_LIST_DELSAFE(n, nxt, conf->remotes) {
 		conf_free_iface((conf_iface_t*)n);
 	}
-	conf->remotes_count = 0;
 	init_list(&conf->remotes);
 
 	// Free groups of remotes
@@ -751,11 +689,19 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 	init_list(&conf->groups);
 
 	// Free zones
-	WALK_LIST_DELSAFE(n, nxt, conf->zones) {
-		conf_free_zone((conf_zone_t*)n);
+	if (conf->zones) {
+		hattrie_free(conf->zones);
+		conf->zones = NULL;
 	}
-	conf->zones_count = 0;
-	init_list(&conf->zones);
+
+	/* Unload query modules. */
+	struct query_module *module = NULL, *next = NULL;
+	WALK_LIST_DELSAFE(module, next, conf->query_modules) {
+		query_module_close(module);
+	}
+
+	/* Free query plan. */
+	query_plan_free(conf->query_plan);
 
 	conf->dnssec_enable = -1;
 	if (conf->filename) {
@@ -795,11 +741,7 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 	WALK_LIST_DELSAFE(n, nxt, conf->ctl.allow) {
 		conf_free_remote((conf_remote_t*)n);
 	}
-	conf->remotes_count = 0;
 	init_list(&conf->remotes);
-
-	/* Free remote control ACL. */
-	acl_truncate(conf->ctl.acl);
 
 	/* Free remote control iface. */
 	conf_free_iface(conf->ctl.iface);
@@ -814,64 +756,37 @@ void conf_free(conf_t *conf)
 	/* Truncate config. */
 	conf_truncate(conf, 1);
 
-	/* Free remote control ACL. */
-	acl_delete(&conf->ctl.acl);
-
 	/* Free config. */
 	free(conf);
 }
 
-char* conf_find_default()
+const char* conf_find_default()
 {
-	/* Try sequentially each default path. */
-	char *path = NULL;
-	for (int i = 0; i < DEFAULT_CONF_COUNT; ++i) {
-		path = strcpath(strdup(DEFAULT_CONFIG[i]));
-
-		/* Break, if the path exists. */
-		struct stat st;
-		if (stat(path, &st) == 0) {
-			break;
-		}
-
-		log_server_notice("Config '%s' does not exist.\n",
-		                  path);
-
-		/* Keep the last item. */
-		if (i < DEFAULT_CONF_COUNT - 1) {
-			free(path);
-			path = NULL;
-		}
-	}
-
-	log_server_info("Using '%s' as default configuration.\n",
-	                path);
-	return path;
+	return DEFAULT_CONFIG;
 }
 
 int conf_open(const char* path)
 {
-	/* Check path. */
-	if (!path) {
-		return KNOT_EINVAL;
+	/* Find real path of the config file */
+	char *config_realpath = realpath(path, NULL);
+	if (config_realpath == NULL) {
+		return knot_map_errno(EINVAL, ENOENT);
 	}
 
-	/* Check if exists. */
-	struct stat st;
-	if (stat(path, &st) != 0) {
-		return KNOT_ENOENT;
+	/* Check if accessible. */
+	if (access(path, F_OK | R_OK) != 0) {
+		return KNOT_EACCES;
 	}
 
 	/* Create new config. */
-	conf_t *nconf = conf_new(path);
-	if (!nconf) {
+	conf_t *nconf = conf_new(config_realpath);
+	if (nconf == NULL) {
+		free(config_realpath);
 		return KNOT_ENOMEM;
 	}
 
 	/* Parse config. */
-	conf_parse_begin(nconf);
 	int ret = conf_fparser(nconf);
-	conf_parse_end(nconf);
 	if (ret == KNOT_EOK) {
 		/* Postprocess config. */
 		ret = conf_process(nconf);
@@ -883,7 +798,8 @@ int conf_open(const char* path)
 	}
 
 	/* Replace current config. */
-	conf_t *oldconf = rcu_xchg_pointer(&s_config, nconf);
+	conf_t **current_config = &s_config;
+	conf_t *oldconf = rcu_xchg_pointer(current_config, nconf);
 
 	/* Synchronize. */
 	synchronize_rcu();
@@ -904,8 +820,6 @@ int conf_open(const char* path)
 		/* Free old config. */
 		conf_free(oldconf);
 	}
-
-
 
 	return KNOT_EOK;
 }
@@ -948,18 +862,19 @@ char* strcpath(char *path)
 		}
 
 		// Expand
-		char *npath = malloc(plen + tild_len + 1);
+		size_t npath_size = plen + tild_len + 1;
+		char *npath = malloc(npath_size);
 		if (npath == NULL) {
 			free(tild_exp);
 			return NULL;
 		}
 		npath[0] = '\0';
-		strncpy(npath, path, (size_t)(remainder - path));
-		strncat(npath, tild_exp, tild_len);
+		strlcpy(npath, path, npath_size);
+		strlcat(npath, tild_exp, npath_size);
 
 		// Append remainder
 		++remainder;
-		strncat(npath, remainder, strlen(remainder));
+		strlcat(npath, remainder, npath_size);
 
 		free(tild_exp);
 		free(path);
@@ -967,6 +882,50 @@ char* strcpath(char *path)
 	}
 
 	return path;
+}
+
+size_t conf_udp_threads(const conf_t *conf)
+{
+	if (conf->workers < 1) {
+		return dt_optimal_size();
+	}
+
+	return conf->workers;
+}
+
+size_t conf_tcp_threads(const conf_t *conf)
+{
+	size_t thrcount = conf_udp_threads(conf);
+	return MAX(thrcount * 2, CONFIG_XFERS);
+}
+
+void conf_init_zone(conf_zone_t *zone)
+{
+	if (!zone) {
+		return;
+	}
+
+	memset(zone, 0, sizeof(conf_zone_t));
+
+	// Default policy applies.
+	zone->enable_checks = -1;
+	zone->notify_timeout = -1;
+	zone->notify_retries = 0;
+	zone->dbsync_timeout = -1;
+	zone->disable_any = -1;
+	zone->build_diffs = -1;
+	zone->sig_lifetime = -1;
+	zone->dnssec_enable = -1;
+
+	// Initialize ACL lists.
+	init_list(&zone->acl.xfr_in);
+	init_list(&zone->acl.xfr_out);
+	init_list(&zone->acl.notify_in);
+	init_list(&zone->acl.notify_out);
+	init_list(&zone->acl.update_in);
+
+	// Initialize synthesis templates
+	init_list(&zone->query_modules);
 }
 
 void conf_free_zone(conf_zone_t *zone)
@@ -981,6 +940,15 @@ void conf_free_zone(conf_zone_t *zone)
 	WALK_LIST_FREE(zone->acl.notify_in);
 	WALK_LIST_FREE(zone->acl.notify_out);
 	WALK_LIST_FREE(zone->acl.update_in);
+
+	/* Unload query modules. */
+	struct query_module *module = NULL, *next = NULL;
+	WALK_LIST_DELSAFE(module, next, zone->query_modules) {
+		query_module_close(module);
+	}
+
+	/* Free query plan. */
+	query_plan_free(zone->query_plan);
 
 	free(zone->name);
 	free(zone->file);
@@ -1003,7 +971,6 @@ void conf_free_iface(conf_iface_t *iface)
 	}
 
 	free(iface->name);
-	free(iface->address);
 	free(iface);
 }
 

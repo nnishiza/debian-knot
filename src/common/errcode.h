@@ -25,8 +25,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _KNOTD_COMMON_ERRCODE_H_
-#define _KNOTD_COMMON_ERRCODE_H_
+#pragma once
 
 #include "common/errors.h"
 
@@ -62,7 +61,6 @@ enum knot_error {
 	KNOT_ERROR = -10000,  /*!< General error. */
 	KNOT_ENOTRUNNING,     /*!< Resource is not running. */
 	KNOT_EPARSEFAIL,      /*!< Parser fail. */
-	KNOT_ENOIPV6,         /*!< No IPv6 support. */
 	KNOT_EEXPIRED,        /*!< Resource is expired. */
 	KNOT_EUPTODATE,       /*!< Zone is up-to-date. */
 	KNOT_EFEWDATA,        /*!< Not enough data to parse. */
@@ -77,11 +75,11 @@ enum knot_error {
 	KNOT_EZONENOENT,      /*!< Zone file not found. */
 	KNOT_ENOZONE,         /*!< No such zone found. */
 	KNOT_ENONODE,         /*!< No such node in zone found. */
-	KNOT_ENORRSET,        /*!< No such RRSet found. */
 	KNOT_EDNAMEPTR,       /*!< Domain name pointer larger than allowed. */
 	KNOT_EPAYLOAD,        /*!< Payload in OPT RR larger than max wire size. */
 	KNOT_ECRC,            /*!< Wrong dump CRC. */
 	KNOT_EPREREQ,         /*!< UPDATE prerequisity not met. */
+	KNOT_ETTL,            /*!< TTL mismatch. */
 	KNOT_ENOXFR,          /*!< Transfer was not sent. */
 	KNOT_ENOIXFR,         /*!< Transfer is not IXFR (is in AXFR format). */
 	KNOT_EXFRREFUSED,     /*!< Zone transfer refused by the server. */
@@ -94,6 +92,7 @@ enum knot_error {
 	KNOT_ENOTSIG,         /*!< Expected a TSIG or SIG(0). */
 	KNOT_ELIMIT,          /*!< Exceeded response rate limit. */
 	KNOT_EWRITABLE,       /*!< File is not writable. */
+	KNOT_EOF,             /*!< End of file. */
 
 	/* Control states. */
 	KNOT_CTL_STOP,        /*!< Stop requested. */
@@ -159,7 +158,5 @@ static inline const char *knot_strerror(int code)
  * \return Mapped error code.
  */
 #define knot_map_errno(err...) map_errno(KNOT_ERROR, err);
-
-#endif /* _KNOTD_COMMON_ERRCODE_H_ */
 
 /*! @} */

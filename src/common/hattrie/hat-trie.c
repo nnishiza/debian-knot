@@ -5,7 +5,6 @@
  *
  */
 
-#include <config.h>
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
@@ -84,12 +83,12 @@ static trie_node_t* alloc_trie_node(hattrie_t* T, node_ptr child)
 
 /* iterate trie nodes until string is consumed or bucket is found */
 static node_ptr hattrie_consume_ns(node_ptr **s, size_t *sp, size_t slen,
-                                const char **k, size_t *l, unsigned brk)
+                                const char **k, size_t *l, unsigned min_len)
 {
 
     node_ptr *bs = *s;
     node_ptr node = bs[*sp].t->xs[(unsigned char) **k];
-    while (node.flag && *node.flag & NODE_TYPE_TRIE && *l > brk) {
+    while (node.flag && *node.flag & NODE_TYPE_TRIE && *l > min_len) {
         ++*k;
         --*l;
         /* build node stack if slen > 0 */
@@ -128,11 +127,12 @@ static node_ptr hattrie_consume_ns(node_ptr **s, size_t *sp, size_t slen,
     return node;
 }
 
-static inline node_ptr hattrie_consume(node_ptr *parent, const char **k,
-                                       size_t *l, unsigned brk)
+/*! \brief Consume key. */
+static inline node_ptr hattrie_consume(node_ptr *parent, const char **key,
+                                       size_t *key_len, unsigned min_len)
 {
     size_t sp = 0;
-    return hattrie_consume_ns(&parent, &sp, 0, k, l, brk);
+    return hattrie_consume_ns(&parent, &sp, 0, key, key_len, min_len);
 }
 
 /* use node value and return pointer to it */
@@ -230,10 +230,6 @@ static inline node_ptr hattrie_find(node_ptr *parent, const char **key, size_t *
     return hattrie_find_ns(&parent, &sp, 0, key, len);
 }
 
-static inline value_t hattrie_setval(value_t v) {
-    return v;
-}
-
 /* initialize root node */
 static void hattrie_initroot(hattrie_t *T)
 {
@@ -317,8 +313,9 @@ hattrie_t* hattrie_dup(const hattrie_t* T, value_t (*nval)(value_t))
 {
     hattrie_t *N = hattrie_create_n(T->bsize, &T->mm);
 
-    /* assignment */
-    if (!nval) nval = hattrie_setval;
+    if (nval == NULL) {
+        return N;
+    }
 
     /*! \todo could be probably implemented faster */
 
@@ -334,8 +331,12 @@ hattrie_t* hattrie_dup(const hattrie_t* T, value_t (*nval)(value_t))
     return N;
 }
 
-size_t hattrie_weight (hattrie_t* T)
+size_t hattrie_weight (const hattrie_t *T)
 {
+    if (T == NULL) {
+        return 0;
+    }
+
     return T->m;
 }
 
@@ -499,6 +500,18 @@ static void hashnode_split_reinsert(hattrie_t *T, node_ptr parent, node_ptr src)
     hhash_free(src.b);
 }
 
+static size_t hashnode_nextsize(unsigned items)
+{
+    /* Next bucket size increments. */
+    size_t increment = ((items + (TRIE_BUCKET_INCR/2))/TRIE_BUCKET_INCR);
+    if (increment > TRIE_BUCKET_MAX) {
+       increment = TRIE_BUCKET_MAX;
+    }
+    /* Align to closest bucket size. */
+    return TRIE_BUCKET_SIZE + increment * TRIE_BUCKET_INCR;
+}
+
+
 static void hashnode_split(hattrie_t *T, node_ptr parent, node_ptr node)
 {
     /* Find split point. */
@@ -514,8 +527,8 @@ static void hashnode_split(hattrie_t *T, node_ptr parent, node_ptr node)
      */
     unsigned char c0 = node.b->c0, c1 = node.b->c1;
     node_ptr left, right;
-    right.b = hhash_create(TRIE_BUCKET_SIZE);
-    left.b = hhash_create(TRIE_BUCKET_SIZE);
+    right.b = hhash_create(hashnode_nextsize(right_m));
+    left.b = hhash_create(hashnode_nextsize(left_m));
 
     /* setup created nodes */
     left.b->c0    = c0;
@@ -723,6 +736,11 @@ int hattrie_find_leq (hattrie_t* T, const char* key, size_t len, value_t** dst)
 
     /* return if found equal or left in hashtable */
     if (*dst == 0) {
+        /* we're retracing from pure bucket, pop the key */
+        if (*node.flag & NODE_TYPE_PURE_BUCKET) {
+            --key;
+        }
+        /* walk up the stack of visited nodes and find closest match on the left */
         *dst = hattrie_walk(ns, sp, key, hattrie_find_rightmost);
         if (*dst) {
             ret = -1; /* found previous */
@@ -734,58 +752,6 @@ int hattrie_find_leq (hattrie_t* T, const char* key, size_t len, value_t** dst)
     if (ns != bs) free(ns);
     return ret;
 }
-
-int hattrie_find_lpr (hattrie_t* T, const char* key, size_t len, value_t** dst)
-{
-    /* create node stack for traceback */
-    int ret = -1;
-    size_t sp = 0;
-    node_ptr bs[NODESTACK_INIT];  /* base stack (will be enough mostly) */
-    node_ptr *ns = bs;            /* generic ptr, could point to new mem */
-    ns[sp] = T->root;
-    *dst = NULL;
-
-    /* consume trie nodes for key (thus building prefix chain) */
-    node_ptr node = hattrie_find_ns(&ns, &sp, NODESTACK_INIT, &key, &len);
-    if (node.flag == NULL) {
-        if (sp == 0) { /* empty trie, no prefix match */
-            if (ns != bs) free(ns);
-            return -1;
-        }
-        node = ns[--sp]; /* dead end, pop node */
-    }
-
-    /* search for suffix in current node */
-    size_t suffix = len; /* suffix length */
-    if (*node.flag & NODE_TYPE_TRIE) {
-        *dst = &node.t->val; /* use current trie node value */
-    } else {
-        while (*dst == NULL) { /* find remainder in current hashtable */
-            *dst = hhash_find(node.b, key, suffix);
-            if (suffix == 0)
-                break;
-            --suffix;
-        }
-    }
-
-    /* not in current node, need to traceback node stack */
-    while (*dst == NULL) {
-        node = ns[sp]; /* parent node, always a trie node type */
-        if (*node.flag & NODE_HAS_VAL)
-            *dst = &node.t->val;
-        if (sp == 0)
-            break;
-        --sp;
-    }
-
-    if (*dst) { /* prefix found? */
-        ret = 0;
-    }
-
-    if (ns != bs) free(ns);
-    return ret;
-}
-
 
 int hattrie_del(hattrie_t* T, const char* key, size_t len)
 {

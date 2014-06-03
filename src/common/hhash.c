@@ -1,4 +1,3 @@
-#include <config.h>
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -384,7 +383,7 @@ void hhash_build_index(hhash_t* tbl)
 	/* Free old index. */
 	if (tbl->index) {
 		if (tbl->mm.free) {
-			free(tbl->index);
+			tbl->mm.free(tbl->index);
 		}
 		tbl->index = NULL;
 	}
