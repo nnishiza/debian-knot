@@ -22,7 +22,7 @@ Vcs-Git: git://git.debian.org/users/ondrej/knot.git
 
 Package: knot
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, knot-libs (= ${binary:Version})
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
  full and open source name server.
@@ -31,9 +31,22 @@ Description: authoritative domain name server
  registry and hence is well suited to run anything from the root
  zone, the top-level domain, to many smaller standard domain names.
 
+Package: knot-libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: authoritative domain name server
+ Knot DNS is a fast, authoritative only, high performance, feature
+ full and open source name server.
+ .
+ Knot DNS is developed by CZ.NIC Labs, the R&D department of .CZ
+ registry and hence is well suited to run anything from the root
+ zone, the top-level domain, to many smaller standard domain names.
+ .
+ This package provides various internal common shared libraries.
+
 Package: knot-dbg
 Architecture: any
-Depends: ${misc:Depends}, knot (= ${binary:Version})
+Depends: ${misc:Depends}, knot (= ${binary:Version}), knot-libs (= ${binary:Version})
 Recommends: gdb
 Section: debug
 Priority: extra
@@ -50,7 +63,7 @@ Description: Debug symbols for Knot DNS
 
 Package: knot-dnsutils
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, knot-libs (= ${binary:Version})
 Section: net
 Priority: optional
 Conflicts: dnsutils
@@ -78,13 +91,20 @@ Description: Clients provided with Knot DNS (kdig, knslookup, knsupdate)
 
 Package: knot-host
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, knot-libs (= ${binary:Version})
 Section: net
 Priority: optional
 Conflicts: host
 Provides: host
 Replaces: host
 Description: Version of 'host' bundled with Knot DNS
+ Knot DNS is a fast, authoritative only, high performance, feature
+ full and open source name server.
+ .
+ Knot DNS is developed by CZ.NIC Labs, the R&D department of .CZ
+ registry and hence is well suited to run anything from the root
+ zone, the top-level domain, to many smaller standard domain names.
+ .
  This package provides the 'host' program in the form that is bundled
  with the Knot DNS.  The 'host' command is designed to be 1:1
  compatible with BIND 9.x 'host' program.
@@ -95,5 +115,12 @@ Depends: ${misc:Depends}
 Section: doc
 Priority: optional
 Description: Documentation for Knot DNS
+ Knot DNS is a fast, authoritative only, high performance, feature
+ full and open source name server.
+ .
+ Knot DNS is developed by CZ.NIC Labs, the R&D department of .CZ
+ registry and hence is well suited to run anything from the root
+ zone, the top-level domain, to many smaller standard domain names.
+ .
  This package provides various documents that are useful for
  maintaining a working Knot DNS installation.

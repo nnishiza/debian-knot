@@ -50,6 +50,10 @@ override_dh_install:
 	# Install custom script which creates RUNDIR and chowns it according to conffile settings
 	install -m 755 -d $(CURDIR)/debian/tmp/usr/lib/knot/
 	install -m 755 $(CURDIR)/debian/prepare-environment $(CURDIR)/debian/tmp/usr/lib/knot/
+
+	# Remove .la and .so
+	rm $(CURDIR)/debian/tmp/usr/lib/*/*.la $(CURDIR)/debian/tmp/usr/lib/*/*.so
+
 	dh_install --fail-missing
 
 	install -m 755 -d $(CURDIR)/debian/knot/etc/ufw/applications.d/
