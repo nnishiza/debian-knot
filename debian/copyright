@@ -32,186 +32,23 @@ License: GPL-3+ with OpenSSL exception
  On Debian systems, the full text of the GNU General Public License
  version 3 can be found in the file `/usr/share/common-licenses/GPL-3'.
 
-Files: src/common/dSFMT*
-Copyright: (c) 2006,2007 Mutsuo Saito, Makoto Matsumoto
-                         and Hiroshima University.
-License:
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are
- met:
- .
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Redistributions in binary form must reproduce the above
-       copyright notice, this list of conditions and the following
-       disclaimer in the documentation and/or other materials provided
-       with the distribution.
-     * Neither the name of the Hiroshima University nor the names of
-       its contributors may be used to endorse or promote products
-       derived from this software without specific prior written
-       permission.
- .
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Files: src/common/hattrie/*
+Copyright: (c) 2011 by Daniel C. Jones <dcjones@cs.washington.edu>
+License: Expat
 
-Files: src/common/base32.c src/common/base32.h
-       src/common/base32hex.c src/common/base32hex.h
-Copyright: 2004, 2005, 2006, 2010 Free Software Foundation, Inc.
-License: GPL-2+
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2, or (at your option)
- any later version.
- .
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- .
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software Foundation,
- Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
-Files: src/common/crc.c src/common/crc.h
-Copyright: 2006-2011, Thomas Pircher <tehpeh@gmx.net>
+Files: libtap/*
+Copyright: 2000-2001, 2004, 2006-2011 Russ Allbery <rra@stanford.edu>
 License: Expat
 
 Files: src/common/lists.c
 Copyright: 1998 Martin Mares <mj@ucw.cz>
 License: GPL-3+
 
-Files: src/common/modified_tree.h src/common/tree.h
-Copyright: Copyright (c) 2005 Ian Piumarta
-License:
- Permission is hereby granted, free of charge, to any person obtaining
- a copy of this software and associated documentation files (the
- 'Software'), to deal in the Software without restriction, including
- without limitation the rights to use, copy, modify, merge, publish,
- distribute, and/or sell copies of the Software, and to permit persons
- to whom the Software is furnished to do so, provided that the above
- copyright notice(s) and this permission notice appear in all copies
- of the Software and that both the above copyright notice(s) and this
- permission notice appear in supporting documentation.
- .
- THE SOFTWARE IS PROVIDED 'AS IS'.  USE ENTIRELY AT YOUR OWN RISK.
-
 Files: src/common/skip-list.c src/common/skip-list.h
 Copyright: 2010 the authors listed at the following URL, and/or
  the authors of referenced articles or incorporated external code:
  http://en.literateprograms.org/Skip_list_(C)?action=history&offset=20080313195128
 License: Expat
-
-Files: src/knot/zone/zone-dump-text.c
-Copyright: 1996, 1998 by Internet Software Consortium (b64_ntop)
-           1995 by International Business Machines, Inc. (b64_ntop)
-           2001-2011, NLnet Labs. All rights reserved.
-           2011 CZ.NIC, z.s.p.o.
-License:
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions
- are met:
- .
- Redistributions of source code must retain the above copyright notice,
- this list of conditions and the following disclaimer.
- .
- Redistributions in binary form must reproduce the above copyright notice,
- this list of conditions and the following disclaimer in the documentation
- and/or other materials provided with the distribution.
- .
- Neither the name of the NLNET LABS nor the names of its contributors may
- be used to endorse or promote products derived from this software without
- specific prior written permission.
- .
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- POSSIBILITY OF SUCH DAMAGE.
- .
- /* Following copyrights are only valid for b64_ntop function */
- .
- Permission to use, copy, modify, and distribute this software for any
- purpose with or without fee is hereby granted, provided that the above
- copyright notice and this permission notice appear in all copies.
- .
- THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- SOFTWARE.
- .
- International Business Machines, Inc. (hereinafter called IBM) grants
- permission under its copyrights to use, copy, modify, and distribute this
- Software with or without fee, provided that the above copyright notice and
- all paragraphs of this notice appear in all copies, and that the name of IBM
- not be used in connection with the marketing of any product incorporating
- the Software or modifications thereof, without specific, written prior
- permission.
- .
- To the extent it has a right to do so, IBM grants an immunity from suit
- under its patents, if any, for the use, sale or manufacture of products to
- the extent that such products are used for performing Domain Name System
- dynamic updates in TCP/IP networks by means of the Software.  No immunity is
- granted for any product per se or for any other function of any product.
- .
- THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
- INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
- DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
- OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
- IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
-
-Files: src/libknot/util/descriptor.c src/libknot/util/descriptor.h
-       src/zcompile/parser-descriptor.c src/zcompile/parser-descriptor.h
-       src/zcompile/parser-util.c src/zcompile/parser-util.h
-       src/zcompile/zcompile.h
-Copyright: 2001-2011, NLnet Labs. All rights reserved.
-           2011 CZ.NIC, z.s.p.o.
-License: BSD-3-clause
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions
- are met:
- .
- Redistributions of source code must retain the above copyright notice,
- this list of conditions and the following disclaimer.
- .
- Redistributions in binary form must reproduce the above copyright notice,
- this list of conditions and the following disclaimer in the documentation
- and/or other materials provided with the distribution.
- .
- Neither the name of the NLNET LABS nor the names of its contributors may
- be used to endorse or promote products derived from this software without
- specific prior written permission.
- .
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- POSSIBILITY OF SUCH DAMAGE.
 
 Files: debian/*
 Copyright: 2011 Ondřej Surý <ondrej@debian.org>
