@@ -543,9 +543,9 @@ static size_t rrset_binary_size_one(const knot_rrset_t *rrset,
 				rrset_rdata_naptr_bin_chunk_size(rrset, rdata_pos);
 			/*
 			 * Regular expressions in NAPTR are TXT's, so they
-			 * can be upto 64k long.
+			 * can be upto 64k long. Size is stored in serialized form.
 			 */
-			size += naptr_chunk_size + 2;
+			size += sizeof(uint16_t) + naptr_chunk_size;
 			offset += naptr_chunk_size;
 		}
 	}
@@ -592,6 +592,7 @@ static void rrset_serialize_rr(const knot_rrset_t *rrset, size_t rdata_pos,
 			*size += sizeof(uint16_t);
 			/* Write data. */
 			memcpy(stream + *size, rdata + offset, naptr_chunk_size);
+			*size += naptr_chunk_size;
 		}
 	}
 
@@ -1024,13 +1025,9 @@ knot_rrset_t *knot_rrset_get_rrsigs(knot_rrset_t *rrset)
  */
 int knot_rrset_rdata_equal(const knot_rrset_t *r1, const knot_rrset_t *r2)
 {
-	if (r1 == NULL || r2 == NULL || (r1->type != r2->type) ||
-	    r1->rdata_count == 0 || r2->rdata_count == 0) {
-		return KNOT_EINVAL;
-	}
-
+	assert(r1 && r2 && r1->rdata && r2->rdata);
 	if (r1->rdata_count != r2->rdata_count) {
-		return 0;
+		return false;
 	}
 
 	for (uint16_t i = 0; i < r1->rdata_count; i++) {
@@ -1274,15 +1271,21 @@ int knot_rrset_equal(const knot_rrset_t *r1,
 		return r1 == r2;
 	}
 
-
-	if (!knot_dname_is_equal(r1->owner, r2->owner))
+	if (!knot_dname_is_equal(r1->owner, r2->owner)) {
 		return false;
+	}
 
-	if (r1->rclass != r2->rclass || r1->type != r2->type)
+	if (r1->rclass != r2->rclass || r1->type != r2->type) {
 		return false;
+	}
 
-	if (cmp == KNOT_RRSET_COMPARE_WHOLE)
-		return knot_rrset_rdata_equal(r1, r2);
+	if (cmp == KNOT_RRSET_COMPARE_WHOLE) {
+		if (r1->rdata_count > 0 && r2->rdata_count > 0) {
+			return knot_rrset_rdata_equal(r1, r2);
+		} else {
+			return r1->rdata_count == r2->rdata_count;
+		}
+	}
 
 	return true;
 }
