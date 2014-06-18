@@ -1,6 +1,19 @@
+knot (1.4.7-1) unstable; urgency=medium
+
+  * New upstream version 1.4.7
+   + Fixed DDNS corner cases
+   + Fixed zone EXPIRE timer
+   + Fixed semantic checks false positives
+   + Fixed sending malformed IXFR with automatic DNSSEC
+   + Fixed NAPTR record serialization
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 18 Jun 2014 15:22:28 +0200
+
 knot (1.4.6+hotfix-1) unstable; urgency=medium
 
   * New upstream version 1.4.6+hotfix
+   + Fix possible signing loop when doing key rollover
+   + Fixed sending of malformed UDP empty responses
 
  -- Ondřej Surý <ondrej@debian.org>  Thu, 22 May 2014 15:39:07 +0200
 
