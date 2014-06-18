@@ -122,6 +122,9 @@ static int server_init_iface(iface_t *new_if, conf_iface_t *cfg_if)
 		return sock;
 	}
 
+	/* Set UDP as non-blocking. */
+	fcntl(sock, F_SETFL, O_NONBLOCK);
+
 	new_if->fd[IO_UDP] = sock;
 
 	/* Create bound TCP socket. */
@@ -291,12 +294,6 @@ int server_init(server_t *server, int bg_workers)
 		return KNOT_ENOMEM;
 	}
 
-	/* Create zone events threads. */
-	if (bg_workers < 1) {
-		bg_workers = dt_optimal_size();
-	}
-	assert(bg_workers > 0);
-
 	server->workers = worker_pool_create(bg_workers);
 	if (server->workers == NULL) {
 		dt_delete(&server->iosched);
@@ -387,20 +384,23 @@ static void server_free_handler(iohandler_t *h)
 	memset(h, 0, sizeof(iohandler_t));
 }
 
-int server_start(server_t *s)
+int server_start(server_t *s, bool async)
 {
-	// Check server
+	dbg_server("%s(%p, %d)\n", __func__, s, async);
 	if (s == 0) {
 		return KNOT_EINVAL;
 	}
 
-	dbg_server("server: starting server instance\n");
+	/* Start workers. */
+	worker_pool_start(s->workers);
+
+	/* Wait for enqueued events if not asynchronous. */
+	if (!async) {
+		worker_pool_wait(s->workers);
+	}
 
 	/* Start evsched handler. */
 	dt_start(s->iosched);
-
-	/* Start workers. */
-	worker_pool_start(s->workers);
 
 	/* Start I/O handlers. */
 	int ret = KNOT_EOK;
@@ -410,8 +410,6 @@ int server_start(server_t *s)
 			ret = dt_start(s->handler[i].unit);
 		}
 	}
-
-	dbg_server("server: server started\n");
 
 	return ret;
 }
@@ -598,6 +596,7 @@ int server_update_zones(const struct conf_t *conf, void *data)
 	}
 
 	/* Finish operations already in the queue. */
+	worker_pool_clear(server->workers);
 	worker_pool_wait(server->workers);
 
 	/* Reload zone database and free old zones. */
