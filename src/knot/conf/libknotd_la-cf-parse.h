@@ -65,52 +65,53 @@ extern int cf_debug;
      TSIG_ALGO_NAME = 274,
      WORKERS = 275,
      BACKGROUND_WORKERS = 276,
-     USER = 277,
-     RUNDIR = 278,
-     PIDFILE = 279,
-     REMOTES = 280,
-     GROUPS = 281,
-     ZONES = 282,
-     FILENAME = 283,
-     DISABLE_ANY = 284,
-     SEMANTIC_CHECKS = 285,
-     NOTIFY_RETRIES = 286,
-     NOTIFY_TIMEOUT = 287,
-     DBSYNC_TIMEOUT = 288,
-     IXFR_FSLIMIT = 289,
-     XFR_IN = 290,
-     XFR_OUT = 291,
-     UPDATE_IN = 292,
-     NOTIFY_IN = 293,
-     NOTIFY_OUT = 294,
-     BUILD_DIFFS = 295,
-     MAX_CONN_IDLE = 296,
-     MAX_CONN_HS = 297,
-     MAX_CONN_REPLY = 298,
-     RATE_LIMIT = 299,
-     RATE_LIMIT_SIZE = 300,
-     RATE_LIMIT_SLIP = 301,
-     TRANSFERS = 302,
-     STORAGE = 303,
-     DNSSEC_ENABLE = 304,
-     DNSSEC_KEYDIR = 305,
-     SIGNATURE_LIFETIME = 306,
-     SERIAL_POLICY = 307,
-     SERIAL_POLICY_VAL = 308,
-     QUERY_MODULE = 309,
-     INTERFACES = 310,
-     ADDRESS = 311,
-     PORT = 312,
-     IPA = 313,
-     IPA6 = 314,
-     VIA = 315,
-     CONTROL = 316,
-     ALLOW = 317,
-     LISTEN_ON = 318,
-     LOG = 319,
-     LOG_DEST = 320,
-     LOG_SRC = 321,
-     LOG_LEVEL = 322
+     ASYNC_START = 277,
+     USER = 278,
+     RUNDIR = 279,
+     PIDFILE = 280,
+     REMOTES = 281,
+     GROUPS = 282,
+     ZONES = 283,
+     FILENAME = 284,
+     DISABLE_ANY = 285,
+     SEMANTIC_CHECKS = 286,
+     NOTIFY_RETRIES = 287,
+     NOTIFY_TIMEOUT = 288,
+     DBSYNC_TIMEOUT = 289,
+     IXFR_FSLIMIT = 290,
+     XFR_IN = 291,
+     XFR_OUT = 292,
+     UPDATE_IN = 293,
+     NOTIFY_IN = 294,
+     NOTIFY_OUT = 295,
+     BUILD_DIFFS = 296,
+     MAX_CONN_IDLE = 297,
+     MAX_CONN_HS = 298,
+     MAX_CONN_REPLY = 299,
+     RATE_LIMIT = 300,
+     RATE_LIMIT_SIZE = 301,
+     RATE_LIMIT_SLIP = 302,
+     TRANSFERS = 303,
+     STORAGE = 304,
+     DNSSEC_ENABLE = 305,
+     DNSSEC_KEYDIR = 306,
+     SIGNATURE_LIFETIME = 307,
+     SERIAL_POLICY = 308,
+     SERIAL_POLICY_VAL = 309,
+     QUERY_MODULE = 310,
+     INTERFACES = 311,
+     ADDRESS = 312,
+     PORT = 313,
+     IPA = 314,
+     IPA6 = 315,
+     VIA = 316,
+     CONTROL = 317,
+     ALLOW = 318,
+     LISTEN_ON = 319,
+     LOG = 320,
+     LOG_DEST = 321,
+     LOG_SRC = 322,
+     LOG_LEVEL = 323
    };
 #endif
 /* Tokens.  */
@@ -133,52 +134,53 @@ extern int cf_debug;
 #define TSIG_ALGO_NAME 274
 #define WORKERS 275
 #define BACKGROUND_WORKERS 276
-#define USER 277
-#define RUNDIR 278
-#define PIDFILE 279
-#define REMOTES 280
-#define GROUPS 281
-#define ZONES 282
-#define FILENAME 283
-#define DISABLE_ANY 284
-#define SEMANTIC_CHECKS 285
-#define NOTIFY_RETRIES 286
-#define NOTIFY_TIMEOUT 287
-#define DBSYNC_TIMEOUT 288
-#define IXFR_FSLIMIT 289
-#define XFR_IN 290
-#define XFR_OUT 291
-#define UPDATE_IN 292
-#define NOTIFY_IN 293
-#define NOTIFY_OUT 294
-#define BUILD_DIFFS 295
-#define MAX_CONN_IDLE 296
-#define MAX_CONN_HS 297
-#define MAX_CONN_REPLY 298
-#define RATE_LIMIT 299
-#define RATE_LIMIT_SIZE 300
-#define RATE_LIMIT_SLIP 301
-#define TRANSFERS 302
-#define STORAGE 303
-#define DNSSEC_ENABLE 304
-#define DNSSEC_KEYDIR 305
-#define SIGNATURE_LIFETIME 306
-#define SERIAL_POLICY 307
-#define SERIAL_POLICY_VAL 308
-#define QUERY_MODULE 309
-#define INTERFACES 310
-#define ADDRESS 311
-#define PORT 312
-#define IPA 313
-#define IPA6 314
-#define VIA 315
-#define CONTROL 316
-#define ALLOW 317
-#define LISTEN_ON 318
-#define LOG 319
-#define LOG_DEST 320
-#define LOG_SRC 321
-#define LOG_LEVEL 322
+#define ASYNC_START 277
+#define USER 278
+#define RUNDIR 279
+#define PIDFILE 280
+#define REMOTES 281
+#define GROUPS 282
+#define ZONES 283
+#define FILENAME 284
+#define DISABLE_ANY 285
+#define SEMANTIC_CHECKS 286
+#define NOTIFY_RETRIES 287
+#define NOTIFY_TIMEOUT 288
+#define DBSYNC_TIMEOUT 289
+#define IXFR_FSLIMIT 290
+#define XFR_IN 291
+#define XFR_OUT 292
+#define UPDATE_IN 293
+#define NOTIFY_IN 294
+#define NOTIFY_OUT 295
+#define BUILD_DIFFS 296
+#define MAX_CONN_IDLE 297
+#define MAX_CONN_HS 298
+#define MAX_CONN_REPLY 299
+#define RATE_LIMIT 300
+#define RATE_LIMIT_SIZE 301
+#define RATE_LIMIT_SLIP 302
+#define TRANSFERS 303
+#define STORAGE 304
+#define DNSSEC_ENABLE 305
+#define DNSSEC_KEYDIR 306
+#define SIGNATURE_LIFETIME 307
+#define SERIAL_POLICY 308
+#define SERIAL_POLICY_VAL 309
+#define QUERY_MODULE 310
+#define INTERFACES 311
+#define ADDRESS 312
+#define PORT 313
+#define IPA 314
+#define IPA6 315
+#define VIA 316
+#define CONTROL 317
+#define ALLOW 318
+#define LISTEN_ON 319
+#define LOG 320
+#define LOG_DEST 321
+#define LOG_SRC 322
+#define LOG_LEVEL 323
 
 
 
@@ -197,7 +199,7 @@ typedef union YYSTYPE
 
 
 /* Line 2058 of yacc.c  */
-#line 201 "knot/conf/libknotd_la-cf-parse.h"
+#line 203 "knot/conf/libknotd_la-cf-parse.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

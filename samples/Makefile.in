@@ -268,7 +268,7 @@ edit = sed \
 	-e 's|@storage_dir[@]|$(storage_dir)|g' \
 	-e 's|@run_dir[@]|$(run_dir)|g'
 
-EXTRA_DIST = knot.sample.conf.in knot.full.conf knot.keys.conf example.com.zone
+EXTRA_DIST = knot.sample.conf.in example.com.zone
 all: all-am
 
 .SUFFIXES:

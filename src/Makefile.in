@@ -162,20 +162,19 @@ libknotd_la_DEPENDENCIES = libknots.la libknot.la $(am__append_4)
 am__libknotd_la_SOURCES_DIST = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/conf/conf.c knot/conf/conf.h knot/conf/extra.c \
 	knot/conf/extra.h knot/conf/includes.c knot/conf/includes.h \
-	knot/conf/logconf.c knot/conf/logconf.h knot/ctl/process.c \
-	knot/ctl/process.h knot/ctl/remote.c knot/ctl/remote.h \
-	knot/dnssec/nsec-chain.c knot/dnssec/nsec-chain.h \
-	knot/dnssec/nsec3-chain.c knot/dnssec/nsec3-chain.h \
-	knot/dnssec/zone-events.c knot/dnssec/zone-events.h \
-	knot/dnssec/zone-keys.c knot/dnssec/zone-keys.h \
-	knot/dnssec/zone-nsec.c knot/dnssec/zone-nsec.h \
-	knot/dnssec/zone-sign.c knot/dnssec/zone-sign.h knot/knot.h \
-	knot/nameserver/axfr.c knot/nameserver/axfr.h \
-	knot/nameserver/chaos.c knot/nameserver/chaos.h \
-	knot/nameserver/internet.c knot/nameserver/internet.h \
-	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
-	knot/nameserver/nsec_proofs.c knot/nameserver/nsec_proofs.h \
-	knot/nameserver/process_query.c \
+	knot/ctl/process.c knot/ctl/process.h knot/ctl/remote.c \
+	knot/ctl/remote.h knot/dnssec/nsec-chain.c \
+	knot/dnssec/nsec-chain.h knot/dnssec/nsec3-chain.c \
+	knot/dnssec/nsec3-chain.h knot/dnssec/zone-events.c \
+	knot/dnssec/zone-events.h knot/dnssec/zone-keys.c \
+	knot/dnssec/zone-keys.h knot/dnssec/zone-nsec.c \
+	knot/dnssec/zone-nsec.h knot/dnssec/zone-sign.c \
+	knot/dnssec/zone-sign.h knot/knot.h knot/nameserver/axfr.c \
+	knot/nameserver/axfr.h knot/nameserver/chaos.c \
+	knot/nameserver/chaos.h knot/nameserver/internet.c \
+	knot/nameserver/internet.h knot/nameserver/ixfr.c \
+	knot/nameserver/ixfr.h knot/nameserver/nsec_proofs.c \
+	knot/nameserver/nsec_proofs.h knot/nameserver/process_query.c \
 	knot/nameserver/process_query.h \
 	knot/nameserver/process_answer.c \
 	knot/nameserver/process_answer.h knot/nameserver/requestor.c \
@@ -211,14 +210,13 @@ am__libknotd_la_SOURCES_DIST = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 @HAVE_DNSTAP_TRUE@am__objects_1 = knot/modules/dnstap.lo
 am_libknotd_la_OBJECTS = knot/conf/libknotd_la-cf-lex.lo \
 	knot/conf/libknotd_la-cf-parse.lo knot/conf/conf.lo \
-	knot/conf/extra.lo knot/conf/includes.lo knot/conf/logconf.lo \
-	knot/ctl/process.lo knot/ctl/remote.lo \
-	knot/dnssec/nsec-chain.lo knot/dnssec/nsec3-chain.lo \
-	knot/dnssec/zone-events.lo knot/dnssec/zone-keys.lo \
-	knot/dnssec/zone-nsec.lo knot/dnssec/zone-sign.lo \
-	knot/nameserver/axfr.lo knot/nameserver/chaos.lo \
-	knot/nameserver/internet.lo knot/nameserver/ixfr.lo \
-	knot/nameserver/nsec_proofs.lo \
+	knot/conf/extra.lo knot/conf/includes.lo knot/ctl/process.lo \
+	knot/ctl/remote.lo knot/dnssec/nsec-chain.lo \
+	knot/dnssec/nsec3-chain.lo knot/dnssec/zone-events.lo \
+	knot/dnssec/zone-keys.lo knot/dnssec/zone-nsec.lo \
+	knot/dnssec/zone-sign.lo knot/nameserver/axfr.lo \
+	knot/nameserver/chaos.lo knot/nameserver/internet.lo \
+	knot/nameserver/ixfr.lo knot/nameserver/nsec_proofs.lo \
 	knot/nameserver/process_query.lo \
 	knot/nameserver/process_answer.lo knot/nameserver/requestor.lo \
 	knot/nameserver/query_module.lo knot/nameserver/update.lo \
@@ -767,20 +765,19 @@ libknot_la_SOURCES = \
 libknotd_la_SOURCES = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/conf/conf.c knot/conf/conf.h knot/conf/extra.c \
 	knot/conf/extra.h knot/conf/includes.c knot/conf/includes.h \
-	knot/conf/logconf.c knot/conf/logconf.h knot/ctl/process.c \
-	knot/ctl/process.h knot/ctl/remote.c knot/ctl/remote.h \
-	knot/dnssec/nsec-chain.c knot/dnssec/nsec-chain.h \
-	knot/dnssec/nsec3-chain.c knot/dnssec/nsec3-chain.h \
-	knot/dnssec/zone-events.c knot/dnssec/zone-events.h \
-	knot/dnssec/zone-keys.c knot/dnssec/zone-keys.h \
-	knot/dnssec/zone-nsec.c knot/dnssec/zone-nsec.h \
-	knot/dnssec/zone-sign.c knot/dnssec/zone-sign.h knot/knot.h \
-	knot/nameserver/axfr.c knot/nameserver/axfr.h \
-	knot/nameserver/chaos.c knot/nameserver/chaos.h \
-	knot/nameserver/internet.c knot/nameserver/internet.h \
-	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
-	knot/nameserver/nsec_proofs.c knot/nameserver/nsec_proofs.h \
-	knot/nameserver/process_query.c \
+	knot/ctl/process.c knot/ctl/process.h knot/ctl/remote.c \
+	knot/ctl/remote.h knot/dnssec/nsec-chain.c \
+	knot/dnssec/nsec-chain.h knot/dnssec/nsec3-chain.c \
+	knot/dnssec/nsec3-chain.h knot/dnssec/zone-events.c \
+	knot/dnssec/zone-events.h knot/dnssec/zone-keys.c \
+	knot/dnssec/zone-keys.h knot/dnssec/zone-nsec.c \
+	knot/dnssec/zone-nsec.h knot/dnssec/zone-sign.c \
+	knot/dnssec/zone-sign.h knot/knot.h knot/nameserver/axfr.c \
+	knot/nameserver/axfr.h knot/nameserver/chaos.c \
+	knot/nameserver/chaos.h knot/nameserver/internet.c \
+	knot/nameserver/internet.h knot/nameserver/ixfr.c \
+	knot/nameserver/ixfr.h knot/nameserver/nsec_proofs.c \
+	knot/nameserver/nsec_proofs.h knot/nameserver/process_query.c \
 	knot/nameserver/process_query.h \
 	knot/nameserver/process_answer.c \
 	knot/nameserver/process_answer.h knot/nameserver/requestor.c \
@@ -1030,8 +1027,6 @@ knot/conf/conf.lo: knot/conf/$(am__dirstamp) \
 knot/conf/extra.lo: knot/conf/$(am__dirstamp) \
 	knot/conf/$(DEPDIR)/$(am__dirstamp)
 knot/conf/includes.lo: knot/conf/$(am__dirstamp) \
-	knot/conf/$(DEPDIR)/$(am__dirstamp)
-knot/conf/logconf.lo: knot/conf/$(am__dirstamp) \
 	knot/conf/$(DEPDIR)/$(am__dirstamp)
 knot/ctl/$(am__dirstamp):
 	@$(MKDIR_P) knot/ctl
@@ -1556,7 +1551,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/includes.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/libknotd_la-cf-lex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/libknotd_la-cf-parse.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/logconf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/knotc_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/process.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/remote.Plo@am__quote@
