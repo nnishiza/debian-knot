@@ -1,27 +1,40 @@
-knot (1.5.0~rc2-1) experimental; urgency=medium
+knot (1.5.0-1) unstable; urgency=medium
 
-  * New upstream version 1.5.0~rc2
+  * New upstream version 1.5.0
    + Features:
+    - Pluggable query processing modules
+    - Synthetic IPv4/IPv6 reverse/forward records (optional module)
+    - dnstap support in both utilities & server (optional module)
+    - NOTIFY message support and new TSIG section in kdig
+    - Multi-master support
     - edns-client-subnet support in kdig
     - Optional asynchronous startup (config "asynchronous-start")
+    - DDNS forwarding reimplemented
    + Improvements:
+    - Query processing and core functionality overhaul 
+    - Performance and reduced memory footprint
+    - Faster zone events scheduling
+    - RFC compliant queries/responses in some corner cases
+    - Log messages
+    - New documentation (Sphinx)
+    - Transfer sizes logged in bytes if needed
+    - Logging outgoing NOTIFY messages
+    - Logging unauthorized incoming NOTIFYs
     - Preempt task queue for faster reload
     - Lazy zone file write after zone transfer (governed by "zonefile-sync")
    + Bugfixes:
     - Close zone transfer after SERVFAIL response
     - Incremental to full zone transfer fallback, wrong log message
     - Zone events corner cases, reload replanning
+    - Zone flush planning after bootstrap
+    - Incorrect incoming AXFR message sizes
+    - DDNS signing changes were freed too soon, posibility of stale data
+    - knotc remote control key handling
+  * Debian packaging:
+   + d/control: New documentation is using sphinx
+   + d/control: New knot-libs package containing internal shared libraries
 
- -- Ondřej Surý <ondrej@debian.org>  Wed, 18 Jun 2014 15:55:20 +0200
-
-knot (1.5.0~rc1-1) experimental; urgency=medium
-
-  * New upstream version 1.5.0~rc1
-  * Update patches for 1.5.0~rc1 release
-  * New documentation is using sphinx, reflect that in d/control
-  * d/control: New knot-libs package containing internal shared libraries
-
- -- Ondřej Surý <ondrej@debian.org>  Tue, 03 Jun 2014 23:43:05 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 09 Jul 2014 13:08:26 +0200
 
 knot (1.4.6+hotfix-1) unstable; urgency=medium
 
