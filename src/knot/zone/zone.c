@@ -105,11 +105,6 @@ void zone_free(zone_t **zone_ptr)
 	*zone_ptr = NULL;
 }
 
-changeset_t *zone_change_prepare(changesets_t *chset)
-{
-	return changesets_create_changeset(chset);
-}
-
 int zone_change_commit(zone_contents_t *contents, changesets_t *chset)
 {
 	assert(contents);
@@ -289,10 +284,13 @@ int zone_update_enqueue(zone_t *zone, knot_pkt_t *pkt, struct process_query_para
 	/* Copy socket and request. */
 	req->fd = dup(param->socket);
 	memcpy(&req->remote, param->remote, sizeof(struct sockaddr_storage));
-	req->query = knot_pkt_copy(pkt, NULL);
-	if (req->query == NULL) {
+
+	req->query = knot_pkt_new(NULL, pkt->max_size, NULL);
+	int ret = knot_pkt_copy(req->query, pkt);
+	if (ret != KNOT_EOK) {
+		knot_pkt_free(&req->query);
 		free(req);
-		return KNOT_ENOMEM;
+		return ret;
 	}
 
 	pthread_mutex_lock(&zone->ddns_lock);

@@ -162,19 +162,21 @@ libknotd_la_DEPENDENCIES = libknots.la libknot.la $(am__append_4)
 am__libknotd_la_SOURCES_DIST = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/conf/conf.c knot/conf/conf.h knot/conf/extra.c \
 	knot/conf/extra.h knot/conf/includes.c knot/conf/includes.h \
-	knot/ctl/process.c knot/ctl/process.h knot/ctl/remote.c \
-	knot/ctl/remote.h knot/dnssec/nsec-chain.c \
-	knot/dnssec/nsec-chain.h knot/dnssec/nsec3-chain.c \
-	knot/dnssec/nsec3-chain.h knot/dnssec/zone-events.c \
-	knot/dnssec/zone-events.h knot/dnssec/zone-keys.c \
-	knot/dnssec/zone-keys.h knot/dnssec/zone-nsec.c \
-	knot/dnssec/zone-nsec.h knot/dnssec/zone-sign.c \
-	knot/dnssec/zone-sign.h knot/knot.h knot/nameserver/axfr.c \
-	knot/nameserver/axfr.h knot/nameserver/chaos.c \
-	knot/nameserver/chaos.h knot/nameserver/internet.c \
-	knot/nameserver/internet.h knot/nameserver/ixfr.c \
-	knot/nameserver/ixfr.h knot/nameserver/nsec_proofs.c \
-	knot/nameserver/nsec_proofs.h knot/nameserver/process_query.c \
+	knot/ctl/estimator.c knot/ctl/estimator.h knot/ctl/process.c \
+	knot/ctl/process.h knot/ctl/remote.c knot/ctl/remote.h \
+	knot/dnssec/nsec-chain.c knot/dnssec/nsec-chain.h \
+	knot/dnssec/nsec3-chain.c knot/dnssec/nsec3-chain.h \
+	knot/dnssec/zone-events.c knot/dnssec/zone-events.h \
+	knot/dnssec/zone-keys.c knot/dnssec/zone-keys.h \
+	knot/dnssec/zone-nsec.c knot/dnssec/zone-nsec.h \
+	knot/dnssec/zone-sign.c knot/dnssec/zone-sign.h knot/knot.h \
+	knot/nameserver/axfr.c knot/nameserver/axfr.h \
+	knot/nameserver/chaos.c knot/nameserver/chaos.h \
+	knot/nameserver/capture.c knot/nameserver/capture.h \
+	knot/nameserver/internet.c knot/nameserver/internet.h \
+	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
+	knot/nameserver/nsec_proofs.c knot/nameserver/nsec_proofs.h \
+	knot/nameserver/process_query.c \
 	knot/nameserver/process_query.h \
 	knot/nameserver/process_answer.c \
 	knot/nameserver/process_answer.h knot/nameserver/requestor.c \
@@ -196,26 +198,27 @@ am__libknotd_la_SOURCES_DIST = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/updates/ddns.h knot/updates/apply.c knot/updates/apply.h \
 	knot/worker/pool.c knot/worker/pool.h knot/worker/queue.c \
 	knot/worker/queue.h knot/zone/contents.c knot/zone/contents.h \
-	knot/zone/estimator.c knot/zone/estimator.h knot/zone/events.c \
-	knot/zone/events.h knot/zone/node.c knot/zone/node.h \
-	knot/zone/semantic-check.c knot/zone/semantic-check.h \
-	knot/zone/zone-diff.c knot/zone/zone-diff.h \
-	knot/zone/zone-dump.c knot/zone/zone-dump.h \
-	knot/zone/zone-tree.c knot/zone/zone-tree.h knot/zone/zone.c \
-	knot/zone/zone.h knot/zone/zone-load.c knot/zone/zone-load.h \
-	knot/zone/zonedb.c knot/zone/zonedb.h knot/zone/zonedb-load.c \
+	knot/zone/events.c knot/zone/events.h knot/zone/node.c \
+	knot/zone/node.h knot/zone/semantic-check.c \
+	knot/zone/semantic-check.h knot/zone/zone-diff.c \
+	knot/zone/zone-diff.h knot/zone/zone-dump.c \
+	knot/zone/zone-dump.h knot/zone/zone-tree.c \
+	knot/zone/zone-tree.h knot/zone/zone.c knot/zone/zone.h \
+	knot/zone/zone-load.c knot/zone/zone-load.h knot/zone/zonedb.c \
+	knot/zone/zonedb.h knot/zone/zonedb-load.c \
 	knot/zone/zonedb-load.h knot/zone/zonefile.c \
 	knot/zone/zonefile.h knot/modules/dnstap.c \
 	knot/modules/dnstap.h
 @HAVE_DNSTAP_TRUE@am__objects_1 = knot/modules/dnstap.lo
 am_libknotd_la_OBJECTS = knot/conf/libknotd_la-cf-lex.lo \
 	knot/conf/libknotd_la-cf-parse.lo knot/conf/conf.lo \
-	knot/conf/extra.lo knot/conf/includes.lo knot/ctl/process.lo \
-	knot/ctl/remote.lo knot/dnssec/nsec-chain.lo \
-	knot/dnssec/nsec3-chain.lo knot/dnssec/zone-events.lo \
-	knot/dnssec/zone-keys.lo knot/dnssec/zone-nsec.lo \
-	knot/dnssec/zone-sign.lo knot/nameserver/axfr.lo \
-	knot/nameserver/chaos.lo knot/nameserver/internet.lo \
+	knot/conf/extra.lo knot/conf/includes.lo knot/ctl/estimator.lo \
+	knot/ctl/process.lo knot/ctl/remote.lo \
+	knot/dnssec/nsec-chain.lo knot/dnssec/nsec3-chain.lo \
+	knot/dnssec/zone-events.lo knot/dnssec/zone-keys.lo \
+	knot/dnssec/zone-nsec.lo knot/dnssec/zone-sign.lo \
+	knot/nameserver/axfr.lo knot/nameserver/chaos.lo \
+	knot/nameserver/capture.lo knot/nameserver/internet.lo \
 	knot/nameserver/ixfr.lo knot/nameserver/nsec_proofs.lo \
 	knot/nameserver/process_query.lo \
 	knot/nameserver/process_answer.lo knot/nameserver/requestor.lo \
@@ -228,8 +231,7 @@ am_libknotd_la_OBJECTS = knot/conf/libknotd_la-cf-lex.lo \
 	knot/server/serialization.lo knot/updates/acl.lo \
 	knot/updates/changesets.lo knot/updates/ddns.lo \
 	knot/updates/apply.lo knot/worker/pool.lo knot/worker/queue.lo \
-	knot/zone/contents.lo knot/zone/estimator.lo \
-	knot/zone/events.lo knot/zone/node.lo \
+	knot/zone/contents.lo knot/zone/events.lo knot/zone/node.lo \
 	knot/zone/semantic-check.lo knot/zone/zone-diff.lo \
 	knot/zone/zone-dump.lo knot/zone/zone-tree.lo \
 	knot/zone/zone.lo knot/zone/zone-load.lo knot/zone/zonedb.lo \
@@ -247,13 +249,16 @@ am_libknots_la_OBJECTS = common/base32hex.lo common/base64.lo \
 	common/sockaddr.lo common/strlcat.lo common/strlcpy.lo
 libknots_la_OBJECTS = $(am_libknots_la_OBJECTS)
 libknotus_la_LIBADD =
-am_libknotus_la_OBJECTS = utils/common/exec.lo utils/common/msg.lo \
-	utils/common/netio.lo utils/common/params.lo \
-	utils/common/resolv.lo utils/common/token.lo
+am_libknotus_la_OBJECTS = utils/common/libknotus_la-exec.lo \
+	utils/common/libknotus_la-msg.lo \
+	utils/common/libknotus_la-netio.lo \
+	utils/common/libknotus_la-params.lo \
+	utils/common/libknotus_la-resolv.lo \
+	utils/common/libknotus_la-token.lo
 libknotus_la_OBJECTS = $(am_libknotus_la_OBJECTS)
 libknotus_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(libknotus_la_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libknotus_la_CFLAGS) \
+	$(CFLAGS) $(libknotus_la_LDFLAGS) $(LDFLAGS) -o $@
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
 am_kdig_OBJECTS = utils/dig/dig_exec.$(OBJEXT) \
 	utils/dig/dig_main.$(OBJEXT) utils/dig/dig_params.$(OBJEXT)
@@ -568,8 +573,7 @@ AM_CPPFLAGS = \
 	-include $(top_builddir)/src/config.h \
 	-DCONFIG_DIR='"${config_dir}"' \
 	-DSTORAGE_DIR='"${storage_dir}"' \
-	-DRUN_DIR='"${run_dir}"' \
-	$(libidn_CFLAGS)
+	-DRUN_DIR='"${run_dir}"'
 
 AM_CFLAGS = $(CODE_COVERAGE_CFLAGS)
 AM_LDFLAGS = $(CODE_COVERAGE_LDFLAGS)
@@ -765,19 +769,21 @@ libknot_la_SOURCES = \
 libknotd_la_SOURCES = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/conf/conf.c knot/conf/conf.h knot/conf/extra.c \
 	knot/conf/extra.h knot/conf/includes.c knot/conf/includes.h \
-	knot/ctl/process.c knot/ctl/process.h knot/ctl/remote.c \
-	knot/ctl/remote.h knot/dnssec/nsec-chain.c \
-	knot/dnssec/nsec-chain.h knot/dnssec/nsec3-chain.c \
-	knot/dnssec/nsec3-chain.h knot/dnssec/zone-events.c \
-	knot/dnssec/zone-events.h knot/dnssec/zone-keys.c \
-	knot/dnssec/zone-keys.h knot/dnssec/zone-nsec.c \
-	knot/dnssec/zone-nsec.h knot/dnssec/zone-sign.c \
-	knot/dnssec/zone-sign.h knot/knot.h knot/nameserver/axfr.c \
-	knot/nameserver/axfr.h knot/nameserver/chaos.c \
-	knot/nameserver/chaos.h knot/nameserver/internet.c \
-	knot/nameserver/internet.h knot/nameserver/ixfr.c \
-	knot/nameserver/ixfr.h knot/nameserver/nsec_proofs.c \
-	knot/nameserver/nsec_proofs.h knot/nameserver/process_query.c \
+	knot/ctl/estimator.c knot/ctl/estimator.h knot/ctl/process.c \
+	knot/ctl/process.h knot/ctl/remote.c knot/ctl/remote.h \
+	knot/dnssec/nsec-chain.c knot/dnssec/nsec-chain.h \
+	knot/dnssec/nsec3-chain.c knot/dnssec/nsec3-chain.h \
+	knot/dnssec/zone-events.c knot/dnssec/zone-events.h \
+	knot/dnssec/zone-keys.c knot/dnssec/zone-keys.h \
+	knot/dnssec/zone-nsec.c knot/dnssec/zone-nsec.h \
+	knot/dnssec/zone-sign.c knot/dnssec/zone-sign.h knot/knot.h \
+	knot/nameserver/axfr.c knot/nameserver/axfr.h \
+	knot/nameserver/chaos.c knot/nameserver/chaos.h \
+	knot/nameserver/capture.c knot/nameserver/capture.h \
+	knot/nameserver/internet.c knot/nameserver/internet.h \
+	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
+	knot/nameserver/nsec_proofs.c knot/nameserver/nsec_proofs.h \
+	knot/nameserver/process_query.c \
 	knot/nameserver/process_query.h \
 	knot/nameserver/process_answer.c \
 	knot/nameserver/process_answer.h knot/nameserver/requestor.c \
@@ -799,14 +805,14 @@ libknotd_la_SOURCES = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/updates/ddns.h knot/updates/apply.c knot/updates/apply.h \
 	knot/worker/pool.c knot/worker/pool.h knot/worker/queue.c \
 	knot/worker/queue.h knot/zone/contents.c knot/zone/contents.h \
-	knot/zone/estimator.c knot/zone/estimator.h knot/zone/events.c \
-	knot/zone/events.h knot/zone/node.c knot/zone/node.h \
-	knot/zone/semantic-check.c knot/zone/semantic-check.h \
-	knot/zone/zone-diff.c knot/zone/zone-diff.h \
-	knot/zone/zone-dump.c knot/zone/zone-dump.h \
-	knot/zone/zone-tree.c knot/zone/zone-tree.h knot/zone/zone.c \
-	knot/zone/zone.h knot/zone/zone-load.c knot/zone/zone-load.h \
-	knot/zone/zonedb.c knot/zone/zonedb.h knot/zone/zonedb-load.c \
+	knot/zone/events.c knot/zone/events.h knot/zone/node.c \
+	knot/zone/node.h knot/zone/semantic-check.c \
+	knot/zone/semantic-check.h knot/zone/zone-diff.c \
+	knot/zone/zone-diff.h knot/zone/zone-dump.c \
+	knot/zone/zone-dump.h knot/zone/zone-tree.c \
+	knot/zone/zone-tree.h knot/zone/zone.c knot/zone/zone.h \
+	knot/zone/zone-load.c knot/zone/zone-load.h knot/zone/zonedb.c \
+	knot/zone/zonedb.h knot/zone/zonedb-load.c \
 	knot/zone/zonedb-load.h knot/zone/zonefile.c \
 	knot/zone/zonefile.h $(am__append_1)
 
@@ -814,6 +820,7 @@ libknotd_la_SOURCES = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 libknot_la_LIBADD = libknots.la zscanner/libzscanner.la
 libknotd_la_LIBADD = libknots.la libknot.la $(am__append_4)
 libknotus_la_LDFLAGS = $(libidn_LIBS)
+libknotus_la_CFLAGS = $(libidn_CFLAGS)
 
 # sbin programs
 knotd_LDADD = libknot.la libknotd.la
@@ -1034,6 +1041,8 @@ knot/ctl/$(am__dirstamp):
 knot/ctl/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) knot/ctl/$(DEPDIR)
 	@: > knot/ctl/$(DEPDIR)/$(am__dirstamp)
+knot/ctl/estimator.lo: knot/ctl/$(am__dirstamp) \
+	knot/ctl/$(DEPDIR)/$(am__dirstamp)
 knot/ctl/process.lo: knot/ctl/$(am__dirstamp) \
 	knot/ctl/$(DEPDIR)/$(am__dirstamp)
 knot/ctl/remote.lo: knot/ctl/$(am__dirstamp) \
@@ -1065,6 +1074,8 @@ knot/nameserver/$(DEPDIR)/$(am__dirstamp):
 knot/nameserver/axfr.lo: knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/chaos.lo: knot/nameserver/$(am__dirstamp) \
+	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/nameserver/capture.lo: knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/internet.lo: knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
@@ -1147,8 +1158,6 @@ knot/zone/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) knot/zone/$(DEPDIR)
 	@: > knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/contents.lo: knot/zone/$(am__dirstamp) \
-	knot/zone/$(DEPDIR)/$(am__dirstamp)
-knot/zone/estimator.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/events.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
@@ -1247,17 +1256,17 @@ utils/common/$(am__dirstamp):
 utils/common/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) utils/common/$(DEPDIR)
 	@: > utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/exec.lo: utils/common/$(am__dirstamp) \
+utils/common/libknotus_la-exec.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/msg.lo: utils/common/$(am__dirstamp) \
+utils/common/libknotus_la-msg.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/netio.lo: utils/common/$(am__dirstamp) \
+utils/common/libknotus_la-netio.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/params.lo: utils/common/$(am__dirstamp) \
+utils/common/libknotus_la-params.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/resolv.lo: utils/common/$(am__dirstamp) \
+utils/common/libknotus_la-resolv.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
-utils/common/token.lo: utils/common/$(am__dirstamp) \
+utils/common/libknotus_la-token.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
 
 libknotus.la: $(libknotus_la_OBJECTS) $(libknotus_la_DEPENDENCIES) $(EXTRA_libknotus_la_DEPENDENCIES) 
@@ -1551,6 +1560,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/includes.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/libknotd_la-cf-lex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/conf/$(DEPDIR)/libknotd_la-cf-parse.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/estimator.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/knotc_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/process.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/ctl/$(DEPDIR)/remote.Plo@am__quote@
@@ -1563,6 +1573,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/dnstap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/synth_record.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/axfr.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/capture.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/chaos.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/internet.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/ixfr.Plo@am__quote@
@@ -1589,7 +1600,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/worker/$(DEPDIR)/pool.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/worker/$(DEPDIR)/queue.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/contents.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/estimator.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/events.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/node.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/semantic-check.Plo@am__quote@
@@ -1624,12 +1634,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/tsig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/util/$(DEPDIR)/tolower.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/util/$(DEPDIR)/utils.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/exec.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/msg.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/netio.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/params.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/resolv.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/token.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-exec.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-msg.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-netio.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-params.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-resolv.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-token.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/dig/$(DEPDIR)/dig_exec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/dig/$(DEPDIR)/dig_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/dig/$(DEPDIR)/dig_params.Po@am__quote@
@@ -1663,6 +1673,48 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+utils/common/libknotus_la-exec.lo: utils/common/exec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-exec.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-exec.Tpo -c -o utils/common/libknotus_la-exec.lo `test -f 'utils/common/exec.c' || echo '$(srcdir)/'`utils/common/exec.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-exec.Tpo utils/common/$(DEPDIR)/libknotus_la-exec.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/exec.c' object='utils/common/libknotus_la-exec.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-exec.lo `test -f 'utils/common/exec.c' || echo '$(srcdir)/'`utils/common/exec.c
+
+utils/common/libknotus_la-msg.lo: utils/common/msg.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-msg.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-msg.Tpo -c -o utils/common/libknotus_la-msg.lo `test -f 'utils/common/msg.c' || echo '$(srcdir)/'`utils/common/msg.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-msg.Tpo utils/common/$(DEPDIR)/libknotus_la-msg.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/msg.c' object='utils/common/libknotus_la-msg.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-msg.lo `test -f 'utils/common/msg.c' || echo '$(srcdir)/'`utils/common/msg.c
+
+utils/common/libknotus_la-netio.lo: utils/common/netio.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-netio.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-netio.Tpo -c -o utils/common/libknotus_la-netio.lo `test -f 'utils/common/netio.c' || echo '$(srcdir)/'`utils/common/netio.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-netio.Tpo utils/common/$(DEPDIR)/libknotus_la-netio.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/netio.c' object='utils/common/libknotus_la-netio.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-netio.lo `test -f 'utils/common/netio.c' || echo '$(srcdir)/'`utils/common/netio.c
+
+utils/common/libknotus_la-params.lo: utils/common/params.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-params.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-params.Tpo -c -o utils/common/libknotus_la-params.lo `test -f 'utils/common/params.c' || echo '$(srcdir)/'`utils/common/params.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-params.Tpo utils/common/$(DEPDIR)/libknotus_la-params.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/params.c' object='utils/common/libknotus_la-params.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-params.lo `test -f 'utils/common/params.c' || echo '$(srcdir)/'`utils/common/params.c
+
+utils/common/libknotus_la-resolv.lo: utils/common/resolv.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-resolv.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-resolv.Tpo -c -o utils/common/libknotus_la-resolv.lo `test -f 'utils/common/resolv.c' || echo '$(srcdir)/'`utils/common/resolv.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-resolv.Tpo utils/common/$(DEPDIR)/libknotus_la-resolv.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/resolv.c' object='utils/common/libknotus_la-resolv.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-resolv.lo `test -f 'utils/common/resolv.c' || echo '$(srcdir)/'`utils/common/resolv.c
+
+utils/common/libknotus_la-token.lo: utils/common/token.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-token.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-token.Tpo -c -o utils/common/libknotus_la-token.lo `test -f 'utils/common/token.c' || echo '$(srcdir)/'`utils/common/token.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-token.Tpo utils/common/$(DEPDIR)/libknotus_la-token.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/token.c' object='utils/common/libknotus_la-token.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libknotus_la_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-token.lo `test -f 'utils/common/token.c' || echo '$(srcdir)/'`utils/common/token.c
 
 knot/knotd-main.o: knot/main.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/knotd-main.o -MD -MP -MF knot/$(DEPDIR)/knotd-main.Tpo -c -o knot/knotd-main.o `test -f 'knot/main.c' || echo '$(srcdir)/'`knot/main.c

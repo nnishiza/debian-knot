@@ -1580,7 +1580,7 @@ YY_RULE_SETUP
 {
 	lval.t = yytext;
 	lval.i = LOG_UPTO(LOG_INFO);
-	fprintf(stderr, "Warning: log severity 'all'' is no longer "
+	fprintf(stderr, "Warning: log severity 'all' is no longer "
 	                "supported. Using 'info' instead.\n");
 	return LOG_LEVEL;
 }

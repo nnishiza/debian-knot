@@ -344,9 +344,9 @@ static int ixfrin_finalize(struct answer_data *adata)
 
 	struct timeval now = {0};
 	gettimeofday(&now, NULL);
-	IXFRIN_LOG(LOG_INFO, "Finished in %.02fs (%u messages, ~%.01fkB).",
+	IXFRIN_LOG(LOG_INFO, "Finished in %.02fs (%u messages, %s%.*f %s).",
 	           time_diff(&ixfr->proc.tstamp, &now) / 1000.0,
-	           ixfr->proc.npkts, ixfr->proc.nbytes / 1024.0);
+	           ixfr->proc.npkts, SIZE_PARAMS(ixfr->proc.nbytes));
 
 	return KNOT_EOK;
 }
@@ -524,6 +524,7 @@ static bool out_of_zone(const knot_rrset_t *rr, struct ixfr_proc *proc)
 static int process_ixfrin_packet(knot_pkt_t *pkt, struct answer_data *adata)
 {
 	struct ixfr_proc *ixfr = (struct ixfr_proc *)adata->ext;
+
 	// Update counters.
 	ixfr->proc.npkts  += 1;
 	ixfr->proc.nbytes += pkt->size;
@@ -612,9 +613,10 @@ int ixfr_query(knot_pkt_t *pkt, struct query_data *qdata)
 		return NS_PROC_FULL; /* Check for more. */
 	case KNOT_EOK:    /* Last response. */
 		gettimeofday(&now, NULL);
-		IXFROUT_LOG(LOG_INFO, "Finished in %.02fs (%u messages, ~%.01fkB).",
+		IXFROUT_LOG(LOG_INFO, "Finished in %.02fs (%u messages, "
+		            "%s%.*f %s).",
 		            time_diff(&ixfr->proc.tstamp, &now) / 1000.0,
-		            ixfr->proc.npkts, ixfr->proc.nbytes / 1024.0);
+		            ixfr->proc.npkts, SIZE_PARAMS(ixfr->proc.nbytes));
 		ret = NS_PROC_DONE;
 		break;
 	default:          /* Generic error. */
