@@ -27,6 +27,7 @@ override_dh_auto_configure:
 	  --libexecdir=/usr/lib/knot \
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
+	  --enable-systemd \
 	  $(RECVMMSG) \
 	  --disable-silent-rules
 
