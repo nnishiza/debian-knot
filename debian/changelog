@@ -1,3 +1,11 @@
+knot (1.5.1-1) unstable; urgency=medium
+
+  * New upstream version 1.5.1
+  * Enable systemd notification mechanism
+  * Enable systemd journal enhanced logging
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 20 Aug 2014 10:45:18 +0200
+
 knot (1.5.0-1) unstable; urgency=medium
 
   * New upstream version 1.5.0
