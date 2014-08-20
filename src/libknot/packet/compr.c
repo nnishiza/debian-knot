@@ -15,10 +15,13 @@
  */
 
 #include <assert.h>
-#include "common/errcode.h"
+
 #include "libknot/packet/compr.h"
-#include "libknot/packet/pkt.h"
+
 #include "common/debug.h"
+#include "common/log.h"
+#include "libknot/errcode.h"
+#include "libknot/packet/pkt.h"
 #include "libknot/util/tolower.h"
 
 /*! \brief Case insensitive label compare for compression. */
@@ -41,7 +44,7 @@ static bool compr_label_match(const uint8_t *n, const uint8_t *p)
 	return true;
 }
 
-/*! \brief Helper for \fn knot_pkt_put_dname, writes label(s) with size checks. */
+/*! \brief Helper for \fn knot_compr_put_dname, writes label(s) with size checks. */
 #define WRITE_LABEL(dst, written, label, max, len) \
 	if ((written) + (len) > (max)) { \
 		return KNOT_ESPACE; \
@@ -122,13 +125,17 @@ int knot_compr_put_dname(const knot_dname_t *dname, uint8_t *dst, uint16_t max,
 		written += sizeof(uint16_t);
 	}
 
+	assert(dst >= compr->wire);
+	size_t wire_pos = dst - compr->wire;
+	assert(wire_pos < KNOT_WIRE_MAX_PKTSIZE);
+
 	/* Heuristics - expect similar names are grouped together. */
-	if (written > sizeof(uint16_t) && compr->wire_pos + written < KNOT_WIRE_PTR_MAX) {
-		compr->suffix.pos = compr->wire_pos;
+	if (written > sizeof(uint16_t) && wire_pos + written < KNOT_WIRE_PTR_MAX) {
+		compr->suffix.pos = wire_pos;
 		compr->suffix.labels = orig_labels;
 	}
 	dbg_packet("%s: compressed to %u bytes (match=%zu,@%zu)\n",
-		   __func__, written, dname - match_begin, compr->wire_pos);
+		   __func__, written, dname - match_begin, wire_pos);
 	return written;
 }
 

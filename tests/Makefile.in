@@ -82,12 +82,13 @@ check_PROGRAMS = journal$(EXEEXT) slab$(EXEEXT) hattrie$(EXEEXT) \
 	base64$(EXEEXT) base32hex$(EXEEXT) descriptor$(EXEEXT) \
 	server$(EXEEXT) conf$(EXEEXT) rrl$(EXEEXT) wire$(EXEEXT) \
 	dname$(EXEEXT) ztree$(EXEEXT) zonedb$(EXEEXT) \
-	dnssec_keys$(EXEEXT) dnssec_nsec3$(EXEEXT) \
+	changeset$(EXEEXT) dnssec_keys$(EXEEXT) dnssec_nsec3$(EXEEXT) \
 	dnssec_sign$(EXEEXT) dnssec_zone_nsec$(EXEEXT) rdata$(EXEEXT) \
 	rdataset$(EXEEXT) rrset$(EXEEXT) node$(EXEEXT) edns$(EXEEXT) \
 	pkt$(EXEEXT) process_query$(EXEEXT) process_answer$(EXEEXT) \
 	requestor$(EXEEXT) query_module$(EXEEXT) worker_pool$(EXEEXT) \
-	worker_queue$(EXEEXT) zone_events$(EXEEXT)
+	worker_queue$(EXEEXT) zone_events$(EXEEXT) \
+	zone_update$(EXEEXT)
 subdir = tests
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(dist_check_SCRIPTS) $(top_srcdir)/depcomp README TODO
@@ -123,6 +124,12 @@ base64_SOURCES = base64.c
 base64_OBJECTS = base64.$(OBJEXT)
 base64_LDADD = $(LDADD)
 base64_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
+changeset_SOURCES = changeset.c
+changeset_OBJECTS = changeset.$(OBJEXT)
+changeset_LDADD = $(LDADD)
+changeset_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
 am_conf_OBJECTS = conf.$(OBJEXT)
@@ -300,6 +307,12 @@ zone_events_LDADD = $(LDADD)
 zone_events_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
+zone_update_SOURCES = zone_update.c
+zone_update_OBJECTS = zone_update.$(OBJEXT)
+zone_update_LDADD = $(LDADD)
+zone_update_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
 zonedb_SOURCES = zonedb.c
 zonedb_OBJECTS = zonedb.$(OBJEXT)
 zonedb_LDADD = $(LDADD)
@@ -346,21 +359,22 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = acl.c base32hex.c base64.c $(conf_SOURCES) \
+SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	$(nodist_conf_SOURCES) descriptor.c dname.c dnssec_keys.c \
 	dnssec_nsec3.c dnssec_sign.c dnssec_zone_nsec.c dthreads.c \
 	edns.c fdset.c hattrie.c hhash.c journal.c node.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
 	server.c slab.c wire.c worker_pool.c worker_queue.c \
-	zone_events.c zonedb.c ztree.c
-DIST_SOURCES = acl.c base32hex.c base64.c $(conf_SOURCES) descriptor.c \
-	dname.c dnssec_keys.c dnssec_nsec3.c dnssec_sign.c \
-	dnssec_zone_nsec.c dthreads.c edns.c fdset.c hattrie.c hhash.c \
-	journal.c node.c pkt.c $(process_answer_SOURCES) \
-	$(process_query_SOURCES) query_module.c rdata.c rdataset.c \
-	requestor.c rrl.c rrset.c server.c slab.c wire.c worker_pool.c \
-	worker_queue.c zone_events.c zonedb.c ztree.c
+	zone_events.c zone_update.c zonedb.c ztree.c
+DIST_SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
+	descriptor.c dname.c dnssec_keys.c dnssec_nsec3.c \
+	dnssec_sign.c dnssec_zone_nsec.c dthreads.c edns.c fdset.c \
+	hattrie.c hhash.c journal.c node.c pkt.c \
+	$(process_answer_SOURCES) $(process_query_SOURCES) \
+	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
+	server.c slab.c wire.c worker_pool.c worker_queue.c \
+	zone_events.c zone_update.c zonedb.c ztree.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -526,8 +540,8 @@ sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
 storage_dir = @storage_dir@
 sysconfdir = @sysconfdir@
-systemd_daemon_CFLAGS = @systemd_daemon_CFLAGS@
-systemd_daemon_LIBS = @systemd_daemon_LIBS@
+systemd_CFLAGS = @systemd_CFLAGS@
+systemd_LIBS = @systemd_LIBS@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
@@ -604,6 +618,10 @@ base32hex$(EXEEXT): $(base32hex_OBJECTS) $(base32hex_DEPENDENCIES) $(EXTRA_base3
 base64$(EXEEXT): $(base64_OBJECTS) $(base64_DEPENDENCIES) $(EXTRA_base64_DEPENDENCIES) 
 	@rm -f base64$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(base64_OBJECTS) $(base64_LDADD) $(LIBS)
+
+changeset$(EXEEXT): $(changeset_OBJECTS) $(changeset_DEPENDENCIES) $(EXTRA_changeset_DEPENDENCIES) 
+	@rm -f changeset$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(changeset_OBJECTS) $(changeset_LDADD) $(LIBS)
 
 conf$(EXEEXT): $(conf_OBJECTS) $(conf_DEPENDENCIES) $(EXTRA_conf_DEPENDENCIES) 
 	@rm -f conf$(EXEEXT)
@@ -721,6 +739,10 @@ zone_events$(EXEEXT): $(zone_events_OBJECTS) $(zone_events_DEPENDENCIES) $(EXTRA
 	@rm -f zone_events$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(zone_events_OBJECTS) $(zone_events_LDADD) $(LIBS)
 
+zone_update$(EXEEXT): $(zone_update_OBJECTS) $(zone_update_DEPENDENCIES) $(EXTRA_zone_update_DEPENDENCIES) 
+	@rm -f zone_update$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(zone_update_OBJECTS) $(zone_update_LDADD) $(LIBS)
+
 zonedb$(EXEEXT): $(zonedb_OBJECTS) $(zonedb_DEPENDENCIES) $(EXTRA_zonedb_DEPENDENCIES) 
 	@rm -f zonedb$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(zonedb_OBJECTS) $(zonedb_LDADD) $(LIBS)
@@ -738,6 +760,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base32hex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base64.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/changeset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/descriptor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dname.Po@am__quote@
@@ -768,6 +791,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_pool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_queue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_events.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_update.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zonedb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ztree.Po@am__quote@
 

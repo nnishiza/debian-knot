@@ -22,7 +22,7 @@
 #include <inttypes.h>
 
 #include "libknot/common.h"
-#include "common/mempattern.h"
+#include "libknot/mempattern.h"
 #include "libknot/dname.h"
 #include "libknot/consts.h"
 #include "libknot/util/tolower.h"
@@ -449,6 +449,13 @@ bool knot_dname_is_sub(const knot_dname_t *sub, const knot_dname_t *domain)
 		--common;
 	}
 	return true;
+}
+
+/*----------------------------------------------------------------------------*/
+
+bool knot_dname_in(const knot_dname_t *domain, const knot_dname_t *sub)
+{
+	return knot_dname_is_equal(domain, sub) || knot_dname_is_sub(sub, domain);
 }
 
 /*----------------------------------------------------------------------------*/

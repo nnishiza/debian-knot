@@ -36,8 +36,8 @@
 #include <cap-ng.h>
 #endif /* HAVE_CAP_NG_H */
 
-#include "common/sockaddr.h"
-#include "common/mempattern.h"
+#include "common-knot/sockaddr.h"
+#include "libknot/mempattern.h"
 #include "common/mempool.h"
 #include "knot/knot.h"
 #include "knot/server/udp-handler.h"
@@ -99,7 +99,7 @@ static inline void udp_pps_sample(unsigned n, unsigned thr_id)
 			unsigned pps = __pps_rx;
 			memcpy(&__pps_t0, &__pps_t1, sizeof(struct timeval));
 			__pps_rx = 0;
-			log_server_info("RX rate %u p/s.\n", pps);
+			log_server_info("RX rate %u packets/second", pps);
 		}
 	}
 }

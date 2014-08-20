@@ -18,8 +18,8 @@
 #include <time.h>
 #include <tap/basic.h>
 
-#include "common/mempattern.h"
-#include "common/hattrie/hat-trie.h"
+#include "common-knot/hattrie/hat-trie.h"
+#include "common/mem.h"
 
 /* Constants. */
 #define KEY_MAXLEN 64
@@ -97,11 +97,11 @@ static bool str_key_find_leq(hattrie_t *trie, char **keys, size_t i, size_t size
 #define ASORT_PREFIX(X) str_key_##X
 #define ASORT_KEY_TYPE char*
 #define ASORT_LT(x, y) (strcmp((x), (y)) < 0)
-#include "common/array-sort.h"
+#include "common-knot/array-sort.h"
 
 int main(int argc, char *argv[])
 {
-	plan(7);
+	plan(8);
 
 	/* Random keys. */
 	srand(time(NULL));
@@ -171,7 +171,16 @@ int main(int argc, char *argv[])
 		}
 	}
 	ok(passed, "hattrie: find lesser or equal for all keys");
-
+	
+	/* Next lookup. */
+	passed = true;
+	for (unsigned i = 0; i < key_count - 1 && passed; ++i) {
+		value_t *val;
+		hattrie_find_next(trie, keys[i], strlen(keys[i]), &val);
+		passed = val && *val == (void *)keys[(i + 1)];
+	}
+	ok(passed, "hattrie: find next for all keys");
+	
 	/* Unsorted iteration */
 	size_t iterated = 0;
 	hattrie_iter_t *it = hattrie_iter_begin(trie, false);

@@ -188,7 +188,7 @@ extern int cf_debug;
 typedef union YYSTYPE
 {
 /* Line 2058 of yacc.c  */
-#line 449 "knot/conf/cf-parse.y"
+#line 450 "knot/conf/cf-parse.y"
 
 	struct {
 		char *t;

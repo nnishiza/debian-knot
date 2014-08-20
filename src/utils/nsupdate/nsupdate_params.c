@@ -23,9 +23,9 @@
 #include "utils/nsupdate/nsupdate_params.h"
 #include "utils/common/msg.h"
 #include "utils/common/netio.h"
-#include "common/errcode.h"
-#include "common/descriptor.h"
-#include "common/mempattern.h"
+#include "libknot/errcode.h"
+#include "libknot/descriptor.h"
+#include "libknot/mempattern.h"
 #include "common/mempool.h"
 #include "libknot/libknot.h"
 
@@ -72,8 +72,8 @@ static int parser_set_default(zs_scanner_t *s, const char *fmt, ...)
 		return KNOT_ESPACE;
 	}
 
-	/* fmt must contain newline */
-	if (zs_scanner_process(buf, buf + n, 1, s) < 0) {
+	/* Buffer must contain newline */
+	if (zs_scanner_parse(s, buf, buf + n, true) < 0) {
 		return KNOT_EPARSEFAIL;
 	}
 
@@ -90,7 +90,7 @@ static int nsupdate_init(nsupdate_params_t *params)
 	init_list(&params->prereq_list);
 
 	/* Initialize memory context. */
-	mm_ctx_mempool(&params->mm, DEFAULT_BLKSIZE);
+	mm_ctx_mempool(&params->mm, MM_DEFAULT_BLKSIZE);
 
 	/* Default server. */
 	params->server = srv_info_create(DEFAULT_IPV4_NAME, DEFAULT_DNS_PORT);
@@ -108,7 +108,7 @@ static int nsupdate_init(nsupdate_params_t *params)
 	params->zone = strdup(".");
 
 	/* Initialize RR parser. */
-	params->parser = zs_scanner_create(NULL, ".", params->class_num, 0,
+	params->parser = zs_scanner_create(".", params->class_num, 0,
 	                                   NULL, parse_err, NULL);
 	if (!params->parser)
 		return KNOT_ENOMEM;

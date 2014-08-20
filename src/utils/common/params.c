@@ -27,10 +27,10 @@
 #endif
 
 #include "libknot/libknot.h"
-#include "common/errcode.h"		// KNOT_EOK
-#include "common/mempattern.h"		// strcdup
-#include "common/descriptor.h"		// KNOT_RRTYPE_
-#include "common/strlcpy.h"		// strlcpy
+#include "libknot/errcode.h"		// KNOT_EOK
+#include "libknot/mempattern.h"		// strcdup
+#include "libknot/descriptor.h"		// KNOT_RRTYPE_
+#include "common-knot/strlcpy.h"		// strlcpy
 #include "utils/common/msg.h"		// WARN
 #include "utils/common/resolv.h"	// parse_nameserver
 #include "utils/common/token.h"		// token
@@ -392,7 +392,7 @@ int params_parse_tsig(const char *value, knot_key_params_t *key_params)
 
 	/* Invalidate previous key. */
 	if (key_params->name) {
-		ERR("Key specified multiple times.\n");
+		ERR("key specified multiple times.\n");
 		return KNOT_EINVAL;
 	}
 
@@ -457,13 +457,13 @@ int params_parse_keyfile(const char *value, knot_key_params_t *key_params)
 	}
 
 	if (key_params->name) {
-		ERR("Key specified multiple times.\n");
+		ERR("key specified multiple times.\n");
 		return KNOT_EINVAL;
 	}
 
 	int result = knot_load_key_params(value, key_params);
 	if (result != KNOT_EOK) {
-		ERR("could not read key file: %s\n", knot_strerror(result));
+		ERR("failed to read key file: %s\n", knot_strerror(result));
 		return KNOT_EINVAL;
 	}
 

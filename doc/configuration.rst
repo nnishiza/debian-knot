@@ -36,8 +36,8 @@ Now let's go step by step through this minimal configuration file:
 
 * The ``interfaces`` statement defines interfaces where Knot
   DNS will listen for incoming connections. We have defined two
-  interfaces: one IPv4 called ``my_interface`` explicitly listening
-  on port 53 and second IPv6 called ``second_int`` also listening on
+  interfaces: one IPv4 called ``all_ipv4`` explicitly listening
+  on port 53 and second IPv6 called ``all_ipv6`` also listening on
   port 53, which is the default port for the DNS. See :ref:`interfaces`.
 * The ``log`` statement defines the log facilities for Knot DNS.
   In this example we told Knot DNS to send its log messages with the severity
@@ -271,8 +271,6 @@ The signing keys can be generated using ISC ``dnssec-keygen`` tool
 only and there are some limitations:
 
 * Keys for all zones must be placed in one directory.
-* Algorithms based on RSA, DSA, and ECDSA are supported, support for
-  GOST algorithm is not finished yet.
 * Only key publication, activation, inactivation, and removal time
   stamps are utilized. Other time stamps are ignored.
 * It is required, that both ``.private`` and ``.key`` files for each
@@ -280,6 +278,7 @@ only and there are some limitations:
   (even for verification only).
 * There cannot be more than eight keys per zone. Keys which are not
   published are not included in this number.
+* Single-Type Signing Scheme is not supported.
 
 Example how to generate NSEC3 capable zone signing key (ZSK) and key
 signing key (KSK) for zone ``example.com``::

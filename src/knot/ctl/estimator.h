@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include "common/hattrie/hat-trie.h"
-#include "zscanner/zscanner.h"
+#include "common-knot/hattrie/hat-trie.h"
+#include "zscanner/scanner.h"
 
 // Mutiplicative constant, needed because of malloc's fragmentation
 static const double ESTIMATE_MAGIC = 1.0;

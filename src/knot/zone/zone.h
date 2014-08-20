@@ -28,8 +28,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "common/evsched.h"
-#include "common/ref.h"
+#include "common-knot/evsched.h"
+#include "common-knot/ref.h"
 #include "knot/conf/conf.h"
 #include "knot/server/journal.h"
 #include "knot/updates/acl.h"
@@ -58,7 +58,8 @@ typedef struct zone_t
 	zone_flag_t flags;
 
 	/*! \brief DDNS queue and lock. */
-	pthread_mutex_t ddns_lock;
+	pthread_spinlock_t ddns_lock;
+	size_t ddns_queue_size;
 	list_t ddns_queue;
 
 	/*! \brief Zone events. */
@@ -92,14 +93,10 @@ void zone_free(zone_t **zone_ptr);
 /*!
  * \note Zone change API below, subject to change.
  * \ref #223 New zone API
+ * \todo get rid of this
  */
-int zone_change_commit(zone_contents_t *contents, changesets_t *chset);
-int zone_change_store(zone_t *zone, changesets_t *chset);
-/*! \note @mvavrusa Moved from zones.c, this needs a common API. */
-int zone_change_apply_and_store(changesets_t **chs,
-                                zone_t *zone,
-                                const char *msgpref,
-                                mm_ctx_t *rr_mm);
+int zone_changes_store(zone_t *zone, list_t *chgs);
+int zone_change_store(zone_t *zone, changeset_t *change);
 /*!
  * \brief Atomically switch the content of the zone.
  */
@@ -118,8 +115,8 @@ int zone_flush_journal(zone_t *zone);
 /*! \brief Enqueue UPDATE request for processing. */
 int zone_update_enqueue(zone_t *zone, knot_pkt_t *pkt, struct process_query_param *param);
 
-/*! \brief Dequeue UPDATE request. */
-struct request_data *zone_update_dequeue(zone_t *zone);
+/*! \brief Dequeue UPDATE request. Returns number of queued updates. */
+size_t zone_update_dequeue(zone_t *zone, list_t *updates);
 
 /*! \brief Returns true if final SOA in transfer has newer serial than zone */
 bool zone_transfer_needed(const zone_t *zone, const knot_pkt_t *pkt);
