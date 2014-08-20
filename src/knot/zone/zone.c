@@ -1,4 +1,4 @@
-/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/* Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,9 +19,10 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "common/descriptor.h"
-#include "common/evsched.h"
-#include "common/lists.h"
+#include "libknot/descriptor.h"
+#include "common-knot/evsched.h"
+#include "common-knot/lists.h"
+#include "common-knot/trim.h"
 #include "knot/zone/node.h"
 #include "knot/zone/zone.h"
 #include "knot/zone/zonefile.h"
@@ -71,7 +72,8 @@ zone_t* zone_new(conf_zone_t *conf)
 	zone->conf = conf;
 
 	// DDNS
-	pthread_mutex_init(&zone->ddns_lock, 0);
+	pthread_spin_init(&zone->ddns_lock, 0);
+	zone->ddns_queue_size = 0;
 	init_list(&zone->ddns_queue);
 
 	// Initialize events
@@ -93,7 +95,7 @@ void zone_free(zone_t **zone_ptr)
 	knot_dname_free(&zone->name, NULL);
 
 	free_ddns_queue(zone);
-	pthread_mutex_destroy(&zone->ddns_lock);
+	pthread_spin_destroy(&zone->ddns_lock);
 
 	/* Free assigned config. */
 	conf_free_zone(zone->conf);
@@ -105,28 +107,16 @@ void zone_free(zone_t **zone_ptr)
 	*zone_ptr = NULL;
 }
 
-int zone_change_commit(zone_contents_t *contents, changesets_t *chset)
-{
-	assert(contents);
-
-	if (changesets_empty(chset)) {
-		return KNOT_EOK;
-	}
-
-	/* Apply DNSSEC changeset to the new zone. */
-	return apply_changesets_directly(contents, chset);
-}
-
-int zone_change_store(zone_t *zone, changesets_t *chset)
+int zone_change_store(zone_t *zone, changeset_t *change)
 {
 	assert(zone);
-	assert(chset);
+	assert(change);
 
 	conf_zone_t *conf = zone->conf;
 
-	int ret = journal_store_changesets(chset, conf->ixfr_db, conf->ixfr_fslimit);
+	int ret = journal_store_changeset(change, conf->ixfr_db, conf->ixfr_fslimit);
 	if (ret == KNOT_EBUSY) {
-		log_zone_notice("Journal for '%s' is full, flushing.\n", conf->name);
+		log_zone_notice(zone->name, "journal is full, flushing");
 
 		/* Transaction rolled back, journal released, we may flush. */
 		ret = zone_flush_journal(zone);
@@ -134,50 +124,33 @@ int zone_change_store(zone_t *zone, changesets_t *chset)
 			return ret;
 		}
 
-		return journal_store_changesets(chset, conf->ixfr_db, conf->ixfr_fslimit);
+		return journal_store_changeset(change, conf->ixfr_db, conf->ixfr_fslimit);
 	}
 
 	return ret;
 }
 
-/*! \note @mvavrusa Moved from zones.c, this needs a common API. */
-int zone_change_apply_and_store(changesets_t **chs,
-                                zone_t *zone,
-                                const char *msgpref,
-                                mm_ctx_t *rr_mm)
+int zone_changes_store(zone_t *zone, list_t *chgs)
 {
-	int ret = KNOT_EOK;
+	assert(zone);
+	assert(chgs);
 
-	/* Now, try to apply the changesets to the zone. */
-	zone_contents_t *new_contents;
-	ret = apply_changesets(zone, *chs, &new_contents);
-	if (ret != KNOT_EOK) {
-		log_zone_error("%s Failed to apply changesets.\n", msgpref);
-		/* Free changesets, but not the data. */
-		changesets_free(chs, rr_mm);
-		return ret;  // propagate the error above
+	conf_zone_t *conf = zone->conf;
+
+	int ret = journal_store_changesets(chgs, conf->ixfr_db, conf->ixfr_fslimit);
+	if (ret == KNOT_EBUSY) {
+		log_zone_notice(zone->name, "journal is full, flushing");
+
+		/* Transaction rolled back, journal released, we may flush. */
+		ret = zone_flush_journal(zone);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+
+		return journal_store_changesets(chgs, conf->ixfr_db, conf->ixfr_fslimit);
 	}
 
-	/* Write changes to journal if all went well. */
-	ret = zone_change_store(zone, *chs);
-	if (ret != KNOT_EOK) {
-		log_zone_error("%s Failed to store changesets.\n", msgpref);
-		update_rollback(*chs, &new_contents);
-		/* Free changesets, but not the data. */
-		changesets_free(chs, rr_mm);
-		return ret;  // propagate the error above
-	}
-
-	/* Switch zone contents. */
-	zone_contents_t *old_contents = zone_switch_contents(zone, new_contents);
-	synchronize_rcu();
-	update_free_old_zone(&old_contents);
-
-	/* Free changesets, but not the data. */
-	update_cleanup(*chs);
-	changesets_free(chs, rr_mm);
-	assert(ret == KNOT_EOK);
-	return KNOT_EOK;
+	return ret;
 }
 
 zone_contents_t *zone_switch_contents(zone_t *zone, zone_contents_t *new_contents)
@@ -244,19 +217,19 @@ int zone_flush_journal(zone_t *zone)
 	conf_zone_t *conf = zone->conf;
 	int ret = zonefile_write(conf->file, contents, from);
 	if (ret == KNOT_EOK) {
-		log_zone_info("Zone '%s': zone file updated (%u -> %u).\n",
-		              conf->name, zone->zonefile_serial, serial_to);
+		log_zone_info(zone->name, "zone file updated, serial %u -> %u",
+		              zone->zonefile_serial, serial_to);
 	} else {
-		log_zone_warning("Zone '%s': failed to update zone file (%s)\n",
-		                  conf->name, knot_strerror(ret));
+		log_zone_warning(zone->name, "failed to update zone file (%s)",
+		                 knot_strerror(ret));
 		return ret;
 	}
 
 	/* Update zone version. */
 	struct stat st;
 	if (stat(zone->conf->file, &st) < 0) {
-		log_zone_warning("Zone '%s': failed to update zone file (%s)\n",
-		                  conf->name, knot_strerror(KNOT_EACCES));
+		log_zone_warning(zone->name, "failed to update zone file (%s)",
+		                 knot_strerror(KNOT_EACCES));
 		return KNOT_EACCES;
 	}
 
@@ -293,12 +266,13 @@ int zone_update_enqueue(zone_t *zone, knot_pkt_t *pkt, struct process_query_para
 		return ret;
 	}
 
-	pthread_mutex_lock(&zone->ddns_lock);
+	pthread_spin_lock(&zone->ddns_lock);
 
 	/* Enqueue created request. */
 	add_tail(&zone->ddns_queue, (node_t *)req);
+	++zone->ddns_queue_size;
 
-	pthread_mutex_unlock(&zone->ddns_lock);
+	pthread_spin_unlock(&zone->ddns_lock);
 
 	/* Schedule UPDATE event. */
 	zone_events_schedule(zone, ZONE_EVENT_UPDATE, ZONE_EVENT_NOW);
@@ -306,24 +280,27 @@ int zone_update_enqueue(zone_t *zone, knot_pkt_t *pkt, struct process_query_para
 	return KNOT_EOK;
 }
 
-struct request_data *zone_update_dequeue(zone_t *zone)
+size_t zone_update_dequeue(zone_t *zone, list_t *updates)
 {
 	if (zone == NULL) {
-		return NULL;
+		return 0;
 	}
 
-	pthread_mutex_lock(&zone->ddns_lock);
-	if (knot_unlikely(EMPTY_LIST(zone->ddns_queue))) {
+	pthread_spin_lock(&zone->ddns_lock);
+	if (EMPTY_LIST(zone->ddns_queue)) {
 		/* Lost race during reload. */
-		pthread_mutex_unlock(&zone->ddns_lock);
-		return NULL;
+		pthread_spin_unlock(&zone->ddns_lock);
+		return 0;
 	}
 
-	struct request_data *ret = HEAD(zone->ddns_queue);
-	rem_node((node_t *)ret);
-	pthread_mutex_unlock(&zone->ddns_lock);
+	*updates = zone->ddns_queue;
+	size_t update_count = zone->ddns_queue_size;
+	init_list(&zone->ddns_queue);
+	zone->ddns_queue_size = 0;
 
-	return ret;
+	pthread_spin_unlock(&zone->ddns_lock);
+	
+	return update_count;
 }
 
 bool zone_transfer_needed(const zone_t *zone, const knot_pkt_t *pkt)

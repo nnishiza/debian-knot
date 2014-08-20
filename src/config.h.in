@@ -9,11 +9,8 @@
 /* Enable verbose debugging messages. */
 #undef DEBUG_ENABLE_VERBOSE
 
-/* microseconds in log messages */
-#undef ENABLE_MICROSECONDS_LOG
-
-/* Use systemd notifications. */
-#undef ENABLE_SYSTEMD_NOTIFY
+/* Use systemd integration. */
+#undef ENABLE_SYSTEMD
 
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H

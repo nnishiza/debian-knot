@@ -22,27 +22,6 @@
 #include "libknot/rdataset.h"
 #include "libknot/common.h"
 
-static void *mm_realloc(mm_ctx_t *mm, void *what, size_t size, size_t prev_size)
-{
-	if (mm) {
-		void *p = mm->alloc(mm->ctx, size);
-		if (knot_unlikely(p == NULL)) {
-			return NULL;
-		} else {
-			if (what) {
-				memcpy(p, what,
-				       prev_size < size ? prev_size : size);
-			}
-			if (mm->free) {
-				mm->free(what);
-			}
-			return p;
-		}
-	} else {
-		return realloc(what, size);
-	}
-}
-
 static knot_rdata_t *rr_seek(knot_rdata_t *d, size_t pos)
 {
 	if (d == NULL) {
@@ -273,7 +252,7 @@ bool knot_rdataset_member(const knot_rdataset_t *rrs, const knot_rdata_t *rr, bo
 			return true;
 		}
 		if (cmp > 0) {
-			// 'Bigger' RR present, no need to continue.
+			// 'Greater' RR present, no need to continue.
 			return false;
 		}
 	}

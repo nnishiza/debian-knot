@@ -24,9 +24,9 @@
 #include "knot/knot.h"
 #include "libknot/consts.h"
 #include "libknot/packet/wire.h"
-#include "common/hattrie/murmurhash3.h"
+#include "common-knot/hattrie/murmurhash3.h"
 #include "libknot/dnssec/random.h"
-#include "common/descriptor.h"
+#include "libknot/descriptor.h"
 #include "common/errors.h"
 #include "knot/zone/zone.h"
 
@@ -286,8 +286,8 @@ static void rrl_log_state(const struct sockaddr_storage *ss, uint16_t flags, uin
 		what = "enters";
 	}
 
-	log_server_notice("Address '%s' %s rate-limiting (class '%s').\n",
-	                  addr_str, what, rrl_clsstr(cls));
+	log_notice("rate limiting, address '%s' class '%s' %s limiting",
+	           addr_str, rrl_clsstr(cls), what);
 #endif
 }
 

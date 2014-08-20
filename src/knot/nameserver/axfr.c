@@ -21,8 +21,8 @@
 #include "knot/updates/apply.h"
 #include "knot/zone/zonefile.h"
 #include "common/debug.h"
-#include "common/descriptor.h"
-#include "common/lists.h"
+#include "libknot/descriptor.h"
+#include "common-knot/lists.h"
 
 /* AXFR context. @note aliasing the generic xfr_proc */
 struct axfr_proc {
@@ -103,9 +103,30 @@ static void axfr_query_cleanup(struct query_data *qdata)
 	rcu_read_unlock();
 }
 
+static int axfr_query_check(struct query_data *qdata)
+{
+	/* Check valid zone, transaction security and contents. */
+	NS_NEED_ZONE(qdata, KNOT_RCODE_NOTAUTH);
+	NS_NEED_AUTH(&qdata->zone->conf->acl.xfr_out, qdata);
+	/* Check expiration. */
+	NS_NEED_ZONE_CONTENTS(qdata, KNOT_RCODE_SERVFAIL);
+
+	return NS_PROC_DONE;
+}
+
 static int axfr_query_init(struct query_data *qdata)
 {
 	assert(qdata);
+
+	/* Check AXFR query validity. */
+	int state = axfr_query_check(qdata);
+	if (state == NS_PROC_FAIL) {
+		if (qdata->rcode == KNOT_RCODE_FORMERR) {
+			return KNOT_EMALF;
+		} else {
+			return KNOT_EDENIED;
+		}
+	}
 
 	/* Create transfer processing context. */
 	mm_ctx_t *mm = qdata->mm;
@@ -186,7 +207,7 @@ int xfr_process_list(knot_pkt_t *pkt, xfr_put_cb process_item,
 
 /* AXFR-specific logging (internal, expects 'qdata' variable set). */
 #define AXFROUT_LOG(severity, msg...) \
-	QUERY_LOG(severity, qdata, "Outgoing AXFR", msg)
+	QUERY_LOG(severity, qdata, "AXFR, outgoing", msg)
 
 int axfr_query_process(knot_pkt_t *pkt, struct query_data *qdata)
 {
@@ -206,19 +227,13 @@ int axfr_query_process(knot_pkt_t *pkt, struct query_data *qdata)
 	/* Initialize on first call. */
 	if (qdata->ext == NULL) {
 
-		/* Check valid zone, transaction security and contents. */
-		NS_NEED_ZONE(qdata, KNOT_RCODE_NOTAUTH);
-		NS_NEED_AUTH(&qdata->zone->conf->acl.xfr_out, qdata);
-		/* Check expiration. */
-		NS_NEED_ZONE_CONTENTS(qdata, KNOT_RCODE_SERVFAIL);
-
 		ret = axfr_query_init(qdata);
 		if (ret != KNOT_EOK) {
-			AXFROUT_LOG(LOG_ERR, "Failed to start (%s).",
+			AXFROUT_LOG(LOG_ERR, "failed to start (%s)",
 			            knot_strerror(ret));
 			return NS_PROC_FAIL;
 		} else {
-			AXFROUT_LOG(LOG_INFO, "Started (serial %u).",
+			AXFROUT_LOG(LOG_INFO, "started, serial %u",
 			           zone_contents_serial(qdata->zone->contents));
 		}
 	}
@@ -234,14 +249,14 @@ int axfr_query_process(knot_pkt_t *pkt, struct query_data *qdata)
 		return NS_PROC_FULL; /* Check for more. */
 	case KNOT_EOK:    /* Last response. */
 		gettimeofday(&now, NULL);
-		AXFROUT_LOG(LOG_INFO, "Finished in %.02fs (%u messages, "
-		            "%s%.*f %s).",
+		AXFROUT_LOG(LOG_INFO,
+		            "finished, %.02f seconds, %u messages, %u bytes",
 		            time_diff(&axfr->proc.tstamp, &now) / 1000.0,
-		            axfr->proc.npkts, SIZE_PARAMS(axfr->proc.nbytes));
+		            axfr->proc.npkts, axfr->proc.nbytes);
 		return NS_PROC_DONE;
 		break;
 	default:          /* Generic error. */
-		AXFROUT_LOG(LOG_ERR, "Failed: %s", knot_strerror(ret));
+		AXFROUT_LOG(LOG_ERR, "failed (%s)", knot_strerror(ret));
 		return NS_PROC_FAIL;
 	}
 }
@@ -288,9 +303,9 @@ static int axfr_answer_init(struct answer_data *data)
 	return KNOT_EOK;
 }
 
-/* AXFR-specific logging (internal, expects 'data' variable set). */
+/* AXFR-specific logging (internal, expects 'adata' variable set). */
 #define AXFRIN_LOG(severity, msg...) \
-	ANSWER_LOG(severity, adata, "Incoming AXFR", msg)
+	ANSWER_LOG(severity, adata, "AXFR, incoming", msg)
 
 static int axfr_answer_finalize(struct answer_data *adata)
 {
@@ -312,13 +327,13 @@ static int axfr_answer_finalize(struct answer_data *adata)
 	zone_contents_t *old_contents =
 	                zone_switch_contents(zone, proc->contents);
 	synchronize_rcu();
-	AXFRIN_LOG(LOG_INFO, "Serial %u -> %u",
-	           zone_contents_serial(old_contents),
-	           zone_contents_serial(proc->contents));
 
-	AXFRIN_LOG(LOG_INFO, "Finished in %.02fs (%u messages, %s%.*f %s).",
+	AXFRIN_LOG(LOG_INFO, "finished, "
+	           "serial %u -> %u, %.02f seconds, %u messages, %u bytes",
+	           zone_contents_serial(old_contents),
+	           zone_contents_serial(proc->contents),
 	           time_diff(&proc->tstamp, &now) / 1000.0,
-	           proc->npkts, SIZE_PARAMS(proc->nbytes));
+	           proc->npkts, proc->nbytes);
 
 	/* Do not free new contents with cleanup. */
 	zone_contents_deep_free(&old_contents);
@@ -367,7 +382,7 @@ int axfr_answer_process(knot_pkt_t *pkt, struct answer_data *adata)
 	if (rcode != KNOT_RCODE_NOERROR) {
 		knot_lookup_table_t *lut = knot_lookup_by_id(knot_rcode_names, rcode);
 		if (lut != NULL) {
-			AXFRIN_LOG(LOG_ERR, "Server responded with %s.", lut->name);
+			AXFRIN_LOG(LOG_ERR, "server responded with %s", lut->name);
 		}
 		return NS_PROC_FAIL;
 	}
@@ -376,14 +391,14 @@ int axfr_answer_process(knot_pkt_t *pkt, struct answer_data *adata)
 	if (adata->ext == NULL) {
 		NS_NEED_TSIG_SIGNED(&adata->param->tsig_ctx, 0);
 		if (!zone_transfer_needed(adata->param->zone, pkt)) {
-			AXFRIN_LOG(LOG_INFO, "Zone is up-to-date.");
+			AXFRIN_LOG(LOG_INFO, "zone is up-to-date");
 			return NS_PROC_DONE;
 		}
-		AXFRIN_LOG(LOG_INFO, "Starting.");
+		AXFRIN_LOG(LOG_INFO, "starting");
 
 		int ret = axfr_answer_init(adata);
 		if (ret != KNOT_EOK) {
-			AXFRIN_LOG(LOG_ERR, "%s", knot_strerror(ret));
+			AXFRIN_LOG(LOG_ERR, "failed (%s)", knot_strerror(ret));
 			return NS_PROC_FAIL;
 		}
 	} else {

@@ -31,7 +31,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "common/mempattern.h"
+#include "libknot/mempattern.h"
 #include "libknot/consts.h"
 
 typedef uint8_t knot_dname_t;
@@ -190,6 +190,17 @@ int knot_dname_realsize(const knot_dname_t *name, const uint8_t *pkt);
  * \retval false otherwise.
  */
 bool knot_dname_is_sub(const knot_dname_t *sub, const knot_dname_t *domain);
+
+/*!
+ * \brief Check if the domain name is a subdomain of or equal to other.
+ *
+ * \param domain Domain name to be the possible parent domain.
+ * \param sub Domain name to be the possible subdomain.
+ *
+ * \retval true \a sub us a subdomain or equal to \a domain.
+ * \retval false otherwise.
+ */
+bool knot_dname_in(const knot_dname_t *domain, const knot_dname_t *sub);
 
 /*!
  * \brief Checks if the domain name is a wildcard.

@@ -26,6 +26,7 @@ check_PROGRAMS = \
 	dname				\
 	ztree				\
 	zonedb				\
+	changeset			\
 	dnssec_keys			\
 	dnssec_nsec3			\
 	dnssec_sign			\
@@ -42,8 +43,8 @@ check_PROGRAMS = \
 	query_module			\
 	worker_pool			\
 	worker_queue			\
-	zone_events
-
+	zone_events			\
+	zone_update
 
 check-compile-only: $(check_PROGRAMS)
 

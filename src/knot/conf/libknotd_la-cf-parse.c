@@ -81,9 +81,9 @@
 #include <stdlib.h>
 #include <pwd.h>
 #include <grp.h>
-#include "common/sockaddr.h"
-#include "common/strlcat.h"
-#include "common/strlcpy.h"
+#include "common-knot/sockaddr.h"
+#include "common-knot/strlcat.h"
+#include "common-knot/strlcpy.h"
 #include "libknot/dname.h"
 #include "libknot/binary.h"
 #include "libknot/rrtype/opt.h"
@@ -190,6 +190,7 @@ static void conf_remote_set_via(void *scanner, char *item) {
 		cf_error(scanner, "interface '%s' is not defined", item);
 	} else {
 		memcpy(&this_remote->via, &found->addr, sizeof(struct sockaddr_storage));
+		sockaddr_port_set(&this_remote->via, 0);
 	}
 }
 
@@ -492,7 +493,7 @@ static void ident_auto(int tok, conf_t *conf, bool val)
 
 
 /* Line 371 of yacc.c  */
-#line 496 "knot/conf/libknotd_la-cf-parse.c"
+#line 497 "knot/conf/libknotd_la-cf-parse.c"
 
 # ifndef YY_NULL
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -670,7 +671,7 @@ extern int cf_debug;
 typedef union YYSTYPE
 {
 /* Line 387 of yacc.c  */
-#line 449 "knot/conf/cf-parse.y"
+#line 450 "knot/conf/cf-parse.y"
 
 	struct {
 		char *t;
@@ -681,7 +682,7 @@ typedef union YYSTYPE
 
 
 /* Line 387 of yacc.c  */
-#line 685 "knot/conf/libknotd_la-cf-parse.c"
+#line 686 "knot/conf/libknotd_la-cf-parse.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -708,7 +709,7 @@ int cf_parse ();
 /* Copy the second part of user declarations.  */
 
 /* Line 390 of yacc.c  */
-#line 712 "knot/conf/libknotd_la-cf-parse.c"
+#line 713 "knot/conf/libknotd_la-cf-parse.c"
 
 #ifdef short
 # undef short
@@ -1083,24 +1084,24 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   521,   521,   523,   525,   528,   529,   530,   531,   532,
-     533,   534,   537,   538,   545,   548,   551,   554,   560,   561,
-     569,   570,   571,   572,   573,   574,   579,   580,   581,   582,
-     586,   591,   592,   593,   598,   601,   604,   607,   628,   631,
-     634,   637,   640,   643,   646,   649,   655,   656,   705,   706,
-     707,   708,   709,   710,   713,   714,   721,   725,   729,   733,
-     737,   741,   745,   753,   756,   759,   766,   767,   775,   778,
-     780,   781,   785,   789,   790,   794,   797,   800,   803,   806,
-     811,   812,   813,   814,   815,   816,   819,   820,   821,   824,
-     825,   854,   857,   858,   861,   862,   863,   864,   865,   866,
-     867,   868,   884,   888,   889,   890,   891,   892,   893,   894,
-     895,   896,   897,   900,   903,   906,   909,   912,   915,   916,
-     919,   922,   925,   929,   931,   932,   936,   937,   938,   939,
-     940,   941,   944,   947,   950,   953,   956,   959,   960,   961,
-     962,   965,   968,   971,   974,   983,   984,   988,   991,   992,
-     998,  1020,  1046,  1050,  1051,  1052,  1055,  1055,  1059,  1063,
-    1069,  1070,  1077,  1082,  1083,  1086,  1086,  1086,  1086,  1086,
-    1086,  1086,  1086,  1086
+       0,   522,   522,   524,   526,   529,   530,   531,   532,   533,
+     534,   535,   538,   539,   546,   549,   552,   555,   561,   562,
+     570,   571,   572,   573,   574,   575,   580,   581,   582,   583,
+     587,   592,   593,   594,   599,   602,   605,   608,   629,   632,
+     635,   638,   641,   644,   647,   650,   656,   657,   706,   707,
+     708,   709,   710,   711,   714,   715,   722,   726,   730,   734,
+     738,   742,   746,   754,   757,   760,   767,   768,   776,   779,
+     781,   782,   786,   790,   791,   795,   798,   801,   804,   807,
+     812,   813,   814,   815,   816,   817,   820,   821,   822,   825,
+     826,   855,   858,   859,   862,   863,   864,   865,   866,   867,
+     868,   869,   885,   889,   890,   891,   892,   893,   894,   895,
+     896,   897,   898,   901,   904,   907,   910,   913,   916,   917,
+     920,   923,   926,   930,   932,   933,   937,   938,   939,   940,
+     941,   942,   945,   948,   951,   954,   957,   960,   961,   962,
+     963,   966,   969,   972,   975,   984,   985,   989,   992,   993,
+     999,  1021,  1047,  1051,  1052,  1053,  1056,  1056,  1060,  1064,
+    1070,  1071,  1078,  1083,  1084,  1087,  1087,  1087,  1087,  1087,
+    1087,  1087,  1087,  1087
 };
 #endif
 
@@ -2248,49 +2249,49 @@ yyreduce:
     {
         case 2:
 /* Line 1792 of yacc.c  */
-#line 521 "knot/conf/cf-parse.y"
+#line 522 "knot/conf/cf-parse.y"
     { return 0; }
     break;
 
   case 6:
 /* Line 1792 of yacc.c  */
-#line 529 "knot/conf/cf-parse.y"
+#line 530 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 7:
 /* Line 1792 of yacc.c  */
-#line 530 "knot/conf/cf-parse.y"
+#line 531 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 8:
 /* Line 1792 of yacc.c  */
-#line 531 "knot/conf/cf-parse.y"
+#line 532 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 9:
 /* Line 1792 of yacc.c  */
-#line 532 "knot/conf/cf-parse.y"
+#line 533 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 10:
 /* Line 1792 of yacc.c  */
-#line 533 "knot/conf/cf-parse.y"
+#line 534 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 11:
 /* Line 1792 of yacc.c  */
-#line 534 "knot/conf/cf-parse.y"
+#line 535 "knot/conf/cf-parse.y"
     { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 13:
 /* Line 1792 of yacc.c  */
-#line 538 "knot/conf/cf-parse.y"
+#line 539 "knot/conf/cf-parse.y"
     {
      if (this_iface->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "can't set port number before interface address\n");
@@ -2302,7 +2303,7 @@ yyreduce:
 
   case 14:
 /* Line 1792 of yacc.c  */
-#line 545 "knot/conf/cf-parse.y"
+#line 546 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_iface->addr, AF_INET, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
    }
@@ -2310,7 +2311,7 @@ yyreduce:
 
   case 15:
 /* Line 1792 of yacc.c  */
-#line 548 "knot/conf/cf-parse.y"
+#line 549 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_iface->addr, AF_INET, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
    }
@@ -2318,7 +2319,7 @@ yyreduce:
 
   case 16:
 /* Line 1792 of yacc.c  */
-#line 551 "knot/conf/cf-parse.y"
+#line 552 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_iface->addr, AF_INET6, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
    }
@@ -2326,7 +2327,7 @@ yyreduce:
 
   case 17:
 /* Line 1792 of yacc.c  */
-#line 554 "knot/conf/cf-parse.y"
+#line 555 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_iface->addr, AF_INET6, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
    }
@@ -2334,7 +2335,7 @@ yyreduce:
 
   case 19:
 /* Line 1792 of yacc.c  */
-#line 561 "knot/conf/cf-parse.y"
+#line 562 "knot/conf/cf-parse.y"
     {
    if (this_iface->addr.ss_family == AF_UNSPEC) {
      cf_error(scanner, "interface '%s' has no defined address", this_iface->name);
@@ -2344,31 +2345,31 @@ yyreduce:
 
   case 21:
 /* Line 1792 of yacc.c  */
-#line 570 "knot/conf/cf-parse.y"
+#line 571 "knot/conf/cf-parse.y"
     { new_config->version = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 22:
 /* Line 1792 of yacc.c  */
-#line 571 "knot/conf/cf-parse.y"
+#line 572 "knot/conf/cf-parse.y"
     { ident_auto(SVERSION, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 23:
 /* Line 1792 of yacc.c  */
-#line 572 "knot/conf/cf-parse.y"
+#line 573 "knot/conf/cf-parse.y"
     { new_config->identity = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 24:
 /* Line 1792 of yacc.c  */
-#line 573 "knot/conf/cf-parse.y"
+#line 574 "knot/conf/cf-parse.y"
     { ident_auto(IDENTITY, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 25:
 /* Line 1792 of yacc.c  */
-#line 574 "knot/conf/cf-parse.y"
+#line 575 "knot/conf/cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.hostname' is deprecated. "
                      "Use 'system.identity' instead.\n");
@@ -2378,25 +2379,25 @@ yyreduce:
 
   case 26:
 /* Line 1792 of yacc.c  */
-#line 579 "knot/conf/cf-parse.y"
+#line 580 "knot/conf/cf-parse.y"
     { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = (yyvsp[(3) - (4)].tok).l; }
     break;
 
   case 27:
 /* Line 1792 of yacc.c  */
-#line 580 "knot/conf/cf-parse.y"
+#line 581 "knot/conf/cf-parse.y"
     { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = strlen(new_config->nsid); }
     break;
 
   case 28:
 /* Line 1792 of yacc.c  */
-#line 581 "knot/conf/cf-parse.y"
+#line 582 "knot/conf/cf-parse.y"
     { ident_auto(NSID, new_config, (yyvsp[(3) - (4)].tok).i); }
     break;
 
   case 29:
 /* Line 1792 of yacc.c  */
-#line 582 "knot/conf/cf-parse.y"
+#line 583 "knot/conf/cf-parse.y"
     {
      SET_NUM(new_config->max_udp_payload, (yyvsp[(3) - (4)].tok).i, KNOT_EDNS_MIN_UDP_PAYLOAD,
              KNOT_EDNS_MAX_UDP_PAYLOAD, "max-udp-payload");
@@ -2405,7 +2406,7 @@ yyreduce:
 
   case 30:
 /* Line 1792 of yacc.c  */
-#line 586 "knot/conf/cf-parse.y"
+#line 587 "knot/conf/cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.storage' was relocated. "
                      "Use 'zones.storage' instead.\n");
@@ -2415,19 +2416,19 @@ yyreduce:
 
   case 31:
 /* Line 1792 of yacc.c  */
-#line 591 "knot/conf/cf-parse.y"
+#line 592 "knot/conf/cf-parse.y"
     { new_config->rundir = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 32:
 /* Line 1792 of yacc.c  */
-#line 592 "knot/conf/cf-parse.y"
+#line 593 "knot/conf/cf-parse.y"
     { new_config->pidfile = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 33:
 /* Line 1792 of yacc.c  */
-#line 593 "knot/conf/cf-parse.y"
+#line 594 "knot/conf/cf-parse.y"
     {
      fprintf(stderr, "warning: Config option 'system.key' is deprecated "
                      "and has no effect.\n");
@@ -2437,7 +2438,7 @@ yyreduce:
 
   case 34:
 /* Line 1792 of yacc.c  */
-#line 598 "knot/conf/cf-parse.y"
+#line 599 "knot/conf/cf-parse.y"
     {
      SET_NUM(new_config->workers, (yyvsp[(3) - (4)].tok).i, 1, 255, "workers");
  }
@@ -2445,7 +2446,7 @@ yyreduce:
 
   case 35:
 /* Line 1792 of yacc.c  */
-#line 601 "knot/conf/cf-parse.y"
+#line 602 "knot/conf/cf-parse.y"
     {
      SET_NUM(new_config->bg_workers, (yyvsp[(3) - (4)].tok).i, 1, 255, "background-workers");
  }
@@ -2453,7 +2454,7 @@ yyreduce:
 
   case 36:
 /* Line 1792 of yacc.c  */
-#line 604 "knot/conf/cf-parse.y"
+#line 605 "knot/conf/cf-parse.y"
     {
      new_config->async_start = (yyvsp[(3) - (4)].tok).i;
  }
@@ -2461,7 +2462,7 @@ yyreduce:
 
   case 37:
 /* Line 1792 of yacc.c  */
-#line 607 "knot/conf/cf-parse.y"
+#line 608 "knot/conf/cf-parse.y"
     {
      new_config->uid = new_config->gid = -1; // Invalidate
      char* dpos = strchr((yyvsp[(3) - (4)].tok).t, '.'); // Find uid.gid format
@@ -2487,7 +2488,7 @@ yyreduce:
 
   case 38:
 /* Line 1792 of yacc.c  */
-#line 628 "knot/conf/cf-parse.y"
+#line 629 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->max_conn_idle, (yyvsp[(3) - (4)].tok).i, "max-conn-idle");
  }
@@ -2495,7 +2496,7 @@ yyreduce:
 
   case 39:
 /* Line 1792 of yacc.c  */
-#line 631 "knot/conf/cf-parse.y"
+#line 632 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->max_conn_hs, (yyvsp[(3) - (4)].tok).i, "max-conn-handshake");
  }
@@ -2503,7 +2504,7 @@ yyreduce:
 
   case 40:
 /* Line 1792 of yacc.c  */
-#line 634 "knot/conf/cf-parse.y"
+#line 635 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->max_conn_reply, (yyvsp[(3) - (4)].tok).i, "max-conn-reply");
  }
@@ -2511,7 +2512,7 @@ yyreduce:
 
   case 41:
 /* Line 1792 of yacc.c  */
-#line 637 "knot/conf/cf-parse.y"
+#line 638 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->rrl, (yyvsp[(3) - (4)].tok).i, "rate-limit");
  }
@@ -2519,7 +2520,7 @@ yyreduce:
 
   case 42:
 /* Line 1792 of yacc.c  */
-#line 640 "knot/conf/cf-parse.y"
+#line 641 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).l, "rate-limit-size");
  }
@@ -2527,7 +2528,7 @@ yyreduce:
 
   case 43:
 /* Line 1792 of yacc.c  */
-#line 643 "knot/conf/cf-parse.y"
+#line 644 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).i, "rate-limit-size");
  }
@@ -2535,7 +2536,7 @@ yyreduce:
 
   case 44:
 /* Line 1792 of yacc.c  */
-#line 646 "knot/conf/cf-parse.y"
+#line 647 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->rrl_slip, (yyvsp[(3) - (4)].tok).i, 1, RRL_SLIP_MAX, "rate-limit-slip");
  }
@@ -2543,7 +2544,7 @@ yyreduce:
 
   case 45:
 /* Line 1792 of yacc.c  */
-#line 649 "knot/conf/cf-parse.y"
+#line 650 "knot/conf/cf-parse.y"
     {
 	SET_INT(new_config->xfers, (yyvsp[(3) - (4)].tok).i, "transfers");
  }
@@ -2551,7 +2552,7 @@ yyreduce:
 
   case 47:
 /* Line 1792 of yacc.c  */
-#line 656 "knot/conf/cf-parse.y"
+#line 657 "knot/conf/cf-parse.y"
     {
      /* Check algorithm length. */
      if (knot_tsig_digest_length((yyvsp[(3) - (5)].tok).alg) == 0) {
@@ -2604,37 +2605,37 @@ yyreduce:
 
   case 49:
 /* Line 1792 of yacc.c  */
-#line 706 "knot/conf/cf-parse.y"
+#line 707 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 50:
 /* Line 1792 of yacc.c  */
-#line 707 "knot/conf/cf-parse.y"
+#line 708 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 51:
 /* Line 1792 of yacc.c  */
-#line 708 "knot/conf/cf-parse.y"
+#line 709 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 52:
 /* Line 1792 of yacc.c  */
-#line 709 "knot/conf/cf-parse.y"
+#line 710 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 53:
 /* Line 1792 of yacc.c  */
-#line 710 "knot/conf/cf-parse.y"
+#line 711 "knot/conf/cf-parse.y"
     { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 55:
 /* Line 1792 of yacc.c  */
-#line 714 "knot/conf/cf-parse.y"
+#line 715 "knot/conf/cf-parse.y"
     {
      if (this_remote->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "can't set port number before interface address\n");
@@ -2646,7 +2647,7 @@ yyreduce:
 
   case 56:
 /* Line 1792 of yacc.c  */
-#line 721 "knot/conf/cf-parse.y"
+#line 722 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
      this_remote->prefix = IPV4_PREFIXLEN;
@@ -2655,7 +2656,7 @@ yyreduce:
 
   case 57:
 /* Line 1792 of yacc.c  */
-#line 725 "knot/conf/cf-parse.y"
+#line 726 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[(3) - (6)].tok).t, 0);
      SET_NUM(this_remote->prefix, (yyvsp[(5) - (6)].tok).i, 0, IPV4_PREFIXLEN, "prefix length");
@@ -2664,7 +2665,7 @@ yyreduce:
 
   case 58:
 /* Line 1792 of yacc.c  */
-#line 729 "knot/conf/cf-parse.y"
+#line 730 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
      this_remote->prefix = IPV4_PREFIXLEN;
@@ -2673,7 +2674,7 @@ yyreduce:
 
   case 59:
 /* Line 1792 of yacc.c  */
-#line 733 "knot/conf/cf-parse.y"
+#line 734 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
      this_remote->prefix = IPV6_PREFIXLEN;
@@ -2682,7 +2683,7 @@ yyreduce:
 
   case 60:
 /* Line 1792 of yacc.c  */
-#line 737 "knot/conf/cf-parse.y"
+#line 738 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[(3) - (6)].tok).t, 0);
      SET_NUM(this_remote->prefix, (yyvsp[(5) - (6)].tok).i, 0, IPV6_PREFIXLEN, "prefix length");
@@ -2691,7 +2692,7 @@ yyreduce:
 
   case 61:
 /* Line 1792 of yacc.c  */
-#line 741 "knot/conf/cf-parse.y"
+#line 742 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
      this_remote->prefix = IPV6_PREFIXLEN;
@@ -2700,7 +2701,7 @@ yyreduce:
 
   case 62:
 /* Line 1792 of yacc.c  */
-#line 745 "knot/conf/cf-parse.y"
+#line 746 "knot/conf/cf-parse.y"
     {
      if (this_remote->key != 0) {
        cf_error(scanner, "only one TSIG key definition is allowed in remote section\n");
@@ -2713,7 +2714,7 @@ yyreduce:
 
   case 63:
 /* Line 1792 of yacc.c  */
-#line 753 "knot/conf/cf-parse.y"
+#line 754 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->via, AF_INET, (yyvsp[(3) - (4)].tok).t, 0);
    }
@@ -2721,7 +2722,7 @@ yyreduce:
 
   case 64:
 /* Line 1792 of yacc.c  */
-#line 756 "knot/conf/cf-parse.y"
+#line 757 "knot/conf/cf-parse.y"
     {
      conf_set_iface(scanner, &this_remote->via, AF_INET6, (yyvsp[(3) - (4)].tok).t, 0);
    }
@@ -2729,7 +2730,7 @@ yyreduce:
 
   case 65:
 /* Line 1792 of yacc.c  */
-#line 759 "knot/conf/cf-parse.y"
+#line 760 "knot/conf/cf-parse.y"
     {
      conf_remote_set_via(scanner, (yyvsp[(3) - (4)].tok).t);
      free((yyvsp[(3) - (4)].tok).t);
@@ -2738,7 +2739,7 @@ yyreduce:
 
   case 67:
 /* Line 1792 of yacc.c  */
-#line 767 "knot/conf/cf-parse.y"
+#line 768 "knot/conf/cf-parse.y"
     {
      if (this_remote->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "remote '%s' has no defined address", this_remote->name);
@@ -2748,19 +2749,19 @@ yyreduce:
 
   case 68:
 /* Line 1792 of yacc.c  */
-#line 775 "knot/conf/cf-parse.y"
+#line 776 "knot/conf/cf-parse.y"
     { conf_add_member_into_group(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 72:
 /* Line 1792 of yacc.c  */
-#line 785 "knot/conf/cf-parse.y"
+#line 786 "knot/conf/cf-parse.y"
     { conf_start_group(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 75:
 /* Line 1792 of yacc.c  */
-#line 794 "knot/conf/cf-parse.y"
+#line 795 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.xfr_in;
    }
@@ -2768,7 +2769,7 @@ yyreduce:
 
   case 76:
 /* Line 1792 of yacc.c  */
-#line 797 "knot/conf/cf-parse.y"
+#line 798 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.xfr_out;
    }
@@ -2776,7 +2777,7 @@ yyreduce:
 
   case 77:
 /* Line 1792 of yacc.c  */
-#line 800 "knot/conf/cf-parse.y"
+#line 801 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.notify_in;
    }
@@ -2784,7 +2785,7 @@ yyreduce:
 
   case 78:
 /* Line 1792 of yacc.c  */
-#line 803 "knot/conf/cf-parse.y"
+#line 804 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.notify_out;
    }
@@ -2792,7 +2793,7 @@ yyreduce:
 
   case 79:
 /* Line 1792 of yacc.c  */
-#line 806 "knot/conf/cf-parse.y"
+#line 807 "knot/conf/cf-parse.y"
     {
       this_list = &this_zone->acl.update_in;
  }
@@ -2800,37 +2801,37 @@ yyreduce:
 
   case 81:
 /* Line 1792 of yacc.c  */
-#line 812 "knot/conf/cf-parse.y"
+#line 813 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 82:
 /* Line 1792 of yacc.c  */
-#line 813 "knot/conf/cf-parse.y"
+#line 814 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 83:
 /* Line 1792 of yacc.c  */
-#line 814 "knot/conf/cf-parse.y"
+#line 815 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 84:
 /* Line 1792 of yacc.c  */
-#line 815 "knot/conf/cf-parse.y"
+#line 816 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 85:
 /* Line 1792 of yacc.c  */
-#line 816 "knot/conf/cf-parse.y"
+#line 817 "knot/conf/cf-parse.y"
     { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 90:
 /* Line 1792 of yacc.c  */
-#line 825 "knot/conf/cf-parse.y"
+#line 826 "knot/conf/cf-parse.y"
     {
       /* Find existing node in remotes. */
       node_t* r = 0; conf_iface_t* found = 0;
@@ -2861,49 +2862,49 @@ yyreduce:
 
   case 91:
 /* Line 1792 of yacc.c  */
-#line 854 "knot/conf/cf-parse.y"
+#line 855 "knot/conf/cf-parse.y"
     { query_module_create(scanner, (yyvsp[(1) - (2)].tok).t, (yyvsp[(2) - (2)].tok).t, true); free((yyvsp[(1) - (2)].tok).t); free((yyvsp[(2) - (2)].tok).t); }
     break;
 
   case 95:
 /* Line 1792 of yacc.c  */
-#line 862 "knot/conf/cf-parse.y"
+#line 863 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 96:
 /* Line 1792 of yacc.c  */
-#line 863 "knot/conf/cf-parse.y"
+#line 864 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 97:
 /* Line 1792 of yacc.c  */
-#line 864 "knot/conf/cf-parse.y"
+#line 865 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 98:
 /* Line 1792 of yacc.c  */
-#line 865 "knot/conf/cf-parse.y"
+#line 866 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 99:
 /* Line 1792 of yacc.c  */
-#line 866 "knot/conf/cf-parse.y"
+#line 867 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 100:
 /* Line 1792 of yacc.c  */
-#line 867 "knot/conf/cf-parse.y"
+#line 868 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
     break;
 
   case 101:
 /* Line 1792 of yacc.c  */
-#line 868 "knot/conf/cf-parse.y"
+#line 869 "knot/conf/cf-parse.y"
     {
     unsigned prefix_len = 0;
     SET_NUM(prefix_len, (yyvsp[(1) - (3)].tok).i, 0, 255, "origin prefix length");
@@ -2924,49 +2925,49 @@ yyreduce:
 
   case 102:
 /* Line 1792 of yacc.c  */
-#line 884 "knot/conf/cf-parse.y"
+#line 885 "knot/conf/cf-parse.y"
     { conf_zone_start(scanner, (yyvsp[(1) - (1)].tok).t); }
     break;
 
   case 106:
 /* Line 1792 of yacc.c  */
-#line 891 "knot/conf/cf-parse.y"
+#line 892 "knot/conf/cf-parse.y"
     { this_zone->file = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 107:
 /* Line 1792 of yacc.c  */
-#line 892 "knot/conf/cf-parse.y"
+#line 893 "knot/conf/cf-parse.y"
     { this_zone->build_diffs = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 108:
 /* Line 1792 of yacc.c  */
-#line 893 "knot/conf/cf-parse.y"
+#line 894 "knot/conf/cf-parse.y"
     { this_zone->enable_checks = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 109:
 /* Line 1792 of yacc.c  */
-#line 894 "knot/conf/cf-parse.y"
+#line 895 "knot/conf/cf-parse.y"
     { this_zone->storage = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 110:
 /* Line 1792 of yacc.c  */
-#line 895 "knot/conf/cf-parse.y"
+#line 896 "knot/conf/cf-parse.y"
     { this_zone->dnssec_keydir = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 111:
 /* Line 1792 of yacc.c  */
-#line 896 "knot/conf/cf-parse.y"
+#line 897 "knot/conf/cf-parse.y"
     { this_zone->disable_any = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 112:
 /* Line 1792 of yacc.c  */
-#line 897 "knot/conf/cf-parse.y"
+#line 898 "knot/conf/cf-parse.y"
     {
 	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
  }
@@ -2974,7 +2975,7 @@ yyreduce:
 
   case 113:
 /* Line 1792 of yacc.c  */
-#line 900 "knot/conf/cf-parse.y"
+#line 901 "knot/conf/cf-parse.y"
     {
 	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
  }
@@ -2982,7 +2983,7 @@ yyreduce:
 
   case 114:
 /* Line 1792 of yacc.c  */
-#line 903 "knot/conf/cf-parse.y"
+#line 904 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
  }
@@ -2990,7 +2991,7 @@ yyreduce:
 
   case 115:
 /* Line 1792 of yacc.c  */
-#line 906 "knot/conf/cf-parse.y"
+#line 907 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(this_zone->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
  }
@@ -2998,7 +2999,7 @@ yyreduce:
 
   case 116:
 /* Line 1792 of yacc.c  */
-#line 909 "knot/conf/cf-parse.y"
+#line 910 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
    }
@@ -3006,7 +3007,7 @@ yyreduce:
 
   case 117:
 /* Line 1792 of yacc.c  */
-#line 912 "knot/conf/cf-parse.y"
+#line 913 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
    }
@@ -3014,13 +3015,13 @@ yyreduce:
 
   case 118:
 /* Line 1792 of yacc.c  */
-#line 915 "knot/conf/cf-parse.y"
+#line 916 "knot/conf/cf-parse.y"
     { this_zone->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 119:
 /* Line 1792 of yacc.c  */
-#line 916 "knot/conf/cf-parse.y"
+#line 917 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
@@ -3028,7 +3029,7 @@ yyreduce:
 
   case 120:
 /* Line 1792 of yacc.c  */
-#line 919 "knot/conf/cf-parse.y"
+#line 920 "knot/conf/cf-parse.y"
     {
 	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
@@ -3036,7 +3037,7 @@ yyreduce:
 
   case 121:
 /* Line 1792 of yacc.c  */
-#line 922 "knot/conf/cf-parse.y"
+#line 923 "knot/conf/cf-parse.y"
     {
 	this_zone->serial_policy = (yyvsp[(3) - (4)].tok).i;
  }
@@ -3044,31 +3045,31 @@ yyreduce:
 
   case 123:
 /* Line 1792 of yacc.c  */
-#line 929 "knot/conf/cf-parse.y"
+#line 930 "knot/conf/cf-parse.y"
     { query_module_create(scanner, (yyvsp[(1) - (2)].tok).t, (yyvsp[(2) - (2)].tok).t, false); free((yyvsp[(1) - (2)].tok).t); free((yyvsp[(2) - (2)].tok).t); }
     break;
 
   case 128:
 /* Line 1792 of yacc.c  */
-#line 938 "knot/conf/cf-parse.y"
+#line 939 "knot/conf/cf-parse.y"
     { new_config->disable_any = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 129:
 /* Line 1792 of yacc.c  */
-#line 939 "knot/conf/cf-parse.y"
+#line 940 "knot/conf/cf-parse.y"
     { new_config->build_diffs = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 130:
 /* Line 1792 of yacc.c  */
-#line 940 "knot/conf/cf-parse.y"
+#line 941 "knot/conf/cf-parse.y"
     { new_config->zone_checks = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 131:
 /* Line 1792 of yacc.c  */
-#line 941 "knot/conf/cf-parse.y"
+#line 942 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
  }
@@ -3076,7 +3077,7 @@ yyreduce:
 
   case 132:
 /* Line 1792 of yacc.c  */
-#line 944 "knot/conf/cf-parse.y"
+#line 945 "knot/conf/cf-parse.y"
     {
 	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
  }
@@ -3084,7 +3085,7 @@ yyreduce:
 
   case 133:
 /* Line 1792 of yacc.c  */
-#line 947 "knot/conf/cf-parse.y"
+#line 948 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
    }
@@ -3092,7 +3093,7 @@ yyreduce:
 
   case 134:
 /* Line 1792 of yacc.c  */
-#line 950 "knot/conf/cf-parse.y"
+#line 951 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
    }
@@ -3100,7 +3101,7 @@ yyreduce:
 
   case 135:
 /* Line 1792 of yacc.c  */
-#line 953 "knot/conf/cf-parse.y"
+#line 954 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 0, INT_MAX, "zonefile-sync");
  }
@@ -3108,7 +3109,7 @@ yyreduce:
 
   case 136:
 /* Line 1792 of yacc.c  */
-#line 956 "knot/conf/cf-parse.y"
+#line 957 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 0, INT_MAX, "zonefile-sync");
  }
@@ -3116,25 +3117,25 @@ yyreduce:
 
   case 137:
 /* Line 1792 of yacc.c  */
-#line 959 "knot/conf/cf-parse.y"
+#line 960 "knot/conf/cf-parse.y"
     { new_config->storage = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 138:
 /* Line 1792 of yacc.c  */
-#line 960 "knot/conf/cf-parse.y"
+#line 961 "knot/conf/cf-parse.y"
     { new_config->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
     break;
 
   case 139:
 /* Line 1792 of yacc.c  */
-#line 961 "knot/conf/cf-parse.y"
+#line 962 "knot/conf/cf-parse.y"
     { new_config->dnssec_keydir = (yyvsp[(3) - (4)].tok).t; }
     break;
 
   case 140:
 /* Line 1792 of yacc.c  */
-#line 962 "knot/conf/cf-parse.y"
+#line 963 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
@@ -3142,7 +3143,7 @@ yyreduce:
 
   case 141:
 /* Line 1792 of yacc.c  */
-#line 965 "knot/conf/cf-parse.y"
+#line 966 "knot/conf/cf-parse.y"
     {
 	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
@@ -3150,7 +3151,7 @@ yyreduce:
 
   case 142:
 /* Line 1792 of yacc.c  */
-#line 968 "knot/conf/cf-parse.y"
+#line 969 "knot/conf/cf-parse.y"
     {
 	new_config->serial_policy = (yyvsp[(3) - (4)].tok).i;
  }
@@ -3158,7 +3159,7 @@ yyreduce:
 
   case 144:
 /* Line 1792 of yacc.c  */
-#line 974 "knot/conf/cf-parse.y"
+#line 975 "knot/conf/cf-parse.y"
     {
   this_logmap = malloc(sizeof(conf_log_map_t));
   this_logmap->source = 0;
@@ -3169,7 +3170,7 @@ yyreduce:
 
   case 146:
 /* Line 1792 of yacc.c  */
-#line 984 "knot/conf/cf-parse.y"
+#line 985 "knot/conf/cf-parse.y"
     { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i;
 	fprintf(stderr, "Warning: more log severities per statement is deprecated. "
 	                "Using the least serious one.\n");
@@ -3178,13 +3179,13 @@ yyreduce:
 
   case 147:
 /* Line 1792 of yacc.c  */
-#line 988 "knot/conf/cf-parse.y"
+#line 989 "knot/conf/cf-parse.y"
     { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i; }
     break;
 
   case 149:
 /* Line 1792 of yacc.c  */
-#line 992 "knot/conf/cf-parse.y"
+#line 993 "knot/conf/cf-parse.y"
     {
      this_logmap->source = (yyvsp[(2) - (3)].tok).i;
      this_logmap = 0;
@@ -3193,7 +3194,7 @@ yyreduce:
 
   case 150:
 /* Line 1792 of yacc.c  */
-#line 998 "knot/conf/cf-parse.y"
+#line 999 "knot/conf/cf-parse.y"
     {
   /* Find already existing rule. */
   this_log = 0;
@@ -3218,7 +3219,7 @@ yyreduce:
 
   case 151:
 /* Line 1792 of yacc.c  */
-#line 1020 "knot/conf/cf-parse.y"
+#line 1021 "knot/conf/cf-parse.y"
     {
   /* Find already existing rule. */
   this_log = 0;
@@ -3247,26 +3248,26 @@ yyreduce:
 
   case 152:
 /* Line 1792 of yacc.c  */
-#line 1046 "knot/conf/cf-parse.y"
+#line 1047 "knot/conf/cf-parse.y"
     {
 }
     break;
 
   case 156:
 /* Line 1792 of yacc.c  */
-#line 1055 "knot/conf/cf-parse.y"
+#line 1056 "knot/conf/cf-parse.y"
     { }
     break;
 
   case 158:
 /* Line 1792 of yacc.c  */
-#line 1059 "knot/conf/cf-parse.y"
+#line 1060 "knot/conf/cf-parse.y"
     { conf_init_iface(scanner, NULL); }
     break;
 
   case 159:
 /* Line 1792 of yacc.c  */
-#line 1063 "knot/conf/cf-parse.y"
+#line 1064 "knot/conf/cf-parse.y"
     {
     this_list = &new_config->ctl.allow;
   }
@@ -3274,13 +3275,13 @@ yyreduce:
 
   case 160:
 /* Line 1792 of yacc.c  */
-#line 1069 "knot/conf/cf-parse.y"
+#line 1070 "knot/conf/cf-parse.y"
     { new_config->ctl.have = true; }
     break;
 
   case 161:
 /* Line 1792 of yacc.c  */
-#line 1070 "knot/conf/cf-parse.y"
+#line 1071 "knot/conf/cf-parse.y"
     {
      if (this_iface->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "control interface has no defined address");
@@ -3292,7 +3293,7 @@ yyreduce:
 
   case 162:
 /* Line 1792 of yacc.c  */
-#line 1077 "knot/conf/cf-parse.y"
+#line 1078 "knot/conf/cf-parse.y"
     {
      sockaddr_set(&this_iface->addr, AF_UNIX, (yyvsp[(3) - (4)].tok).t, 0);
      new_config->ctl.iface = this_iface;
@@ -3302,7 +3303,7 @@ yyreduce:
 
 
 /* Line 1792 of yacc.c  */
-#line 3306 "knot/conf/libknotd_la-cf-parse.c"
+#line 3307 "knot/conf/libknotd_la-cf-parse.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -3534,5 +3535,5 @@ yyreturn:
 
 
 /* Line 2055 of yacc.c  */
-#line 1088 "knot/conf/cf-parse.y"
+#line 1089 "knot/conf/cf-parse.y"
 

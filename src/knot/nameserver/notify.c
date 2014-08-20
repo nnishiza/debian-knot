@@ -19,7 +19,7 @@
 #include "knot/nameserver/notify.h"
 
 #include "libknot/dname.h"
-#include "common/descriptor.h"
+#include "libknot/descriptor.h"
 #include "libknot/packet/pkt.h"
 #include "libknot/rrset.h"
 #include "libknot/consts.h"
@@ -27,7 +27,7 @@
 #include "libknot/common.h"
 #include "libknot/packet/wire.h"
 #include "knot/updates/acl.h"
-#include "common/evsched.h"
+#include "common-knot/evsched.h"
 #include "knot/other/debug.h"
 #include "knot/server/server.h"
 #include "knot/nameserver/internet.h"
@@ -44,9 +44,9 @@
 
 /* NOTIFY-specific logging (internal, expects 'qdata' variable set). */
 #define NOTIFY_QLOG(severity, msg...) \
-	QUERY_LOG(severity, qdata, "NOTIFY", msg)
+	QUERY_LOG(severity, qdata, "NOTIFY, incoming", msg)
 
-int notify_check_query(struct query_data *qdata)
+static int notify_check_query(struct query_data *qdata)
 {
 	/* RFC1996 requires SOA question. */
 	NS_NEED_QTYPE(qdata, KNOT_RRTYPE_SOA, KNOT_RCODE_FORMERR);
@@ -70,7 +70,7 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 	if (state == NS_PROC_FAIL) {
 		switch (qdata->rcode) {
 		case KNOT_RCODE_NOTAUTH: /* Not authoritative or ACL check failed. */
-			NOTIFY_QLOG(LOG_NOTICE, "unauthorized request.");
+			NOTIFY_QLOG(LOG_NOTICE, "unauthorized request");
 			break;
 		case KNOT_RCODE_FORMERR: /* Silently ignore bad queries. */
 		default:
@@ -88,12 +88,12 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 		const knot_rrset_t *soa = &answer->rr[0];
 		if (soa->type == KNOT_RRTYPE_SOA) {
 			uint32_t serial = knot_soa_serial(&soa->rrs);
-			NOTIFY_QLOG(LOG_INFO, "received serial %u.", serial);
+			NOTIFY_QLOG(LOG_INFO, "received serial %u", serial);
 		} else { /* Complain, but accept N/A record. */
-			NOTIFY_QLOG(LOG_NOTICE, "received, bad record in answer section.");
+			NOTIFY_QLOG(LOG_NOTICE, "received, bad record in answer section");
 		}
 	} else {
-		NOTIFY_QLOG(LOG_INFO, "received, doesn't have SOA.");
+		NOTIFY_QLOG(LOG_INFO, "received, doesn't have SOA");
 	}
 
 	/* Incoming NOTIFY expires REFRESH timer and renews EXPIRE timer. */
@@ -107,7 +107,7 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 
 /* NOTIFY-specific logging (internal, expects 'adata' variable set). */
 #define NOTIFY_RLOG(severity, msg...) \
-	ANSWER_LOG(severity, adata, "NOTIFY", msg)
+	ANSWER_LOG(severity, adata, "NOTIFY, outgoing", msg)
 
 int notify_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 {
@@ -120,7 +120,7 @@ int notify_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 	if (rcode != KNOT_RCODE_NOERROR) {
 		knot_lookup_table_t *lut = knot_lookup_by_id(knot_rcode_names, rcode);
 		if (lut != NULL) {
-			NOTIFY_RLOG(LOG_ERR, "Server responded with %s.", lut->name);
+			NOTIFY_RLOG(LOG_WARNING, "server responded with %s", lut->name);
 		}
 		return NS_PROC_FAIL;
 	}

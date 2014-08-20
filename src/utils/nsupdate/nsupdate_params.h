@@ -29,8 +29,8 @@
 #include <stdint.h>
 
 #include "libknot/libknot.h"
-#include "common/lists.h"		// list
-#include "zscanner/zscanner.h"		// zs_scanner_t
+#include "common-knot/lists.h"		// list
+#include "zscanner/scanner.h"		// zs_scanner_t
 #include "utils/common/netio.h"		// server_t
 #include "utils/common/params.h"	// protocol_t
 #include "libknot/dnssec/key.h"		// knot_key_params_t
