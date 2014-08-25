@@ -5,6 +5,7 @@ Maintainer: Ondřej Surý <ondrej@debian.org>
 Build-Depends: debhelper (>= 9),
 	       liburcu-dev (>= 0.4),
 	       libssl-dev,
+	       libidn11-dev,
 	       dh-systemd,
 	       dh-autoreconf,
 	       autotools-dev,
