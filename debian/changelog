@@ -1,3 +1,13 @@
+knot (1.5.1-2) unstable; urgency=medium
+
+  * Enable full hardening via debhelper >= 9
+  * Enable IDN in knot-dnsutils and knot-host packages
+  * Enable systemd libraries only on linux-any
+  * Split arch and indep builds to build the documentation just once
+  * Drop ragel from build depends to allow arm64 builds
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 25 Aug 2014 15:54:34 +0200
+
 knot (1.5.1-1) unstable; urgency=medium
 
   * New upstream version 1.5.1
