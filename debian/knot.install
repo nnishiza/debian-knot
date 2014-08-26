@@ -6,5 +6,4 @@ usr/share/man/man8/knotc.8
 usr/share/man/man8/knotd.8
 usr/share/man/man1/knsec3hash.1
 etc/knot/knot.conf
-usr/share/info
 usr/lib/knot/prepare-environment

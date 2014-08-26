@@ -2,6 +2,12 @@ Source: knot
 Section: net
 Priority: optional
 Maintainer: Ondřej Surý <ondrej@debian.org>
+Build-Depends-Indep: texinfo,
+		     texlive,
+		     texlive-latex-extra,
+		     texlive-font-utils,
+		     ghostscript,
+		     python-sphinx
 Build-Depends: debhelper (>= 9),
 	       liburcu-dev (>= 0.4),
 	       libssl-dev,
@@ -12,12 +18,6 @@ Build-Depends: debhelper (>= 9),
 	       flex,
 	       bison,
 	       pkg-config,
-	       texinfo,
-	       texlive,
-	       texlive-latex-extra,
-	       texlive-font-utils,
-	       ghostscript,
-	       python-sphinx,
 	       libsystemd-daemon-dev [linux-any],
 	       libsystemd-journal-dev [linux-any]
 Standards-Version: 3.9.5
