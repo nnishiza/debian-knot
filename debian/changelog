@@ -1,3 +1,11 @@
+knot (1.5.1-3) unstable; urgency=high
+
+  * More arch/indep build rules splitting to fix binary-arch-only builds
+  * Add lintian override to override warning about internal libraries in
+    knot-libs
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 26 Aug 2014 09:43:05 +0200
+
 knot (1.5.1-2) unstable; urgency=medium
 
   * Enable full hardening via debhelper >= 9
