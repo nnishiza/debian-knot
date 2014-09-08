@@ -1,3 +1,12 @@
+knot (1.5.2-1) unstable; urgency=high
+
+  * Update Vcs-Urls to point to anonscm.debian.org
+  * New upstream version 1.5.2
+    + [CVE-2014-0486]: Fixed remote crash with crafted DNS message
+  * Update patches for 1.5.2 release
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 08 Sep 2014 11:11:56 +0200
+
 knot (1.5.1-3) unstable; urgency=high
 
   * More arch/indep build rules splitting to fix binary-arch-only builds
