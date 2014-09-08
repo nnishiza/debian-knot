@@ -146,11 +146,12 @@ am_libknot_la_OBJECTS = libknot/binary.lo libknot/consts.lo \
 	libknot/dnssec/sig0.lo libknot/dnssec/sign.lo \
 	libknot/errcode.lo libknot/mempattern.lo \
 	libknot/packet/compr.lo libknot/packet/pkt.lo \
-	libknot/processing/process.lo libknot/rrtype/nsec3.lo \
-	libknot/rrtype/nsec3param.lo libknot/rrtype/opt.lo \
-	libknot/rrtype/tsig.lo libknot/rrset-dump.lo libknot/rdata.lo \
-	libknot/rdataset.lo libknot/rrset.lo libknot/tsig-op.lo \
-	libknot/util/tolower.lo libknot/util/utils.lo
+	libknot/packet/rrset-wire.lo libknot/processing/process.lo \
+	libknot/rrtype/nsec3.lo libknot/rrtype/nsec3param.lo \
+	libknot/rrtype/opt.lo libknot/rrtype/tsig.lo \
+	libknot/rrset-dump.lo libknot/rdata.lo libknot/rdataset.lo \
+	libknot/rrset.lo libknot/tsig-op.lo libknot/util/tolower.lo \
+	libknot/util/utils.lo
 libknot_la_OBJECTS = $(am_libknot_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -745,6 +746,8 @@ libknot_la_SOURCES = \
 	libknot/packet/compr.h			\
 	libknot/packet/pkt.c			\
 	libknot/packet/pkt.h			\
+	libknot/packet/rrset-wire.c		\
+	libknot/packet/rrset-wire.h		\
 	libknot/packet/wire.h			\
 	libknot/processing/process.c		\
 	libknot/processing/process.h		\
@@ -991,6 +994,8 @@ libknot/packet/$(DEPDIR)/$(am__dirstamp):
 libknot/packet/compr.lo: libknot/packet/$(am__dirstamp) \
 	libknot/packet/$(DEPDIR)/$(am__dirstamp)
 libknot/packet/pkt.lo: libknot/packet/$(am__dirstamp) \
+	libknot/packet/$(DEPDIR)/$(am__dirstamp)
+libknot/packet/rrset-wire.lo: libknot/packet/$(am__dirstamp) \
 	libknot/packet/$(DEPDIR)/$(am__dirstamp)
 libknot/processing/$(am__dirstamp):
 	@$(MKDIR_P) libknot/processing
@@ -1663,6 +1668,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/compr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/pkt.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/rrset-wire.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/processing/$(DEPDIR)/process.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/nsec3.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/nsec3param.Plo@am__quote@
