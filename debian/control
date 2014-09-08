@@ -39,6 +39,7 @@ Description: authoritative domain name server
 Package: knot-libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Section: libs
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
  full and open source name server.
