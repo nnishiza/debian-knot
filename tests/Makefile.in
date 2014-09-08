@@ -84,8 +84,9 @@ check_PROGRAMS = journal$(EXEEXT) slab$(EXEEXT) hattrie$(EXEEXT) \
 	dname$(EXEEXT) ztree$(EXEEXT) zonedb$(EXEEXT) \
 	changeset$(EXEEXT) dnssec_keys$(EXEEXT) dnssec_nsec3$(EXEEXT) \
 	dnssec_sign$(EXEEXT) dnssec_zone_nsec$(EXEEXT) rdata$(EXEEXT) \
-	rdataset$(EXEEXT) rrset$(EXEEXT) node$(EXEEXT) edns$(EXEEXT) \
-	pkt$(EXEEXT) process_query$(EXEEXT) process_answer$(EXEEXT) \
+	rdataset$(EXEEXT) rrset$(EXEEXT) rrset_wire$(EXEEXT) \
+	node$(EXEEXT) edns$(EXEEXT) pkt$(EXEEXT) \
+	process_query$(EXEEXT) process_answer$(EXEEXT) \
 	requestor$(EXEEXT) query_module$(EXEEXT) worker_pool$(EXEEXT) \
 	worker_queue$(EXEEXT) zone_events$(EXEEXT) \
 	zone_update$(EXEEXT)
@@ -271,6 +272,12 @@ rrset_LDADD = $(LDADD)
 rrset_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
+rrset_wire_SOURCES = rrset_wire.c
+rrset_wire_OBJECTS = rrset_wire.$(OBJEXT)
+rrset_wire_LDADD = $(LDADD)
+rrset_wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
 server_SOURCES = server.c
 server_OBJECTS = server.$(OBJEXT)
 server_LDADD = $(LDADD)
@@ -365,16 +372,16 @@ SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	edns.c fdset.c hattrie.c hhash.c journal.c node.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	server.c slab.c wire.c worker_pool.c worker_queue.c \
-	zone_events.c zone_update.c zonedb.c ztree.c
+	rrset_wire.c server.c slab.c wire.c worker_pool.c \
+	worker_queue.c zone_events.c zone_update.c zonedb.c ztree.c
 DIST_SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	descriptor.c dname.c dnssec_keys.c dnssec_nsec3.c \
 	dnssec_sign.c dnssec_zone_nsec.c dthreads.c edns.c fdset.c \
 	hattrie.c hhash.c journal.c node.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	server.c slab.c wire.c worker_pool.c worker_queue.c \
-	zone_events.c zone_update.c zonedb.c ztree.c
+	rrset_wire.c server.c slab.c wire.c worker_pool.c \
+	worker_queue.c zone_events.c zone_update.c zonedb.c ztree.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -715,6 +722,10 @@ rrset$(EXEEXT): $(rrset_OBJECTS) $(rrset_DEPENDENCIES) $(EXTRA_rrset_DEPENDENCIE
 	@rm -f rrset$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(rrset_OBJECTS) $(rrset_LDADD) $(LIBS)
 
+rrset_wire$(EXEEXT): $(rrset_wire_OBJECTS) $(rrset_wire_DEPENDENCIES) $(EXTRA_rrset_wire_DEPENDENCIES) 
+	@rm -f rrset_wire$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(rrset_wire_OBJECTS) $(rrset_wire_LDADD) $(LIBS)
+
 server$(EXEEXT): $(server_OBJECTS) $(server_DEPENDENCIES) $(EXTRA_server_DEPENDENCIES) 
 	@rm -f server$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(server_OBJECTS) $(server_LDADD) $(LIBS)
@@ -784,6 +795,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/requestor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset_wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample_conf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/slab.Po@am__quote@

@@ -387,11 +387,11 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@HAVE_SPHINXBUILD_FALSE@html-local:
-@HAVE_PDFLATEX_FALSE@pdf-local:
-@HAVE_SPHINXBUILD_FALSE@pdf-local:
 @HAVE_MAKEINFO_FALSE@info-local:
 @HAVE_SPHINXBUILD_FALSE@info-local:
+@HAVE_PDFLATEX_FALSE@pdf-local:
+@HAVE_SPHINXBUILD_FALSE@pdf-local:
+@HAVE_SPHINXBUILD_FALSE@html-local:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-local mostlyclean-am
