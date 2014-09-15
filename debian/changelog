@@ -1,3 +1,10 @@
+knot (1.5.3-1) unstable; urgency=medium
+
+  * Move knot-libs to Section: net (Closes: #760795)
+  * New upstream version 1.5.3
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 15 Sep 2014 17:00:08 +0200
+
 knot (1.5.2-1) unstable; urgency=high
 
   * Update Vcs-Urls to point to anonscm.debian.org
