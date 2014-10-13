@@ -77,25 +77,27 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = journal$(EXEEXT) slab$(EXEEXT) hattrie$(EXEEXT) \
-	hhash$(EXEEXT) dthreads$(EXEEXT) acl$(EXEEXT) fdset$(EXEEXT) \
-	base64$(EXEEXT) base32hex$(EXEEXT) descriptor$(EXEEXT) \
-	server$(EXEEXT) conf$(EXEEXT) rrl$(EXEEXT) wire$(EXEEXT) \
-	dname$(EXEEXT) ztree$(EXEEXT) zonedb$(EXEEXT) \
-	changeset$(EXEEXT) dnssec_keys$(EXEEXT) dnssec_nsec3$(EXEEXT) \
-	dnssec_sign$(EXEEXT) dnssec_zone_nsec$(EXEEXT) rdata$(EXEEXT) \
-	rdataset$(EXEEXT) rrset$(EXEEXT) rrset_wire$(EXEEXT) \
-	node$(EXEEXT) edns$(EXEEXT) pkt$(EXEEXT) \
-	process_query$(EXEEXT) process_answer$(EXEEXT) \
-	requestor$(EXEEXT) query_module$(EXEEXT) worker_pool$(EXEEXT) \
-	worker_queue$(EXEEXT) zone_events$(EXEEXT) \
-	zone_update$(EXEEXT)
+check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
+	changeset$(EXEEXT) conf$(EXEEXT) descriptor$(EXEEXT) \
+	dname$(EXEEXT) dnssec_keys$(EXEEXT) dnssec_nsec3$(EXEEXT) \
+	dnssec_sign$(EXEEXT) dnssec_zone_nsec$(EXEEXT) \
+	dthreads$(EXEEXT) edns$(EXEEXT) fdset$(EXEEXT) \
+	hattrie$(EXEEXT) hhash$(EXEEXT) journal$(EXEEXT) \
+	namedb$(EXEEXT) node$(EXEEXT) pkt$(EXEEXT) \
+	process_answer$(EXEEXT) process_query$(EXEEXT) \
+	query_module$(EXEEXT) rdata$(EXEEXT) rdataset$(EXEEXT) \
+	requestor$(EXEEXT) rrl$(EXEEXT) rrset$(EXEEXT) \
+	rrset_wire$(EXEEXT) server$(EXEEXT) wire$(EXEEXT) \
+	worker_pool$(EXEEXT) worker_queue$(EXEEXT) \
+	zone_events$(EXEEXT) zone_timers$(EXEEXT) zone_update$(EXEEXT) \
+	zonedb$(EXEEXT) ztree$(EXEEXT)
 subdir = tests
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(dist_check_SCRIPTS) $(top_srcdir)/depcomp README TODO
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
+	$(top_srcdir)/m4/knot-check-header.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
 	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/configure.ac
@@ -212,6 +214,12 @@ journal_LDADD = $(LDADD)
 journal_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
+namedb_SOURCES = namedb.c
+namedb_OBJECTS = namedb.$(OBJEXT)
+namedb_LDADD = $(LDADD)
+namedb_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
 node_SOURCES = node.c
 node_OBJECTS = node.$(OBJEXT)
 node_LDADD = $(LDADD)
@@ -284,12 +292,6 @@ server_LDADD = $(LDADD)
 server_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
-slab_SOURCES = slab.c
-slab_OBJECTS = slab.$(OBJEXT)
-slab_LDADD = $(LDADD)
-slab_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
-	$(top_builddir)/src/libknotd.la \
-	$(top_builddir)/src/libknots.la
 wire_SOURCES = wire.c
 wire_OBJECTS = wire.$(OBJEXT)
 wire_LDADD = $(LDADD)
@@ -312,6 +314,12 @@ zone_events_SOURCES = zone_events.c
 zone_events_OBJECTS = zone_events.$(OBJEXT)
 zone_events_LDADD = $(LDADD)
 zone_events_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
+zone_timers_SOURCES = zone_timers.c
+zone_timers_OBJECTS = zone_timers.$(OBJEXT)
+zone_timers_LDADD = $(LDADD)
+zone_timers_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
 zone_update_SOURCES = zone_update.c
@@ -369,19 +377,19 @@ am__v_CCLD_1 =
 SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	$(nodist_conf_SOURCES) descriptor.c dname.c dnssec_keys.c \
 	dnssec_nsec3.c dnssec_sign.c dnssec_zone_nsec.c dthreads.c \
-	edns.c fdset.c hattrie.c hhash.c journal.c node.c pkt.c \
-	$(process_answer_SOURCES) $(process_query_SOURCES) \
+	edns.c fdset.c hattrie.c hhash.c journal.c namedb.c node.c \
+	pkt.c $(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	rrset_wire.c server.c slab.c wire.c worker_pool.c \
-	worker_queue.c zone_events.c zone_update.c zonedb.c ztree.c
+	rrset_wire.c server.c wire.c worker_pool.c worker_queue.c \
+	zone_events.c zone_timers.c zone_update.c zonedb.c ztree.c
 DIST_SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	descriptor.c dname.c dnssec_keys.c dnssec_nsec3.c \
 	dnssec_sign.c dnssec_zone_nsec.c dthreads.c edns.c fdset.c \
-	hattrie.c hhash.c journal.c node.c pkt.c \
+	hattrie.c hhash.c journal.c namedb.c node.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	rrset_wire.c server.c slab.c wire.c worker_pool.c \
-	worker_queue.c zone_events.c zone_update.c zonedb.c ztree.c
+	rrset_wire.c server.c wire.c worker_pool.c worker_queue.c \
+	zone_events.c zone_timers.c zone_update.c zonedb.c ztree.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -532,6 +540,8 @@ libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
 libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
+lmdb_CFLAGS = @lmdb_CFLAGS@
+lmdb_LIBS = @lmdb_LIBS@
 localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
@@ -682,6 +692,10 @@ journal$(EXEEXT): $(journal_OBJECTS) $(journal_DEPENDENCIES) $(EXTRA_journal_DEP
 	@rm -f journal$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(journal_OBJECTS) $(journal_LDADD) $(LIBS)
 
+namedb$(EXEEXT): $(namedb_OBJECTS) $(namedb_DEPENDENCIES) $(EXTRA_namedb_DEPENDENCIES) 
+	@rm -f namedb$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(namedb_OBJECTS) $(namedb_LDADD) $(LIBS)
+
 node$(EXEEXT): $(node_OBJECTS) $(node_DEPENDENCIES) $(EXTRA_node_DEPENDENCIES) 
 	@rm -f node$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(node_OBJECTS) $(node_LDADD) $(LIBS)
@@ -730,10 +744,6 @@ server$(EXEEXT): $(server_OBJECTS) $(server_DEPENDENCIES) $(EXTRA_server_DEPENDE
 	@rm -f server$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(server_OBJECTS) $(server_LDADD) $(LIBS)
 
-slab$(EXEEXT): $(slab_OBJECTS) $(slab_DEPENDENCIES) $(EXTRA_slab_DEPENDENCIES) 
-	@rm -f slab$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(slab_OBJECTS) $(slab_LDADD) $(LIBS)
-
 wire$(EXEEXT): $(wire_OBJECTS) $(wire_DEPENDENCIES) $(EXTRA_wire_DEPENDENCIES) 
 	@rm -f wire$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(wire_OBJECTS) $(wire_LDADD) $(LIBS)
@@ -749,6 +759,10 @@ worker_queue$(EXEEXT): $(worker_queue_OBJECTS) $(worker_queue_DEPENDENCIES) $(EX
 zone_events$(EXEEXT): $(zone_events_OBJECTS) $(zone_events_DEPENDENCIES) $(EXTRA_zone_events_DEPENDENCIES) 
 	@rm -f zone_events$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(zone_events_OBJECTS) $(zone_events_LDADD) $(LIBS)
+
+zone_timers$(EXEEXT): $(zone_timers_OBJECTS) $(zone_timers_DEPENDENCIES) $(EXTRA_zone_timers_DEPENDENCIES) 
+	@rm -f zone_timers$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(zone_timers_OBJECTS) $(zone_timers_LDADD) $(LIBS)
 
 zone_update$(EXEEXT): $(zone_update_OBJECTS) $(zone_update_DEPENDENCIES) $(EXTRA_zone_update_DEPENDENCIES) 
 	@rm -f zone_update$(EXEEXT)
@@ -785,6 +799,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hattrie.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hhash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/namedb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/node.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pkt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process_answer.Po@am__quote@
@@ -798,11 +813,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset_wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample_conf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/slab.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_pool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_queue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_events.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_timers.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_update.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zonedb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ztree.Po@am__quote@

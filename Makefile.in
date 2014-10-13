@@ -85,6 +85,7 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog THANKS \
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
+	$(top_srcdir)/m4/knot-check-header.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
 	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/configure.ac
@@ -319,6 +320,8 @@ libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
 libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
+lmdb_CFLAGS = @lmdb_CFLAGS@
+lmdb_LIBS = @lmdb_LIBS@
 localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
@@ -344,6 +347,13 @@ ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = libtap src tests samples doc man patches
 AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--disable-code-coverage
+
+CODE_COVERAGE_INFO = coverage.info
+CODE_COVERAGE_HTML = coverage.html
+CODE_COVERAGE_DIRS = \
+	src/common src/knot src/libknot \
+	src/knot/conf \
+	src/zscanner
 
 code_coverage_quiet = --quiet
 all: all-recursive
@@ -821,90 +831,48 @@ check-code-coverage:
 
 code-coverage-initial:
 @CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) $(code_coverage_quiet) \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/common \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/knot \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/libknot \
+@CODE_COVERAGE_ENABLED_TRUE@		--no-external \
+@CODE_COVERAGE_ENABLED_TRUE@		$(foreach dir, $(CODE_COVERAGE_DIRS), --directory $(top_builddir)/$(dir)) \
 @CODE_COVERAGE_ENABLED_TRUE@		--capture --initial \
 @CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
-@CODE_COVERAGE_ENABLED_TRUE@		--base-directory $(top_builddir)/src \
-@CODE_COVERAGE_ENABLED_TRUE@		--output-file "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-src_base.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--test-name "$(PACKAGE_NAME)-$(PACKAGE_VERSION)" \
-@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum --compat-libtool
-@CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) $(code_coverage_quiet) \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/knot/conf \
-@CODE_COVERAGE_ENABLED_TRUE@		--capture --initial \
-@CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
-@CODE_COVERAGE_ENABLED_TRUE@		--base-directory $(top_builddir)/src/knot/conf \
-@CODE_COVERAGE_ENABLED_TRUE@		--output-file "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-conf_base.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--test-name "$(PACKAGE_NAME)-$(PACKAGE_VERSION)" \
-@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum --compat-libtool
-@CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) $(code_coverage_quiet) \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/zscanner \
-@CODE_COVERAGE_ENABLED_TRUE@		--capture --initial \
-@CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
-@CODE_COVERAGE_ENABLED_TRUE@		--base-directory $(top_builddir)/src/zscanner \
-@CODE_COVERAGE_ENABLED_TRUE@		--output-file "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-zscanner_base.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--test-name "$(PACKAGE_NAME)-$(PACKAGE_VERSION)" \
-@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum --compat-libtool
+@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum \
+@CODE_COVERAGE_ENABLED_TRUE@		--compat-libtool \
+@CODE_COVERAGE_ENABLED_TRUE@		--output-file $(CODE_COVERAGE_INFO)
 @CODE_COVERAGE_ENABLED_FALSE@	@echo "You need to run configure with --enable-code-coverage to enable code coverage"
 
 code-coverage-capture:
 @CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) $(code_coverage_quiet) \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/common \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/knot \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/libknot \
+@CODE_COVERAGE_ENABLED_TRUE@		--no-external \
+@CODE_COVERAGE_ENABLED_TRUE@		$(foreach dir, $(CODE_COVERAGE_DIRS), --directory $(builddir)/$(dir)) \
 @CODE_COVERAGE_ENABLED_TRUE@		--capture \
 @CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
-@CODE_COVERAGE_ENABLED_TRUE@		--base-directory $(top_builddir)/src \
-@CODE_COVERAGE_ENABLED_TRUE@		--output-file "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-src_capture.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--test-name "$(PACKAGE_NAME)-$(PACKAGE_VERSION)" \
-@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum --compat-libtool
-@CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) $(code_coverage_quiet) \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/knot/conf \
-@CODE_COVERAGE_ENABLED_TRUE@		--capture \
-@CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
-@CODE_COVERAGE_ENABLED_TRUE@		--base-directory $(top_builddir)/src/knot/conf \
-@CODE_COVERAGE_ENABLED_TRUE@		--output-file "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-conf_capture.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--test-name "$(PACKAGE_NAME)-$(PACKAGE_VERSION)" \
-@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum --compat-libtool
-@CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) $(code_coverage_quiet) \
-@CODE_COVERAGE_ENABLED_TRUE@		--directory $(top_builddir)/src/zscanner \
-@CODE_COVERAGE_ENABLED_TRUE@		--capture \
-@CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
-@CODE_COVERAGE_ENABLED_TRUE@		--base-directory $(top_builddir)/src/zscanner \
-@CODE_COVERAGE_ENABLED_TRUE@		--output-file "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-zscanner_capture.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--test-name "$(PACKAGE_NAME)-$(PACKAGE_VERSION)" \
-@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum --compat-libtool
-@CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) $(code_coverage_quiet) \
-@CODE_COVERAGE_ENABLED_TRUE@		--add-tracefile "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-src_base.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--add-tracefile "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-conf_base.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--add-tracefile "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-zscanner_base.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--add-tracefile "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-src_capture.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--add-tracefile "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-conf_capture.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--add-tracefile "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-zscanner_capture.info" \
-@CODE_COVERAGE_ENABLED_TRUE@		--output-file "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-coverage.info"
+@CODE_COVERAGE_ENABLED_TRUE@		--no-checksum \
+@CODE_COVERAGE_ENABLED_TRUE@		--compat-libtool \
+@CODE_COVERAGE_ENABLED_TRUE@		--output-file $(CODE_COVERAGE_INFO)
 @CODE_COVERAGE_ENABLED_FALSE@	@echo "You need to run configure with --enable-code-coverage to enable code coverage"
 
 code-coverage-html:
 @CODE_COVERAGE_ENABLED_TRUE@	@echo "Generating code coverage HTML report (this might take a while)"
 @CODE_COVERAGE_ENABLED_TRUE@	@cp src/knot/conf/cf-lex.l src/knot/conf/cf-parse.y src/
-@CODE_COVERAGE_ENABLED_TRUE@	LANG=C $(GENHTML) $(code_coverage_quiet) --prefix $(top_builddir) --output-directory "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-coverage" --title "$(PACKAGE_NAME)-$(PACKAGE_VERSION) Code Coverage" --legend --show-details "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-coverage.info" --ignore-errors source
+@CODE_COVERAGE_ENABLED_TRUE@	LANG=C $(GENHTML) $(code_coverage_quiet) \
+@CODE_COVERAGE_ENABLED_TRUE@		--output-directory $(CODE_COVERAGE_HTML) \
+@CODE_COVERAGE_ENABLED_TRUE@		--title "Knot DNS $(PACKAGE_VERSION) Code Coverage" \
+@CODE_COVERAGE_ENABLED_TRUE@		--legend --show-details \
+@CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
+@CODE_COVERAGE_ENABLED_TRUE@		$(CODE_COVERAGE_INFO)
 @CODE_COVERAGE_ENABLED_TRUE@	-@rm src/cf-lex.l src/cf-parse.y
 @CODE_COVERAGE_ENABLED_FALSE@	@echo "You need to run configure with --enable-code-coverage to enable code coverage"
 
 code-coverage-summary:
 @CODE_COVERAGE_ENABLED_TRUE@	$(LCOV) \
-@CODE_COVERAGE_ENABLED_TRUE@		--summary "$(PACKAGE_NAME)-$(PACKAGE_VERSION)-coverage.info"
+@CODE_COVERAGE_ENABLED_TRUE@		--summary $(CODE_COVERAGE_INFO)
 @CODE_COVERAGE_ENABLED_FALSE@	@echo "You need to run configure with --enable-code-coverage to enable code coverage"
 
 @CODE_COVERAGE_ENABLED_TRUE@clean-local: code-coverage-clean
 @CODE_COVERAGE_ENABLED_TRUE@	-find . -name "*.gcno" -delete
 @CODE_COVERAGE_ENABLED_TRUE@code-coverage-clean:
 @CODE_COVERAGE_ENABLED_TRUE@	-$(LCOV) --directory $(top_builddir) -z
-@CODE_COVERAGE_ENABLED_TRUE@	-rm -rf $(PACKAGE_NAME)-$(PACKAGE_VERSION)-*_base.info \
-@CODE_COVERAGE_ENABLED_TRUE@	        $(PACKAGE_NAME)-$(PACKAGE_VERSION)-*_capture.info \
-@CODE_COVERAGE_ENABLED_TRUE@	        $(PACKAGE_NAME)-$(PACKAGE_VERSION)-coverage.info \
-@CODE_COVERAGE_ENABLED_TRUE@	        $(PACKAGE_NAME)-$(PACKAGE_VERSION)-coverage/
+@CODE_COVERAGE_ENABLED_TRUE@	-rm -rf $(CODE_COVERAGE_INFO) $(CODE_COVERAGE_HTML)
 @CODE_COVERAGE_ENABLED_TRUE@	-find . -name "*.gcda" -o -name "*.gcov" -delete
 
 .PHONY: check-code-coverage code-coverage-initial code-coverage-capture code-coverage-html code-coverage-summary code-coverage-clean

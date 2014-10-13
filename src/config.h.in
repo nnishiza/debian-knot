@@ -51,6 +51,9 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 to enable LMDB support */
+#undef HAVE_LMDB
+
 /* Define to 1 if you have the `madvise' function. */
 #undef HAVE_MADVISE
 
