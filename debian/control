@@ -19,8 +19,9 @@ Build-Depends: debhelper (>= 9),
 	       bison,
 	       pkg-config,
 	       libsystemd-daemon-dev [linux-any],
-	       libsystemd-journal-dev [linux-any]
-Standards-Version: 3.9.5
+	       libsystemd-journal-dev [linux-any],
+	       liblmdb-dev
+Standards-Version: 3.9.6
 Homepage: http://www.knot-dns.cz/
 Vcs-Browser: http://anonscm.debian.org/?p=users/ondrej/knot.git
 Vcs-Git: git://anonscm.debian.org/users/ondrej/knot.git
