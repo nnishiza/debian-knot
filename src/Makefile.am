@@ -85,9 +85,6 @@ libknots_la_SOURCES =				\
 	common-knot/print.h			\
 	common-knot/ref.c			\
 	common-knot/ref.h			\
-	common-knot/slab/alloc-common.h		\
-	common-knot/slab/slab.c			\
-	common-knot/slab/slab.h			\
 	common-knot/sockaddr.c			\
 	common-knot/sockaddr.h			\
 	common-knot/strlcat.c			\
@@ -112,6 +109,11 @@ libknotcs_la_SOURCES =				\
 	common/mem.h				\
 	common/mempool.c			\
 	common/mempool.h			\
+	common/namedb/namedb.h			\
+	common/namedb/namedb_lmdb.h		\
+	common/namedb/namedb_lmdb.c		\
+	common/namedb/namedb_trie.h		\
+	common/namedb/namedb_trie.c		\
 	common/log.c				\
 	common/log.h
 
@@ -176,16 +178,17 @@ libknot_la_SOURCES =				\
 	libknot/packet/wire.h			\
 	libknot/processing/process.c		\
 	libknot/processing/process.h		\
-	libknot/rrtype/rdname.h			\
 	libknot/rrtype/dnskey.h			\
+	libknot/rrtype/naptr.h			\
+	libknot/rrtype/nsec.h			\
 	libknot/rrtype/nsec.h			\
 	libknot/rrtype/nsec3.c			\
 	libknot/rrtype/nsec3.h			\
-	libknot/rrtype/nsec3param.h		\
 	libknot/rrtype/nsec3param.c		\
-	libknot/rrtype/nsec.h			\
+	libknot/rrtype/nsec3param.h		\
 	libknot/rrtype/opt.c			\
 	libknot/rrtype/opt.h			\
+	libknot/rrtype/rdname.h			\
 	libknot/rrtype/rrsig.h			\
 	libknot/rrtype/soa.h			\
 	libknot/rrtype/tsig.c			\
@@ -296,12 +299,18 @@ libknotd_la_SOURCES =				\
 	knot/worker/queue.h			\
 	knot/zone/contents.c			\
 	knot/zone/contents.h			\
-	knot/zone/events.c			\
-	knot/zone/events.h			\
+	knot/zone/events/events.c		\
+	knot/zone/events/events.h		\
+	knot/zone/events/handlers.c		\
+	knot/zone/events/handlers.h		\
+	knot/zone/events/replan.c		\
+	knot/zone/events/replan.h		\
 	knot/zone/node.c			\
 	knot/zone/node.h			\
 	knot/zone/semantic-check.c		\
 	knot/zone/semantic-check.h		\
+	knot/zone/timers.c			\
+	knot/zone/timers.h			\
 	knot/zone/zone-diff.c			\
 	knot/zone/zone-diff.h			\
 	knot/zone/zone-dump.c			\
@@ -322,17 +331,20 @@ libknotd_la_SOURCES =				\
 # libraries
 libknot_la_LIBADD  = libknotcs.la zscanner/libzscanner.la
 libknotd_la_LIBADD = libknots.la libknotcs.la libknot.la
+libknotus_la_LIBADD = libknots.la libknotcs.la libknot.la
+libknotd_la_CPPFLAGS = $(AM_CPPFLAGS) $(lmdb_CFLAGS)
+libknotd_la_LDFLAGS = $(AM_LDFLAGS) $(lmdb_LIBS)
 libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS)
 libknotus_la_LDFLAGS = $(AM_LDFLAGS) $(libidn_LIBS)
-libknotcs_la_CPPFLAGS = $(AM_CPPFLAGS) $(systemd_CFLAGS)
-libknotcs_la_LDFLAGS = $(AM_LDFLAGS) $(systemd_LIBS)
+libknotcs_la_CPPFLAGS = $(AM_CPPFLAGS) $(systemd_CFLAGS) $(lmdb_CFLAGS)
+libknotcs_la_LDFLAGS = $(AM_LDFLAGS) $(systemd_LIBS) $(lmdb_LIBS)
 
 # sbin programs
-knotd_LDADD = libknot.la libknotd.la $(systemd_LIBS)
+knotd_LDADD = libknot.la libknotd.la $(systemd_LIBS) $(lmdb_LIBS)
 knotc_LDADD = libknot.la libknotd.la
 
 # bin programs
-BIN_LIBS = libknotus.la libknotcs.la libknots.la libknot.la
+BIN_LIBS = libknotus.la libknots.la
 kdig_LDADD       = $(BIN_LIBS) $(libidn_LIBS)
 khost_LDADD      = $(BIN_LIBS) $(libidn_LIBS)
 knsupdate_LDADD  = $(BIN_LIBS) zscanner/libzscanner.la
