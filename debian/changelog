@@ -1,3 +1,10 @@
+knot (1.6.0~rc2-1) unstable; urgency=medium
+
+  * New upstream version 1.6.0~rc2
+  * Update patches for 1.6.0~rc2 release
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 17 Oct 2014 17:32:30 +0200
+
 knot (1.6.0~rc1-1) unstable; urgency=medium
 
   * New upstream version 1.6.0~rc1
