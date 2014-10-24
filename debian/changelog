@@ -1,3 +1,11 @@
+knot (1.6.0-1) unstable; urgency=medium
+
+  * New upstream version 1.6.0
+  * Switch to network-online.target to mitigate some network not-yet-ready races
+  * Recommend systemd due journald enabled logging (Closes: #766596)
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 24 Oct 2014 12:41:32 +0200
+
 knot (1.6.0~rc2-1) unstable; urgency=medium
 
   * New upstream version 1.6.0~rc2
