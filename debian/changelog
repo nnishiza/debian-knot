@@ -1,3 +1,9 @@
+knot (1.6.1-1) unstable; urgency=medium
+
+  * New upstream version 1.6.1
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 30 Dec 2014 09:50:54 +0100
+
 knot (1.6.0-1) unstable; urgency=medium
 
   * New upstream version 1.6.0
