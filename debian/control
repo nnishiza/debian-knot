@@ -2,25 +2,26 @@ Source: knot
 Section: net
 Priority: optional
 Maintainer: Ondřej Surý <ondrej@debian.org>
-Build-Depends-Indep: texinfo,
-		     texlive,
-		     texlive-latex-extra,
-		     texlive-font-utils,
-		     ghostscript,
-		     python-sphinx
-Build-Depends: debhelper (>= 9),
-	       liburcu-dev (>= 0.4),
+Build-Depends-Indep: ghostscript,
+                     python-sphinx,
+                     texinfo,
+                     texlive,
+                     texlive-font-utils,
+                     texlive-latex-extra
+Build-Depends: autotools-dev,
+               bison,
+               debhelper (>= 9),
+               dh-autoreconf,
+               dh-systemd,
+               flex,
                gnutls-dev | libgnutls28-dev,
-	       libidn11-dev,
-	       dh-systemd,
-	       dh-autoreconf,
-	       autotools-dev,
-	       flex,
-	       bison,
-	       pkg-config,
-	       libsystemd-daemon-dev [linux-any],
-	       libsystemd-journal-dev [linux-any],
-	       liblmdb-dev
+               libidn11-dev,
+               libjansson-dev,
+               liblmdb-dev,
+               libsystemd-daemon-dev [linux-any],
+               libsystemd-journal-dev [linux-any],
+               liburcu-dev (>= 0.4),
+               pkg-config
 Standards-Version: 3.9.6
 Homepage: http://www.knot-dns.cz/
 Vcs-Browser: http://anonscm.debian.org/?p=users/ondrej/knot.git
@@ -28,7 +29,10 @@ Vcs-Git: git://anonscm.debian.org/users/ondrej/knot.git
 
 Package: knot
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, knot-libs (= ${binary:Version})
+Depends: adduser,
+         knot-libs (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
 Recommends: systemd
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
@@ -40,7 +44,8 @@ Description: authoritative domain name server
 
 Package: knot-libs
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
 Section: libs
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
@@ -54,7 +59,9 @@ Description: authoritative domain name server
 
 Package: knot-dbg
 Architecture: any
-Depends: ${misc:Depends}, knot (= ${binary:Version}), knot-libs (= ${binary:Version})
+Depends: knot (= ${binary:Version}),
+         knot-libs (= ${binary:Version}),
+         ${misc:Depends}
 Recommends: gdb
 Section: debug
 Priority: extra
@@ -71,7 +78,9 @@ Description: Debug symbols for Knot DNS
 
 Package: knot-dnsutils
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, knot-libs (= ${binary:Version})
+Depends: knot-libs (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
 Section: net
 Conflicts: dnsutils
 Replaces: dnsutils
@@ -98,7 +107,9 @@ Description: Clients provided with Knot DNS (kdig, knslookup, knsupdate)
 
 Package: knot-host
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, knot-libs (= ${binary:Version})
+Depends: knot-libs (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
 Section: net
 Conflicts: host
 Provides: host
