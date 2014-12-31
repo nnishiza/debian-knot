@@ -10,7 +10,7 @@ Build-Depends-Indep: texinfo,
 		     python-sphinx
 Build-Depends: debhelper (>= 9),
 	       liburcu-dev (>= 0.4),
-	       libssl-dev,
+               gnutls-dev | libgnutls28-dev,
 	       libidn11-dev,
 	       dh-systemd,
 	       dh-autoreconf,
