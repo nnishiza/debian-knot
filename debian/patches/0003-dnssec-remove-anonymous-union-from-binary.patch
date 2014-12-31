@@ -10,10 +10,8 @@ Subject: [PATCH 3/3] [dnssec] remove anonymous union from binary
  src/libknot/tsig-op.c           | 2 +-
  4 files changed, 5 insertions(+), 8 deletions(-)
 
-diff --git a/dnssec/lib/dnssec/binary.h b/dnssec/lib/dnssec/binary.h
-index 18c5a9a..aca69a9 100644
---- a/dnssec/lib/dnssec/binary.h
-+++ b/dnssec/lib/dnssec/binary.h
+--- knot.orig/dnssec/lib/dnssec/binary.h
++++ knot/dnssec/lib/dnssec/binary.h
 @@ -55,11 +55,8 @@
   * Universal structure to hold binary data.
   */
@@ -28,11 +26,9 @@ index 18c5a9a..aca69a9 100644
  } dnssec_binary_t;
  
  /*!
-diff --git a/dnssec/utils/legacy/pubkey.c b/dnssec/utils/legacy/pubkey.c
-index 877dd78..9e80a44 100644
---- a/dnssec/utils/legacy/pubkey.c
-+++ b/dnssec/utils/legacy/pubkey.c
-@@ -53,7 +53,7 @@ static void parse_record(zs_scanner_t *scanner)
+--- knot.orig/dnssec/utils/legacy/pubkey.c
++++ knot/dnssec/utils/legacy/pubkey.c
+@@ -53,7 +53,7 @@ static void parse_record(zs_scanner_t *s
  	}
  
  	dnssec_binary_t rdata = {
@@ -41,11 +37,9 @@ index 877dd78..9e80a44 100644
  		.size = scanner->r_data_length
  	};
  	dnssec_key_set_dname(key, scanner->dname);
-diff --git a/src/libknot/dnssec/rrset-sign.c b/src/libknot/dnssec/rrset-sign.c
-index 616b052..8b4727a 100644
---- a/src/libknot/dnssec/rrset-sign.c
-+++ b/src/libknot/dnssec/rrset-sign.c
-@@ -133,7 +133,7 @@ static int sign_ctx_add_self(dnssec_sign_ctx_t *ctx, const uint8_t *rdata)
+--- knot.orig/src/libknot/dnssec/rrset-sign.c
++++ knot/src/libknot/dnssec/rrset-sign.c
+@@ -133,7 +133,7 @@ static int sign_ctx_add_self(dnssec_sign
  	// static header
  
  	dnssec_binary_t header = { 0 };
@@ -54,11 +48,9 @@ index 616b052..8b4727a 100644
  	header.size = RRSIG_RDATA_SIGNER_OFFSET;
  
  	result = dnssec_sign_add(ctx, &header);
-diff --git a/src/libknot/tsig-op.c b/src/libknot/tsig-op.c
-index 2337285..a8d9da9 100644
---- a/src/libknot/tsig-op.c
-+++ b/src/libknot/tsig-op.c
-@@ -103,7 +103,7 @@ static int compute_digest(const uint8_t *wire, size_t wire_len,
+--- knot.orig/src/libknot/tsig-op.c
++++ knot/src/libknot/tsig-op.c
+@@ -103,7 +103,7 @@ static int compute_digest(const uint8_t
  		return KNOT_TSIG_EBADSIG;
  	}
  
@@ -67,6 +59,19 @@ index 2337285..a8d9da9 100644
  	dnssec_tsig_add(ctx, &cover);
  
  	*digest_len = dnssec_tsig_size(ctx);
--- 
-2.1.4
-
+--- knot.orig/src/dnssec/binary.h
++++ knot/src/dnssec/binary.h
+@@ -55,11 +55,8 @@
+  * Universal structure to hold binary data.
+  */
+ typedef struct dnssec_binary {
+-	size_t size;				/*!< Size of the binary data. */
+-	union {
+-		uint8_t *data;			/*!< Stored non-const data. */
+-		const uint8_t *const_data;	/*!< Stored const data. */
+-	};
++	size_t size;	/*!< Size of the binary data. */
++	uint8_t *data;	/*!< Stored data. */
+ } dnssec_binary_t;
+ 
+ /*!
