@@ -1,1 +1,5 @@
 knot-doc-tweaks.patch
+0001-dnssec-fix-compatibility-with-Jansson-2.3.patch
+0002-remove-obsolete-includes.patch
+0003-dnssec-remove-anonymous-union-from-binary.patch
+keymgr-belongs-to-sbin.patch

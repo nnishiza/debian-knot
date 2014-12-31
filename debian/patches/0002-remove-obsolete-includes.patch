@@ -1,0 +1,25 @@
+From d3544532baee1f86b18dd2421504c263168036cf Mon Sep 17 00:00:00 2001
+From: Jan Vcelak <jan.vcelak@nic.cz>
+Date: Wed, 31 Dec 2014 15:44:07 +0100
+Subject: [PATCH 2/3] remove obsolete includes
+
+---
+ src/libknot/tsig-op.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/libknot/tsig-op.c b/src/libknot/tsig-op.c
+index 5fa107d..2337285 100644
+--- a/src/libknot/tsig-op.c
++++ b/src/libknot/tsig-op.c
+@@ -16,8 +16,6 @@
+ 
+ #include <assert.h>
+ #include <inttypes.h>
+-#include <openssl/hmac.h>
+-#include <openssl/evp.h>
+ #include <time.h>
+ #include <stdint.h>
+ 
+-- 
+2.1.4
+

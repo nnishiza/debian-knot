@@ -1,6 +1,6 @@
 etc/knot/knot.conf
-usr/bin/keymgr /usr/sbin
-usr/bin/knsec3hash
+usr/sbin/keymgr
+usr/sbin/knsec3hash
 usr/lib/knot/prepare-environment
 usr/sbin/knotc
 usr/sbin/knotd
