@@ -34,7 +34,7 @@
 #include "libknot/rrtype/opt.h"
 #include "libknot/packet/wire.h"
 #include "libknot/packet/compr.h"
-#include "libknot/mempattern.h"
+#include "libknot/internal/mempattern.h"
 
 /* Number of packet sections (ANSWER, AUTHORITY, ADDITIONAL). */
 #define KNOT_PKT_SECTIONS 3
@@ -181,9 +181,16 @@ uint16_t knot_pkt_type(const knot_pkt_t *pkt);
 /*
  * Packet QUESTION accessors.
  */
+/*! \todo Documentation */
 uint16_t knot_pkt_question_size(const knot_pkt_t *pkt);
+
+/*! \todo Documentation */
 const knot_dname_t *knot_pkt_qname(const knot_pkt_t *pkt);
+
+/*! \todo Documentation */
 uint16_t knot_pkt_qtype(const knot_pkt_t *pkt);
+
+/*! \todo Documentation */
 uint16_t knot_pkt_qclass(const knot_pkt_t *pkt);
 
 /*

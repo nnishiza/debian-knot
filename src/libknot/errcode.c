@@ -17,8 +17,9 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "common/errors.h"
 #include "libknot/errcode.h"
+#include "libknot/internal/errors.h"
+#include "libknot/internal/macros.h"
 
 const error_table_t error_messages[] = {
 	{ KNOT_EOK, "OK" },
@@ -63,7 +64,6 @@ const error_table_t error_messages[] = {
 	{ KNOT_ENONODE,      "no such node in zone found" },
 	{ KNOT_EDNAMEPTR,    "domain name pointer larger than allowed" },
 	{ KNOT_EPAYLOAD,     "payload in OPT RR larger than max wire size" },
-	{ KNOT_ECRC,         "CRC check failed" },
 	{ KNOT_EPREREQ,      "UPDATE prerequisity not met" },
 	{ KNOT_ETTL,         "TTL mismatch" },
 	{ KNOT_ENOXFR,       "transfer was not sent" },
@@ -84,6 +84,7 @@ const error_table_t error_messages[] = {
 	/* Control states. */
 	{ KNOT_CTL_STOP,     "stopping server" },
 	{ KNOT_CTL_ACCEPTED, "command accepted" },
+	{ KNOT_CTL_ARG_REQ,  "argument required" },
 
 	/* Network errors. */
 	{ KNOT_NET_EADDR,    "bad address or host name" },
@@ -126,11 +127,13 @@ const error_table_t error_messages[] = {
 	{ KNOT_ERROR, NULL } /* Terminator */
 };
 
+_public_
 const char *knot_strerror(int code)
 {
 	return error_to_str(error_messages, code);
 }
 
+_public_
 int knot_map_errno_internal(int fallback, int arg0, ...)
 {
 	/* Iterate all variable-length arguments. */

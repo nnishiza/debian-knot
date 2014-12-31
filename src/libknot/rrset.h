@@ -30,9 +30,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "libknot/mempattern.h"
 #include "libknot/dname.h"
 #include "libknot/rdataset.h"
+#include "libknot/internal/mempattern.h"
 
 /*!
  * \brief Structure for representing RRSet.
@@ -50,6 +50,7 @@ struct knot_rrset {
 
 typedef struct knot_rrset knot_rrset_t;
 
+/*! \todo Documentation */
 typedef enum {
 	KNOT_RRSET_COMPARE_PTR,
 	KNOT_RRSET_COMPARE_HEADER,

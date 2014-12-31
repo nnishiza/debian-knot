@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -12,14 +12,16 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
+#include "dnssec/random.h"
 #include "knot/nameserver/update.h"
 #include "knot/nameserver/internet.h"
 #include "knot/nameserver/process_query.h"
 #include "knot/updates/apply.h"
 #include "knot/dnssec/zone-sign.h"
-#include "common/debug.h"
+#include "knot/common/debug.h"
+#include "libknot/internal/macros.h"
 #include "knot/dnssec/zone-events.h"
 #include "knot/updates/ddns.h"
 #include "knot/updates/zone-update.h"
@@ -29,9 +31,8 @@
 #include "knot/zone/events/events.h"
 #include "knot/server/tcp-handler.h"
 #include "knot/server/udp-handler.h"
-#include "knot/nameserver/requestor.h"
 #include "knot/nameserver/capture.h"
-#include "libknot/dnssec/random.h"
+#include "libknot/processing/requestor.h"
 
 /* UPDATE-specific logging (internal, expects 'qdata' variable set). */
 #define UPDATE_LOG(severity, msg...) \
@@ -39,7 +40,7 @@
 
 static void init_qdata_from_request(struct query_data *qdata,
                                     const zone_t *zone,
-                                    struct request_data *req,
+                                    struct knot_request *req,
                                     struct process_query_param *param)
 {
 	memset(qdata, 0, sizeof(*qdata));
@@ -111,7 +112,7 @@ static int sign_update(zone_t *zone, const zone_contents_t *old_contents,
 	return KNOT_EOK;
 }
 
-static int check_prereqs(struct request_data *request,
+static int check_prereqs(struct knot_request *request,
                          const zone_t *zone, zone_update_t *update,
                          struct query_data *qdata)
 {
@@ -128,7 +129,7 @@ static int check_prereqs(struct request_data *request,
 	return KNOT_EOK;
 }
 
-static int process_single_update(struct request_data *request,
+static int process_single_update(struct knot_request *request,
                                  const zone_t *zone, zone_update_t *update,
                                  struct query_data *qdata)
 {
@@ -147,7 +148,7 @@ static int process_single_update(struct request_data *request,
 
 static void set_rcodes(list_t *requests, const uint16_t rcode)
 {
-	struct request_data *req;
+	struct knot_request *req;
 	WALK_LIST(req, *requests) {
 		if (knot_wire_get_rcode(req->resp->wire) == KNOT_RCODE_NOERROR) {
 			knot_wire_set_rcode(req->resp->wire, rcode);
@@ -167,7 +168,7 @@ static int process_bulk(zone_t *zone, list_t *requests, changeset_t *ddns_ch)
 	zone_update_init(&zone_update, zone->contents, ddns_ch);
 
 	// Walk all the requests and process.
-	struct request_data *req;
+	struct knot_request *req;
 	WALK_LIST(req, *requests) {
 		// Init qdata structure for logging (unique per-request).
 		struct process_query_param param = { 0 };
@@ -328,11 +329,11 @@ static int process_requests(zone_t *zone, list_t *requests)
 	return KNOT_EOK;
 }
 
-static int forward_request(zone_t *zone, struct request_data *request)
+static int forward_request(zone_t *zone, struct knot_request *request)
 {
 	/* Create requestor instance. */
-	struct requestor re;
-	requestor_init(&re, NS_PROC_CAPTURE, NULL);
+	struct knot_requestor re;
+	knot_requestor_init(&re, NULL);
 
 	/* Fetch primary master. */
 	const conf_iface_t *master = zone_master(zone);
@@ -345,26 +346,31 @@ static int forward_request(zone_t *zone, struct request_data *request)
 		knot_wire_set_rcode(request->resp->wire, KNOT_RCODE_SERVFAIL);
 		return ret;
 	}
-	knot_wire_set_id(query->wire, knot_random_uint16_t());
+	knot_wire_set_id(query->wire, dnssec_random_uint16_t());
 	knot_tsig_append(query->wire, &query->size, query->max_size, query->tsig_rr);
 
 	/* Create a request. */
-	struct request *req = requestor_make(&re, master, query);
+	const struct sockaddr *dst = (const struct sockaddr *)&master->addr;
+	const struct sockaddr *src = (const struct sockaddr *)&master->via;
+	struct knot_request *req = knot_request_make(re.mm, dst, src, query, 0);
 	if (req == NULL) {
 		knot_pkt_free(&query);
 		return KNOT_ENOMEM;
 	}
 
-	/* Enqueue and execute request. */
-	struct process_capture_param param;
+	/* Prepare packet capture layer. */
+	struct capture_param param;
 	param.sink = request->resp;
-	ret = requestor_enqueue(&re, req, &param);
+	knot_requestor_overlay(&re, LAYER_CAPTURE, &param);
+
+	/* Enqueue and execute request. */
+	ret = knot_requestor_enqueue(&re, req);
 	if (ret == KNOT_EOK) {
 		struct timeval tv = { conf()->max_conn_reply, 0 };
-		ret = requestor_exec(&re, &tv);
+		ret = knot_requestor_exec(&re, &tv);
 	}
 
-	requestor_clear(&re);
+	knot_requestor_clear(&re);
 
 	/* Restore message ID and TSIG. */
 	knot_wire_set_id(request->resp->wire, knot_wire_get_id(request->query->wire));
@@ -385,13 +391,13 @@ static int forward_request(zone_t *zone, struct request_data *request)
 
 static void forward_requests(zone_t *zone, list_t *requests)
 {
-	struct request_data *req;
+	struct knot_request *req;
 	WALK_LIST(req, *requests) {
 		forward_request(zone, req);
 	}
 }
 
-static bool update_tsig_check(struct query_data *qdata, struct request_data *req)
+static bool update_tsig_check(struct query_data *qdata, struct knot_request *req)
 {
 	// Check that ACL is still valid.
 	if (!process_query_acl_check(&qdata->zone->conf->acl.update_in, qdata)) {
@@ -417,15 +423,7 @@ static bool update_tsig_check(struct query_data *qdata, struct request_data *req
 
 #undef UPDATE_LOG
 
-static void free_request(struct request_data *req)
-{
-	close(req->fd);
-	knot_pkt_free(&req->query);
-	knot_pkt_free(&req->resp);
-	free(req);
-}
-
-static void send_update_response(const zone_t *zone, struct request_data *req)
+static void send_update_response(const zone_t *zone, struct knot_request *req)
 {
 	if (req->resp) {
 		if (!zone_master(zone)) {
@@ -445,9 +443,17 @@ static void send_update_response(const zone_t *zone, struct request_data *req)
 	}
 }
 
+static void free_request(struct knot_request *req)
+{
+	close(req->fd);
+	knot_pkt_free(&req->query);
+	knot_pkt_free(&req->resp);
+	free(req);
+}
+
 static void send_update_responses(const zone_t *zone, list_t *updates)
 {
-	struct request_data *req;
+	struct knot_request *req;
 	node_t *nxt = NULL;
 	WALK_LIST_DELSAFE(req, nxt, *updates) {
 		send_update_response(zone, req);
@@ -459,7 +465,7 @@ static void send_update_responses(const zone_t *zone, list_t *updates)
 static int init_update_responses(const zone_t *zone, list_t *updates,
                                  size_t *update_count)
 {
-	struct request_data *req = NULL;
+	struct knot_request *req = NULL;
 	node_t *nxt = NULL;
 	WALK_LIST_DELSAFE(req, nxt, *updates) {
 		req->resp = knot_pkt_new(NULL, KNOT_WIRE_MAX_PKTSIZE, NULL);
@@ -483,7 +489,6 @@ static int init_update_responses(const zone_t *zone, list_t *updates,
 			// ACL/TSIG check failed, send response.
 			send_update_response(zone, req);
 			// Remove this request from processing list.
-			rem_node(&req->node);
 			free_request(req);
 			*update_count -= 1;
 		}
@@ -511,12 +516,12 @@ int update_query_process(knot_pkt_t *pkt, struct query_data *qdata)
 	/* Store update into DDNS queue. */
 	int ret = zone_update_enqueue(zone, qdata->query, qdata->param);
 	if (ret != KNOT_EOK) {
-		return NS_PROC_FAIL;
+		return KNOT_NS_PROC_FAIL;
 	}
 
 	/* No immediate response. */
 	pkt->size = 0;
-	return NS_PROC_DONE;
+	return KNOT_NS_PROC_DONE;
 }
 
 int updates_execute(zone_t *zone)

@@ -14,10 +14,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "dnssec/random.h"
+#include "libknot/processing/requestor.h"
 #include "libknot/rrtype/soa.h"
-#include "libknot/dnssec/random.h"
-#include "common-knot/trim.h"
-#include "common/mempool.h"
+
+#include "knot/common/trim.h"
+#include "libknot/internal/mempool.h"
+#include "libknot/internal/macros.h"
+
 #include "knot/server/udp-handler.h"
 #include "knot/server/tcp-handler.h"
 #include "knot/updates/changesets.h"
@@ -31,7 +35,6 @@
 #include "knot/nameserver/internet.h"
 #include "knot/nameserver/update.h"
 #include "knot/nameserver/notify.h"
-#include "knot/nameserver/requestor.h"
 #include "knot/nameserver/tsig_ctx.h"
 #include "knot/nameserver/process_answer.h"
 
@@ -61,7 +64,7 @@ static knot_pkt_t *zone_query(const zone_t *zone, uint16_t pkt_type, mm_ctx_t *m
 		return NULL;
 	}
 
-	knot_wire_set_id(pkt->wire, knot_random_uint16_t());
+	knot_wire_set_id(pkt->wire, dnssec_random_uint16_t());
 	knot_wire_set_aa(pkt->wire);
 	knot_wire_set_opcode(pkt->wire, opcode);
 	knot_pkt_put_question(pkt, zone->name, KNOT_CLASS_IN, query_type);
@@ -71,11 +74,11 @@ static knot_pkt_t *zone_query(const zone_t *zone, uint16_t pkt_type, mm_ctx_t *m
 	if (pkt_type == KNOT_QUERY_IXFR) {  /* RFC1995, SOA in AUTHORITY. */
 		knot_pkt_begin(pkt, KNOT_AUTHORITY);
 		knot_rrset_t soa_rr = node_rrset(contents->apex, KNOT_RRTYPE_SOA);
-		knot_pkt_put(pkt, COMPR_HINT_QNAME, &soa_rr, 0);
+		knot_pkt_put(pkt, KNOT_COMPR_HINT_QNAME, &soa_rr, 0);
 	} else if (pkt_type == KNOT_QUERY_NOTIFY) { /* RFC1996, SOA in ANSWER. */
 		knot_pkt_begin(pkt, KNOT_ANSWER);
 		knot_rrset_t soa_rr = node_rrset(contents->apex, KNOT_RRTYPE_SOA);
-		knot_pkt_put(pkt, COMPR_HINT_QNAME, &soa_rr, 0);
+		knot_pkt_put(pkt, KNOT_COMPR_HINT_QNAME, &soa_rr, 0);
 	}
 
 	return pkt;
@@ -100,15 +103,17 @@ static int zone_query_execute(zone_t *zone, uint16_t pkt_type, const conf_iface_
 		return KNOT_ENOMEM;
 	}
 
-	/* Create requestor instance. */
-	struct requestor re;
-	requestor_init(&re, NS_PROC_ANSWER, &mm);
-
 	/* Answer processing parameters. */
 	struct process_answer_param param = { 0 };
 	param.zone = zone;
 	param.query = query;
 	param.remote = &remote->addr;
+
+	/* Create requestor instance. */
+	struct knot_requestor re;
+	knot_requestor_init(&re, &mm);
+	knot_requestor_overlay(&re, KNOT_NS_PROC_ANSWER, &param);
+
 	tsig_init(&param.tsig_ctx, remote->key);
 
 	ret = tsig_sign_packet(&param.tsig_ctx, query);
@@ -117,23 +122,25 @@ static int zone_query_execute(zone_t *zone, uint16_t pkt_type, const conf_iface_
 	}
 
 	/* Create a request. */
-	struct request *req = requestor_make(&re, remote, query);
+	const struct sockaddr *dst = (const struct sockaddr *)&remote->addr;
+	const struct sockaddr *src = (const struct sockaddr *)&remote->via;
+	struct knot_request *req = knot_request_make(re.mm, dst, src, query, 0);
 	if (req == NULL) {
 		ret = KNOT_ENOMEM;
 		goto fail;
 	}
 
 	/* Send the queries and process responses. */
-	ret = requestor_enqueue(&re, req, &param);
+	ret = knot_requestor_enqueue(&re, req);
 	if (ret == KNOT_EOK) {
 		struct timeval tv = { conf()->max_conn_reply, 0 };
-		ret = requestor_exec(&re, &tv);
+		ret = knot_requestor_exec(&re, &tv);
 	}
 
 fail:
 	/* Cleanup. */
 	tsig_cleanup(&param.tsig_ctx);
-	requestor_clear(&re);
+	knot_requestor_clear(&re);
 	mp_delete(mm.ctx);
 
 	return ret;
@@ -397,11 +404,11 @@ int event_update(zone_t *zone)
 
 	/* Replan event if next update waiting. */
 	pthread_mutex_lock(&zone->ddns_lock);
-	
+
 	const bool empty = EMPTY_LIST(zone->ddns_queue);
-	
+
 	pthread_mutex_unlock(&zone->ddns_lock);
-	
+
 	if (!empty) {
 		zone_events_schedule(zone, ZONE_EVENT_UPDATE, ZONE_EVENT_NOW);
 	}
@@ -550,7 +557,7 @@ done:
 uint32_t bootstrap_next(uint32_t timer)
 {
 	timer *= 2;
-	timer += knot_random_uint32_t() % BOOTSTRAP_RETRY;
+	timer += dnssec_random_uint32_t() % BOOTSTRAP_RETRY;
 	if (timer > BOOTSTRAP_MAXTIME) {
 		timer = BOOTSTRAP_MAXTIME;
 	}

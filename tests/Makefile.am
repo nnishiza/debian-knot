@@ -3,31 +3,32 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/libtap \
 	-I$(top_srcdir)/src
 
+AM_LDFLAGS = \
+	$(libcrypto_LIBS)
+
 LDADD = \
 	$(top_builddir)/libtap/libtap.a \
-	$(top_builddir)/src/libknotd.la \
-	$(top_builddir)/src/libknots.la
+	$(top_builddir)/src/libknotd.la
 
 check_PROGRAMS = \
 	acl				\
 	base32hex			\
 	base64				\
 	changeset			\
+	changeset			\
 	conf				\
 	descriptor			\
 	dname				\
-	dnssec_keys			\
-	dnssec_nsec3			\
-	dnssec_sign			\
-	dnssec_zone_nsec		\
 	dthreads			\
 	edns				\
+	endian				\
 	fdset				\
 	hattrie				\
 	hhash				\
 	journal				\
 	namedb				\
 	node				\
+	overlay				\
 	pkt				\
 	process_answer			\
 	process_query			\
@@ -39,6 +40,7 @@ check_PROGRAMS = \
 	rrset				\
 	rrset_wire			\
 	server				\
+	utils				\
 	wire				\
 	worker_pool			\
 	worker_queue			\

@@ -25,12 +25,12 @@
 #include <errno.h>
 
 #include <urcu.h>
-#include "common-knot/strlcat.h"
-#include "common-knot/strlcpy.h"
-#include "common/mem.h"
+#include "libknot/internal/strlcat.h"
+#include "libknot/internal/strlcpy.h"
+#include "libknot/internal/mem.h"
+#include "libknot/internal/macros.h"
 #include "knot/conf/conf.h"
 #include "knot/conf/extra.h"
-#include "knot/knot.h"
 #include "knot/ctl/remote.h"
 #include "knot/nameserver/internet.h"
 
@@ -226,7 +226,7 @@ static int conf_process(conf_t *conf)
 		if (ctl_if->addr.ss_family == AF_UNIX) {
 			char *full_path = malloc(SOCKADDR_STRLEN);
 			memset(full_path, 0, SOCKADDR_STRLEN);
-			sockaddr_tostr(&ctl_if->addr, full_path, SOCKADDR_STRLEN);
+			sockaddr_tostr(full_path, SOCKADDR_STRLEN, &ctl_if->addr);
 
 			/* Convert to absolute path. */
 			full_path = conf_abs_path(conf->rundir, full_path);
@@ -424,7 +424,6 @@ static int conf_process(conf_t *conf)
 		size_t size = stor_len + zname_len + 9; // /diff.db,\0
 		char *dest = malloc(size);
 		if (dest == NULL) {
-			ERR_ALLOC_FAILED;
 			zone->ixfr_db = NULL; /* Not enough memory. */
 			ret = KNOT_ENOMEM; /* Error report. */
 			continue;
@@ -663,7 +662,7 @@ void conf_truncate(conf_t *conf, int unload_hooks)
 
 	// Free logs
 	WALK_LIST_DELSAFE(n, nxt, conf->logs) {
-		conf_free_log((conf_log_t*)n);
+		log_free((conf_log_t*)n);
 	}
 	init_list(&conf->logs);
 
@@ -807,7 +806,7 @@ int conf_open(const char* path)
 
 		/* Update hooks. */
 		conf_update_hooks(nconf);
-		
+
 		/* Free old config. */
 		conf_free(oldconf);
 	}
@@ -992,21 +991,4 @@ void conf_free_group(conf_group_t *group)
 
 	free(group->name);
 	free(group);
-}
-
-void conf_free_log(conf_log_t *log)
-{
-	if (!log) {
-		return;
-	}
-
-	free(log->file);
-
-	/* Free loglevel mapping. */
-	node_t *n = NULL, *nxt = NULL;
-	WALK_LIST_DELSAFE(n, nxt, log->map) {
-		free((conf_log_map_t*)n);
-	}
-
-	free(log);
 }

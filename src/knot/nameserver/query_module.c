@@ -1,10 +1,14 @@
 #include "knot/nameserver/query_module.h"
-#include "libknot/mempattern.h"
+#include "libknot/internal/mempattern.h"
 #include "libknot/errcode.h"
-#include "common-knot/strlcpy.h"
+#include "libknot/internal/strlcpy.h"
 
 /* Compiled-in module headers. */
 #include "knot/modules/synth_record.h"
+#include "knot/modules/dnsproxy.h"
+#ifdef HAVE_ROSEDB 
+#include "knot/modules/rosedb.h"
+#endif
 #if USE_DNSTAP
 #include "knot/modules/dnstap.h"
 #endif
@@ -19,6 +23,10 @@ struct compiled_module {
 /*! \note All modules should be dynamically loaded later on. */
 struct compiled_module MODULES[] = {
         { "synth_record", &synth_record_load, &synth_record_unload },
+        { "dnsproxy", &dnsproxy_load, &dnsproxy_unload },
+#ifdef HAVE_ROSEDB
+        { "rosedb", &rosedb_load, &rosedb_unload },
+#endif
 #if USE_DNSTAP
         { "dnstap",       &dnstap_load,       &dnstap_unload }
 #endif
@@ -81,7 +89,7 @@ int query_plan_step(struct query_plan *plan, int stage, qmodule_process_t proces
 	return KNOT_EOK;
 }
 
-struct query_module *query_module_open(struct conf_t *config, const char *name,
+struct query_module *query_module_open(struct conf *config, const char *name,
                                        const char *param, mm_ctx_t *mm)
 {
 	/* Locate compiled-in modules. */

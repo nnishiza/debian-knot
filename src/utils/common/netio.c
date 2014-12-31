@@ -14,24 +14,22 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "utils/common/netio.h"
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <poll.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
-#include <stdlib.h>			// free
-#include <netdb.h>			// addrinfo
-#include <poll.h>			// poll
-#include <fcntl.h>			// fcntl
-#include <sys/socket.h>			// AF_INET (BSD)
-#include <netinet/in.h>			// ntohl (BSD)
-#include <arpa/inet.h>			// inet_ntop
-#include <unistd.h>			// close
-#ifdef HAVE_SYS_UIO_H			// struct iovec (OpenBSD)
+#ifdef HAVE_SYS_UIO_H
 #include <sys/uio.h>
-#endif // HAVE_SYS_UIO_H
+#endif
 
-#include "utils/common/msg.h"		// WARN
-#include "libknot/descriptor.h"		// KNOT_CLASS_IN
-#include "libknot/errcode.h"		// KNOT_E
-#include "common-knot/sockaddr.h"	// sockaddr_tostr, sockaddr_portnum
+#include "utils/common/netio.h"
+#include "utils/common/msg.h"
+#include "libknot/libknot.h"
+#include "libknot/internal/sockaddr.h"
 
 srv_info_t* srv_info_create(const char *name, const char *service)
 {
@@ -142,7 +140,7 @@ void get_addr_str(const struct sockaddr_storage *ss,
 	char addr_str[SOCKADDR_STRLEN] = {0};
 
 	// Get network address string and port number.
-	sockaddr_tostr(ss, addr_str, sizeof(addr_str));
+	sockaddr_tostr(addr_str, sizeof(addr_str), ss);
 
 	// Calculate needed buffer size
 	const char *sock_name = get_sockname(socktype);

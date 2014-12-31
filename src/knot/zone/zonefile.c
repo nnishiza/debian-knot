@@ -26,13 +26,13 @@
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "common-knot/strlcat.h"
-#include "common-knot/strlcpy.h"
-#include "libknot/common.h"
+#include "libknot/internal/strlcat.h"
+#include "libknot/internal/strlcpy.h"
+#include "libknot/internal/macros.h"
 #include "knot/zone/semantic-check.h"
 #include "knot/zone/contents.h"
 #include "knot/dnssec/zone-nsec.h"
-#include "knot/other/debug.h"
+#include "knot/common/debug.h"
 #include "knot/zone/zonefile.h"
 #include "libknot/rdata.h"
 #include "knot/zone/zone-dump.h"
@@ -216,7 +216,6 @@ int zonefile_open(zloader_t *loader, const char *source, const char *origin,
 	/* Create context. */
 	zcreator_t *zc = malloc(sizeof(zcreator_t));
 	if (zc == NULL) {
-		ERR_ALLOC_FAILED;
 		return KNOT_ENOMEM;
 	}
 	memset(zc, 0, sizeof(zcreator_t));

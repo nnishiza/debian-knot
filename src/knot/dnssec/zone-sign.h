@@ -59,7 +59,7 @@ typedef struct signed_info {
  * \return Error code, KNOT_EOK if successful.
  */
 int knot_zone_sign(const zone_contents_t *zone,
-                   const knot_zone_keys_t *zone_keys,
+                   const zone_keyset_t *zone_keys,
                    const knot_dnssec_policy_t *policy,
                    changeset_t *out_ch, uint32_t *refresh_at);
 
@@ -74,7 +74,7 @@ int knot_zone_sign(const zone_contents_t *zone,
  * \return Error code, KNOT_EOK if successful.
  */
 int knot_zone_sign_update_soa(const knot_rrset_t *soa, const knot_rrset_t *rrsigs,
-                              const knot_zone_keys_t *zone_keys,
+                              const zone_keyset_t *zone_keys,
                               const knot_dnssec_policy_t *policy,
                               uint32_t new_serial, changeset_t *changeset);
 
@@ -89,7 +89,7 @@ int knot_zone_sign_update_soa(const knot_rrset_t *soa, const knot_rrset_t *rrsig
  * \return True if zone SOA signatures need update, false othewise.
  */
 bool knot_zone_sign_soa_expired(const zone_contents_t *zone,
-                                const knot_zone_keys_t *zone_keys,
+                                const zone_keyset_t *zone_keys,
                                 const knot_dnssec_policy_t *policy);
 
 /*!
@@ -106,7 +106,7 @@ bool knot_zone_sign_soa_expired(const zone_contents_t *zone,
 int knot_zone_sign_changeset(const zone_contents_t *zone,
                              const changeset_t *in_ch,
                              changeset_t *out_ch,
-                             const knot_zone_keys_t *zone_keys,
+                             const zone_keyset_t *zone_keys,
                              const knot_dnssec_policy_t *policy);
 
 /*!
@@ -118,7 +118,7 @@ int knot_zone_sign_changeset(const zone_contents_t *zone,
  *
  * \return Error code, KNOT_EOK if successful.
  */
-int knot_zone_sign_nsecs_in_changeset(const knot_zone_keys_t *zone_keys,
+int knot_zone_sign_nsecs_in_changeset(const zone_keyset_t *zone_keys,
                                       const knot_dnssec_policy_t *policy,
                                       changeset_t *changeset);
 

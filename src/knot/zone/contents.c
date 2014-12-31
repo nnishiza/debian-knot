@@ -17,11 +17,12 @@
 #include <assert.h>
 
 #include "knot/zone/contents.h"
-#include "common/debug.h"
+#include "knot/common/debug.h"
+#include "libknot/internal/macros.h"
 #include "libknot/rrset.h"
-#include "common/base32hex.h"
+#include "libknot/internal/base32hex.h"
 #include "libknot/descriptor.h"
-#include "common-knot/hattrie/hat-trie.h"
+#include "libknot/internal/trie/hat-trie.h"
 #include "knot/dnssec/zone-nsec.h"
 #include "knot/dnssec/zone-sign.h"
 #include "knot/zone/zone-tree.h"
@@ -153,7 +154,6 @@ static int discover_additionals(struct rr_data *rr_data,
 	}
 	rr_data->additional = malloc(rdcount * sizeof(zone_node_t *));
 	if (rr_data->additional == NULL) {
-		ERR_ALLOC_FAILED;
 		return KNOT_ENOMEM;
 	}
 
@@ -1255,7 +1255,6 @@ int zone_contents_shallow_copy(const zone_contents_t *from, zone_contents_t **to
 
 	zone_contents_t *contents = calloc(1, sizeof(zone_contents_t));
 	if (contents == NULL) {
-		ERR_ALLOC_FAILED;
 		return KNOT_ENOMEM;
 	}
 
@@ -1367,7 +1366,7 @@ uint32_t zone_contents_next_serial(const zone_contents_t *zone, int policy)
 	}
 
 	/* If the new serial is 'lower' or equal than the new one, warn the user.*/
-	if (knot_serial_compare(old_serial, new_serial) >= 0) {
+	if (serial_compare(old_serial, new_serial) >= 0) {
 		log_zone_warning(zone->apex->owner, "updated serial is lower "
 		                 "than current, serial %u -> %u",
 		                 old_serial, new_serial);

@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "libknot/mempattern.h"
+#include "libknot/internal/mempattern.h"
 
 /* ---------------------------- Single RR ----------------------------------- */
 

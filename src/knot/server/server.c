@@ -21,8 +21,9 @@
 #include <errno.h>
 #include <assert.h>
 
-#include "common-knot/trim.h"
-#include "knot/knot.h"
+#include "dnssec/random.h"
+#include "knot/common/debug.h"
+#include "knot/common/trim.h"
 #include "knot/server/server.h"
 #include "knot/server/udp-handler.h"
 #include "knot/server/tcp-handler.h"
@@ -30,9 +31,6 @@
 #include "knot/worker/pool.h"
 #include "knot/zone/timers.h"
 #include "knot/zone/zonedb-load.h"
-#include "libknot/dname.h"
-#include "libknot/dnssec/crypto.h"
-#include "libknot/dnssec/random.h"
 
 /*! \brief Event scheduler loop. */
 static int evsched_run(dthread_t *thread)
@@ -63,13 +61,6 @@ static int evsched_run(dthread_t *thread)
 		}
 	}
 
-	return KNOT_EOK;
-}
-
-/*! \brief Event scheduler thread destructor. */
-static int evsched_destruct(dthread_t *thread)
-{
-	knot_crypto_cleanup_thread();
 	return KNOT_EOK;
 }
 
@@ -110,11 +101,12 @@ static int server_init_iface(iface_t *new_if, conf_iface_t *cfg_if)
 
 	/* Convert to string address format. */
 	char addr_str[SOCKADDR_STRLEN] = {0};
-	sockaddr_tostr(&cfg_if->addr, addr_str, sizeof(addr_str));
+	sockaddr_tostr(addr_str, sizeof(addr_str), &cfg_if->addr);
 
 	/* Create bound UDP socket. */
 	int sock = net_bound_socket(SOCK_DGRAM, &cfg_if->addr);
 	if (sock < 0) {
+		log_error("cannot bind address '%s' (%s)", addr_str, knot_strerror(sock));
 		return sock;
 	}
 
@@ -153,7 +145,7 @@ static int server_init_iface(iface_t *new_if, conf_iface_t *cfg_if)
 	return KNOT_EOK;
 }
 
-static void remove_ifacelist(struct ref_t *p)
+static void remove_ifacelist(struct ref *p)
 {
 	ifacelist_t *ifaces = (ifacelist_t *)p;
 
@@ -161,7 +153,7 @@ static void remove_ifacelist(struct ref_t *p)
 	char addr_str[SOCKADDR_STRLEN] = {0};
 	iface_t *n = NULL, *m = NULL;
 	WALK_LIST_DELSAFE(n, m, ifaces->u) {
-		sockaddr_tostr(&n->addr, addr_str, sizeof(addr_str));
+		sockaddr_tostr(addr_str, sizeof(addr_str), &n->addr);
 		log_info("removing interface '%s'", addr_str);
 		server_remove_iface(n);
 	}
@@ -178,7 +170,7 @@ static void remove_ifacelist(struct ref_t *p)
  * \param server Server instance.
  * \return number of added sockets.
  */
-static int reconfigure_sockets(const struct conf_t *conf, server_t *s)
+static int reconfigure_sockets(const struct conf *conf, server_t *s)
 {
 	/* Prepare helper lists. */
 	char addr_str[SOCKADDR_STRLEN] = {0};
@@ -218,7 +210,7 @@ static int reconfigure_sockets(const struct conf_t *conf, server_t *s)
 		if (found_match) {
 			rem_node((node_t *)m);
 		} else {
-			sockaddr_tostr(&cfg_if->addr, addr_str, sizeof(addr_str));
+			sockaddr_tostr(addr_str, sizeof(addr_str), &cfg_if->addr);
 			log_info("binding to interface '%s'", addr_str);
 
 			/* Create new interface. */
@@ -285,7 +277,7 @@ int server_init(server_t *server, int bg_workers)
 	if (evsched_init(&server->sched, server) != KNOT_EOK) {
 		return KNOT_ENOMEM;
 	}
-	server->iosched = dt_create(1, evsched_run, evsched_destruct, &server->sched);
+	server->iosched = dt_create(1, evsched_run, NULL, &server->sched);
 	if (server->iosched == NULL) {
 		evsched_deinit(&server->sched);
 		return KNOT_ENOMEM;
@@ -474,7 +466,7 @@ void server_stop(server_t *server)
 }
 
 /*! \brief Reconfigure UDP and TCP query processing threads. */
-static int reconfigure_threads(const struct conf_t *conf, server_t *server)
+static int reconfigure_threads(const struct conf *conf, server_t *server)
 {
 	/* Estimate number of threads/manager. */
 	int ret = KNOT_EOK;
@@ -489,7 +481,7 @@ static int reconfigure_threads(const struct conf_t *conf, server_t *server)
 
 		/* Initialize I/O handlers. */
 		ret = server_init_handler(server, IO_UDP, conf_udp_threads(conf),
-		                          &udp_master, &udp_master_destruct);
+		                          &udp_master, NULL);
 		if (ret != KNOT_EOK) {
 			log_error("failed to create UDP threads (%s)",
 			          knot_strerror(ret));
@@ -499,7 +491,7 @@ static int reconfigure_threads(const struct conf_t *conf, server_t *server)
 		/* Create at least CONFIG_XFERS threads for TCP for faster
 		 * processing of massive bootstrap queries. */
 		ret = server_init_handler(server, IO_TCP, conf_tcp_threads(conf),
-		                          &tcp_master, &tcp_master_destruct);
+		                          &tcp_master, NULL);
 		if (ret != KNOT_EOK) {
 			log_error("failed to create TCP threads (%s)",
 			          knot_strerror(ret));
@@ -518,7 +510,7 @@ static int reconfigure_threads(const struct conf_t *conf, server_t *server)
 	return ret;
 }
 
-static int reconfigure_rate_limits(const struct conf_t *conf, server_t *server)
+static int reconfigure_rate_limits(const struct conf *conf, server_t *server)
 {
 	/* Rate limiting. */
 	if (!server->rrl && conf->rrl > 0) {
@@ -547,7 +539,7 @@ static int reconfigure_rate_limits(const struct conf_t *conf, server_t *server)
 	return KNOT_EOK;
 }
 
-int server_reconfigure(const struct conf_t *conf, void *data)
+int server_reconfigure(const struct conf *conf, void *data)
 {
 	server_t *server = (server_t *)data;
 	dbg_server("%s(%p, %p)\n", __func__, conf, server);

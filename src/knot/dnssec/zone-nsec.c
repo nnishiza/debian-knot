@@ -20,15 +20,14 @@
 #include <string.h>
 #include <limits.h>
 
-#include "common/base32hex.h"
-#include "common/debug.h"
+#include "dnssec/error.h"
+#include "dnssec/nsec.h"
+#include "libknot/internal/base32hex.h"
+#include "knot/common/debug.h"
 #include "libknot/descriptor.h"
-#include "common-knot/hhash.h"
-#include "libknot/dnssec/bitmap.h"
-#include "libknot/util/utils.h"
 #include "libknot/packet/wire.h"
-#include "libknot/rrtype/soa.h"
 #include "libknot/rrtype/nsec3.h"
+#include "libknot/rrtype/soa.h"
 #include "knot/dnssec/nsec-chain.h"
 #include "knot/dnssec/nsec3-chain.h"
 #include "knot/dnssec/zone-nsec.h"
@@ -191,21 +190,34 @@ knot_dname_t *knot_create_nsec3_owner(const knot_dname_t *owner,
 		return NULL;
 	}
 
-	uint8_t *hash = NULL;
-	size_t hash_size = 0;
 	int owner_size = knot_dname_size(owner);
-
 	if (owner_size < 0) {
 		return NULL;
 	}
 
-	if (knot_nsec3_hash(params, owner, owner_size, &hash, &hash_size)
-	    != KNOT_EOK) {
+	dnssec_binary_t data = { 0 };
+	data.data = (uint8_t *)owner;
+	data.size = owner_size;
+
+	dnssec_binary_t hash = { 0 };
+	dnssec_nsec3_params_t xparams = {
+		.algorithm = params->algorithm,
+		.flags = params->flags,
+		.iterations = params->iterations,
+		.salt = {
+			.data = params->salt,
+			.size = params->salt_length
+		}
+	};
+
+	int r = dnssec_nsec3_hash(&data, &xparams, &hash);
+	if (r != DNSSEC_EOK) {
 		return NULL;
 	}
 
-	knot_dname_t *result = knot_nsec3_hash_to_dname(hash, hash_size, zone_apex);
-	free(hash);
+	knot_dname_t *result = knot_nsec3_hash_to_dname(hash.data, hash.size, zone_apex);
+
+	dnssec_binary_free(&hash);
 
 	return result;
 }
@@ -258,7 +270,7 @@ knot_dname_t *knot_nsec3_hash_to_dname(const uint8_t *hash, size_t hash_size,
  */
 int knot_zone_create_nsec_chain(const zone_contents_t *zone,
                                 changeset_t *changeset,
-                                const knot_zone_keys_t *zone_keys,
+                                const zone_keyset_t *zone_keys,
                                 const knot_dnssec_policy_t *policy)
 {
 	if (!zone || !changeset) {

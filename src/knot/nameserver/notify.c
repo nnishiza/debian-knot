@@ -25,18 +25,17 @@
 #include "libknot/consts.h"
 #include "knot/zone/zonedb.h"
 #include "knot/zone/timers.h"
-#include "libknot/common.h"
 #include "libknot/packet/wire.h"
 #include "knot/updates/acl.h"
-#include "common-knot/evsched.h"
-#include "knot/other/debug.h"
+#include "knot/common/evsched.h"
+#include "knot/common/debug.h"
 #include "knot/server/server.h"
 #include "knot/nameserver/internet.h"
-#include "common/debug.h"
+#include "knot/common/debug.h"
 #include "knot/nameserver/process_query.h"
+#include "dnssec/random.h"
 #include "knot/nameserver/tsig_ctx.h"
 #include "knot/nameserver/process_answer.h"
-#include "libknot/dnssec/random.h"
 #include "libknot/rrtype/soa.h"
 
 /*----------------------------------------------------------------------------*/
@@ -57,18 +56,18 @@ static int notify_check_query(struct query_data *qdata)
 	NS_NEED_ZONE(qdata, KNOT_RCODE_NOTAUTH);
 	NS_NEED_AUTH(&zone->conf->acl.notify_in, qdata);
 
-	return NS_PROC_DONE;
+	return KNOT_NS_PROC_DONE;
 }
 
 int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 {
 	if (pkt == NULL || qdata == NULL) {
-		return NS_PROC_FAIL;
+		return KNOT_NS_PROC_FAIL;
 	}
 
 	/* Validate notification query. */
 	int state = notify_check_query(qdata);
-	if (state == NS_PROC_FAIL) {
+	if (state == KNOT_NS_PROC_FAIL) {
 		switch (qdata->rcode) {
 		case KNOT_RCODE_NOTAUTH: /* Not authoritative or ACL check failed. */
 			NOTIFY_QLOG(LOG_NOTICE, "unauthorized request");
@@ -81,7 +80,7 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 	}
 
 	/* Reserve space for TSIG. */
-	knot_pkt_reserve(pkt, tsig_wire_maxsize(qdata->sign.tsig_key));
+	knot_pkt_reserve(pkt, knot_tsig_wire_maxsize(qdata->sign.tsig_key));
 
 	/* SOA RR in answer may be included, recover serial. */
 	const knot_pktsection_t *answer = knot_pkt_section(qdata->query, KNOT_ANSWER);
@@ -102,10 +101,10 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 	zone_events_schedule(zone, ZONE_EVENT_REFRESH, ZONE_EVENT_NOW);
 	int ret = zone_events_write_persistent(zone);
 	if (ret != KNOT_EOK) {
-		return NS_PROC_FAIL;
+		return KNOT_NS_PROC_FAIL;
 	}
 
-	return NS_PROC_DONE;
+	return KNOT_NS_PROC_DONE;
 }
 
 #undef NOTIFY_QLOG
@@ -117,22 +116,22 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 int notify_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 {
 	if (pkt == NULL || adata == NULL) {
-		return NS_PROC_FAIL;
+		return KNOT_NS_PROC_FAIL;
 	}
 
 	/* Check RCODE. */
 	uint8_t rcode = knot_wire_get_rcode(pkt->wire);
 	if (rcode != KNOT_RCODE_NOERROR) {
-		knot_lookup_table_t *lut = knot_lookup_by_id(knot_rcode_names, rcode);
+		lookup_table_t *lut = lookup_by_id(knot_rcode_names, rcode);
 		if (lut != NULL) {
 			NOTIFY_RLOG(LOG_WARNING, "server responded with %s", lut->name);
 		}
-		return NS_PROC_FAIL;
+		return KNOT_NS_PROC_FAIL;
 	}
 
 	NS_NEED_TSIG_SIGNED(&adata->param->tsig_ctx, 0);
 
-	return NS_PROC_DONE; /* No processing. */
+	return KNOT_NS_PROC_DONE; /* No processing. */
 }
 
 #undef NOTIFY_RLOG
