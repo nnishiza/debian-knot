@@ -18,11 +18,11 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#include "common/debug.h"
+#include "knot/common/debug.h"
 #include "libknot/errcode.h"
 #include "knot/zone/zone-diff.h"
 #include "libknot/descriptor.h"
-#include "libknot/util/utils.h"
+#include "libknot/internal/utils.h"
 #include "libknot/rrtype/soa.h"
 
 struct zone_diff_param {
@@ -63,11 +63,11 @@ static int knot_zone_diff_load_soas(const zone_contents_t *zone1,
 	int64_t soa_serial1 = knot_soa_serial(&soa_rrset1.rrs);
 	int64_t soa_serial2 = knot_soa_serial(&soa_rrset2.rrs);
 
-	if (knot_serial_compare(soa_serial1, soa_serial2) == 0) {
+	if (serial_compare(soa_serial1, soa_serial2) == 0) {
 		return KNOT_ENODIFF;
 	}
 
-	if (knot_serial_compare(soa_serial1, soa_serial2) > 0) {
+	if (serial_compare(soa_serial1, soa_serial2) > 0) {
 		return KNOT_ERANGE;
 	}
 
@@ -94,7 +94,7 @@ static int knot_zone_diff_add_node(const zone_node_t *node,
                                    changeset_t *changeset)
 {
 	/* Add all rrsets from node. */
-	for (uint i = 0; i < node->rrset_count; i++) {
+	for (unsigned i = 0; i < node->rrset_count; i++) {
 		knot_rrset_t rrset = node_rrset_at(node, i);
 		int ret = changeset_add_rrset(changeset, &rrset);
 		if (ret != KNOT_EOK) {
@@ -111,7 +111,7 @@ static int knot_zone_diff_remove_node(changeset_t *changeset,
                                       const zone_node_t *node)
 {
 	/* Remove all the RRSets of the node. */
-	for (uint i = 0; i < node->rrset_count; i++) {
+	for (unsigned i = 0; i < node->rrset_count; i++) {
 		knot_rrset_t rrset = node_rrset_at(node, i);
 		int ret = changeset_rem_rrset(changeset, &rrset);
 		if (ret != KNOT_EOK) {
@@ -154,7 +154,7 @@ static int knot_zone_diff_rdata_return_changes(const knot_rrset_t *rrset1,
 	/* Create fake RRSet, it will be easier to handle. */
 	knot_rrset_init(changes, rrset1->owner, rrset1->type, rrset1->rclass);
 
-	const rdata_descriptor_t *desc = knot_get_rdata_descriptor(rrset1->type);
+	const knot_rdata_descriptor_t *desc = knot_get_rdata_descriptor(rrset1->type);
 	assert(desc);
 
 	uint16_t rr1_count = rrset1->rrs.rr_count;
@@ -270,7 +270,7 @@ static int knot_zone_diff_node(zone_node_t **node_ptr, void *data)
 		                               param->changeset);
 	}
 
-	for (uint i = 0; i < node->rrset_count; i++) {
+	for (unsigned i = 0; i < node->rrset_count; i++) {
 		/* Search for the RRSet in the node from the second tree. */
 		knot_rrset_t rrset = node_rrset_at(node, i);
 
@@ -299,7 +299,7 @@ static int knot_zone_diff_node(zone_node_t **node_ptr, void *data)
 		}
 	}
 
-	for (uint i = 0; i < node_in_second_tree->rrset_count; i++) {
+	for (unsigned i = 0; i < node_in_second_tree->rrset_count; i++) {
 		/* Search for the RRSet in the node from the second tree. */
 		knot_rrset_t rrset = node_rrset_at(node_in_second_tree, i);
 

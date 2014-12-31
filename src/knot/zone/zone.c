@@ -19,25 +19,26 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "dnssec/random.h"
 #include "libknot/descriptor.h"
-#include "common-knot/evsched.h"
-#include "common-knot/lists.h"
-#include "common-knot/trim.h"
+#include "knot/common/evsched.h"
+#include "libknot/internal/lists.h"
+#include "knot/common/trim.h"
 #include "knot/zone/node.h"
 #include "knot/zone/zone.h"
 #include "knot/zone/zonefile.h"
 #include "knot/zone/contents.h"
 #include "knot/updates/apply.h"
-#include "knot/nameserver/requestor.h"
-#include "libknot/common.h"
+#include "libknot/processing/requestor.h"
+#include "knot/nameserver/process_query.h"
+#include "libknot/errcode.h"
 #include "libknot/dname.h"
-#include "libknot/dnssec/random.h"
-#include "libknot/util/utils.h"
+#include "libknot/internal/utils.h"
 #include "libknot/rrtype/soa.h"
 
 static void free_ddns_queue(zone_t *z)
 {
-	struct request_data *n = NULL;
+	struct knot_request *n = NULL;
 	node_t *nxt = NULL;
 	WALK_LIST_DELSAFE(n, nxt, z->ddns_queue) {
 		close(n->fd);
@@ -55,7 +56,6 @@ zone_t* zone_new(conf_zone_t *conf)
 
 	zone_t *zone = malloc(sizeof(zone_t));
 	if (zone == NULL) {
-		ERR_ALLOC_FAILED;
 		return NULL;
 	}
 	memset(zone, 0, sizeof(zone_t));
@@ -64,7 +64,6 @@ zone_t* zone_new(conf_zone_t *conf)
 	knot_dname_to_lower(zone->name);
 	if (zone->name == NULL) {
 		free(zone);
-		ERR_ALLOC_FAILED;
 		return NULL;
 	}
 
@@ -253,11 +252,11 @@ int zone_update_enqueue(zone_t *zone, knot_pkt_t *pkt, struct process_query_para
 {
 
 	/* Create serialized request. */
-	struct request_data *req = malloc(sizeof(struct request_data));
+	struct knot_request *req = malloc(sizeof(struct knot_request));
 	if (req == NULL) {
 		return KNOT_ENOMEM;
 	}
-	memset(req, 0, sizeof(struct request_data));
+	memset(req, 0, sizeof(struct knot_request));
 
 	/* Copy socket and request. */
 	req->fd = dup(param->socket);
@@ -304,7 +303,7 @@ size_t zone_update_dequeue(zone_t *zone, list_t *updates)
 	zone->ddns_queue_size = 0;
 
 	pthread_mutex_unlock(&zone->ddns_lock);
-	
+
 	return update_count;
 }
 
@@ -320,7 +319,7 @@ bool zone_transfer_needed(const zone_t *zone, const knot_pkt_t *pkt)
 		return false;
 	}
 
-	return knot_serial_compare(zone_contents_serial(zone->contents),
+	return serial_compare(zone_contents_serial(zone->contents),
 	                           knot_soa_serial(&soa.rrs)) < 0;
 }
 

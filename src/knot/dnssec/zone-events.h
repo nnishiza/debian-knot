@@ -25,6 +25,7 @@
  * \addtogroup dnssec
  * @{
  */
+
 #pragma once
 
 #include "knot/zone/zone.h"

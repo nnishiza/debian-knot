@@ -24,8 +24,7 @@
 #include <sys/mman.h>
 #include <assert.h>
 
-#include "libknot/common.h"
-#include "knot/other/debug.h"
+#include "knot/common/debug.h"
 #include "knot/server/journal.h"
 #include "knot/server/serialization.h"
 #include "libknot/rrtype/soa.h"

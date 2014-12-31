@@ -30,22 +30,9 @@
 
 #pragma once
 
-#include "knot/server/net.h"
-#include "knot/server/server.h"
 #include "knot/server/dthreads.h"
 
-/*!
- * \brief Send a UDP message.
- *
- * \param fd Associated socket.
- * \param msg Buffer for a query wireformat.
- * \param msglen Buffer maximum size.
- * \param addr Destination address.
- *
- * \retval Number of sent data on success.
- * \retval KNOT_ERROR on error.
- */
-int udp_send_msg(int fd, const uint8_t *msg, size_t msglen, struct sockaddr *addr);
+#define RECVMMSG_BATCHLEN 10 /*!< Default recvmmsg() batch size. */
 
 /*!
  * \brief UDP handler thread runnable.
@@ -60,10 +47,5 @@ int udp_send_msg(int fd, const uint8_t *msg, size_t msglen, struct sockaddr *add
  * \retval KNOT_EINVAL invalid parameters.
  */
 int udp_master(dthread_t *thread);
-
-/*!
- * \brief Destructor for UDP handler thread.
- */
-int udp_master_destruct(dthread_t *thread);
 
 /*! @} */

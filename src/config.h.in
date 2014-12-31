@@ -78,9 +78,6 @@
 /* Define to 1 if you have the `posix_memalign' function. */
 #undef HAVE_POSIX_MEMALIGN
 
-/* Define to 1 if you have the `pselect' function. */
-#undef HAVE_PSELECT
-
 /* Define to 1 if you have the <pthread_np.h> header file. */
 #undef HAVE_PTHREAD_NP_H
 
@@ -95,6 +92,9 @@
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
+
+/* Define to 1 to enable static RR query module. */
+#undef HAVE_ROSEDB
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
@@ -147,6 +147,10 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Define to 1 or 0, depending whether the compiler supports simple visibility
+   declarations. */
+#undef HAVE_VISIBILITY
+
 /* Server debug. */
 #undef KNOTD_SERVER_DEBUG
 
@@ -159,15 +163,6 @@
 /* Nameserver debug. */
 #undef KNOT_NS_DEBUG
 
-/* Packet debug. */
-#undef KNOT_PACKET_DEBUG
-
-/* RR debug. */
-#undef KNOT_RR_DEBUG
-
-/* XFR debug. */
-#undef KNOT_XFR_DEBUG
-
 /* Zones debug. */
 #undef KNOT_ZONES_DEBUG
 
@@ -177,9 +172,6 @@
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
 
 /* Name of package */
 #undef PACKAGE

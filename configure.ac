@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.6.1], [knot-dns@labs.nic.cz])
+AC_INIT([knot], [1.99.0], [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
@@ -9,6 +9,7 @@ AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_USE_SYSTEM_EXTENSIONS([_GNU_SOURCE])
 AC_CANONICAL_HOST
+AX_SET_VERSION_INFO
 
 # Automatically update release date based on configure.ac date
 case "$host_os" in
@@ -34,12 +35,12 @@ CFLAGS="$CFLAGS -Wall -Werror=format-security -Werror=implicit"
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR]) # call AM_PROG_AR only if available
 
 # Initialize libtool
-AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 LT_INIT
 
 # Use pkg-config
-PKG_PROG_PKG_CONFIG
+m4_ifdef([PKG_INSTALLDIR], [PKG_INSTALLDIR], [AC_SUBST([pkgconfigdir], ['${libdir}/pkgconfig'])])
+AC_CONFIG_FILES([libknot.pc])
 
 AC_CACHE_CHECK([for reentrant lex], [ac_cv_path_LEX],
   [AC_PATH_PROGS_FEATURE_CHECK([LEX], [$LEX flex gflex],
@@ -95,18 +96,21 @@ if test "$enable_systemd" = yes; then
     AC_DEFINE([ENABLE_SYSTEMD], [1], [Use systemd integration.])
 fi
 
+# GnuTLS crypto backend
+PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle])
+
+# JSON for DNSSEC status storage
+PKG_CHECK_MODULES([jansson], [jansson >= 2.4])
+
 # Debug modules
 AC_ARG_ENABLE([debug],
-    AS_HELP_STRING([--enable-debug=server,zones,xfr,packet,rr,ns,loader,dnssec],
+    AS_HELP_STRING([--enable-debug=server,zones,ns,loader,dnssec],
     [compile selected debug modules [default=none]]),
     [
     echo ${enableval}|tr "," "\n"|while read val; do
         case "${val}" in
             server) AC_DEFINE([KNOTD_SERVER_DEBUG], [1], [Server debug.]) ;;
             zones) AC_DEFINE([KNOT_ZONES_DEBUG], [1], [Zones debug.]) ;;
-            xfr) AC_DEFINE([KNOT_XFR_DEBUG], [1], [XFR debug.]) ;;
-            packet) AC_DEFINE([KNOT_PACKET_DEBUG], [1], [Packet debug.]) ;;
-            rr) AC_DEFINE([KNOT_RR_DEBUG], [1], [RR debug.]) ;;
             ns) AC_DEFINE([KNOT_NS_DEBUG], [1], [Nameserver debug.]) ;;
             loader) AC_DEFINE([KNOT_LOADER_DEBUG], [1], [Zone loading debug.]) ;;
             dnssec) AC_DEFINE([KNOT_DNSSEC_DEBUG], [1], [DNSSEC debug.]) ;;
@@ -233,60 +237,6 @@ AS_IF([test "$with_urcu" != "no"], [
 
 AC_SEARCH_LIBS([urcu_init], [urcu], [AC_MSG_ERROR([liburcu is too old (< 0.4.0), urcu_init symbol found])], [])
 
-dnl Check for OpenSSL
-AC_ARG_WITH(openssl,
-[  --with-openssl=DIR        where to find openssl library])
-
-AS_IF([test "$with_openssl" != "no"],[
-  PKG_CHECK_MODULES([libcrypto], libcrypto, [
-    CPPFLAGS="$CPPFLAGS $libcrypto_CFLAGS"
-    LIBS="$LIBS $libcrypto_LIBS"
-    with_openssl=yes
-  ],[
-
-    for try_openssl in "$with_openssl" "" "/usr/local"; do
-      save_LIBS="$LIBS"
-      save_CPPFLAGS="$CPPFLAGS"
-
-      AS_IF([test -d "$try_openssl"], [
-        libcrypto_CFLAGS="-I$try_openssl/include"
-        libcrypto_LIBS="-L$try_openssl/lib"
-      ],[
-        libcrypto_CFLAGS=""
-        libcrypto_LIBS=""
-      ])
-
-      CPPFLAGS="$CPPFLAGS $libcrypto_CFLAGS"
-      LIBS="$LIBS $libcrypto_LIBS"
-
-      AC_SEARCH_LIBS([OpenSSL_add_all_digests], [crypto], [
-        with_openssl=yes
-	break
-      ],[
-        with_openssl=no
-	# do not cache result of AC_SEARCH_LIBS test
-	unset ac_cv_search_OpenSSL_add_all_digests
-      ])
-
-      CPPFLAGS="$save_CPPFLAGS"
-      LIBS="$save_LIBS"
-    done
-
-  ])
-])
-
-AS_IF([test "$with_openssl" = "no"],[
-  AC_MSG_ERROR([OpenSSL library is required.])
-])
-
-AC_EGREP_CPP(openssl_version_ok,
-  [#include <openssl/crypto.h>
-   #if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
-   openssl_version_ok
-   #endif
-  ],[],[AC_MSG_ERROR([OpenSSL library version >= 1.0.0 is required.])]
-)
-
 dnl Check for libidn.
 AC_ARG_WITH(libidn,
     AC_HELP_STRING([--with-libidn=[DIR]], [Support IDN (needs GNU Libidn)]),
@@ -315,13 +265,20 @@ AM_CONDITIONAL([HAVE_DNSTAP], test "$opt_dnstap" != "no")
 dnl Check for LMDB
 KNOT_CHECK_HEADER([lmdb], [LMDB], [auto], [lmdb.h], [], [-llmdb])
 AS_IF([test "$enable_lmdb" = yes], [AC_DEFINE([HAVE_LMDB], [1], [Define to 1 to enable LMDB support])])
+AM_CONDITIONAL([HAVE_LMDB], test "$enable_lmdb" != "no")
+
+dnl Check for rosedb module 
+AC_ARG_ENABLE([rosedb],
+    AS_HELP_STRING([--disable-rosedb], [Do not enable static RR query module.]),
+    [], [enable_rosedb=no])
+AM_CONDITIONAL([HAVE_ROSEDB], [test "$enable_rosedb" = yes])
+AS_IF([test "$enable_rosedb" = yes], [AC_DEFINE([HAVE_ROSEDB], [1], [Define to 1 to enable static RR query module.])])
 
 AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread], [], [AC_MSG_ERROR([pthreads not found])])
 AC_SEARCH_LIBS([dlopen], [dl])
 AC_SEARCH_LIBS([clock_gettime], [rt])
 AC_SEARCH_LIBS([capng_apply], [cap-ng])
-AC_SEARCH_LIBS([adler32], [z])
 
 # Checks for header files.
 AC_HEADER_RESOLV
@@ -334,7 +291,7 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 
 # Checks for library functions.
-AC_CHECK_FUNCS([clock_gettime gettimeofday fgetln getline madvise malloc_trim poll posix_memalign pselect pthread_setaffinity_np regcomp select setgroups strlcat strlcpy initgroups])
+AC_CHECK_FUNCS([clock_gettime gettimeofday fgetln getline madvise malloc_trim poll posix_memalign pthread_setaffinity_np regcomp select setgroups strlcat strlcpy initgroups])
 
 # Check for be64toh function
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <endian.h>]], [[return be64toh(0);]])],
@@ -348,15 +305,14 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread_np.h>]], [[cpuset_t set; CPU
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sched.h>]], [[cpuset_t* set = cpuset_create(); cpuset_destroy(set);]])],
 [AC_DEFINE(HAVE_CPUSET_NETBSD, 1, [Define if cpuset_t and cpuset(3) exists.])])
 
-# Use -fvisibility=hidden when linking.
-# Let's leave it default now and use -export-symbols-regex in LDFLAGS
-#gl_VISIBILITY()
-#CFLAGS="$CFLAGS $CFLAG_VISIBILITY"
+# Hide all exported symbols by default
+gl_VISIBILITY()
+CPPFLAGS="$CPPFLAGS $CFLAG_VISIBILITY"
 
 # Add code coverage macro
 AX_CODE_COVERAGE
 
-AC_PATH_PROG([SPHINXBUILD], [sphinx-build], [false])
+AC_PATH_PROGS([SPHINXBUILD], [sphinx-build sphinx-build-3], [false])
 AS_IF([test "$SPHINXBUILD" = "false"],
   [AC_MSG_WARN([Could not find the 'sphinx-build' executable, you will be unable to regenerate documentation.])],
   [AC_PATH_PROG([PDFLATEX], [pdflatex], [false])
@@ -381,6 +337,12 @@ AC_CONFIG_FILES([Makefile
 		 tests/Makefile
 		 src/dnstap/Makefile
 		 src/zscanner/Makefile
+		 dnssec/Makefile
+		 dnssec/man/Makefile
+		 dnssec/man/keymgr.8
+		 dnssec/man/knsec3hash.1
+		 dnssec/tests/Makefile
+		 dnssec/utils/Makefile
 		 doc/conf.py
 		 man/khost.1
 		 man/knotc.8
@@ -388,10 +350,11 @@ AC_CONFIG_FILES([Makefile
 		 man/kdig.1
 		 man/knsupdate.1
 		 man/knot.conf.5
-		 man/knsec3hash.1
 		 ])
 
+
 AC_OUTPUT
+
 AC_MSG_RESULT([
   $PACKAGE $VERSION
 
@@ -409,6 +372,8 @@ AC_MSG_RESULT([
     Fast zone parser:      ${enable_fastparser}
     Utilities with IDN:    ${with_libidn}
     Systemd integration:   ${enable_systemd}
+    GnuTLS:                ${gnutls_CFLAGS} ${gnutls_LIBS}
+    Jansson:               ${jansson_CFLAGS} ${jansson_LIBS}
     Dnstap support:        ${opt_dnstap}
     Code coverage:         ${enable_code_coverage}
     LMDB support:          ${enable_lmdb}

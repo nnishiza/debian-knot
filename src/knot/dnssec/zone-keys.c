@@ -15,53 +15,28 @@
  */
 
 #include <assert.h>
-#include <dirent.h>
+#include <limits.h>
 #include <stdbool.h>
-#include <inttypes.h>
 
-#include "common/debug.h"
-#include "common/mem.h"
-#include "libknot/errcode.h"
-#include "libknot/common.h"
-#include "libknot/dname.h"
-#include "libknot/consts.h"
-#include "libknot/rrtype/dnskey.h"
-#include "libknot/dnssec/sign.h"
+#include "dnssec/error.h"
+#include "dnssec/keystore.h"
+#include "knot/common/log.h"
 #include "knot/dnssec/zone-keys.h"
-
-/*!
- * \brief Initialize DNSSEC signing context for each key.
- */
-static int init_sign_contexts(knot_zone_keys_t *keys)
-{
-	assert(keys);
-
-	node_t *node = NULL;
-	WALK_LIST(node, keys->list) {
-		knot_zone_key_t *key = (knot_zone_key_t *)node;
-		key->context = knot_dnssec_sign_init(&key->dnssec_key);
-		if (key->context == NULL) {
-			return KNOT_ENOMEM;
-		}
-	}
-
-	return KNOT_EOK;
-}
+#include "libknot/errcode.h"
+#include "libknot/rrtype/dnskey.h"
 
 /*!
  * \brief Get zone key by a keytag.
  */
-const knot_zone_key_t *knot_get_zone_key(const knot_zone_keys_t *keys,
-                                         uint16_t keytag)
+const zone_key_t *get_zone_key(const zone_keyset_t *keyset, uint16_t search)
 {
-	if (!keys) {
+	if (!keyset) {
 		return NULL;
 	}
 
-	node_t *node = NULL;
-	WALK_LIST(node, keys->list) {
-		knot_zone_key_t *key = (knot_zone_key_t *)node;
-		if (key->dnssec_key.keytag == keytag) {
+	for (size_t i = 0; i < keyset->count; i++) {
+		zone_key_t *key = &keyset->keys[i];
+		if (dnssec_key_get_keytag(key->key) == search) {
 			return key;
 		}
 	}
@@ -72,39 +47,70 @@ const knot_zone_key_t *knot_get_zone_key(const knot_zone_keys_t *keys,
 /*!
  * \brief Get key feature flags from key parameters.
  */
-static void set_zone_key_flags(const knot_key_params_t *params,
-                               knot_zone_key_t *key)
+static int set_key(dnssec_kasp_key_t *kasp_key, zone_key_t *zone_key)
 {
-	assert(params);
-	assert(key);
+	assert(kasp_key);
+	assert(zone_key);
 
-	uint32_t now = time(NULL);
+	time_t now = time(NULL);
+	dnssec_kasp_key_timing_t *timing = &kasp_key->timing;
 
-	uint32_t next_event = UINT32_MAX;
-	uint32_t timestamps[4] = {
-		params->time_publish,
-		params->time_activate,
-		params->time_inactive,
-		params->time_delete
+	// cryptographic context
+
+	dnssec_sign_ctx_t *ctx = NULL;
+	int r = dnssec_sign_new(&ctx, kasp_key->key);
+	if (r != DNSSEC_EOK) {
+		return KNOT_ERROR;
+	}
+
+	zone_key->key = kasp_key->key;
+	zone_key->ctx = ctx;
+
+	// next event computation
+
+	time_t next = LONG_MAX;
+	time_t timestamps[4] = {
+	        timing->active,
+		timing->publish,
+	        timing->remove,
+	        timing->retire,
 	};
 
 	for (int i = 0; i < 4; i++) {
-		uint32_t ts = timestamps[i];
-		if (ts != 0 && now < ts && ts < next_event) {
-			next_event = ts;
+		time_t ts = timestamps[i];
+		if (ts != 0 && now < ts && ts < next) {
+			next = ts;
 		}
 	}
 
-	key->next_event = next_event;
+	zone_key->next_event = next;
 
-	key->is_ksk = params->flags & KNOT_RDATA_DNSKEY_FLAG_KSK;
-	key->is_zsk = !key->is_ksk;
+	// key use flags
 
-	key->is_active = params->time_activate <= now &&
-	                 (params->time_inactive == 0 || now < params->time_inactive);
+	uint16_t flags = dnssec_key_get_flags(kasp_key->key);
+	zone_key->is_ksk = flags & KNOT_RDATA_DNSKEY_FLAG_KSK;
+	zone_key->is_zsk = !zone_key->is_ksk;
 
-	key->is_public = params->time_publish <= now &&
-	                 (params->time_delete == 0 || now < params->time_delete);
+	zone_key->is_active = timing->active <= now &&
+	                      (timing->retire == 0 || now < timing->retire);
+	zone_key->is_public = timing->publish <= now &&
+	                      (timing->remove == 0 || now < timing->remove);
+
+	return KNOT_EOK;
+}
+
+/*!
+ * \brief Check if algorithm is allowed with NSEC3.
+ */
+static bool is_nsec3_allowed(uint8_t algorithm)
+{
+	switch (algorithm) {
+	case DNSSEC_KEY_ALGORITHM_RSA_SHA1:
+	case DNSSEC_KEY_ALGORITHM_DSA_SHA1:
+		return false;
+	default:
+		return true;
+	}
 }
 
 /*!
@@ -131,11 +137,11 @@ typedef struct algorithm_usage {
  * If one key type is unavailable (not just inactive and not-published), the
  * algorithm is switched to Single-Type Signing Scheme.
  */
-static int prepare_and_check_keys(const knot_dname_t *zone_name,
-                                  knot_zone_keys_t *keys)
+static int prepare_and_check_keys(const char *zone_name, bool nsec3_enabled,
+                                  zone_keyset_t *keyset)
 {
 	assert(zone_name);
-	assert(keys);
+	assert(keyset);
 
 	const size_t max_algorithms = KNOT_DNSSEC_ALG_ECDSAP384SHA384 + 1;
 	algorithm_usage_t usage[max_algorithms];
@@ -143,10 +149,21 @@ static int prepare_and_check_keys(const knot_dname_t *zone_name,
 
 	// count available keys
 
-	knot_zone_key_t *key = NULL;
-	WALK_LIST(key, keys->list) {
-		assert(key->dnssec_key.algorithm < max_algorithms);
-		algorithm_usage_t *u = &usage[key->dnssec_key.algorithm];
+	for (size_t i = 0; i < keyset->count; i++) {
+		zone_key_t *key = &keyset->keys[i];
+		uint8_t algorithm = dnssec_key_get_algorithm(key->key);
+
+		assert(algorithm < max_algorithms);
+		algorithm_usage_t *u = &usage[algorithm];
+
+		if (nsec3_enabled && !is_nsec3_allowed(algorithm)) {
+			log_zone_str_warning(zone_name, "DNSSEC, key '%d' "
+			                     "cannot be used with NSEC3",
+			                     dnssec_key_get_keytag(key->key));
+			key->is_public = false;
+			key->is_active = false;
+			continue;
+		}
 
 		if (key->is_ksk) { u->ksk_count += 1; }
 		if (key->is_zsk) { u->zsk_count += 1; }
@@ -160,16 +177,16 @@ static int prepare_and_check_keys(const knot_dname_t *zone_name,
 		// either KSK or ZSK keys are available
 		if ((u->ksk_count == 0) != (u->zsk_count == 0)) {
 			u->is_stss = true;
-			log_zone_info(zone_name, "DNSSEC, Single-Type Signing "
-			              "scheme enabled, algorithm '%d'", i);
+			log_zone_str_info(zone_name, "DNSSEC, Single-Type Signing "
+			                  "scheme enabled, algorithm '%d'", i);
 		}
 	}
 
 	// update key flags for STSS, collect information about usage
 
-	WALK_LIST(key, keys->list) {
-		assert(key->dnssec_key.algorithm < max_algorithms);
-		algorithm_usage_t *u = &usage[key->dnssec_key.algorithm];
+	for (size_t i = 0; i < keyset->count; i++) {
+		zone_key_t *key = &keyset->keys[i];
+		algorithm_usage_t *u = &usage[dnssec_key_get_algorithm(key->key)];
 
 		if (u->is_stss) {
 			key->is_ksk = true;
@@ -205,179 +222,172 @@ static int prepare_and_check_keys(const knot_dname_t *zone_name,
 }
 
 /*!
- * \brief Load zone keys from a key directory.
+ * \brief Load private keys for active keys.
  */
-int knot_load_zone_keys(const char *keydir_name, const knot_dname_t *zone_name,
-                        bool nsec3_enabled, knot_zone_keys_t *keys)
+static int load_private_keys(const char *kasp_dir, zone_keyset_t *keyset)
 {
-	if (!keydir_name || !zone_name || !keys) {
-		return KNOT_EINVAL;
-	}
-
-	DIR *keydir = opendir(keydir_name);
-	if (!keydir) {
-		return KNOT_DNSSEC_ENOKEYDIR;
-	}
+	assert(kasp_dir);
+	assert(keyset);
 
 	int result = KNOT_EOK;
+	char *keystore_dir = NULL;
+	dnssec_keystore_t *keystore = NULL;
 
-	struct dirent entry_buf = { 0 };
-	struct dirent *entry = NULL;
-	while (readdir_r(keydir, &entry_buf, &entry) == 0 && entry != NULL) {
+	int length = asprintf(&keystore_dir, "%s/keys", kasp_dir);
+	if (length < 0) {
+		result = KNOT_ENOMEM;
+		goto fail;
+	}
 
-		char *suffix = strrchr(entry->d_name, '.');
-		if (!suffix) {
+	dnssec_keystore_init_pkcs8_dir(&keystore);
+	result = dnssec_keystore_open(keystore, keystore_dir);
+	if (result != DNSSEC_EOK) {
+		goto fail;
+	}
+
+	for (size_t i = 0; i < keyset->count; i++) {
+		if (!keyset->keys[i].is_active) {
 			continue;
 		}
 
-		if (strcmp(suffix, ".private") != 0) {
-			continue;
-		}
-
-		size_t path_len = strlen(keydir_name) + 1 + strlen(entry->d_name);
-		char *path = malloc((path_len + 1) * sizeof(char));
-		if (!path) {
-			ERR_ALLOC_FAILED;
-			closedir(keydir);
-			return KNOT_ENOMEM;
-		}
-
-		int written = snprintf(path, path_len + 1, "%s/%s",
-		                       keydir_name, entry->d_name);
-		UNUSED(written);
-		assert(written == path_len);
-
-		knot_key_params_t params = { 0 };
-		int ret = knot_load_key_params(path, &params);
-		free(path);
-
-		if (ret != KNOT_EOK) {
-			log_zone_warning(zone_name, "DNSSEC, failed to load "
-			                 "key, file '%s' (%s)",
-			                 entry->d_name, knot_strerror(ret));
-			knot_free_key_params(&params);
-			continue;
-		}
-
-		if (!knot_dname_is_equal(zone_name, params.name)) {
-			knot_free_key_params(&params);
-			continue;
-		}
-
-		if (knot_get_key_type(&params) != KNOT_KEY_DNSSEC) {
-			knot_free_key_params(&params);
-			continue;
-		}
-
-		knot_zone_key_t *key = malloc(sizeof(*key));
-		if (!key) {
-			result = KNOT_ENOMEM;
+		dnssec_key_t *key = keyset->keys[i].key;
+		result = dnssec_key_import_private_keystore(key, keystore);
+		if (result != DNSSEC_EOK) {
+			result = KNOT_DNSSEC_EINVALID_KEY;
 			break;
 		}
-		memset(key, '\0', sizeof(*key));
-		set_zone_key_flags(&params, key);
-
-		if (!knot_dnssec_algorithm_is_zonesign(params.algorithm,
-		                                       nsec3_enabled)
-		) {
-			log_zone_notice(zone_name, "DNSSEC, ignoring key %5d, "
-			                "file '%s' (incompatible algorithm)",
-			                params.keytag, entry->d_name);
-			knot_free_key_params(&params);
-			free(key);
-			continue;
-		}
-
-		if (knot_get_zone_key(keys, params.keytag) != NULL) {
-			log_zone_notice(zone_name, "DNSSEC, ignoring key %5d, "
-					"file '%s' (duplicate keytag)",
-					params.keytag, entry->d_name);
-			knot_free_key_params(&params);
-			free(key);
-			continue;
-		}
-
-		ret = knot_dnssec_key_from_params(&params, &key->dnssec_key);
-		if (ret != KNOT_EOK) {
-			log_zone_error(zone_name, "DNSSEC, failed to process "
-				       "key %5d, file '%s' (%s)",
-				       params.keytag, entry->d_name,
-			               knot_strerror(ret));
-			knot_free_key_params(&params);
-			free(key);
-			continue;
-		}
-
-		log_zone_info(zone_name, "DNSSEC, loaded key %5d, file '%s', %s, %s, %s",
-		              params.keytag, entry->d_name,
-		              key->is_ksk ? "KSK" : "ZSK",
-		              key->is_active ? "active" : "inactive",
-		              key->is_public ? "public" : "not-public");
-
-		knot_free_key_params(&params);
-
-		add_tail(&keys->list, &key->node);
 	}
 
-	closedir(keydir);
-
-	if (result == KNOT_EOK) {
-		result = prepare_and_check_keys(zone_name, keys);
-	}
-
-	if (result == KNOT_EOK) {
-		result = init_sign_contexts(keys);
-	}
-
-	if (result != KNOT_EOK) {
-		knot_free_zone_keys(keys);
-	}
+	result = KNOT_EOK;
+fail:
+	dnssec_keystore_deinit(keystore);
+	free(keystore_dir);
 
 	return result;
 }
 
-void knot_init_zone_keys(knot_zone_keys_t *keys)
+/*!
+ * \brief Log information about zone keys.
+ */
+static void log_key_info(const zone_key_t *key, const char *zone_name)
 {
-	if (!keys) {
-		return;
+	assert(key);
+	assert(zone_name);
+
+	log_zone_str_info(zone_name, "DNSSEC, loaded key, tag %5d, "
+			  "algorithm %d, KSK %s, ZSK %s, public %s, active %s",
+			  dnssec_key_get_keytag(key->key),
+			  dnssec_key_get_algorithm(key->key),
+			  key->is_ksk ? "yes" : "no",
+			  key->is_zsk ? "yes" : "no",
+			  key->is_public ? "yes" : "no",
+			  key->is_active ? "yes" : "no");
+}
+
+/*!
+ * \brief Load zone keys from a key directory.
+ */
+int load_zone_keys(const char *keydir_name, const char *zone_name,
+                   bool nsec3_enabled, zone_keyset_t *keyset_ptr)
+{
+	if (!keydir_name || !zone_name || !keyset_ptr) {
+		return KNOT_EINVAL;
 	}
 
-	memset(keys, 0, sizeof(*keys));
-	init_list(&keys->list);
+	zone_keyset_t keyset = { 0 };
+
+	dnssec_kasp_init_dir(&keyset.kasp);
+	assert(keyset.kasp);
+
+	int r = dnssec_kasp_open(keyset.kasp, keydir_name);
+	if (r != DNSSEC_EOK) {
+		log_zone_str_error(zone_name, "DNSSEC, failed to open KASP (%s)",
+		                   dnssec_strerror(r));
+		return KNOT_ERROR;
+	}
+
+	r = dnssec_kasp_zone_load(keyset.kasp, zone_name, &keyset.kasp_zone);
+	if (r != DNSSEC_EOK) {
+		log_zone_str_error(zone_name, "DNSSEC, failed to get zone from KASP (%s)",
+		                   dnssec_strerror(r));
+		free_zone_keys(&keyset);
+		return KNOT_ERROR;
+	}
+
+	dnssec_list_t *kasp_keys = dnssec_kasp_zone_get_keys(keyset.kasp_zone);
+	if (dnssec_list_is_empty(kasp_keys)) {
+		log_zone_str_error(zone_name, "DNSSEC, no keys are available");
+		free_zone_keys(&keyset);
+		return KNOT_ERROR;
+	}
+
+	keyset.count = dnssec_list_size(kasp_keys);
+	keyset.keys = calloc(keyset.count, sizeof(zone_key_t));
+	if (!keyset.keys) {
+		free_zone_keys(&keyset);
+		return KNOT_ENOMEM;
+	}
+
+	size_t i = 0;
+	dnssec_list_foreach(item, kasp_keys) {
+		dnssec_kasp_key_t *kasp_key = dnssec_item_get(item);
+		set_key(kasp_key, &keyset.keys[i]);
+		log_key_info(&keyset.keys[i], zone_name);
+		i += 1;
+	}
+	assert(i == keyset.count);
+
+	r = prepare_and_check_keys(zone_name, nsec3_enabled, &keyset);
+	if (r != KNOT_EOK) {
+		log_zone_str_error(zone_name, "DNSSEC, keys validation failed (%s)",
+		                   knot_strerror(r));
+		free_zone_keys(&keyset);
+		return KNOT_ERROR;
+	}
+
+	r = load_private_keys(keydir_name, &keyset);
+	if (r != KNOT_EOK) {
+		free_zone_keys(&keyset);
+		return KNOT_ERROR;
+	}
+
+	*keyset_ptr = keyset;
+
+	return DNSSEC_EOK;
 }
 
 /*!
  * \brief Free structure with zone keys and associated DNSSEC contexts.
  */
-void knot_free_zone_keys(knot_zone_keys_t *keys)
+void free_zone_keys(zone_keyset_t *keyset)
 {
-	if (!keys) {
+	if (!keyset) {
 		return;
 	}
 
-	node_t *node = NULL;
-	node_t *next = NULL;
-	WALK_LIST_DELSAFE(node, next, keys->list) {
-		knot_zone_key_t *key = (knot_zone_key_t *)node;
-		knot_dnssec_sign_free(key->context);
-		knot_dnssec_key_free(&key->dnssec_key);
-		free(key);
+	for (size_t i = 0; i < keyset->count; i++) {
+		dnssec_sign_free(keyset->keys[i].ctx);
 	}
 
-	init_list(&keys->list);
+	dnssec_kasp_zone_free(keyset->kasp_zone);
+	dnssec_kasp_deinit(keyset->kasp);
+	free(keyset->keys);
+
+	memset(keyset, '\0', sizeof(*keyset));
 }
 
 /*!
  * \brief Get timestamp of next key event.
  */
-uint32_t knot_get_next_zone_key_event(const knot_zone_keys_t *keys)
+time_t knot_get_next_zone_key_event(const zone_keyset_t *keyset)
 {
-	uint32_t result = UINT32_MAX;
+	time_t result = LONG_MAX;
 
-	node_t *node = NULL;
-	WALK_LIST(node, keys->list) {
-		knot_zone_key_t *key = (knot_zone_key_t *)node;
-		result = MIN(result, key->next_event);
+	for (size_t i = 0; i < keyset->count; i++) {
+		zone_key_t *key = &keyset->keys[i];
+		if (key->next_event < result) {
+			result = key->next_event;
+		}
 	}
 
 	return result;

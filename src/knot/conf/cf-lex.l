@@ -33,11 +33,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "common-knot/sockaddr.h"
+#include "libknot/internal/sockaddr.h"
 #include "knot/conf/conf.h"
 #include "knot/conf/includes.h"
 #include "knot/conf/extra.h"
-#include "common/log.h"
+#include "knot/common/log.h"
 #include "libknotd_la-cf-parse.h" /* Automake generated header. */
 
 /* Imported symbols. */
@@ -296,13 +296,12 @@ include BEGIN(include);
   return HEXSTR;
 }
 
-gss-tsig        { lval.alg = KNOT_TSIG_ALG_GSS_TSIG;    return TSIG_ALGO_NAME; }
-hmac-md5        { lval.alg = KNOT_TSIG_ALG_HMAC_MD5;    return TSIG_ALGO_NAME; }
-hmac-sha1       { lval.alg = KNOT_TSIG_ALG_HMAC_SHA1;   return TSIG_ALGO_NAME; }
-hmac-sha224     { lval.alg = KNOT_TSIG_ALG_HMAC_SHA224; return TSIG_ALGO_NAME; }
-hmac-sha256     { lval.alg = KNOT_TSIG_ALG_HMAC_SHA256; return TSIG_ALGO_NAME; }
-hmac-sha384     { lval.alg = KNOT_TSIG_ALG_HMAC_SHA384; return TSIG_ALGO_NAME; }
-hmac-sha512     { lval.alg = KNOT_TSIG_ALG_HMAC_SHA512; return TSIG_ALGO_NAME; }
+hmac-md5        { lval.alg = DNSSEC_TSIG_HMAC_MD5;    return TSIG_ALGO_NAME; }
+hmac-sha1       { lval.alg = DNSSEC_TSIG_HMAC_SHA1;   return TSIG_ALGO_NAME; }
+hmac-sha224     { lval.alg = DNSSEC_TSIG_HMAC_SHA224; return TSIG_ALGO_NAME; }
+hmac-sha256     { lval.alg = DNSSEC_TSIG_HMAC_SHA256; return TSIG_ALGO_NAME; }
+hmac-sha384     { lval.alg = DNSSEC_TSIG_HMAC_SHA384; return TSIG_ALGO_NAME; }
+hmac-sha512     { lval.alg = DNSSEC_TSIG_HMAC_SHA512; return TSIG_ALGO_NAME; }
 
 ["][^"\n]*["] {
   yytext[yyleng-1] = 0;

@@ -14,26 +14,23 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "utils/common/params.h"
-
+#include <arpa/inet.h>
 #include <stdio.h>
-#include <stdlib.h>			// free
-#include <netinet/in.h>			// in_addr
-#include <arpa/inet.h>			// inet_pton
-#include <sys/socket.h>			// AF_INET (BSD)
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 #ifdef LIBIDN
 #include <idna.h>
 #endif
 
+#include "utils/common/params.h"
+#include "utils/common/msg.h"
+#include "utils/common/resolv.h"
+#include "utils/common/token.h"
 #include "libknot/libknot.h"
-#include "libknot/errcode.h"		// KNOT_EOK
-#include "libknot/mempattern.h"		// strcdup
-#include "libknot/descriptor.h"		// KNOT_RRTYPE_
-#include "common-knot/strlcpy.h"		// strlcpy
-#include "utils/common/msg.h"		// WARN
-#include "utils/common/resolv.h"	// parse_nameserver
-#include "utils/common/token.h"		// token
+#include "libknot/internal/mempattern.h"
+#include "libknot/internal/strlcpy.h"
 
 #define IPV4_REVERSE_DOMAIN	"in-addr.arpa."
 #define IPV6_REVERSE_DOMAIN	"ip6.arpa."
@@ -409,14 +406,13 @@ int params_parse_tsig(const char *value, knot_key_params_t *key_params)
 	}
 
 	/* Determine algorithm. */
-	key_params->algorithm = KNOT_TSIG_ALG_HMAC_MD5;
+	key_params->algorithm = DNSSEC_TSIG_HMAC_MD5;
 	if (s) {
 		*s++ = '\0';               /* Last part separator */
-		knot_lookup_table_t *alg = NULL;
-		alg = knot_lookup_by_name(knot_tsig_alg_names, h);
-		if (alg) {
+		dnssec_tsig_algorithm_t alg = dnssec_tsig_algorithm_from_name(h);
+		if (alg != DNSSEC_TSIG_UNKNOWN) {
 			DBG("%s: parsed algorithm '%s'\n", __func__, h);
-			key_params->algorithm = alg->id;
+			key_params->algorithm = alg;
 		} else {
 			ERR("invalid TSIG algorithm name '%s'\n", h);
 			free(h);
@@ -436,7 +432,8 @@ int params_parse_tsig(const char *value, knot_key_params_t *key_params)
 	/* Set key name and secret. */
 	key_params->name = knot_dname_from_str_alloc(k);
 	knot_dname_to_lower(key_params->name);
-	int r = knot_binary_from_base64(s, &key_params->secret);
+	dnssec_binary_t secret64 = { .size = strlen(s), .data = (uint8_t *) s };
+	int r = dnssec_binary_from_base64(&secret64, &key_params->secret);
 	if (r != KNOT_EOK) {
 		free(h);
 		return r;
@@ -445,27 +442,6 @@ int params_parse_tsig(const char *value, knot_key_params_t *key_params)
 	DBG("%s: parsed name '%s'\n", __func__, k);
 	DBG("%s: parsed secret '%s'\n", __func__, s);
 	free(h);
-
-	return KNOT_EOK;
-}
-
-int params_parse_keyfile(const char *value, knot_key_params_t *key_params)
-{
-	if (value == NULL || key_params == NULL) {
-		DBG_NULL;
-		return KNOT_EINVAL;
-	}
-
-	if (key_params->name) {
-		ERR("key specified multiple times.\n");
-		return KNOT_EINVAL;
-	}
-
-	int result = knot_load_key_params(value, key_params);
-	if (result != KNOT_EOK) {
-		ERR("failed to read key file: %s\n", knot_strerror(result));
-		return KNOT_EINVAL;
-	}
 
 	return KNOT_EOK;
 }

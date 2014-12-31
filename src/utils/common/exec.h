@@ -26,16 +26,13 @@
 
 #pragma once
 
-#include "utils/common/netio.h"		// net_t
-#include "utils/common/params.h"	// style_t
+#include "utils/common/netio.h"
+#include "utils/common/params.h"
 #include "libknot/libknot.h"
-#include "libknot/dnssec/key.h"
-#include "libknot/dnssec/sign.h"
 
 /*! \brief Holds data required between signing and signature verification. */
 typedef struct {
 	knot_tsig_key_t   tsig_key;
-	knot_dnssec_key_t dnssec_key;
 	uint8_t           *digest;
 	size_t            digest_size;
 } sign_context_t;
@@ -74,7 +71,7 @@ void print_data_xfr(const knot_pkt_t *packet, const style_t *style);
  * \param rr_count	Total number of answer records.
  * \param net		Connection information.
  * \param elapsed	Total elapsed time.
- * \param exec_time     Time of the packet creation.
+ * \param exec_time	Time of the packet creation.
  * \param style		Style of the otput.
  */
 void print_footer_xfr(const size_t  total_len,
@@ -92,7 +89,7 @@ void print_footer_xfr(const size_t  total_len,
  * \param net		Connection information.
  * \param size		Original packet wire size.
  * \param elapsed	Total elapsed time.
- * \param exec_time     Time of the packet creation.
+ * \param exec_time	Time of the packet creation.
  * \param incoming	Indicates if the packet is input.
  * \param style		Style of the otput.
  */

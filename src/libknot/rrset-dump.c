@@ -14,27 +14,28 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <arpa/inet.h>
+#include <ctype.h>
+#include <inttypes.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+#include "dnssec/binary.h"
+#include "dnssec/keytag.h"
 #include "libknot/rrset-dump.h"
-
-#include <stdlib.h>			// free
-#include <stdbool.h>			// bool
-#include <string.h>			// memcpy
-#include <time.h>			// strftime
-#include <ctype.h>			// isprint
-#include <math.h>			// pow
-#include <inttypes.h>			// PRIu64
-#include <sys/types.h>			// (OpenBSD)
-#include <sys/socket.h>			// AF_INET (BSD)
-#include <netinet/in.h>			// in_addr (BSD)
-#include <arpa/inet.h>			// ntohs
-
-#include "libknot/errcode.h"		// KNOT_EOK
-#include "common/base64.h"		// base64
-#include "common/base32hex.h"		// base32hex
-#include "libknot/descriptor.h"		// KNOT_RRTYPE
-#include "libknot/dnssec/key.h"		// knot_keytag
-#include "libknot/consts.h"		// knot_rcode_names
-#include "libknot/util/utils.h"		// knot_wire_read_u16
+#include "libknot/consts.h"
+#include "libknot/descriptor.h"
+#include "libknot/dnssec/key.h"
+#include "libknot/errcode.h"
+#include "libknot/internal/base64.h"
+#include "libknot/internal/base32hex.h"
+#include "libknot/internal/macros.h"
+#include "libknot/internal/utils.h"
 
 #define TAB_WIDTH		8
 #define BLOCK_WIDTH		40
@@ -52,6 +53,7 @@ typedef struct {
 	int           ret;
 } rrset_dump_params_t;
 
+_public_
 const knot_dump_style_t KNOT_DUMP_STYLE_DEFAULT = {
 	.wrap = false,
 	.show_class = false,
@@ -123,7 +125,7 @@ static void wire_num16_to_str(rrset_dump_params_t *p)
 	}
 
 	// Fill in input data.
-	data = knot_wire_read_u16(p->in);
+	data = wire_read_u16(p->in);
 
 	// Write number.
 	int ret = snprintf(p->out, p->out_max, "%u", data);
@@ -153,7 +155,7 @@ static void wire_num32_to_str(rrset_dump_params_t *p)
 	}
 
 	// Fill in input data.
-	data = knot_wire_read_u32(p->in);
+	data = wire_read_u32(p->in);
 
 	// Write number.
 	int ret = snprintf(p->out, p->out_max, "%u", data);
@@ -183,7 +185,7 @@ static void wire_num48_to_str(rrset_dump_params_t *p)
 	}
 
 	// Fill in input data.
-	data = knot_wire_read_u48(p->in);
+	data = wire_read_u48(p->in);
 
 	// Write number.
 	int ret = snprintf(p->out, p->out_max, "%"PRIu64"", data);
@@ -435,10 +437,10 @@ static void wire_len_data_encode_to_str(rrset_dump_params_t *p,
 		in_len = *(p->in);
 		break;
 	case 2:
-		in_len = knot_wire_read_u16(p->in);
+		in_len = wire_read_u16(p->in);
 		break;
 	case 4:
-		in_len = knot_wire_read_u32(p->in);
+		in_len = wire_read_u32(p->in);
 		break;
 	default:
 		return;
@@ -844,7 +846,7 @@ static void wire_apl_to_str(rrset_dump_params_t *p)
 	}
 
 	// Read fixed size values.
-	uint16_t family   = knot_wire_read_u16(p->in);
+	uint16_t family   = wire_read_u16(p->in);
 	uint8_t  prefix   = *(p->in + 2);
 	uint8_t  negation = *(p->in + 3) >> 7;
 	uint8_t  afdlen   = *(p->in + 3) & 0x7F;
@@ -946,11 +948,11 @@ static void wire_loc_to_str(rrset_dump_params_t *p)
 	p->in++;
 	uint8_t vpre_w = *p->in;
 	p->in++;
-	uint32_t lat_w = knot_wire_read_u32(p->in);
+	uint32_t lat_w = wire_read_u32(p->in);
 	p->in += 4;
-	uint32_t lon_w = knot_wire_read_u32(p->in);
+	uint32_t lon_w = wire_read_u32(p->in);
 	p->in += 4;
-	uint32_t alt_w = knot_wire_read_u32(p->in);
+	uint32_t alt_w = wire_read_u32(p->in);
 	p->in += 4;
 
 	p->in_max -= in_len;
@@ -1189,10 +1191,10 @@ static void wire_rcode_to_str(rrset_dump_params_t *p)
 	}
 
 	// Fill in input data.
-	data = knot_wire_read_u16(p->in);
+	data = wire_read_u16(p->in);
 
 	// Find RCODE name.
-	knot_lookup_table_t *rcode = knot_lookup_by_id(knot_rcode_names, data);
+	lookup_table_t *rcode = lookup_by_id(knot_rcode_names, data);
 	if (rcode != NULL) {
 		rcode_str = rcode->name;
 	}
@@ -1250,21 +1252,76 @@ static void wire_unknown_to_str(rrset_dump_params_t *p)
 	p->ret = 0;
 }
 
+static size_t dnskey_len(const uint8_t *rdata,
+                         const size_t  rdata_len)
+{
+	// Check for empty rdata and empty key.
+	if (rdata_len <= 4) {
+		return 0;
+	}
+
+	const uint8_t *key = rdata + 4;
+	const size_t  len = rdata_len - 4;
+
+	switch (rdata[3]) {
+	case KNOT_DNSSEC_ALG_DSA:
+	case KNOT_DNSSEC_ALG_DSA_NSEC3_SHA1:
+		// RFC 2536, key size ~ bit-length of 'modulus' P.
+		return (64 + 8 * key[0]) * 8;
+	case KNOT_DNSSEC_ALG_RSAMD5:
+	case KNOT_DNSSEC_ALG_RSASHA1:
+	case KNOT_DNSSEC_ALG_RSASHA1_NSEC3_SHA1:
+	case KNOT_DNSSEC_ALG_RSASHA256:
+	case KNOT_DNSSEC_ALG_RSASHA512:
+		// RFC 3110, key size ~ bit-length of 'modulus'.
+		if (key[0] == 0) {
+			if (len < 3) {
+				return 0;
+			}
+			uint16_t exp;
+			memcpy(&exp, key + 1, sizeof(uint16_t));
+			return (len - 3 - ntohs(exp)) * 8;
+		} else {
+			return (len - 1 - key[0]) * 8;
+		}
+	case KNOT_DNSSEC_ALG_ECC_GOST:
+		// RFC 5933, key size of GOST public keys MUST be 512 bits.
+		return 512;
+	case KNOT_DNSSEC_ALG_ECDSAP256SHA256:
+		// RFC 6605.
+		return 256;
+	case KNOT_DNSSEC_ALG_ECDSAP384SHA384:
+		// RFC 6605.
+		return 384;
+	default:
+		return 0;
+	}
+}
+
 static void dnskey_info(const uint8_t *rdata,
                         const size_t  rdata_len,
                         char          *out,
                         const size_t  out_len)
 {
-	const uint8_t  sep = *(rdata + 1) & 0x01;
-	const uint16_t key_tag = knot_keytag(rdata, rdata_len);
+	// TODO: migrate key info to libdnssec
 
-	knot_lookup_table_t *alg = NULL;
-	alg = knot_lookup_by_id(knot_dnssec_alg_names, *(rdata + 3));
+	const uint8_t sep = *(rdata + 1) & 0x01;
+	uint16_t      key_tag = 0;
+	const size_t  key_len = dnskey_len(rdata, rdata_len);
+	const uint8_t alg_id = rdata[3];
 
-	int ret = snprintf(out, out_len, "%s, alg = %s, id = %u ",
+	const dnssec_binary_t rdata_bin = { .data = (uint8_t *)rdata,
+	                                    .size = rdata_len };
+	dnssec_keytag(&rdata_bin, &key_tag);
+
+	lookup_table_t *alg = NULL;
+	alg = lookup_by_id(knot_dnssec_alg_names, alg_id);
+
+	int ret = snprintf(out, out_len, "%s, %s (%zub), id = %u",
 	                   sep ? "KSK" : "ZSK",
 	                   alg ? alg->name : "UNKNOWN",
-	                   key_tag );
+	                   key_len, key_tag );
+
 	if (ret <= 0) {	// Truncated return is acceptable. Just check for errors.
 		out[0] = '\0';
 	}
@@ -1686,6 +1743,7 @@ static int dump_unknown(DUMP_PARAMS)
 	DUMP_END;
 }
 
+_public_
 int knot_rrset_txt_dump_data(const knot_rrset_t      *rrset,
                              const size_t            pos,
                              char                    *dst,
@@ -1823,6 +1881,7 @@ int knot_rrset_txt_dump_data(const knot_rrset_t      *rrset,
 		return KNOT_ESPACE;			\
 	}
 
+_public_
 int knot_rrset_txt_dump_header(const knot_rrset_t      *rrset,
                                const uint32_t          ttl,
                                char                    *dst,
@@ -1894,6 +1953,7 @@ int knot_rrset_txt_dump_header(const knot_rrset_t      *rrset,
 	return len;
 }
 
+_public_
 int knot_rrset_txt_dump(const knot_rrset_t      *rrset,
                         char                    *dst,
                         const size_t            maxlen,

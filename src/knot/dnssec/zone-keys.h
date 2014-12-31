@@ -30,46 +30,46 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "common-knot/lists.h"
-#include "libknot/dname.h"
-#include "libknot/dnssec/sign.h"
+#include <time.h>
 
+#include "dnssec/kasp.h"
+#include "dnssec/sign.h"
+
+// [dnssec] will be replaced
+typedef struct zone_key {
+	dnssec_key_t *key;
+	dnssec_sign_ctx_t *ctx;
+
+	time_t next_event;
+
+	bool is_ksk;
+	bool is_zsk;
+	bool is_public;
+	bool is_active;
+} zone_key_t;
+
+// [dnssec] will be replaced
 typedef struct {
-	node_t node;
+	// [dnssec] temporary, one instance per server
+	dnssec_kasp_t *kasp;
 
-	knot_dnssec_key_t dnssec_key;
-	knot_dnssec_sign_context_t *context;
-	uint32_t next_event;                 //!< Timestamp of next key event.
-	bool is_ksk;                         //!< Is key-signing.
-	bool is_zsk;                         //!< Is zone-signing.
-	bool is_public;                      //!< Currently in zone.
-	bool is_active;                      //!< Currently used for signing.
-} knot_zone_key_t;
-
-/*!
- * \brief Keys used for zone signing.
- */
-typedef struct {
-	list_t list;
-} knot_zone_keys_t;
-
-/*!
- * \brief Initialize zone keys structure.
- */
-void knot_init_zone_keys(knot_zone_keys_t *keys);
+	dnssec_kasp_zone_t *kasp_zone;
+	size_t count;
+	zone_key_t *keys;
+} zone_keyset_t;
 
 /*!
  * \brief Load zone keys from a key directory.
  *
  * \param keydir_name    Name of the directory with DNSSEC keys.
- * \param zone_name      Domain name of the zone.
- * \param nsec3_enabled  NSEC3 enabled for zone (determines allowed algorithms).
+ * \param zone_name      Name of the zone.
+ * \param nsec3_enabled  Zone uses NSEC3 for authenticated denial.
  * \param keys           Structure with loaded keys.
  *
  * \return Error code, KNOT_EOK if successful.
  */
-int knot_load_zone_keys(const char *keydir_name, const knot_dname_t *zone_name,
-                        bool nsec3_enabled, knot_zone_keys_t *keys);
+int load_zone_keys(const char *keydir_name, const char *zone_name,
+                   bool nsec3_enabled, zone_keyset_t *keyset);
 
 /*!
  * \brief Get zone key by a keytag.
@@ -79,15 +79,14 @@ int knot_load_zone_keys(const char *keydir_name, const knot_dname_t *zone_name,
  *
  * \return Pointer to key or NULL if not found.
  */
-const knot_zone_key_t *knot_get_zone_key(const knot_zone_keys_t *keys,
-                                         uint16_t keytag);
+const zone_key_t *get_zone_key(const zone_keyset_t *keyset, uint16_t keytag);
 
 /*!
  * \brief Free structure with zone keys and associated DNSSEC contexts.
  *
  * \param keys    Zone keys.
  */
-void knot_free_zone_keys(knot_zone_keys_t *keys);
+void free_zone_keys(zone_keyset_t *keyset);
 
 /*!
  * \brief Get timestamp of next key event.
@@ -96,6 +95,6 @@ void knot_free_zone_keys(knot_zone_keys_t *keys);
  *
  * \return Timestamp of next key event.
  */
-uint32_t knot_get_next_zone_key_event(const knot_zone_keys_t *keys);
+time_t knot_get_next_zone_key_event(const zone_keyset_t *keyset);
 
 /*! @} */

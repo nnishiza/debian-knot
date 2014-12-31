@@ -17,11 +17,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common/base64.h"
-#include "libknot/errcode.h"
-#include "common/mem.h"
 #include "libknot/binary.h"
+#include "libknot/errcode.h"
+#include "libknot/internal/base64.h"
+#include "libknot/internal/mem.h"
+#include "libknot/internal/macros.h"
 
+_public_
 int knot_binary_from_base64(const char *base64, knot_binary_t *to)
 {
 	if (!base64 || !to) {
@@ -42,6 +44,7 @@ int knot_binary_from_base64(const char *base64, knot_binary_t *to)
 	return KNOT_EOK;
 }
 
+_public_
 int knot_binary_from_string(const uint8_t *data, size_t size, knot_binary_t *to)
 {
 	if (!data || !to) {
@@ -59,6 +62,7 @@ int knot_binary_from_string(const uint8_t *data, size_t size, knot_binary_t *to)
 	return KNOT_EOK;
 }
 
+_public_
 int knot_binary_free(knot_binary_t *binary)
 {
 	if (!binary) {
@@ -74,6 +78,7 @@ int knot_binary_free(knot_binary_t *binary)
 	return KNOT_EOK;
 }
 
+_public_
 int knot_binary_dup(const knot_binary_t *from, knot_binary_t *to)
 {
 	if (!from || !to) {

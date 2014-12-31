@@ -25,17 +25,18 @@
 #include <sys/stat.h>
 #endif
 
-#include "knot/knot.h"
-#include "common/mem.h"
-#include "libknot/descriptor.h"
+#include "dnssec/crypto.h"
+#include "libknot/internal/mem.h"
+#include "libknot/internal/macros.h"
+#include "libknot/libknot.h"
+#include "knot/common/debug.h"
+#include "knot/ctl/estimator.h"
 #include "knot/ctl/process.h"
 #include "knot/ctl/remote.h"
 #include "knot/conf/conf.h"
+#include "knot/server/tcp-handler.h"
 #include "knot/zone/zonefile.h"
 #include "knot/zone/zone-load.h"
-#include "knot/server/tcp-handler.h"
-#include "libknot/packet/wire.h"
-#include "knot/ctl/estimator.h"
 
 /*! \brief Controller flags. */
 enum knotc_flag_t {
@@ -77,40 +78,45 @@ static int cmd_signzone(int argc, char *argv[], unsigned flags);
 
 /*! \brief Table of remote commands. */
 knot_cmd_t knot_cmd_tbl[] = {
-	{&cmd_stop,       0, "stop",       "",       "\t\tStop server."},
-	{&cmd_reload,     0, "reload",     "<zone>", "\tReload configuration and changed zones."},
-	{&cmd_refresh,    0, "refresh",    "<zone>", "\tRefresh slave zone (all if not specified). Flag '-f' forces retransfer."},
-	{&cmd_flush,      0, "flush",      "<zone>", "\tFlush journal and update zone file (all if not specified)."},
-	{&cmd_status,     0, "status",     "",       "\tCheck if server is running."},
-	{&cmd_zonestatus, 0, "zonestatus", "",       "\tShow status of configured zones."},
-	{&cmd_checkconf,  1, "checkconf",  "",       "\tCheck current server configuration."},
-	{&cmd_checkzone,  1, "checkzone",  "<zone>", "Check zone (all if not specified)."},
-	{&cmd_memstats,   1, "memstats",   "<zone>", "Estimate memory use for zone (all if not specified)."},
-	{&cmd_signzone,   0, "signzone",   "<zone>", "Sign all zones with available DNSSEC keys."},
+	{&cmd_stop,       0, "stop",       "",            "Stop server."},
+	{&cmd_reload,     0, "reload",     "[<zone>...]", "Reload particular zones or reload whole\n"
+	                   "                                configuration and changed zones."},
+	{&cmd_refresh,    0, "refresh",    "[<zone>...]", "Refresh slave zones. Flag '-f' forces retransfer\n"
+	                   "                                (zone(s) must be specified)."},
+	{&cmd_flush,      0, "flush",      "[<zone>...]", "Flush journal and update zone files."},
+	{&cmd_status,     0, "status",     "",            "Check if server is running."},
+	{&cmd_zonestatus, 0, "zonestatus", "[<zone>...]", "Show status of configured zones."},
+	{&cmd_checkconf,  1, "checkconf",  "",            "Check current server configuration."},
+	{&cmd_checkzone,  1, "checkzone",  "[<zone>...]", "Check zones."},
+	{&cmd_memstats,   1, "memstats",   "[<zone>...]", "Estimate memory use for zones."},
+	{&cmd_signzone,   0, "signzone",   "<zone>...",   "Sign zones with available DNSSEC keys."},
 	{NULL, 0, NULL, NULL, NULL}
 };
 
 /*! \brief Print help. */
 void help(void)
 {
-	printf("Usage: %sc [parameters] <action>\n", PACKAGE_NAME);
+	printf("Usage: %sc [parameters] <action> [action_args]\n", PACKAGE_NAME);
 	printf("\nParameters:\n"
-	       " -c, --config <file>    \tSelect configuration file.\n"
-	       " -s <server>            \tRemote UNIX socket/IP address (default %s).\n"
-	       " -p <port>              \tRemote server port (only for IP).\n"
-	       " -y <[hmac:]name:key>   \tUse key specified on the command line.\n"
-	       " -k <file>              \tUse key file (as in config section 'keys').\n"
-	       " -f, --force            \tForce operation - override some checks.\n"
-	       " -v, --verbose          \tVerbose mode - additional runtime information.\n"
-	       " -V, --version          \tPrint %s server version.\n"
-	       " -h, --help             \tPrint help and usage.\n",
+	       " -c, --config <file>           Select configuration file.\n"
+	       " -s, --server <server>         Remote UNIX socket/IP address\n"
+	       "                                (default %s).\n"
+	       " -p, --port <port>             Remote server port (only for IP).\n"
+	       " -y, --key <[hmac:]name:key>   Use key specified on the command line\n"
+	       "                                (default algorithm is hmac-md5).\n"
+	       " -k, --keyfile <file>          Use key file (as in config section 'keys').\n"
+	       " -f, --force                   Force operation - override some checks.\n"
+	       " -v, --verbose                 Verbose mode - additional runtime information.\n"
+	       " -V, --version                 Print %s server version.\n"
+	       " -h, --help                    Print help and usage.\n",
 	       RUN_DIR "/knot.sock", PACKAGE_NAME);
 	printf("\nActions:\n");
 	knot_cmd_t *c = knot_cmd_tbl;
 	while (c->name != NULL) {
-		printf(" %s %s\t\t%s\n", c->name, c->params, c->desc);
+		printf(" %-10s %-18s %s\n", c->name, c->params, c->desc);
 		++c;
 	}
+	printf("\nIf optional <zone> parameter is not specified, command is applied to all zones.\n\n");
 }
 
 static int cmd_remote_print_reply(const knot_rrset_t *rr)
@@ -235,7 +241,7 @@ static int cmd_remote(const char *cmd, uint16_t rrt, int argc, char *argv[])
 
 	/* Connect to remote. */
 	char addr_str[SOCKADDR_STRLEN] = {0};
-	sockaddr_tostr(&r->addr, addr_str, sizeof(addr_str));
+	sockaddr_tostr(addr_str, sizeof(addr_str), &r->addr);
 
 	int s = net_connected_socket(SOCK_STREAM, &r->addr, &r->via, 0);
 	if (s < 0) {
@@ -303,13 +309,12 @@ static int tsig_parse_str(knot_tsig_key_t *key, const char *str)
 
 	/* Determine algorithm. */
 
-	int algorithm = KNOT_TSIG_ALG_HMAC_MD5;
+	int algorithm = DNSSEC_TSIG_HMAC_MD5;
 	if (s) {
 		*s++ = '\0';               /* Last part separator */
-		knot_lookup_table_t *alg = NULL;
-		alg = knot_lookup_by_name(knot_tsig_alg_names, h);
-		if (alg) {
-			algorithm = alg->id;
+		dnssec_tsig_algorithm_t alg = dnssec_tsig_algorithm_from_name(h);
+		if (alg != DNSSEC_TSIG_UNKNOWN) {
+			algorithm = alg;
 		} else {
 			free(h);
 			return KNOT_EINVAL;
@@ -356,15 +361,13 @@ static int tsig_parse_line(knot_tsig_key_t *k, char *l)
 	}
 
 	/* Lookup algorithm. */
-	knot_lookup_table_t *alg;
-	alg = knot_lookup_by_name(knot_tsig_alg_names, a);
-
-	if (!alg) {
+	dnssec_tsig_algorithm_t alg = dnssec_tsig_algorithm_from_name(a);
+	if (alg == DNSSEC_TSIG_UNKNOWN) {
 		return KNOT_EMALF;
 	}
 
 	/* Create the key data. */
-	return knot_tsig_create_key(n, alg->id, s, k);
+	return knot_tsig_create_key(n, alg, s, k);
 }
 
 static int tsig_parse_file(knot_tsig_key_t *k, const char *f)
@@ -429,20 +432,23 @@ int main(int argc, char **argv)
 
 	/* Long options. */
 	struct option opts[] = {
-		{"force", no_argument, 0, 'f'},
-		{"config", required_argument, 0, 'c'},
-		{"verbose", no_argument, 0, 'v'},
-		{"version", no_argument, 0, 'V'},
-		{"help", no_argument, 0, 'h'},
-		{"server", required_argument, 0, 's' },
-		{"port", required_argument, 0, 's' },
-		{"y", required_argument, 0, 'y' },
-		{"k", required_argument, 0, 'k' },
+		{"config",  required_argument, 0, 'c' },
+		{"server",  required_argument, 0, 's' },
+		{"port",    required_argument, 0, 'p' },
+		{"key",     required_argument, 0, 'y' },
+		{"keyfile", required_argument, 0, 'k' },
+		{"force",   no_argument,       0, 'f' },
+		{"verbose", no_argument,       0, 'v' },
+		{"help",    no_argument,       0, 'h' },
+		{"version", no_argument,       0, 'V' },
 		{0, 0, 0, 0}
 	};
 
 	while ((c = getopt_long(argc, argv, "s:p:y:k:fc:vVh", opts, &li)) != -1) {
 		switch (c) {
+		case 'c':
+			config_fn = optarg;
+			break;
 		case 's':
 			r_addr = optarg;
 			break;
@@ -468,9 +474,6 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			flags |= F_VERBOSE;
-			break;
-		case 'c':
-			config_fn = optarg;
 			break;
 		case 'V':
 			rc = 0;
@@ -574,7 +577,9 @@ int main(int argc, char **argv)
 	}
 
 	/* Execute command. */
+	dnssec_crypto_init();
 	rc = cmd->cb(argc - optind - 1, argv + optind + 1, flags);
+	dnssec_crypto_cleanup();
 
 exit:
 	/* Finish */
@@ -589,16 +594,19 @@ static int cmd_stop(int argc, char *argv[], unsigned flags)
 	UNUSED(argv);
 	UNUSED(flags);
 
+	if (argc > 0) {
+		printf("command does not take arguments\n");
+		return KNOT_EINVAL;
+	}
+
 	return cmd_remote("stop", KNOT_RRTYPE_TXT, 0, NULL);
 }
 
 static int cmd_reload(int argc, char *argv[], unsigned flags)
 {
-	UNUSED(argc);
-	UNUSED(argv);
 	UNUSED(flags);
 
-	return cmd_remote("reload", KNOT_RRTYPE_TXT, 0, NULL);
+	return cmd_remote("reload", KNOT_RRTYPE_NS, argc, argv);
 }
 
 static int cmd_refresh(int argc, char *argv[], unsigned flags)
@@ -621,20 +629,22 @@ static int cmd_flush(int argc, char *argv[], unsigned flags)
 
 static int cmd_status(int argc, char *argv[], unsigned flags)
 {
-	UNUSED(argc);
 	UNUSED(argv);
 	UNUSED(flags);
+
+	if (argc > 0) {
+		printf("command does not take arguments\n");
+		return KNOT_EINVAL;
+	}
 
 	return cmd_remote("status", KNOT_RRTYPE_TXT, 0, NULL);
 }
 
 static int cmd_zonestatus(int argc, char *argv[], unsigned flags)
 {
-	UNUSED(argc);
-	UNUSED(argv);
 	UNUSED(flags);
 
-	return cmd_remote("zonestatus", KNOT_RRTYPE_TXT, 0, NULL);
+	return cmd_remote("zonestatus", KNOT_RRTYPE_NS, argc, argv);
 }
 
 static int cmd_signzone(int argc, char *argv[], unsigned flags)
