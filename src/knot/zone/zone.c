@@ -25,6 +25,7 @@
 #include "libknot/internal/lists.h"
 #include "knot/common/trim.h"
 #include "knot/zone/node.h"
+#include "knot/zone/serial.h"
 #include "knot/zone/zone.h"
 #include "knot/zone/zonefile.h"
 #include "knot/zone/contents.h"
@@ -314,12 +315,16 @@ bool zone_transfer_needed(const zone_t *zone, const knot_pkt_t *pkt)
 	}
 
 	const knot_pktsection_t *answer = knot_pkt_section(pkt, KNOT_ANSWER);
-	const knot_rrset_t soa = answer->rr[0];
-	if (soa.type != KNOT_RRTYPE_SOA) {
+	if (answer->count < 1) {
+		return false;
+	}
+
+	const knot_rrset_t *soa = knot_pkt_rr(answer, 0);
+	if (soa->type != KNOT_RRTYPE_SOA) {
 		return false;
 	}
 
 	return serial_compare(zone_contents_serial(zone->contents),
-	                           knot_soa_serial(&soa.rrs)) < 0;
+	                           knot_soa_serial(&soa->rrs)) < 0;
 }
 

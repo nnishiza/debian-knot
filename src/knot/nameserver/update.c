@@ -78,7 +78,7 @@ static int sign_update(zone_t *zone, const zone_contents_t *old_contents,
 	if (apex_rr_changed(old_contents, new_contents, KNOT_RRTYPE_DNSKEY) ||
 	    apex_rr_changed(old_contents, new_contents, KNOT_RRTYPE_NSEC3PARAM)) {
 		ret = knot_dnssec_zone_sign(new_contents, zone->conf,
-		                            sec_ch, KNOT_SOA_SERIAL_KEEP,
+		                            sec_ch, ZONE_SIGN_KEEP_SOA_SERIAL,
 		                            &refresh_at);
 	} else {
 		// Sign the created changeset
@@ -105,8 +105,8 @@ static int sign_update(zone_t *zone, const zone_contents_t *old_contents,
 
 	// Plan next zone resign.
 	const time_t resign_time = zone_events_get_time(zone, ZONE_EVENT_DNSSEC);
-	if (time(NULL) + refresh_at < resign_time) {
-		zone_events_schedule(zone, ZONE_EVENT_DNSSEC, refresh_at);
+	if (refresh_at < resign_time) {
+		zone_events_schedule_at(zone, ZONE_EVENT_DNSSEC, refresh_at);
 	}
 
 	return KNOT_EOK;

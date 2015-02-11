@@ -211,6 +211,9 @@ static int conf_process(conf_t *conf)
 	if (conf->max_conn_reply < 1) {
 		conf->max_conn_reply = CONFIG_REPLY_WD;
 	}
+	if (conf->max_tcp_clients < 1) {
+		conf->max_tcp_clients = CONFIG_MAXTCP;
+	}
 
 	/* Default interface. */
 	conf_iface_t *ctl_if = conf->ctl.iface;
@@ -584,7 +587,7 @@ conf_t *conf_new(char* path)
 	c->notify_timeout = CONFIG_NOTIFY_TIMEOUT;
 	c->dbsync_timeout = CONFIG_DBSYNC_TIMEOUT;
 	c->max_udp_payload = KNOT_EDNS_MAX_UDP_PAYLOAD;
-	c->sig_lifetime = KNOT_DNSSEC_DEFAULT_LIFETIME;
+	c->sig_lifetime = 0;
 	c->serial_policy = CONFIG_SERIAL_DEFAULT;
 	c->uid = -1;
 	c->gid = -1;

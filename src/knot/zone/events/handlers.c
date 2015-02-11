@@ -310,14 +310,17 @@ int event_refresh(zone_t *zone)
 {
 	assert(zone);
 
+	const conf_iface_t *master = zone_master(zone);
+	if (master == NULL) {
+		/* If not slave zone, ignore. */
+		return KNOT_EOK;
+	}
+
 	if (zone_contents_is_empty(zone->contents)) {
 		/* No contents, schedule retransfer now. */
 		zone_events_schedule(zone, ZONE_EVENT_XFER, ZONE_EVENT_NOW);
 		return KNOT_EOK;
 	}
-
-	const conf_iface_t *master = zone_master(zone);
-	assert(master);
 
 	int ret = zone_query_execute(zone, KNOT_QUERY_NORMAL, master);
 	const knot_rdataset_t *soa = zone_soa(zone);
@@ -342,6 +345,12 @@ int event_xfer(zone_t *zone)
 {
 	assert(zone);
 
+	const conf_iface_t *master = zone_master(zone);
+	if (master == NULL) {
+		/* If not slave zone, ignore. */
+		return KNOT_EOK;
+	}
+
 	/* Determine transfer type. */
 	bool is_boostrap = zone_contents_is_empty(zone->contents);
 	uint16_t pkt_type = KNOT_QUERY_IXFR;
@@ -350,7 +359,7 @@ int event_xfer(zone_t *zone)
 	}
 
 	/* Execute zone transfer and reschedule timers. */
-	int ret = zone_query_transfer(zone, zone_master(zone), pkt_type);
+	int ret = zone_query_transfer(zone, master, pkt_type);
 
 	/* Handle failure during transfer. */
 	if (ret != KNOT_EOK) {
@@ -493,19 +502,19 @@ int event_dnssec(zone_t *zone)
 	}
 
 	uint32_t refresh_at = time(NULL);
+	int sign_flags = 0;
+
 	if (zone->flags & ZONE_FORCE_RESIGN) {
 		log_zone_info(zone->name, "DNSSEC, dropping previous "
 		              "signatures, resigning zone");
-
 		zone->flags &= ~ZONE_FORCE_RESIGN;
-		ret = knot_dnssec_zone_sign_force(zone->contents, zone->conf,
-		                                  &ch, &refresh_at);
+		sign_flags = ZONE_SIGN_DROP_SIGNATURES;
 	} else {
 		log_zone_info(zone->name, "DNSSEC, signing zone");
-		ret = knot_dnssec_zone_sign(zone->contents, zone->conf,
-		                            &ch, KNOT_SOA_SERIAL_UPDATE,
-		                            &refresh_at);
+		sign_flags = 0;
 	}
+
+	ret = knot_dnssec_zone_sign(zone->contents, zone->conf, &ch, sign_flags, &refresh_at);
 	if (ret != KNOT_EOK) {
 		goto done;
 	}
