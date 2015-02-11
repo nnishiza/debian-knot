@@ -37,7 +37,6 @@
 #endif /* HAVE_CAP_NG_H */
 
 #include "knot/server/udp-handler.h"
-#include "knot/common/debug.h"
 #include "knot/server/server.h"
 #include "libknot/internal/sockaddr.h"
 #include "libknot/internal/mempattern.h"
@@ -109,12 +108,6 @@ static inline void udp_pps_sample(unsigned n, unsigned thr_id) {}
 void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
                 struct iovec *rx, struct iovec *tx)
 {
-#ifdef DEBUG_ENABLE_BRIEF
-	char addr_str[SOCKADDR_STRLEN] = {0};
-	sockaddr_tostr(ss, addr_str, sizeof(addr_str));
-	dbg_net("%s: received %zd bytes from '%s'\n", __func__, rx->iov_len, addr_str);
-#endif
-
 	/* Create query processing parameter. */
 	struct process_query_param param = {0};
 	param.remote = ss;
@@ -506,7 +499,7 @@ int udp_master(dthread_t *thread)
 
 	/* Create big enough memory cushion. */
 	mm_ctx_t mm;
-	mm_ctx_mempool(&mm, 4 * sizeof(knot_pkt_t));
+	mm_ctx_mempool(&mm, 16 * MM_DEFAULT_BLKSIZE);
 	udp.overlay.mm = &mm;
 
 	/* Chose select as epoll/kqueue has larger overhead for a

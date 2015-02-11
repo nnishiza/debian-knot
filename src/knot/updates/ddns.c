@@ -21,6 +21,7 @@
 #include "knot/updates/ddns.h"
 #include "knot/updates/changesets.h"
 #include "knot/updates/zone-update.h"
+#include "knot/zone/serial.h"
 #include "libknot/packet/pkt.h"
 #include "libknot/consts.h"
 #include "libknot/rrtype/soa.h"
@@ -698,8 +699,7 @@ static int process_rem_rrset(const knot_rrset_t *rrset,
                              const zone_node_t *node,
                              changeset_t *changeset)
 {
-	if (rrset->type == KNOT_RRTYPE_SOA ||
-	    knot_rrtype_is_ddns_forbidden(rrset->type)) {
+	if (rrset->type == KNOT_RRTYPE_SOA || knot_rrtype_is_dnssec(rrset->type)) {
 		// Ignore SOA and DNSSEC removals.
 		return KNOT_EOK;
 	}
@@ -813,7 +813,7 @@ static int check_update(const knot_rrset_t *rrset, const knot_pkt_t *query,
 		return KNOT_EOUTOFZONE;
 	}
 
-	if (knot_rrtype_is_ddns_forbidden(rrset->type)) {
+	if (knot_rrtype_is_dnssec(rrset->type)) {
 		*rcode = KNOT_RCODE_REFUSED;
 		log_warning("DDNS, refusing to update DNSSEC-related record");
 		return KNOT_EDENIED;
@@ -892,9 +892,10 @@ int ddns_process_prereqs(const knot_pkt_t *query, zone_update_t *update,
 	init_list(&rrset_list);
 
 	const knot_pktsection_t *answer = knot_pkt_section(query, KNOT_ANSWER);
+	const knot_rrset_t *answer_rr = knot_pkt_rr(answer, 0);
 	for (int i = 0; i < answer->count; ++i) {
 		// Check what can be checked, store full RRs into list
-		ret = process_prereq(&answer->rr[i], knot_pkt_qclass(query),
+		ret = process_prereq(&answer_rr[i], knot_pkt_qclass(query),
 		                     update, rcode, &rrset_list);
 		if (ret != KNOT_EOK) {
 			rrset_list_clear(&rrset_list);
@@ -934,10 +935,10 @@ int ddns_process_update(const zone_t *zone, const knot_pkt_t *query,
 
 	// Process all RRs in the authority section.
 	int apex_ns_rem = 0;
-	const knot_pktsection_t *authority =
-	                knot_pkt_section(query, KNOT_AUTHORITY);
+	const knot_pktsection_t *authority = knot_pkt_section(query, KNOT_AUTHORITY);
+	const knot_rrset_t *authority_rr = knot_pkt_rr(authority, 0);
 	for (uint16_t i = 0; i < authority->count; ++i) {
-		const knot_rrset_t *rr = &authority->rr[i];
+		const knot_rrset_t *rr = &authority_rr[i];
 		// Check if RR is correct.
 		int ret = check_update(rr, query, rcode);
 		if (ret != KNOT_EOK) {
@@ -970,9 +971,14 @@ int ddns_process_update(const zone_t *zone, const knot_pkt_t *query,
 			return KNOT_ENOMEM;
 		}
 
-		uint32_t new_serial =
-			zone_contents_next_serial(zone->contents,
-		                                  zone->conf->serial_policy);
+		uint32_t old_serial = knot_soa_serial(&soa_cpy->rrs);
+		uint32_t new_serial = serial_next(old_serial, zone->conf->serial_policy);
+		if (serial_compare(old_serial, new_serial) >= 0) {
+			log_zone_warning(zone->name, "updated serial is lower "
+			                 "than current, serial %u -> %u",
+			                  old_serial, new_serial);
+		}
+
 		knot_soa_serial_set(&soa_cpy->rrs, new_serial);
 		changeset->soa_to = soa_cpy;
 	}

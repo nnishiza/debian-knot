@@ -80,14 +80,12 @@ host_triplet = @host@
 subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog THANKS \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(top_srcdir)/configure $(am__configure_deps) \
-	$(srcdir)/libknot.pc.in COPYING ar-lib compile config.guess \
-	config.sub depcomp install-sh missing ylwrap ltmain.sh
+	$(top_srcdir)/configure $(am__configure_deps) COPYING ar-lib \
+	compile config.guess config.sub install-sh missing ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_set_version_info.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
-	$(top_srcdir)/m4/knot-check-header.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
 	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/visibility.m4 \
@@ -98,7 +96,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/src/config.h
-CONFIG_CLEAN_FILES = libknot.pc
+CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -329,6 +327,7 @@ libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
 libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
+liburcu_PKGCONFIG = @liburcu_PKGCONFIG@
 lmdb_CFLAGS = @lmdb_CFLAGS@
 lmdb_LIBS = @lmdb_LIBS@
 localedir = @localedir@
@@ -354,16 +353,18 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = libtap src/zscanner dnssec src tests samples doc man patches
+SUBDIRS = libtap src tests samples doc man patches
 AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--disable-code-coverage
 
 CODE_COVERAGE_INFO = coverage.info
 CODE_COVERAGE_HTML = coverage.html
 CODE_COVERAGE_DIRS = \
-	src/knot \
-	src/libknot \
-	src/zscanner
+	src/knot	\
+	src/libknot	\
+	src/zscanner	\
+	src/dnssec/lib	\
+	src/dnssec/shared
 
 code_coverage_quiet = --quiet
 all: all-recursive
@@ -403,8 +404,6 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
 $(am__aclocal_m4_deps):
-libknot.pc: $(top_builddir)/config.status $(srcdir)/libknot.pc.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -839,7 +838,6 @@ uninstall-am:
 	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
 	uninstall-am
 
-	dnssec/lib dnssec/shared
 
 check-code-coverage:
 @CODE_COVERAGE_ENABLED_TRUE@	$(MAKE) $(AM_MAKEFLAGS) code-coverage-initial

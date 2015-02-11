@@ -1,13 +1,15 @@
 AM_CPPFLAGS = \
 	-include $(top_builddir)/src/config.h \
 	-I$(top_srcdir)/libtap \
-	-I$(top_srcdir)/src
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/dnssec/lib
 
 AM_LDFLAGS = \
 	$(libcrypto_LIBS)
 
 LDADD = \
 	$(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknot-int.la \
 	$(top_builddir)/src/libknotd.la
 
 check_PROGRAMS = \
@@ -44,7 +46,11 @@ check_PROGRAMS = \
 	wire				\
 	worker_pool			\
 	worker_queue			\
+	yparser				\
+	ypscheme			\
+	yptrafo				\
 	zone_events			\
+	zone_serial			\
 	zone_timers			\
 	zone_update			\
 	zonedb				\

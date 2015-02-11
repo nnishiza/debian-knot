@@ -87,30 +87,31 @@ extern int cf_debug;
     MAX_CONN_IDLE = 297,
     MAX_CONN_HS = 298,
     MAX_CONN_REPLY = 299,
-    RATE_LIMIT = 300,
-    RATE_LIMIT_SIZE = 301,
-    RATE_LIMIT_SLIP = 302,
-    TRANSFERS = 303,
-    STORAGE = 304,
-    DNSSEC_ENABLE = 305,
-    DNSSEC_KEYDIR = 306,
-    SIGNATURE_LIFETIME = 307,
-    SERIAL_POLICY = 308,
-    SERIAL_POLICY_VAL = 309,
-    QUERY_MODULE = 310,
-    INTERFACES = 311,
-    ADDRESS = 312,
-    PORT = 313,
-    IPA = 314,
-    IPA6 = 315,
-    VIA = 316,
-    CONTROL = 317,
-    ALLOW = 318,
-    LISTEN_ON = 319,
-    LOG = 320,
-    LOG_DEST = 321,
-    LOG_SRC = 322,
-    LOG_LEVEL = 323
+    MAX_TCP_CLIENTS = 300,
+    RATE_LIMIT = 301,
+    RATE_LIMIT_SIZE = 302,
+    RATE_LIMIT_SLIP = 303,
+    TRANSFERS = 304,
+    STORAGE = 305,
+    DNSSEC_ENABLE = 306,
+    DNSSEC_KEYDIR = 307,
+    SIGNATURE_LIFETIME = 308,
+    SERIAL_POLICY = 309,
+    SERIAL_POLICY_VAL = 310,
+    QUERY_MODULE = 311,
+    INTERFACES = 312,
+    ADDRESS = 313,
+    PORT = 314,
+    IPA = 315,
+    IPA6 = 316,
+    VIA = 317,
+    CONTROL = 318,
+    ALLOW = 319,
+    LISTEN_ON = 320,
+    LOG = 321,
+    LOG_DEST = 322,
+    LOG_SRC = 323,
+    LOG_LEVEL = 324
   };
 #endif
 /* Tokens.  */
@@ -156,30 +157,31 @@ extern int cf_debug;
 #define MAX_CONN_IDLE 297
 #define MAX_CONN_HS 298
 #define MAX_CONN_REPLY 299
-#define RATE_LIMIT 300
-#define RATE_LIMIT_SIZE 301
-#define RATE_LIMIT_SLIP 302
-#define TRANSFERS 303
-#define STORAGE 304
-#define DNSSEC_ENABLE 305
-#define DNSSEC_KEYDIR 306
-#define SIGNATURE_LIFETIME 307
-#define SERIAL_POLICY 308
-#define SERIAL_POLICY_VAL 309
-#define QUERY_MODULE 310
-#define INTERFACES 311
-#define ADDRESS 312
-#define PORT 313
-#define IPA 314
-#define IPA6 315
-#define VIA 316
-#define CONTROL 317
-#define ALLOW 318
-#define LISTEN_ON 319
-#define LOG 320
-#define LOG_DEST 321
-#define LOG_SRC 322
-#define LOG_LEVEL 323
+#define MAX_TCP_CLIENTS 300
+#define RATE_LIMIT 301
+#define RATE_LIMIT_SIZE 302
+#define RATE_LIMIT_SLIP 303
+#define TRANSFERS 304
+#define STORAGE 305
+#define DNSSEC_ENABLE 306
+#define DNSSEC_KEYDIR 307
+#define SIGNATURE_LIFETIME 308
+#define SERIAL_POLICY 309
+#define SERIAL_POLICY_VAL 310
+#define QUERY_MODULE 311
+#define INTERFACES 312
+#define ADDRESS 313
+#define PORT 314
+#define IPA 315
+#define IPA6 316
+#define VIA 317
+#define CONTROL 318
+#define ALLOW 319
+#define LISTEN_ON 320
+#define LOG 321
+#define LOG_DEST 322
+#define LOG_SRC 323
+#define LOG_LEVEL 324
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -195,7 +197,7 @@ union YYSTYPE
 		dnssec_tsig_algorithm_t alg;
 	} tok;
 
-#line 199 "knot/conf/libknotd_la-cf-parse.h" /* yacc.c:1909  */
+#line 201 "knot/conf/libknotd_la-cf-parse.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

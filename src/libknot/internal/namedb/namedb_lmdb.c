@@ -15,13 +15,14 @@
 */
 
 #include <assert.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "libknot/internal/namedb/namedb_lmdb.h"
 #include "libknot/errcode.h"
-
-#ifdef HAVE_LMDB
 
 #include <lmdb.h>
 
@@ -37,33 +38,26 @@ struct lmdb_env
 	mm_ctx_t *pool;
 };
 
+/*!
+ * \brief Convert error code returned by LMDB to Knot DNS error code.
+ *
+ * LMDB defines own error codes but uses additional ones from libc:
+ * - LMDB error codes do not conflict with Knot DNS ones.
+ * - Standard errors are converted to negative value to match Knot DNS mapping.
+ */
+static int lmdb_error_to_knot(int error)
+{
+	return -abs(error);
+}
+
 static int create_env_dir(const char *path)
 {
 	int r = mkdir(path, LMDB_DIR_MODE);
 	if (r == -1 && errno != EEXIST) {
-		return knot_errno_to_error(errno);
+		return lmdb_error_to_knot(errno);
 	}
 
 	return KNOT_EOK;
-}
-
-/*!
- * \brief Convert error code returned by LMDB to Knot DNS error code.
- *
- * LMDB defines own error codes but uses additional ones from libc. All LMDB
- * specific error codes are translated to KNOT_DATABASE_ERROR.
- */
-static int lmdb_error_to_knot(int error)
-{
-	if (error == MDB_SUCCESS) {
-		return KNOT_EOK;
-	}
-
-	if (MDB_KEYEXIST <= error && error <= MDB_LAST_ERRCODE) {
-		return KNOT_DATABASE_ERROR;
-	}
-
-	return knot_errno_to_error(error);
 }
 
 /*! \brief Set the environment map size.
@@ -400,10 +394,20 @@ static int insert(namedb_txn_t *txn, namedb_val_t *key, namedb_val_t *val, unsig
 	MDB_val db_key = { key->len, key->data };
 	MDB_val data = { val->len, val->data };
 
-	int ret = mdb_put(txn->txn, env->dbi, &db_key, &data, 0);
+	/* Reserve if only size is declared. */
+	unsigned mdb_flags = 0;
+	if (val->len > 0 && val->data == NULL) {
+		mdb_flags |= MDB_RESERVE;
+	}
+
+	int ret = mdb_put(txn->txn, env->dbi, &db_key, &data, mdb_flags);
 	if (ret != MDB_SUCCESS) {
 		return lmdb_error_to_knot(ret);
 	}
+
+	/* Update the result. */
+	val->data = data.mv_data;
+	val->len = data.mv_size;
 
 	return KNOT_EOK;
 }
@@ -435,12 +439,3 @@ const namedb_api_t *namedb_lmdb_api(void)
 
 	return &api;
 }
-
-#else
-
-const namedb_api_t *namedb_lmdb_api(void)
-{
-	return NULL;
-}
-
-#endif

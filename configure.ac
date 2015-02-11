@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.99.0], [knot-dns@labs.nic.cz])
+AC_INIT([knot], [1.99.1], [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
@@ -12,15 +12,9 @@ AC_CANONICAL_HOST
 AX_SET_VERSION_INFO
 
 # Automatically update release date based on configure.ac date
-case "$host_os" in
-linux*)
-    release_date=`date +"%Y-%m-%d" -r configure.ac`
-    ;;
-*)
-    tmstamp=`stat -f %m configure.ac`
-    release_date=`date -r $tmstamp +"%Y-%m-%d"`
-    ;;
-esac
+AS_CASE([$host_os],
+    [linux*],[release_date=`date +"%Y-%m-%d" -r configure.ac`],
+    [*],[release_date=$(date -r "$(stat -f %m configure.ac)" +"%Y-%m-%d")])
 AC_SUBST([RELEASE_DATE], $release_date)
 
 # Set compiler compatibility flags
@@ -40,67 +34,42 @@ LT_INIT
 
 # Use pkg-config
 m4_ifdef([PKG_INSTALLDIR], [PKG_INSTALLDIR], [AC_SUBST([pkgconfigdir], ['${libdir}/pkgconfig'])])
-AC_CONFIG_FILES([libknot.pc])
+AC_CONFIG_FILES([src/libknot.pc
+		 src/libknot-int.pc
+		 src/dnssec/libdnssec.pc])
 
-AC_CACHE_CHECK([for reentrant lex], [ac_cv_path_LEX],
-  [AC_PATH_PROGS_FEATURE_CHECK([LEX], [$LEX flex gflex],
-  [cat >conftest.l <<_ACEOF
-%{
-%}
+# Build Knot DNS daemon
+AC_ARG_ENABLE([daemon],
+    AS_HELP_STRING([--disable-daemon], [Don't build Knot DNS main daemon]), [], [enable_daemon=yes])
+AM_CONDITIONAL([HAVE_DAEMON], [test "$enable_daemon" = "yes"])
 
-%option reentrant
-%option bison-bridge
-%option noinput
-%option nounput
-%option noreject
+# Build Knot DNS utilities
+AC_ARG_ENABLE([utilities],
+    AS_HELP_STRING([--disable-utilities], [Don't build Knot DNS utilities]), [], [enable_utilities=yes])
+AM_CONDITIONAL([HAVE_UTILS], [test "$enable_utilities" = "yes"])
 
-BLANK [ \t\n]
+# Build Knot DNS documentation
+AC_ARG_ENABLE([documentation],
+    AS_HELP_STRING([--disable-documentation], [Don't build Knot DNS documentation]), [], [enable_documentation=yes])
+AM_CONDITIONAL([HAVE_DOCS], [test "$enable_documentation" = "yes"])
 
-%%
-<<EOF>> return 0;
-%%
-_ACEOF
-_AC_DO_VAR(ac_path_LEX conftest.l)
-test $ac_status -eq 0 && ac_cv_path_LEX=$ac_path_LEX ac_path_LEX_found=true
-rm -f conftest.l lexyy.c lex.yy.c
-],
-[AC_MSG_ERROR([could not find lex that supports reentrant parsers])])])
-AC_SUBST([LEX], [$ac_cv_path_LEX])
-AM_PROG_LEX
+######################
+# Generic dependencies
+######################
 
-AC_PROG_YACC
-YACC_BISON=`bison --version | awk '{print $1;exit}'`
-AS_IF([test "x$YACC_BISON" != "xbison"],
-    [AC_MSG_ERROR([GNU bison needed for reentrant parsers, set the \$YACC variable before running configure])])
 AC_PROG_INSTALL
 
 # Set zone parser type
 AC_ARG_ENABLE([fastparser],
     AS_HELP_STRING([--disable-fastparser], [Use slower zone parser]),
     [], [enable_fastparser=yes])
-AM_CONDITIONAL([FAST_PARSER], [test "$enable_fastparser" = yes])
-
-# Systemd integration
-AC_ARG_ENABLE([systemd],
-    AS_HELP_STRING([--enable-systemd=auto|yes|no], [enable systemd integration [default=auto]]),
-    [enable_systemd="$enableval"], [enable_systemd=auto])
-
-case "$enable_systemd" in
-    auto) PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal], [enable_systemd=yes], [enable_systemd=no]) ;;
-    yes)  PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal]) ;;
-    no)   ;;
-    *)    AC_MSG_ERROR([Invalid value of --enable-systemd.]) ;;
-esac
-
-if test "$enable_systemd" = yes; then
-    AC_DEFINE([ENABLE_SYSTEMD], [1], [Use systemd integration.])
-fi
+AM_CONDITIONAL([FAST_PARSER], [test "$enable_fastparser" = "yes"])
 
 # GnuTLS crypto backend
 PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle])
 
 # JSON for DNSSEC status storage
-PKG_CHECK_MODULES([jansson], [jansson >= 2.4])
+PKG_CHECK_MODULES([jansson], [jansson >= 2.3])
 
 # Debug modules
 AC_ARG_ENABLE([debug],
@@ -189,17 +158,74 @@ AC_ARG_WITH([configdir],
         [config_dir=$withval])
 AC_SUBST(config_dir)
 
-# Checks for libraries.
-# FIXME: Replace `main' with a function in `-lm':
+#########################################
+# Dependencies needed for Knot DNS daemon
+#########################################
+AS_IF([test "$enable_daemon" = "yes"],[
+
+AC_CACHE_CHECK([for reentrant lex], [ac_cv_path_LEX],
+  [AC_PATH_PROGS_FEATURE_CHECK([LEX], [$LEX flex gflex],
+  [cat >conftest.l <<_ACEOF
+%{
+%}
+
+%option reentrant
+%option bison-bridge
+%option noinput
+%option nounput
+%option noreject
+
+BLANK [ \t\n]
+
+%%
+<<EOF>> return 0;
+%%
+_ACEOF
+_AC_DO_VAR(ac_path_LEX conftest.l)
+test $ac_status -eq 0 && ac_cv_path_LEX=$ac_path_LEX ac_path_LEX_found=true
+rm -f conftest.l lexyy.c lex.yy.c
+],
+[AC_MSG_ERROR([could not find lex that supports reentrant parsers])])])
+AC_SUBST([LEX], [$ac_cv_path_LEX])
+AM_PROG_LEX
+
+AC_PROG_YACC
+YACC_BISON=`bison --version | awk '{print $1;exit}'`
+AS_IF([test "x$YACC_BISON" != "xbison"],
+    [AC_MSG_ERROR([GNU bison needed for reentrant parsers, set the \$YACC variable before running configure])])
+
+])
+
+# Systemd integration
+AC_ARG_ENABLE([systemd],
+    AS_HELP_STRING([--enable-systemd=auto|yes|no], [enable systemd integration [default=auto]]),
+    [enable_systemd="$enableval"], [enable_systemd=auto])
+
+AS_IF([test "$enable_daemon" = "yes"],[
+
+AS_IF([test "$enable_system" != "no"],[
+  AS_CASE([$enable_systemd],
+    [auto],[PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal], [enable_systemd=yes], [enable_systemd=no])],
+    [yes],[PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal])],
+    [*],[AC_MSG_ERROR([Invalid value of --enable-systemd.])])
+    ])
+
+AS_IF([test "$enable_systemd" = "yes"],[
+  AC_DEFINE([ENABLE_SYSTEMD], [1], [Use systemd integration.])])
+])
 
 dnl Check for userspace-rcu library
 AC_ARG_WITH(urcu,
 [  --with-urcu=DIR        where to find userspace-rcu library])
 
+AS_IF([test "$enable_daemon" = "yes"],[
+
 AS_IF([test "$with_urcu" != "no"], [
   PKG_CHECK_MODULES([liburcu], liburcu, [
     CPPFLAGS="$CPPFLAGS $liburcu_CFLAGS"
     LIBS="$LIBS $liburcu_LIBS"
+    liburcu_PKGCONFIG="liburcu >= 0.4.0"
+    AC_SUBST([liburcu_PKGCONFIG])
     with_urcu=yes
   ],[
     for try_urcu in "$with_urcu" "" "/usr/local"; do
@@ -219,6 +245,8 @@ AS_IF([test "$with_urcu" != "no"], [
 
       AC_SEARCH_LIBS([rcu_set_pointer_sym], [urcu], [
         with_urcu=yes
+	AC_SUBST([liburcu_CFLAGS])
+	AC_SUBST([liburcu_LIBS])
 	break
       ],[
         CPPFLAGS="$save_CPPFLAGS"
@@ -231,48 +259,109 @@ AS_IF([test "$with_urcu" != "no"], [
 
     AS_IF([test "$with_urcu" = "no"],[
       AC_MSG_ERROR([liburcu is required])
-    ])
+      ],[
+      ])
   ])
 ])
 
 AC_SEARCH_LIBS([urcu_init], [urcu], [AC_MSG_ERROR([liburcu is too old (< 0.4.0), urcu_init symbol found])], [])
+])
+
+opt_dnstap=no
+AS_IF([test "$enable_daemon" = "yes"],[
+dnl Check for dnstap.
+dt_DNSTAP([
+    LIBS="$LIBS $DNSTAP_LIBS"
+    CPPFLAGS="$CPPFLAGS $DNSTAP_CFLAGS"
+    AC_DEFINE([USE_DNSTAP], [1], [Define to 1 to enable dnstap support])
+    ])
+])
+
+AM_CONDITIONAL([HAVE_DNSTAP], test "$opt_dnstap" != "no")
+
+dnl Check for LMDB
+AC_ARG_WITH([lmdb],
+    AC_HELP_STRING([--with-lmdb=[DIR]], [Link with external LMDB]),[
+    with_lmdb=$withval,
+    with_lmdb=yes
+    ])
+
+have_lmdb=no
+
+AS_IF([test "$with_lmdb" != "no"],[
+    save_CPPFLAGS=$CPPFLAGS
+    save_LIBS=$LIBS
+    for try_lmdb in "$with_lmdb" "" "/usr/local"; do
+
+      AS_IF([test -d "$try_openssl"], [
+        lmdb_CFLAGS="-I$with_lmdb/include"
+        lmdb_LIBS=""
+        ],[
+        lmdb_CFLAGS=""
+        lmdb_LIBS=""
+	])
+
+      CPPFLAGS="$CPPFLAGS $lmdb_CFLAGS"
+      LIBS="$LIBS $lmdb_LIBS"
+
+      AC_SEARCH_LIBS([mdb_env_open], [lmdb], [
+          AC_CHECK_HEADERS([lmdb.h], [], [
+              AC_ERROR([lmdb headers not found in `$try_lmdb', is your installation complete?])])
+	  lmdb_LIBS="-llmdb"
+          have_lmdb=yes
+          break
+          ],[
+	  have_lmdb=no
+	  # do not cache result of AC_SEARCH_LIBS test
+	  unset ac_cv_search_mdb_env_open
+	  ])
+
+      CPPFLAGS="$save_CPPFLAGS"
+      LIBS="$save_LIBS"
+    done
+    ])
+
+AS_IF([test "$have_lmdb" != "no"],[
+    AC_SUBST([lmdb_CFLAGS])
+    AC_SUBST([lmdb_LIBS])
+    enable_lmdb=shared
+    ],[enable_lmdb=embedded])
+AM_CONDITIONAL([HAVE_LMDB], test "$have_lmdb" != "no")
+
+AS_IF([test "$enable_daemon" = "yes"],[
+
+dnl Check for rosedb module 
+AC_ARG_ENABLE([rosedb],
+    AS_HELP_STRING([--disable-rosedb], [Do not enable static RR query module.]),
+    [], [enable_rosedb=no])
+]) # Knot DNS daemon dependencies
+
+AS_IF([test "$enable_rosedb" = yes], [AC_DEFINE([HAVE_ROSEDB], [1], [Define to 1 to enable static RR query module.])])
+AM_CONDITIONAL([HAVE_ROSEDB], [test "$enable_rosedb" = yes])
+
+
+############################################
+# Dependencies needed for Knot DNS utilities
+############################################
 
 dnl Check for libidn.
 AC_ARG_WITH(libidn,
     AC_HELP_STRING([--with-libidn=[DIR]], [Support IDN (needs GNU Libidn)]),
     with_libidn=$withval,
     with_libidn=yes
-)
-if test "$with_libidn" != "no" ; then
-    PKG_CHECK_MODULES([libidn], [libidn >= 0.0.0], [with_libidn=yes], [with_libidn=no])
-    if test "$with_libidn" != "yes" ; then
-        with_libidn=no
-        AC_MSG_WARN([Libidn not found])
-    else
+    )
+
+AS_IF([test "$enable_utilities" = "yes"],[
+AS_IF([test "$with_libidn" != "no"],[
+    PKG_CHECK_MODULES([libidn], [libidn >= 0.0.0], [
         with_libidn=yes
         AC_DEFINE([LIBIDN], [1], [Define to 1 to enable IDN support])
-    fi
-fi
+        ],[
+        with_libidn=no
+        AC_MSG_WARN([libidn not found])
+	])])
 
-dnl Check for dnstap.
-dt_DNSTAP([
-    LIBS="$LIBS $DNSTAP_LIBS"
-    CPPFLAGS="$CPPFLAGS $DNSTAP_CFLAGS"
-    AC_DEFINE([USE_DNSTAP], [1], [Define to 1 to enable dnstap support])
-])
-AM_CONDITIONAL([HAVE_DNSTAP], test "$opt_dnstap" != "no")
-
-dnl Check for LMDB
-KNOT_CHECK_HEADER([lmdb], [LMDB], [auto], [lmdb.h], [], [-llmdb])
-AS_IF([test "$enable_lmdb" = yes], [AC_DEFINE([HAVE_LMDB], [1], [Define to 1 to enable LMDB support])])
-AM_CONDITIONAL([HAVE_LMDB], test "$enable_lmdb" != "no")
-
-dnl Check for rosedb module 
-AC_ARG_ENABLE([rosedb],
-    AS_HELP_STRING([--disable-rosedb], [Do not enable static RR query module.]),
-    [], [enable_rosedb=no])
-AM_CONDITIONAL([HAVE_ROSEDB], [test "$enable_rosedb" = yes])
-AS_IF([test "$enable_rosedb" = yes], [AC_DEFINE([HAVE_ROSEDB], [1], [Define to 1 to enable static RR query module.])])
+]) # Knot DNS utilities dependencies
 
 AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread], [], [AC_MSG_ERROR([pthreads not found])])
@@ -312,6 +401,8 @@ CPPFLAGS="$CPPFLAGS $CFLAG_VISIBILITY"
 # Add code coverage macro
 AX_CODE_COVERAGE
 
+AS_IF([test "$enable_documentation" = "yes"],[
+
 AC_PATH_PROGS([SPHINXBUILD], [sphinx-build sphinx-build-3], [false])
 AS_IF([test "$SPHINXBUILD" = "false"],
   [AC_MSG_WARN([Could not find the 'sphinx-build' executable, you will be unable to regenerate documentation.])],
@@ -322,6 +413,8 @@ AS_IF([test "$SPHINXBUILD" = "false"],
    AS_IF([test "$MAKEINFO" = "false"],
      [AC_MSG_WARN([Could not find the 'makeinfo' executable, you will be unable to generate info documentation.])])
   ])
+
+])
 
 AM_CONDITIONAL([HAVE_SPHINXBUILD], test "$SPHINXBUILD" != "false")
 AM_CONDITIONAL([HAVE_PDFLATEX], test "$PDFLATEX" != "false")
@@ -337,12 +430,12 @@ AC_CONFIG_FILES([Makefile
 		 tests/Makefile
 		 src/dnstap/Makefile
 		 src/zscanner/Makefile
-		 dnssec/Makefile
-		 dnssec/man/Makefile
-		 dnssec/man/keymgr.8
-		 dnssec/man/knsec3hash.1
-		 dnssec/tests/Makefile
-		 dnssec/utils/Makefile
+		 src/dnssec/Makefile
+		 src/dnssec/man/Makefile
+		 src/dnssec/man/keymgr.8
+		 src/dnssec/man/knsec3hash.1
+		 src/dnssec/tests/Makefile
+		 src/dnssec/utils/Makefile
 		 doc/conf.py
 		 man/khost.1
 		 man/knotc.8
@@ -360,14 +453,19 @@ AC_MSG_RESULT([
 
     Target:   $host_os $host_cpu
     Compiler: ${CC}
-    CFlags:   ${CFLAGS} ${CPPFLAGS}
-    LDFlags:  ${LDFLAGS}
-    Libs:     ${LIBS}
+    CFLAGS:   ${CFLAGS} ${CPPFLAGS}
+    LDFLAGS:  ${LDFLAGS}
+    LIBS:     ${LIBS}
 
     Prefix:      ${prefix}
     Run dir:     ${run_dir}
     Storage dir: ${storage_dir}
     Config dir:  ${config_dir}
+
+    Knot DNS libraries:     yes
+    Knot DNS daemon:        ${enable_daemon}
+    Knot DNS utils:         ${enable_utilities}
+    Knot DNS documentation: ${enable_documentation}
 
     Fast zone parser:      ${enable_fastparser}
     Utilities with IDN:    ${with_libidn}

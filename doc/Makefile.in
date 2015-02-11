@@ -79,12 +79,11 @@ build_triplet = @build@
 host_triplet = @host@
 subdir = doc
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(srcdir)/conf.py.in mdate-sh texinfo.tex
+	$(srcdir)/conf.py.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_set_version_info.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
-	$(top_srcdir)/m4/knot-check-header.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
 	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/visibility.m4 \
@@ -247,6 +246,7 @@ libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
 libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
+liburcu_PKGCONFIG = @liburcu_PKGCONFIG@
 lmdb_CFLAGS = @lmdb_CFLAGS@
 lmdb_LIBS = @lmdb_LIBS@
 localedir = @localedir@
@@ -399,11 +399,14 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@HAVE_MAKEINFO_FALSE@info-local:
-@HAVE_SPHINXBUILD_FALSE@info-local:
-@HAVE_SPHINXBUILD_FALSE@html-local:
+@HAVE_DOCS_FALSE@pdf-local:
 @HAVE_PDFLATEX_FALSE@pdf-local:
 @HAVE_SPHINXBUILD_FALSE@pdf-local:
+@HAVE_DOCS_FALSE@info-local:
+@HAVE_MAKEINFO_FALSE@info-local:
+@HAVE_SPHINXBUILD_FALSE@info-local:
+@HAVE_DOCS_FALSE@html-local:
+@HAVE_SPHINXBUILD_FALSE@html-local:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-local mostlyclean-am
@@ -460,6 +463,8 @@ mostlyclean: mostlyclean-am
 
 mostlyclean-am: mostlyclean-generic mostlyclean-libtool
 
+@HAVE_DOCS_FALSE@pdf: pdf-am
+
 @HAVE_PDFLATEX_TRUE@pdf: pdf-am
 
 @HAVE_SPHINXBUILD_FALSE@pdf: pdf-am
@@ -490,35 +495,35 @@ uninstall-am:
 
 .PHONY: html-local singlehtml pdf-local info-local
 
-@HAVE_SPHINXBUILD_TRUE@html-local:
-@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/html
-@HAVE_SPHINXBUILD_TRUE@	@echo
-@HAVE_SPHINXBUILD_TRUE@	@echo "Build finished. The HTML pages are in $(SPHINXBUILDDIR)/html."
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@html-local:
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/html
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Build finished. The HTML pages are in $(SPHINXBUILDDIR)/html."
 
-@HAVE_SPHINXBUILD_TRUE@singlehtml:
-@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b singlehtml $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/singlehtml
-@HAVE_SPHINXBUILD_TRUE@	@echo
-@HAVE_SPHINXBUILD_TRUE@	@echo "Build finished. The HTML page is in $(SPHINXBUILDDIR)/singlehtml."
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@singlehtml:
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b singlehtml $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/singlehtml
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Build finished. The HTML page is in $(SPHINXBUILDDIR)/singlehtml."
 
-@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@pdf-local:
-@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/latex
-@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Running LaTeX files through pdflatex..."
-@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(MAKE) -C $(SPHINXBUILDDIR)/latex all-pdf
-@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "pdflatex finished; the PDF files are in $(SPHINXBUILDDIR)/latex."
-@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@pdf:
-@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "You need to install pdflatex and re-run configure to be"
-@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "able to generate PDF documentation."
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@pdf-local:
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/latex
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Running LaTeX files through pdflatex..."
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(MAKE) -C $(SPHINXBUILDDIR)/latex all-pdf
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "pdflatex finished; the PDF files are in $(SPHINXBUILDDIR)/latex."
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@pdf:
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "You need to install pdflatex and re-run configure to be"
+@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "able to generate PDF documentation."
 
-@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@info-local:
-@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/texinfo
-@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Running Texinfo files through makeinfo..."
-@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	make -C $(SPHINXBUILDDIR)/texinfo info
-@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "makeinfo finished; the Info files are in $(SPHINXBUILDDIR)/texinfo."
-@HAVE_MAKEINFO_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "You need to install GNU Texinfo and re-run configure to be"
-@HAVE_MAKEINFO_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "able to generate info pages."
+@HAVE_DOCS_TRUE@@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@info-local:
+@HAVE_DOCS_TRUE@@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/texinfo
+@HAVE_DOCS_TRUE@@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Running Texinfo files through makeinfo..."
+@HAVE_DOCS_TRUE@@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	make -C $(SPHINXBUILDDIR)/texinfo info
+@HAVE_DOCS_TRUE@@HAVE_MAKEINFO_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "makeinfo finished; the Info files are in $(SPHINXBUILDDIR)/texinfo."
+@HAVE_DOCS_TRUE@@HAVE_MAKEINFO_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "You need to install GNU Texinfo and re-run configure to be"
+@HAVE_DOCS_TRUE@@HAVE_MAKEINFO_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "able to generate info pages."
 
-@HAVE_SPHINXBUILD_FALSE@html-local singlehtml pdf-local info-local:
-@HAVE_SPHINXBUILD_FALSE@	@echo "Please install sphinx (python-sphinx) to generate Knot DNS documentation."
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_FALSE@html-local singlehtml pdf-local info-local:
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_FALSE@	@echo "Please install sphinx (python-sphinx) to generate Knot DNS documentation."
 
 clean-local:
 	-rm -rf _build

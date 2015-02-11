@@ -16,8 +16,6 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include <openssl/hmac.h>
-#include <openssl/evp.h>
 #include <time.h>
 #include <stdint.h>
 
@@ -105,7 +103,7 @@ static int compute_digest(const uint8_t *wire, size_t wire_len,
 		return KNOT_TSIG_EBADSIG;
 	}
 
-	dnssec_binary_t cover = { .const_data = wire, .size = wire_len };
+	dnssec_binary_t cover = { .data = (uint8_t *)wire, .size = wire_len };
 	dnssec_tsig_add(ctx, &cover);
 
 	*digest_len = dnssec_tsig_size(ctx);

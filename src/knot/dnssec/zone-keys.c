@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "dnssec/error.h"
 #include "dnssec/keystore.h"
@@ -26,33 +27,13 @@
 #include "libknot/rrtype/dnskey.h"
 
 /*!
- * \brief Get zone key by a keytag.
- */
-const zone_key_t *get_zone_key(const zone_keyset_t *keyset, uint16_t search)
-{
-	if (!keyset) {
-		return NULL;
-	}
-
-	for (size_t i = 0; i < keyset->count; i++) {
-		zone_key_t *key = &keyset->keys[i];
-		if (dnssec_key_get_keytag(key->key) == search) {
-			return key;
-		}
-	}
-
-	return NULL;
-}
-
-/*!
  * \brief Get key feature flags from key parameters.
  */
-static int set_key(dnssec_kasp_key_t *kasp_key, zone_key_t *zone_key)
+static int set_key(dnssec_kasp_key_t *kasp_key, time_t now, zone_key_t *zone_key)
 {
 	assert(kasp_key);
 	assert(zone_key);
 
-	time_t now = time(NULL);
 	dnssec_kasp_key_timing_t *timing = &kasp_key->timing;
 
 	// cryptographic context
@@ -60,7 +41,7 @@ static int set_key(dnssec_kasp_key_t *kasp_key, zone_key_t *zone_key)
 	dnssec_sign_ctx_t *ctx = NULL;
 	int r = dnssec_sign_new(&ctx, kasp_key->key);
 	if (r != DNSSEC_EOK) {
-		return KNOT_ERROR;
+		return r;
 	}
 
 	zone_key->key = kasp_key->key;
@@ -224,26 +205,10 @@ static int prepare_and_check_keys(const char *zone_name, bool nsec3_enabled,
 /*!
  * \brief Load private keys for active keys.
  */
-static int load_private_keys(const char *kasp_dir, zone_keyset_t *keyset)
+static int load_private_keys(dnssec_keystore_t *keystore, zone_keyset_t *keyset)
 {
-	assert(kasp_dir);
+	assert(keystore);
 	assert(keyset);
-
-	int result = KNOT_EOK;
-	char *keystore_dir = NULL;
-	dnssec_keystore_t *keystore = NULL;
-
-	int length = asprintf(&keystore_dir, "%s/keys", kasp_dir);
-	if (length < 0) {
-		result = KNOT_ENOMEM;
-		goto fail;
-	}
-
-	dnssec_keystore_init_pkcs8_dir(&keystore);
-	result = dnssec_keystore_open(keystore, keystore_dir);
-	if (result != DNSSEC_EOK) {
-		goto fail;
-	}
 
 	for (size_t i = 0; i < keyset->count; i++) {
 		if (!keyset->keys[i].is_active) {
@@ -251,19 +216,13 @@ static int load_private_keys(const char *kasp_dir, zone_keyset_t *keyset)
 		}
 
 		dnssec_key_t *key = keyset->keys[i].key;
-		result = dnssec_key_import_private_keystore(key, keystore);
-		if (result != DNSSEC_EOK) {
-			result = KNOT_DNSSEC_EINVALID_KEY;
-			break;
+		int r = dnssec_key_import_private_keystore(key, keystore);
+		if (r != DNSSEC_EOK && r != DNSSEC_KEY_ALREADY_PRESENT) {
+			return r;
 		}
 	}
 
-	result = KNOT_EOK;
-fail:
-	dnssec_keystore_deinit(keystore);
-	free(keystore_dir);
-
-	return result;
+	return DNSSEC_EOK;
 }
 
 /*!
@@ -285,40 +244,22 @@ static void log_key_info(const zone_key_t *key, const char *zone_name)
 }
 
 /*!
- * \brief Load zone keys from a key directory.
+ * \brief Load zone keys and init cryptographic context.
  */
-int load_zone_keys(const char *keydir_name, const char *zone_name,
-                   bool nsec3_enabled, zone_keyset_t *keyset_ptr)
+int load_zone_keys(dnssec_kasp_zone_t *zone, dnssec_keystore_t *store,
+                   bool nsec3_enabled, time_t now, zone_keyset_t *keyset_ptr)
 {
-	if (!keydir_name || !zone_name || !keyset_ptr) {
+	if (!zone || !store || !keyset_ptr) {
 		return KNOT_EINVAL;
 	}
 
 	zone_keyset_t keyset = { 0 };
+	const char *zone_name = dnssec_kasp_zone_get_name(zone);
 
-	dnssec_kasp_init_dir(&keyset.kasp);
-	assert(keyset.kasp);
-
-	int r = dnssec_kasp_open(keyset.kasp, keydir_name);
-	if (r != DNSSEC_EOK) {
-		log_zone_str_error(zone_name, "DNSSEC, failed to open KASP (%s)",
-		                   dnssec_strerror(r));
-		return KNOT_ERROR;
-	}
-
-	r = dnssec_kasp_zone_load(keyset.kasp, zone_name, &keyset.kasp_zone);
-	if (r != DNSSEC_EOK) {
-		log_zone_str_error(zone_name, "DNSSEC, failed to get zone from KASP (%s)",
-		                   dnssec_strerror(r));
-		free_zone_keys(&keyset);
-		return KNOT_ERROR;
-	}
-
-	dnssec_list_t *kasp_keys = dnssec_kasp_zone_get_keys(keyset.kasp_zone);
+	dnssec_list_t *kasp_keys = dnssec_kasp_zone_get_keys(zone);
 	if (dnssec_list_is_empty(kasp_keys)) {
 		log_zone_str_error(zone_name, "DNSSEC, no keys are available");
-		free_zone_keys(&keyset);
-		return KNOT_ERROR;
+		return KNOT_DNSSEC_ENOKEY;
 	}
 
 	keyset.count = dnssec_list_size(kasp_keys);
@@ -331,24 +272,26 @@ int load_zone_keys(const char *keydir_name, const char *zone_name,
 	size_t i = 0;
 	dnssec_list_foreach(item, kasp_keys) {
 		dnssec_kasp_key_t *kasp_key = dnssec_item_get(item);
-		set_key(kasp_key, &keyset.keys[i]);
+		set_key(kasp_key, now, &keyset.keys[i]);
 		log_key_info(&keyset.keys[i], zone_name);
 		i += 1;
 	}
 	assert(i == keyset.count);
 
-	r = prepare_and_check_keys(zone_name, nsec3_enabled, &keyset);
+	int r = prepare_and_check_keys(zone_name, nsec3_enabled, &keyset);
 	if (r != KNOT_EOK) {
 		log_zone_str_error(zone_name, "DNSSEC, keys validation failed (%s)",
 		                   knot_strerror(r));
 		free_zone_keys(&keyset);
-		return KNOT_ERROR;
+		return r;
 	}
 
-	r = load_private_keys(keydir_name, &keyset);
+	r = load_private_keys(store, &keyset);
 	if (r != KNOT_EOK) {
+		log_zone_str_error(zone_name, "DNSSEC, failed to load private "
+		                   "keys (%s)", knot_strerror(r));
 		free_zone_keys(&keyset);
-		return KNOT_ERROR;
+		return r;
 	}
 
 	*keyset_ptr = keyset;
@@ -369,12 +312,30 @@ void free_zone_keys(zone_keyset_t *keyset)
 		dnssec_sign_free(keyset->keys[i].ctx);
 	}
 
-	dnssec_kasp_zone_free(keyset->kasp_zone);
-	dnssec_kasp_deinit(keyset->kasp);
 	free(keyset->keys);
 
 	memset(keyset, '\0', sizeof(*keyset));
 }
+
+/*!
+ * \brief Get zone key by a keytag.
+ */
+const zone_key_t *get_zone_key(const zone_keyset_t *keyset, uint16_t search)
+{
+	if (!keyset) {
+		return NULL;
+	}
+
+	for (size_t i = 0; i < keyset->count; i++) {
+		zone_key_t *key = &keyset->keys[i];
+		if (dnssec_key_get_keytag(key->key) == search) {
+			return key;
+		}
+	}
+
+	return NULL;
+}
+
 
 /*!
  * \brief Get timestamp of next key event.
