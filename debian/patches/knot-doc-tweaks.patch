@@ -7,9 +7,9 @@
 -.PHONY: html-local singlehtml pdf-local info-local
 +.PHONY: html-local singlehtml pdf-local info-local install-html-local install-singlehtml install-pdf-local install-info-local
  
- if HAVE_SPHINXBUILD
- html-local:
-@@ -23,19 +23,35 @@ html-local:
+ if HAVE_DOCS
+ 
+@@ -25,19 +25,35 @@ html-local:
  	@echo
  	@echo "Build finished. The HTML pages are in $(SPHINXBUILDDIR)/html."
  
@@ -46,7 +46,7 @@
  	@echo "You need to install pdflatex and re-run configure to be"
  	@echo "able to generate PDF documentation."
  endif
-@@ -46,13 +62,19 @@ info-local:
+@@ -48,13 +64,19 @@ info-local:
  	@echo "Running Texinfo files through makeinfo..."
  	make -C $(SPHINXBUILDDIR)/texinfo info
  	@echo "makeinfo finished; the Info files are in $(SPHINXBUILDDIR)/texinfo."
