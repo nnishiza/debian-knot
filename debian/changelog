@@ -1,6 +1,25 @@
+knot (1.6.2-1) unstable; urgency=medium
+
+  * New upstream version 1.6.2
+   + Features:
+    - Limiting number of parallel TCP clients (max-tcp-clients config option)
+   + Bugfixes:
+    - Ignore refresh and transfer events on non-slave zones
+    - Compilation with Dnstap support on FreeBSD
+    - Possible file descriptor leak when terminating inactive TCP clients
+  * Update patches for 1.6.2 release
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 20 Feb 2015 11:09:34 +0100
+
 knot (1.6.1-1) unstable; urgency=medium
 
   * New upstream version 1.6.1
+   + Bugfixes:
+    - Journal file would sometimes outgrow its limit (ixfr-fslimit in configuration)
+    - Fixed incompatibility with OpenSSL 0.9.8
+    - Proper handling when hostname cannot be retreived (for NSID and CH)
+   + Features:
+    - DNSSEC Single Type Signing Scheme is now supported
 
  -- Ondřej Surý <ondrej@debian.org>  Tue, 30 Dec 2014 09:50:54 +0100
 
