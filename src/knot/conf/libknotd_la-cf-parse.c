@@ -1,19 +1,19 @@
-/* A Bison parser, made by GNU Bison 2.7.  */
+/* A Bison parser, made by GNU Bison 3.0.2.  */
 
 /* Bison implementation for Yacc-like parsers in C
-   
-      Copyright (C) 1984, 1989-1990, 2000-2012 Free Software Foundation, Inc.
-   
+
+   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
@@ -26,7 +26,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-   
+
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -44,7 +44,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.7"
+#define YYBISON_VERSION "3.0.2"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -63,14 +63,12 @@
 #define yyparse         cf_parse
 #define yylex           cf_lex
 #define yyerror         cf_error
-#define yylval          cf_lval
-#define yychar          cf_char
 #define yydebug         cf_debug
 #define yynerrs         cf_nerrs
 
+
 /* Copy the first part of user declarations.  */
-/* Line 371 of yacc.c  */
-#line 23 "knot/conf/cf-parse.y"
+#line 23 "knot/conf/cf-parse.y" /* yacc.c:339  */
 
 
 #include <config.h>
@@ -517,14 +515,13 @@ static void ident_auto(void *scanner, int tok, conf_t *conf, bool val)
 }
 
 
-/* Line 371 of yacc.c  */
-#line 522 "knot/conf/libknotd_la-cf-parse.c"
+#line 519 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:339  */
 
-# ifndef YY_NULL
+# ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
-#   define YY_NULL nullptr
+#   define YY_NULLPTR nullptr
 #  else
-#   define YY_NULL 0
+#   define YY_NULLPTR 0
 #  endif
 # endif
 
@@ -540,7 +537,7 @@ static void ident_auto(void *scanner, int tok, conf_t *conf, bool val)
    by #include "y.tab.h".  */
 #ifndef YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED
 # define YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED
-/* Enabling traces.  */
+/* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
 #endif
@@ -548,79 +545,79 @@ static void ident_auto(void *scanner, int tok, conf_t *conf, bool val)
 extern int cf_debug;
 #endif
 
-/* Tokens.  */
+/* Token type.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     END = 258,
-     INVALID_TOKEN = 259,
-     TEXT = 260,
-     HEXSTR = 261,
-     NUM = 262,
-     INTERVAL = 263,
-     SIZE = 264,
-     BOOL = 265,
-     SYSTEM = 266,
-     IDENTITY = 267,
-     HOSTNAME = 268,
-     SVERSION = 269,
-     NSID = 270,
-     KEY = 271,
-     KEYS = 272,
-     MAX_UDP_PAYLOAD = 273,
-     TSIG_ALGO_NAME = 274,
-     WORKERS = 275,
-     BACKGROUND_WORKERS = 276,
-     ASYNC_START = 277,
-     USER = 278,
-     RUNDIR = 279,
-     PIDFILE = 280,
-     REMOTES = 281,
-     GROUPS = 282,
-     ZONES = 283,
-     FILENAME = 284,
-     DISABLE_ANY = 285,
-     SEMANTIC_CHECKS = 286,
-     NOTIFY_RETRIES = 287,
-     NOTIFY_TIMEOUT = 288,
-     DBSYNC_TIMEOUT = 289,
-     IXFR_FSLIMIT = 290,
-     XFR_IN = 291,
-     XFR_OUT = 292,
-     UPDATE_IN = 293,
-     NOTIFY_IN = 294,
-     NOTIFY_OUT = 295,
-     BUILD_DIFFS = 296,
-     MAX_CONN_IDLE = 297,
-     MAX_CONN_HS = 298,
-     MAX_CONN_REPLY = 299,
-     RATE_LIMIT = 300,
-     RATE_LIMIT_SIZE = 301,
-     RATE_LIMIT_SLIP = 302,
-     TRANSFERS = 303,
-     STORAGE = 304,
-     DNSSEC_ENABLE = 305,
-     DNSSEC_KEYDIR = 306,
-     SIGNATURE_LIFETIME = 307,
-     SERIAL_POLICY = 308,
-     SERIAL_POLICY_VAL = 309,
-     QUERY_MODULE = 310,
-     INTERFACES = 311,
-     ADDRESS = 312,
-     PORT = 313,
-     IPA = 314,
-     IPA6 = 315,
-     VIA = 316,
-     CONTROL = 317,
-     ALLOW = 318,
-     LISTEN_ON = 319,
-     LOG = 320,
-     LOG_DEST = 321,
-     LOG_SRC = 322,
-     LOG_LEVEL = 323
-   };
+  enum yytokentype
+  {
+    END = 258,
+    INVALID_TOKEN = 259,
+    TEXT = 260,
+    HEXSTR = 261,
+    NUM = 262,
+    INTERVAL = 263,
+    SIZE = 264,
+    BOOL = 265,
+    SYSTEM = 266,
+    IDENTITY = 267,
+    HOSTNAME = 268,
+    SVERSION = 269,
+    NSID = 270,
+    KEY = 271,
+    KEYS = 272,
+    MAX_UDP_PAYLOAD = 273,
+    TSIG_ALGO_NAME = 274,
+    WORKERS = 275,
+    BACKGROUND_WORKERS = 276,
+    ASYNC_START = 277,
+    USER = 278,
+    RUNDIR = 279,
+    PIDFILE = 280,
+    REMOTES = 281,
+    GROUPS = 282,
+    ZONES = 283,
+    FILENAME = 284,
+    DISABLE_ANY = 285,
+    SEMANTIC_CHECKS = 286,
+    NOTIFY_RETRIES = 287,
+    NOTIFY_TIMEOUT = 288,
+    DBSYNC_TIMEOUT = 289,
+    IXFR_FSLIMIT = 290,
+    XFR_IN = 291,
+    XFR_OUT = 292,
+    UPDATE_IN = 293,
+    NOTIFY_IN = 294,
+    NOTIFY_OUT = 295,
+    BUILD_DIFFS = 296,
+    MAX_CONN_IDLE = 297,
+    MAX_CONN_HS = 298,
+    MAX_CONN_REPLY = 299,
+    MAX_TCP_CLIENTS = 300,
+    RATE_LIMIT = 301,
+    RATE_LIMIT_SIZE = 302,
+    RATE_LIMIT_SLIP = 303,
+    TRANSFERS = 304,
+    STORAGE = 305,
+    DNSSEC_ENABLE = 306,
+    DNSSEC_KEYDIR = 307,
+    SIGNATURE_LIFETIME = 308,
+    SERIAL_POLICY = 309,
+    SERIAL_POLICY_VAL = 310,
+    QUERY_MODULE = 311,
+    INTERFACES = 312,
+    ADDRESS = 313,
+    PORT = 314,
+    IPA = 315,
+    IPA6 = 316,
+    VIA = 317,
+    CONTROL = 318,
+    ALLOW = 319,
+    LISTEN_ON = 320,
+    LOG = 321,
+    LOG_DEST = 322,
+    LOG_SRC = 323,
+    LOG_LEVEL = 324
+  };
 #endif
 /* Tokens.  */
 #define END 258
@@ -665,38 +662,38 @@ extern int cf_debug;
 #define MAX_CONN_IDLE 297
 #define MAX_CONN_HS 298
 #define MAX_CONN_REPLY 299
-#define RATE_LIMIT 300
-#define RATE_LIMIT_SIZE 301
-#define RATE_LIMIT_SLIP 302
-#define TRANSFERS 303
-#define STORAGE 304
-#define DNSSEC_ENABLE 305
-#define DNSSEC_KEYDIR 306
-#define SIGNATURE_LIFETIME 307
-#define SERIAL_POLICY 308
-#define SERIAL_POLICY_VAL 309
-#define QUERY_MODULE 310
-#define INTERFACES 311
-#define ADDRESS 312
-#define PORT 313
-#define IPA 314
-#define IPA6 315
-#define VIA 316
-#define CONTROL 317
-#define ALLOW 318
-#define LISTEN_ON 319
-#define LOG 320
-#define LOG_DEST 321
-#define LOG_SRC 322
-#define LOG_LEVEL 323
+#define MAX_TCP_CLIENTS 300
+#define RATE_LIMIT 301
+#define RATE_LIMIT_SIZE 302
+#define RATE_LIMIT_SLIP 303
+#define TRANSFERS 304
+#define STORAGE 305
+#define DNSSEC_ENABLE 306
+#define DNSSEC_KEYDIR 307
+#define SIGNATURE_LIFETIME 308
+#define SERIAL_POLICY 309
+#define SERIAL_POLICY_VAL 310
+#define QUERY_MODULE 311
+#define INTERFACES 312
+#define ADDRESS 313
+#define PORT 314
+#define IPA 315
+#define IPA6 316
+#define VIA 317
+#define CONTROL 318
+#define ALLOW 319
+#define LISTEN_ON 320
+#define LOG 321
+#define LOG_DEST 322
+#define LOG_SRC 323
+#define LOG_LEVEL 324
 
-
-
+/* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE
+typedef union YYSTYPE YYSTYPE;
+union YYSTYPE
 {
-/* Line 387 of yacc.c  */
-#line 475 "knot/conf/cf-parse.y"
+#line 475 "knot/conf/cf-parse.y" /* yacc.c:355  */
 
 	struct {
 		char *t;
@@ -705,36 +702,21 @@ typedef union YYSTYPE
 		knot_tsig_algorithm_t alg;
 	} tok;
 
-
-/* Line 387 of yacc.c  */
-#line 711 "knot/conf/libknotd_la-cf-parse.c"
-} YYSTYPE;
+#line 706 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:355  */
+};
 # define YYSTYPE_IS_TRIVIAL 1
-# define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 #endif
 
 
-#ifdef YYPARSE_PARAM
-#if defined __STDC__ || defined __cplusplus
-int cf_parse (void *YYPARSE_PARAM);
-#else
-int cf_parse ();
-#endif
-#else /* ! YYPARSE_PARAM */
-#if defined __STDC__ || defined __cplusplus
+
 int cf_parse (void *scanner);
-#else
-int cf_parse ();
-#endif
-#endif /* ! YYPARSE_PARAM */
 
 #endif /* !YY_CF_KNOT_CONF_LIBKNOTD_LA_CF_PARSE_H_INCLUDED  */
 
 /* Copy the second part of user declarations.  */
 
-/* Line 390 of yacc.c  */
-#line 738 "knot/conf/libknotd_la-cf-parse.c"
+#line 720 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -748,11 +730,8 @@ typedef unsigned char yytype_uint8;
 
 #ifdef YYTYPE_INT8
 typedef YYTYPE_INT8 yytype_int8;
-#elif (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
-typedef signed char yytype_int8;
 #else
-typedef short int yytype_int8;
+typedef signed char yytype_int8;
 #endif
 
 #ifdef YYTYPE_UINT16
@@ -772,8 +751,7 @@ typedef short int yytype_int16;
 #  define YYSIZE_T __SIZE_TYPE__
 # elif defined size_t
 #  define YYSIZE_T size_t
-# elif ! defined YYSIZE_T && (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
+# elif ! defined YYSIZE_T
 #  include <stddef.h> /* INFRINGES ON USER NAME SPACE */
 #  define YYSIZE_T size_t
 # else
@@ -795,6 +773,33 @@ typedef short int yytype_int16;
 # endif
 #endif
 
+#ifndef YY_ATTRIBUTE
+# if (defined __GNUC__                                               \
+      && (2 < __GNUC__ || (__GNUC__ == 2 && 96 <= __GNUC_MINOR__)))  \
+     || defined __SUNPRO_C && 0x5110 <= __SUNPRO_C
+#  define YY_ATTRIBUTE(Spec) __attribute__(Spec)
+# else
+#  define YY_ATTRIBUTE(Spec) /* empty */
+# endif
+#endif
+
+#ifndef YY_ATTRIBUTE_PURE
+# define YY_ATTRIBUTE_PURE   YY_ATTRIBUTE ((__pure__))
+#endif
+
+#ifndef YY_ATTRIBUTE_UNUSED
+# define YY_ATTRIBUTE_UNUSED YY_ATTRIBUTE ((__unused__))
+#endif
+
+#if !defined _Noreturn \
+     && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112)
+# if defined _MSC_VER && 1200 <= _MSC_VER
+#  define _Noreturn __declspec (noreturn)
+# else
+#  define _Noreturn YY_ATTRIBUTE ((__noreturn__))
+# endif
+#endif
+
 /* Suppress unused-variable warnings by "using" E.  */
 #if ! defined lint || defined __GNUC__
 # define YYUSE(E) ((void) (E))
@@ -802,23 +807,25 @@ typedef short int yytype_int16;
 # define YYUSE(E) /* empty */
 #endif
 
-/* Identity function, used to suppress warnings about constant conditions.  */
-#ifndef lint
-# define YYID(N) (N)
+#if defined __GNUC__ && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
+/* Suppress an incorrect diagnostic about yylval being uninitialized.  */
+# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN \
+    _Pragma ("GCC diagnostic push") \
+    _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")\
+    _Pragma ("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+# define YY_IGNORE_MAYBE_UNINITIALIZED_END \
+    _Pragma ("GCC diagnostic pop")
 #else
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
-static int
-YYID (int yyi)
-#else
-static int
-YYID (yyi)
-    int yyi;
+# define YY_INITIAL_VALUE(Value) Value
 #endif
-{
-  return yyi;
-}
+#ifndef YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
+# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
+# define YY_IGNORE_MAYBE_UNINITIALIZED_END
 #endif
+#ifndef YY_INITIAL_VALUE
+# define YY_INITIAL_VALUE(Value) /* Nothing. */
+#endif
+
 
 #if ! defined yyoverflow || YYERROR_VERBOSE
 
@@ -837,8 +844,7 @@ YYID (yyi)
 #    define alloca _alloca
 #   else
 #    define YYSTACK_ALLOC alloca
-#    if ! defined _ALLOCA_H && ! defined EXIT_SUCCESS && (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
+#    if ! defined _ALLOCA_H && ! defined EXIT_SUCCESS
 #     include <stdlib.h> /* INFRINGES ON USER NAME SPACE */
       /* Use EXIT_SUCCESS as a witness for stdlib.h.  */
 #     ifndef EXIT_SUCCESS
@@ -850,8 +856,8 @@ YYID (yyi)
 # endif
 
 # ifdef YYSTACK_ALLOC
-   /* Pacify GCC's `empty if-body' warning.  */
-#  define YYSTACK_FREE(Ptr) do { /* empty */; } while (YYID (0))
+   /* Pacify GCC's 'empty if-body' warning.  */
+#  define YYSTACK_FREE(Ptr) do { /* empty */; } while (0)
 #  ifndef YYSTACK_ALLOC_MAXIMUM
     /* The OS might guarantee only one guard page at the bottom of the stack,
        and a page size can be as small as 4096 bytes.  So we cannot safely
@@ -867,7 +873,7 @@ YYID (yyi)
 #  endif
 #  if (defined __cplusplus && ! defined EXIT_SUCCESS \
        && ! ((defined YYMALLOC || defined malloc) \
-	     && (defined YYFREE || defined free)))
+             && (defined YYFREE || defined free)))
 #   include <stdlib.h> /* INFRINGES ON USER NAME SPACE */
 #   ifndef EXIT_SUCCESS
 #    define EXIT_SUCCESS 0
@@ -875,15 +881,13 @@ YYID (yyi)
 #  endif
 #  ifndef YYMALLOC
 #   define YYMALLOC malloc
-#   if ! defined malloc && ! defined EXIT_SUCCESS && (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
+#   if ! defined malloc && ! defined EXIT_SUCCESS
 void *malloc (YYSIZE_T); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
 #  ifndef YYFREE
 #   define YYFREE free
-#   if ! defined free && ! defined EXIT_SUCCESS && (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
+#   if ! defined free && ! defined EXIT_SUCCESS
 void free (void *); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
@@ -893,7 +897,7 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 
 #if (! defined yyoverflow \
      && (! defined __cplusplus \
-	 || (defined YYSTYPE_IS_TRIVIAL && YYSTYPE_IS_TRIVIAL)))
+         || (defined YYSTYPE_IS_TRIVIAL && YYSTYPE_IS_TRIVIAL)))
 
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
@@ -918,16 +922,16 @@ union yyalloc
    elements in the stack, and YYPTR gives the new location of the
    stack.  Advance YYPTR to a properly aligned location for the next
    stack.  */
-# define YYSTACK_RELOCATE(Stack_alloc, Stack)				\
-    do									\
-      {									\
-	YYSIZE_T yynewbytes;						\
-	YYCOPY (&yyptr->Stack_alloc, Stack, yysize);			\
-	Stack = &yyptr->Stack_alloc;					\
-	yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
-	yyptr += yynewbytes / sizeof (*yyptr);				\
-      }									\
-    while (YYID (0))
+# define YYSTACK_RELOCATE(Stack_alloc, Stack)                           \
+    do                                                                  \
+      {                                                                 \
+        YYSIZE_T yynewbytes;                                            \
+        YYCOPY (&yyptr->Stack_alloc, Stack, yysize);                    \
+        Stack = &yyptr->Stack_alloc;                                    \
+        yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
+        yyptr += yynewbytes / sizeof (*yyptr);                          \
+      }                                                                 \
+    while (0)
 
 #endif
 
@@ -946,7 +950,7 @@ union yyalloc
           for (yyi = 0; yyi < (Count); yyi++)   \
             (Dst)[yyi] = (Src)[yyi];            \
         }                                       \
-      while (YYID (0))
+      while (0)
 #  endif
 # endif
 #endif /* !YYCOPY_NEEDED */
@@ -954,40 +958,42 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  3
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   342
+#define YYLAST   346
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  75
+#define YYNTOKENS  76
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  40
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  174
-/* YYNRULES -- Number of states.  */
-#define YYNSTATES  359
+#define YYNRULES  175
+/* YYNSTATES -- Number of states.  */
+#define YYNSTATES  362
 
-/* YYTRANSLATE(YYLEX) -- Bison symbol number corresponding to YYLEX.  */
+/* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
+   by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   323
+#define YYMAXUTOK   324
 
-#define YYTRANSLATE(YYX)						\
+#define YYTRANSLATE(YYX)                                                \
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
 
-/* YYTRANSLATE[YYLEX] -- Bison symbol number corresponding to YYLEX.  */
+/* YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to TOKEN-NUM
+   as returned by yylex, without out-of-bounds checking.  */
 static const yytype_uint8 yytranslate[] =
 {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,    74,     2,     2,    73,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,    69,
-       2,     2,     2,     2,    70,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,    75,     2,     2,    74,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,    70,
+       2,     2,     2,     2,    71,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,    71,     2,    72,     2,     2,     2,     2,
+       2,     2,     2,    72,     2,    73,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -1007,126 +1013,31 @@ static const yytype_uint8 yytranslate[] =
       35,    36,    37,    38,    39,    40,    41,    42,    43,    44,
       45,    46,    47,    48,    49,    50,    51,    52,    53,    54,
       55,    56,    57,    58,    59,    60,    61,    62,    63,    64,
-      65,    66,    67,    68
+      65,    66,    67,    68,    69
 };
 
 #if YYDEBUG
-/* YYPRHS[YYN] -- Index of the first RHS symbol of rule number YYN in
-   YYRHS.  */
-static const yytype_uint16 yyprhs[] =
-{
-       0,     0,     3,     4,     8,     9,    12,    13,    15,    17,
-      19,    21,    23,    25,    26,    31,    36,    43,    48,    55,
-      58,    64,    67,    72,    77,    82,    87,    92,    97,   102,
-     107,   112,   117,   122,   127,   133,   138,   143,   148,   153,
-     158,   163,   168,   173,   178,   183,   188,   193,   196,   202,
-     203,   205,   207,   209,   211,   213,   214,   219,   224,   231,
-     238,   243,   250,   257,   262,   267,   272,   277,   280,   286,
-     288,   289,   291,   295,   297,   300,   306,   308,   310,   312,
-     314,   316,   317,   319,   321,   323,   325,   327,   328,   332,
-     336,   337,   341,   344,   345,   349,   350,   352,   354,   356,
-     358,   360,   362,   366,   368,   371,   377,   381,   386,   391,
-     396,   401,   406,   411,   416,   421,   426,   431,   436,   441,
-     446,   451,   456,   461,   467,   470,   471,   475,   478,   482,
-     487,   492,   497,   502,   507,   512,   517,   522,   527,   532,
-     537,   542,   547,   552,   557,   563,   564,   566,   570,   574,
-     575,   579,   581,   584,   585,   586,   592,   598,   599,   605,
-     607,   609,   612,   618,   623,   629,   633,   635,   638,   641,
-     644,   647,   650,   653,   656
-};
-
-/* YYRHS -- A `-1'-separated list of the rules' RHS.  */
-static const yytype_int8 yyrhs[] =
-{
-      76,     0,    -1,    -1,    77,    78,     3,    -1,    -1,    78,
-     114,    -1,    -1,     5,    -1,    26,    -1,    67,    -1,    65,
-      -1,    68,    -1,    62,    -1,    -1,    80,    58,     7,    69,
-      -1,    80,    57,    59,    69,    -1,    80,    57,    59,    70,
-       7,    69,    -1,    80,    57,    60,    69,    -1,    80,    57,
-      60,    70,     7,    69,    -1,    56,    71,    -1,    81,    79,
-      71,    80,    72,    -1,    11,    71,    -1,    82,    14,     5,
-      69,    -1,    82,    14,    10,    69,    -1,    82,    12,     5,
-      69,    -1,    82,    12,    10,    69,    -1,    82,    13,     5,
-      69,    -1,    82,    15,     6,    69,    -1,    82,    15,     5,
-      69,    -1,    82,    15,    10,    69,    -1,    82,    18,     7,
-      69,    -1,    82,    49,     5,    69,    -1,    82,    24,     5,
-      69,    -1,    82,    25,     5,    69,    -1,    82,    16,    19,
-       5,    69,    -1,    82,    20,     7,    69,    -1,    82,    21,
-       7,    69,    -1,    82,    22,    10,    69,    -1,    82,    23,
-       5,    69,    -1,    82,    42,     8,    69,    -1,    82,    43,
-       8,    69,    -1,    82,    44,     8,    69,    -1,    82,    45,
-       7,    69,    -1,    82,    46,     9,    69,    -1,    82,    46,
-       7,    69,    -1,    82,    47,     7,    69,    -1,    82,    48,
-       7,    69,    -1,    17,    71,    -1,    83,     5,    19,     5,
-      69,    -1,    -1,     5,    -1,    67,    -1,    65,    -1,    68,
-      -1,    62,    -1,    -1,    85,    58,     7,    69,    -1,    85,
-      57,    59,    69,    -1,    85,    57,    59,    73,     7,    69,
-      -1,    85,    57,    59,    70,     7,    69,    -1,    85,    57,
-      60,    69,    -1,    85,    57,    60,    73,     7,    69,    -1,
-      85,    57,    60,    70,     7,    69,    -1,    85,    16,     5,
-      69,    -1,    85,    61,    59,    69,    -1,    85,    61,    60,
-      69,    -1,    85,    61,     5,    69,    -1,    26,    71,    -1,
-      86,    84,    71,    85,    72,    -1,     5,    -1,    -1,    87,
-      -1,    88,    74,    87,    -1,     5,    -1,    27,    71,    -1,
-      90,    89,    71,    88,    72,    -1,    36,    -1,    37,    -1,
-      39,    -1,    40,    -1,    38,    -1,    -1,     5,    -1,    67,
-      -1,    65,    -1,    68,    -1,    62,    -1,    -1,    93,    92,
-      74,    -1,    93,    92,    69,    -1,    -1,    94,     5,    69,
-      -1,     5,     5,    -1,    -1,    95,    69,    96,    -1,    -1,
-      23,    -1,    26,    -1,    67,    -1,    65,    -1,    68,    -1,
-      62,    -1,     7,    73,     5,    -1,     5,    -1,    97,    71,
-      -1,    98,    91,    71,    94,    72,    -1,    98,    91,    93,
-      -1,    98,    29,     5,    69,    -1,    98,    41,    10,    69,
-      -1,    98,    31,    10,    69,    -1,    98,    49,     5,    69,
-      -1,    98,    51,     5,    69,    -1,    98,    30,    10,    69,
-      -1,    98,    34,     7,    69,    -1,    98,    34,     8,    69,
-      -1,    98,    35,     9,    69,    -1,    98,    35,     7,    69,
-      -1,    98,    32,     7,    69,    -1,    98,    33,     7,    69,
-      -1,    98,    50,    10,    69,    -1,    98,    52,     7,    69,
-      -1,    98,    52,     8,    69,    -1,    98,    53,    54,    69,
-      -1,    98,    55,    71,    96,    72,    -1,     5,     5,    -1,
-      -1,    99,    69,   100,    -1,    28,    71,    -1,   101,    98,
-      72,    -1,   101,    30,    10,    69,    -1,   101,    41,    10,
-      69,    -1,   101,    31,    10,    69,    -1,   101,    35,     9,
-      69,    -1,   101,    35,     7,    69,    -1,   101,    32,     7,
-      69,    -1,   101,    33,     7,    69,    -1,   101,    34,     7,
-      69,    -1,   101,    34,     8,    69,    -1,   101,    49,     5,
-      69,    -1,   101,    50,    10,    69,    -1,   101,    51,     5,
-      69,    -1,   101,    52,     7,    69,    -1,   101,    52,     8,
-      69,    -1,   101,    53,    54,    69,    -1,   101,    55,    71,
-     100,    72,    -1,    -1,   102,    -1,   103,    68,    74,    -1,
-     103,    68,    69,    -1,    -1,   104,    67,   103,    -1,    66,
-      -1,    29,     5,    -1,    -1,    -1,   108,   105,    71,   104,
-      72,    -1,   108,   106,    71,   104,    72,    -1,    -1,    65,
-     110,    71,   108,   107,    -1,    64,    -1,    63,    -1,    62,
-      71,    -1,   113,   111,    71,    80,    72,    -1,   113,   111,
-       5,    69,    -1,   113,   112,    71,    94,    72,    -1,   113,
-     112,    93,    -1,    69,    -1,    82,    72,    -1,    81,    72,
-      -1,    83,    72,    -1,    86,    72,    -1,    90,    72,    -1,
-     101,    72,    -1,   109,    72,    -1,   113,    72,    -1
-};
-
-/* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
+  /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   547,   547,   547,   549,   551,   554,   555,   556,   557,
-     558,   559,   560,   563,   564,   571,   574,   577,   580,   586,
-     587,   595,   596,   597,   598,   599,   600,   605,   606,   607,
-     608,   612,   617,   618,   619,   623,   626,   629,   632,   653,
-     656,   659,   662,   665,   668,   671,   674,   680,   681,   730,
-     731,   732,   733,   734,   735,   738,   739,   746,   750,   754,
-     758,   762,   766,   770,   778,   781,   784,   791,   792,   800,
-     803,   805,   806,   810,   814,   815,   819,   822,   825,   828,
-     831,   836,   837,   838,   839,   840,   841,   844,   845,   846,
-     849,   850,   879,   882,   883,   886,   887,   888,   889,   890,
-     891,   892,   893,   909,   913,   914,   915,   916,   917,   918,
-     919,   920,   921,   922,   925,   928,   931,   934,   937,   940,
-     941,   944,   947,   950,   954,   956,   957,   961,   962,   963,
-     964,   965,   966,   969,   972,   975,   978,   981,   984,   985,
-     986,   987,   990,   993,   996,   999,  1008,  1009,  1013,  1016,
-    1017,  1023,  1045,  1071,  1075,  1076,  1077,  1080,  1080,  1084,
-    1088,  1094,  1095,  1102,  1107,  1108,  1111,  1111,  1111,  1111,
-    1111,  1111,  1111,  1111,  1111
+       0,   548,   548,   548,   550,   552,   555,   556,   557,   558,
+     559,   560,   561,   564,   565,   572,   575,   578,   581,   587,
+     588,   596,   597,   598,   599,   600,   601,   606,   607,   608,
+     609,   613,   618,   619,   620,   624,   627,   630,   633,   654,
+     657,   660,   663,   666,   669,   672,   675,   678,   684,   685,
+     734,   735,   736,   737,   738,   739,   742,   743,   750,   754,
+     758,   762,   766,   770,   774,   782,   785,   788,   795,   796,
+     804,   807,   809,   810,   814,   818,   819,   823,   826,   829,
+     832,   835,   840,   841,   842,   843,   844,   845,   848,   849,
+     850,   853,   854,   883,   886,   887,   890,   891,   892,   893,
+     894,   895,   896,   897,   913,   917,   918,   919,   920,   921,
+     922,   923,   924,   925,   926,   929,   932,   935,   938,   941,
+     944,   945,   948,   951,   954,   958,   960,   961,   965,   966,
+     967,   968,   969,   970,   973,   976,   979,   982,   985,   988,
+     989,   990,   991,   994,   997,  1000,  1003,  1012,  1013,  1017,
+    1020,  1021,  1027,  1049,  1075,  1079,  1080,  1081,  1084,  1084,
+    1088,  1092,  1098,  1099,  1106,  1111,  1112,  1115,  1115,  1115,
+    1115,  1115,  1115,  1115,  1115,  1115
 };
 #endif
 
@@ -1143,26 +1054,26 @@ static const char *const yytname[] =
   "SEMANTIC_CHECKS", "NOTIFY_RETRIES", "NOTIFY_TIMEOUT", "DBSYNC_TIMEOUT",
   "IXFR_FSLIMIT", "XFR_IN", "XFR_OUT", "UPDATE_IN", "NOTIFY_IN",
   "NOTIFY_OUT", "BUILD_DIFFS", "MAX_CONN_IDLE", "MAX_CONN_HS",
-  "MAX_CONN_REPLY", "RATE_LIMIT", "RATE_LIMIT_SIZE", "RATE_LIMIT_SLIP",
-  "TRANSFERS", "STORAGE", "DNSSEC_ENABLE", "DNSSEC_KEYDIR",
-  "SIGNATURE_LIFETIME", "SERIAL_POLICY", "SERIAL_POLICY_VAL",
-  "QUERY_MODULE", "INTERFACES", "ADDRESS", "PORT", "IPA", "IPA6", "VIA",
-  "CONTROL", "ALLOW", "LISTEN_ON", "LOG", "LOG_DEST", "LOG_SRC",
-  "LOG_LEVEL", "';'", "'@'", "'{'", "'}'", "'/'", "','", "$accept",
-  "config", "$@1", "conf_entries", "interface_start", "interface",
-  "interfaces", "system", "keys", "remote_start", "remote", "remotes",
-  "group_member", "group", "group_start", "groups", "zone_acl_start",
-  "zone_acl_item", "zone_acl_list", "zone_acl", "query_module",
-  "query_module_list", "zone_start", "zone", "query_genmodule",
-  "query_genmodule_list", "zones", "log_prios_start", "log_prios",
-  "log_src", "log_dest", "log_file", "log_end", "log_start", "log", "$@2",
-  "ctl_listen_start", "ctl_allow_start", "control", "conf", YY_NULL
+  "MAX_CONN_REPLY", "MAX_TCP_CLIENTS", "RATE_LIMIT", "RATE_LIMIT_SIZE",
+  "RATE_LIMIT_SLIP", "TRANSFERS", "STORAGE", "DNSSEC_ENABLE",
+  "DNSSEC_KEYDIR", "SIGNATURE_LIFETIME", "SERIAL_POLICY",
+  "SERIAL_POLICY_VAL", "QUERY_MODULE", "INTERFACES", "ADDRESS", "PORT",
+  "IPA", "IPA6", "VIA", "CONTROL", "ALLOW", "LISTEN_ON", "LOG", "LOG_DEST",
+  "LOG_SRC", "LOG_LEVEL", "';'", "'@'", "'{'", "'}'", "'/'", "','",
+  "$accept", "config", "$@1", "conf_entries", "interface_start",
+  "interface", "interfaces", "system", "keys", "remote_start", "remote",
+  "remotes", "group_member", "group", "group_start", "groups",
+  "zone_acl_start", "zone_acl_item", "zone_acl_list", "zone_acl",
+  "query_module", "query_module_list", "zone_start", "zone",
+  "query_genmodule", "query_genmodule_list", "zones", "log_prios_start",
+  "log_prios", "log_src", "log_dest", "log_file", "log_end", "log_start",
+  "log", "$@2", "ctl_listen_start", "ctl_allow_start", "control", "conf", YY_NULLPTR
 };
 #endif
 
 # ifdef YYPRINT
-/* YYTOKNUM[YYLEX-NUM] -- Internal token number corresponding to
-   token YYLEX-NUM.  */
+/* YYTOKNUM[NUM] -- (External) token number corresponding to the
+   (internal) symbol number NUM (which must be that of a token).  */
 static const yytype_uint16 yytoknum[] =
 {
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
@@ -1171,315 +1082,306 @@ static const yytype_uint16 yytoknum[] =
      285,   286,   287,   288,   289,   290,   291,   292,   293,   294,
      295,   296,   297,   298,   299,   300,   301,   302,   303,   304,
      305,   306,   307,   308,   309,   310,   311,   312,   313,   314,
-     315,   316,   317,   318,   319,   320,   321,   322,   323,    59,
-      64,   123,   125,    47,    44
+     315,   316,   317,   318,   319,   320,   321,   322,   323,   324,
+      59,    64,   123,   125,    47,    44
 };
 # endif
 
-/* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
-static const yytype_uint8 yyr1[] =
+#define YYPACT_NINF -71
+
+#define yypact_value_is_default(Yystate) \
+  (!!((Yystate) == (-71)))
+
+#define YYTABLE_NINF -83
+
+#define yytable_value_is_error(Yytable_value) \
+  0
+
+  /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
+     STATE-NUM.  */
+static const yytype_int16 yypact[] =
 {
-       0,    75,    77,    76,    78,    78,    79,    79,    79,    79,
-      79,    79,    79,    80,    80,    80,    80,    80,    80,    81,
-      81,    82,    82,    82,    82,    82,    82,    82,    82,    82,
-      82,    82,    82,    82,    82,    82,    82,    82,    82,    82,
-      82,    82,    82,    82,    82,    82,    82,    83,    83,    84,
-      84,    84,    84,    84,    84,    85,    85,    85,    85,    85,
-      85,    85,    85,    85,    85,    85,    85,    86,    86,    87,
-      88,    88,    88,    89,    90,    90,    91,    91,    91,    91,
-      91,    92,    92,    92,    92,    92,    92,    93,    93,    93,
-      94,    94,    95,    96,    96,    97,    97,    97,    97,    97,
-      97,    97,    97,    97,    98,    98,    98,    98,    98,    98,
-      98,    98,    98,    98,    98,    98,    98,    98,    98,    98,
-      98,    98,    98,    98,    99,   100,   100,   101,   101,   101,
-     101,   101,   101,   101,   101,   101,   101,   101,   101,   101,
-     101,   101,   101,   101,   101,   102,   103,   103,   103,   104,
-     104,   105,   106,   107,   108,   108,   108,   110,   109,   111,
-     112,   113,   113,   113,   113,   113,   114,   114,   114,   114,
-     114,   114,   114,   114,   114
+     -71,     9,   -71,   -71,    75,   -71,   -70,   -54,   -48,   -40,
+     -33,    58,    63,   -71,   -71,    14,   104,     0,    22,     1,
+       3,     8,   -42,   -71,   -71,   -71,   -71,   -71,   -71,   -71,
+     -71,    65,   -71,   -71,   -71,   -71,   -71,   -71,   -71,    72,
+       7,    89,    38,    15,    96,   167,   168,   169,   101,   178,
+     180,   181,   179,   182,   183,   185,   186,   105,   187,   188,
+     184,   -71,   177,   -71,   -71,   -71,   -71,   -71,   -71,   -71,
+     116,   -71,   -71,   125,   -71,   126,   -71,   -71,   189,   192,
+     191,   196,    43,   114,   194,   200,   197,   201,    92,   153,
+     137,   -71,   -71,   -71,   -71,   -71,   138,   128,   -71,   -71,
+     -71,   -71,    -4,   139,   -71,   -71,   142,   143,   144,   145,
+     146,   147,   148,   149,   215,   151,   152,   154,   155,   156,
+     157,   158,   159,   160,   161,   162,   163,   164,   165,   166,
+     170,   171,   218,   -71,   232,   233,   172,   173,   174,   175,
+     176,   190,   193,   195,   198,   199,   202,   203,   204,   205,
+     206,   234,   -71,   242,   238,   239,   243,   244,    99,   124,
+     -71,   -71,   -71,   -71,   -71,   245,   247,   246,   248,   132,
+     207,   208,   -71,   209,   212,   -71,   -71,    -5,   -25,   -45,
+     -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   213,   -71,
+     -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,
+     -71,   -71,   -71,   -71,   -71,   -71,   214,   -13,   -71,   -71,
+      61,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,
+     -71,   -71,   -71,   -71,   -71,   -71,   -71,   249,   216,   217,
+     219,   221,   222,   223,   224,   225,   226,   227,   228,   229,
+     230,   231,   235,   236,   237,   240,   252,   -71,    -5,   -71,
+     -43,     2,   -71,   -71,   -71,   -71,   -71,   -23,   253,   -71,
+     241,   250,   -71,    82,   254,   -71,   -71,   -71,   259,    95,
+     260,    36,   -71,   -71,   232,   -71,   234,   -71,   -71,   -71,
+     -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,
+     -71,   -71,   -71,   -71,   261,   251,   255,     6,   -71,   256,
+     -71,   -71,   -71,   -71,   -71,   -71,   100,   102,   257,   262,
+      34,    39,   263,   264,   265,   266,   -71,   -71,   -71,   252,
+     -71,   -71,   -71,    -6,    16,   -71,   270,   -71,   271,   -71,
+     -71,   -71,   272,   278,   -71,   280,   281,   -71,   -71,   -71,
+     -71,   -71,   -71,   -71,   -71,   267,   268,   269,   273,   274,
+     275,   -71,   277,   -71,   -71,   -71,   -71,   -71,   -71,    23,
+     -71,   -71
 };
 
-/* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
+  /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
+     Performed when YYTABLE does not specify something else to do.  Zero
+     means the default is an error.  */
+static const yytype_uint8 yydefact[] =
+{
+       2,     0,     4,     1,     0,     3,     0,     0,     0,     0,
+       0,     0,     0,   158,   167,     6,     0,     0,    50,     0,
+      96,     0,     0,     5,    21,    48,    68,    75,   128,    19,
+     162,     0,     7,     8,    12,    10,     9,    11,   169,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,   168,     0,   170,    51,    55,    53,    52,    54,   171,
+       0,    74,   172,     0,   104,     0,    97,    98,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,   102,   100,    99,   101,   173,     0,     0,   174,   161,
+     160,   175,     0,    88,   155,    13,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,    56,    71,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,   126,   105,     0,     0,     0,     0,     0,     0,     0,
+      77,    78,    81,    79,    80,     0,     0,     0,     0,     0,
+       0,     0,   129,    88,     0,    13,    91,   166,   154,     0,
+      24,    25,    26,    22,    23,    28,    27,    29,     0,    30,
+      35,    36,    37,    38,    32,    33,    39,    40,    41,    42,
+      43,    45,    44,    46,    47,    31,     0,     0,    70,    72,
+       0,   103,   130,   132,   135,   136,   137,   138,   134,   133,
+     131,   139,   140,   141,   142,   143,   144,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,    94,    91,   107,   164,
+       0,     0,    83,    87,    85,    84,    86,     0,     0,   152,
+       0,     0,   159,     0,     0,    20,    34,    49,     0,     0,
+       0,     0,    69,    76,     0,   125,   126,   145,   108,   113,
+     110,   118,   119,   114,   115,   117,   116,   109,   111,   120,
+     112,   121,   122,   123,     0,     0,     0,     0,   163,     0,
+     165,    90,    89,   153,   150,   150,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,    73,   127,    93,    94,
+     124,   106,    92,     0,     0,    15,     0,    17,     0,    14,
+      64,    58,     0,     0,    61,     0,     0,    57,    67,    65,
+      66,    95,   146,   156,   157,     0,     0,     0,     0,     0,
+       0,   147,   151,    16,    18,    60,    59,    63,    62,     0,
+     149,   148
+};
+
+  /* YYPGOTO[NTERM-NUM].  */
+static const yytype_int8 yypgoto[] =
+{
+     -71,   -71,   -71,   -71,   -71,    84,   -71,   -71,   -71,   -71,
+     -71,   -71,    -3,   -71,   -71,   -71,   -71,   -71,    97,    55,
+     -71,   -16,   -71,   -71,   -71,    28,   -71,   -71,   -71,     4,
+     -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71,   -71
+};
+
+  /* YYDEFGOTO[NTERM-NUM].  */
+static const yytype_int16 yydefgoto[] =
+{
+      -1,     1,     2,     4,    39,   179,    15,    16,    17,    70,
+     207,    18,   209,   210,    73,    19,   173,   257,   177,   251,
+     295,   296,    96,    97,   228,   229,    20,   351,   352,   323,
+     260,   261,   262,   178,    21,    31,   102,   103,    22,    23
+};
+
+  /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
+     positive, shift that token.  If negative, reduce the rule whose
+     number is the opposite.  If YYTABLE_NINF, syntax error.  */
+static const yytype_int16 yytable[] =
+{
+     252,   174,    24,   268,   258,    62,    71,   299,    74,     3,
+      75,   299,   106,   263,   264,   263,   264,   107,    25,    32,
+     111,   112,    99,   100,    26,   113,    76,    64,   265,    77,
+     298,   101,    27,    78,    79,    80,    81,    82,    83,    28,
+      33,   313,   259,   109,    84,   269,   270,   301,   110,   271,
+     140,   141,   302,    85,    86,    87,    88,    89,   253,    90,
+     272,   254,   342,   255,   256,   -82,    91,   343,   175,    92,
+     -82,    93,    94,    63,    72,   300,    95,    34,     5,   321,
+      35,    98,    36,    37,   342,    65,     6,    38,    66,   344,
+      67,    68,     7,   360,   108,    69,   314,   315,   361,   148,
+     149,     8,     9,    10,   331,   332,   235,   236,   333,   334,
+     335,   118,   127,   336,   128,   114,    40,    41,    42,    43,
+      44,   142,    45,   143,    46,    47,    48,    49,    50,    51,
+      29,   237,    11,   238,   273,    30,   274,   104,    12,   243,
+     244,    13,   306,   307,   105,    14,    52,    53,    54,    55,
+      56,    57,    58,    59,    60,   310,   311,   153,   154,   155,
+     156,   157,   158,   159,   160,   161,   162,   163,   164,   165,
+     325,   326,   327,   328,   115,   116,   117,    61,   166,   167,
+     168,   169,   170,   119,   171,   120,   121,   122,   133,   131,
+     123,   124,   125,   126,   129,   130,   132,   134,   138,   136,
+     135,   172,   137,   139,   144,   145,   147,   146,   150,   151,
+     152,   176,   180,   181,   182,   183,   184,   185,   186,   187,
+     188,   189,   190,   206,   191,   192,   193,   194,   195,   196,
+     197,   198,   199,   200,   201,   202,   203,   208,   211,   227,
+     204,   205,   212,   213,   214,   215,   216,   230,   231,   232,
+     233,   234,   240,   242,   275,   239,   241,   294,   303,   250,
+     217,   308,   245,   218,   309,   219,   318,   312,   220,   221,
+     248,   316,   222,   223,   224,   225,   226,   345,   346,   347,
+     246,   247,   249,   266,   267,   348,   276,   349,   350,   278,
+     277,   279,   280,   281,   282,   283,   284,   285,   286,   287,
+     288,   289,   297,   341,   317,   290,   291,   292,     0,   324,
+     293,     0,     0,   304,     0,     0,     0,     0,     0,     0,
+       0,   319,   305,     0,     0,     0,   322,   329,   320,     0,
+       0,     0,   330,   337,   338,   339,   340,   353,   354,   355,
+       0,     0,     0,   356,   357,   358,   359
+};
+
+static const yytype_int16 yycheck[] =
+{
+       5,     5,    72,    16,    29,     5,     5,     5,     5,     0,
+       7,     5,     5,    58,    59,    58,    59,    10,    72,     5,
+       5,     6,    64,    65,    72,    10,    23,     5,    73,    26,
+      73,    73,    72,    30,    31,    32,    33,    34,    35,    72,
+      26,     5,    67,     5,    41,    58,    59,    70,    10,    62,
+       7,     8,    75,    50,    51,    52,    53,    54,    63,    56,
+      73,    66,    68,    68,    69,    70,    63,    73,    72,    66,
+      75,    68,    69,    73,    73,    73,    73,    63,     3,    73,
+      66,    73,    68,    69,    68,    63,    11,    73,    66,    73,
+      68,    69,    17,    70,     5,    73,    60,    61,    75,     7,
+       8,    26,    27,    28,    70,    71,     7,     8,    74,    70,
+      71,    10,     7,    74,     9,    19,    12,    13,    14,    15,
+      16,     7,    18,     9,    20,    21,    22,    23,    24,    25,
+      72,     7,    57,     9,    73,    72,    75,    72,    63,     7,
+       8,    66,    60,    61,    72,    70,    42,    43,    44,    45,
+      46,    47,    48,    49,    50,    60,    61,    29,    30,    31,
+      32,    33,    34,    35,    36,    37,    38,    39,    40,    41,
+      70,    71,    70,    71,     7,     7,     7,    73,    50,    51,
+      52,    53,    54,     5,    56,     5,     5,     8,    72,     5,
+       8,     8,     7,     7,     7,     7,    19,    72,     7,    10,
+      74,    73,    10,     7,    10,     5,     5,    10,    55,    72,
+      72,    72,    70,    70,    70,    70,    70,    70,    70,    70,
+       5,    70,    70,     5,    70,    70,    70,    70,    70,    70,
+      70,    70,    70,    70,    70,    70,    70,     5,     5,     5,
+      70,    70,    70,    70,    70,    70,    70,     5,    10,    10,
+       7,     7,     5,     5,     5,    10,    10,     5,     5,   175,
+      70,     7,    55,    70,     5,    70,     5,     7,    70,    70,
+     173,   274,    70,    70,    70,    70,    70,     7,     7,     7,
+      72,    72,    70,    70,    70,     7,    70,     7,     7,    70,
+      73,    70,    70,    70,    70,    70,    70,    70,    70,    70,
+      70,    70,   247,   319,   276,    70,    70,    70,    -1,   305,
+      70,    -1,    -1,    72,    -1,    -1,    -1,    -1,    -1,    -1,
+      -1,    70,    72,    -1,    -1,    -1,    70,    70,    73,    -1,
+      -1,    -1,    70,    70,    70,    70,    70,    70,    70,    70,
+      -1,    -1,    -1,    70,    70,    70,    69
+};
+
+  /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
+     symbol of state STATE-NUM.  */
+static const yytype_uint8 yystos[] =
+{
+       0,    77,    78,     0,    79,     3,    11,    17,    26,    27,
+      28,    57,    63,    66,    70,    82,    83,    84,    87,    91,
+     102,   110,   114,   115,    72,    72,    72,    72,    72,    72,
+      72,   111,     5,    26,    63,    66,    68,    69,    73,    80,
+      12,    13,    14,    15,    16,    18,    20,    21,    22,    23,
+      24,    25,    42,    43,    44,    45,    46,    47,    48,    49,
+      50,    73,     5,    73,     5,    63,    66,    68,    69,    73,
+      85,     5,    73,    90,     5,     7,    23,    26,    30,    31,
+      32,    33,    34,    35,    41,    50,    51,    52,    53,    54,
+      56,    63,    66,    68,    69,    73,    98,    99,    73,    64,
+      65,    73,   112,   113,    72,    72,     5,    10,     5,     5,
+      10,     5,     6,    10,    19,     7,     7,     7,    10,     5,
+       5,     5,     8,     8,     8,     7,     7,     7,     9,     7,
+       7,     5,    19,    72,    72,    74,    10,    10,     7,     7,
+       7,     8,     7,     9,    10,     5,    10,     5,     7,     8,
+      55,    72,    72,    29,    30,    31,    32,    33,    34,    35,
+      36,    37,    38,    39,    40,    41,    50,    51,    52,    53,
+      54,    56,    73,    92,     5,    72,    72,    94,   109,    81,
+      70,    70,    70,    70,    70,    70,    70,    70,     5,    70,
+      70,    70,    70,    70,    70,    70,    70,    70,    70,    70,
+      70,    70,    70,    70,    70,    70,     5,    86,     5,    88,
+      89,     5,    70,    70,    70,    70,    70,    70,    70,    70,
+      70,    70,    70,    70,    70,    70,    70,     5,   100,   101,
+       5,    10,    10,     7,     7,     7,     8,     7,     9,    10,
+       5,    10,     5,     7,     8,    55,    72,    72,    94,    70,
+      81,    95,     5,    63,    66,    68,    69,    93,    29,    67,
+     106,   107,   108,    58,    59,    73,    70,    70,    16,    58,
+      59,    62,    73,    73,    75,     5,    70,    73,    70,    70,
+      70,    70,    70,    70,    70,    70,    70,    70,    70,    70,
+      70,    70,    70,    70,     5,    96,    97,    95,    73,     5,
+      73,    70,    75,     5,    72,    72,    60,    61,     7,     5,
+      60,    61,     7,     5,    60,    61,    88,   101,     5,    70,
+      73,    73,    70,   105,   105,    70,    71,    70,    71,    70,
+      70,    70,    71,    74,    70,    71,    74,    70,    70,    70,
+      70,    97,    68,    73,    73,     7,     7,     7,     7,     7,
+       7,   103,   104,    70,    70,    70,    70,    70,    70,    69,
+      70,    75
+};
+
+  /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
+static const yytype_uint8 yyr1[] =
+{
+       0,    76,    78,    77,    79,    79,    80,    80,    80,    80,
+      80,    80,    80,    81,    81,    81,    81,    81,    81,    82,
+      82,    83,    83,    83,    83,    83,    83,    83,    83,    83,
+      83,    83,    83,    83,    83,    83,    83,    83,    83,    83,
+      83,    83,    83,    83,    83,    83,    83,    83,    84,    84,
+      85,    85,    85,    85,    85,    85,    86,    86,    86,    86,
+      86,    86,    86,    86,    86,    86,    86,    86,    87,    87,
+      88,    89,    89,    89,    90,    91,    91,    92,    92,    92,
+      92,    92,    93,    93,    93,    93,    93,    93,    94,    94,
+      94,    95,    95,    96,    97,    97,    98,    98,    98,    98,
+      98,    98,    98,    98,    98,    99,    99,    99,    99,    99,
+      99,    99,    99,    99,    99,    99,    99,    99,    99,    99,
+      99,    99,    99,    99,    99,   100,   101,   101,   102,   102,
+     102,   102,   102,   102,   102,   102,   102,   102,   102,   102,
+     102,   102,   102,   102,   102,   102,   103,   104,   104,   104,
+     105,   105,   106,   107,   108,   109,   109,   109,   111,   110,
+     112,   113,   114,   114,   114,   114,   114,   115,   115,   115,
+     115,   115,   115,   115,   115,   115
+};
+
+  /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
        0,     2,     0,     3,     0,     2,     0,     1,     1,     1,
        1,     1,     1,     0,     4,     4,     6,     4,     6,     2,
        5,     2,     4,     4,     4,     4,     4,     4,     4,     4,
        4,     4,     4,     4,     5,     4,     4,     4,     4,     4,
-       4,     4,     4,     4,     4,     4,     4,     2,     5,     0,
-       1,     1,     1,     1,     1,     0,     4,     4,     6,     6,
-       4,     6,     6,     4,     4,     4,     4,     2,     5,     1,
-       0,     1,     3,     1,     2,     5,     1,     1,     1,     1,
-       1,     0,     1,     1,     1,     1,     1,     0,     3,     3,
-       0,     3,     2,     0,     3,     0,     1,     1,     1,     1,
-       1,     1,     3,     1,     2,     5,     3,     4,     4,     4,
+       4,     4,     4,     4,     4,     4,     4,     4,     2,     5,
+       0,     1,     1,     1,     1,     1,     0,     4,     4,     6,
+       6,     4,     6,     6,     4,     4,     4,     4,     2,     5,
+       1,     0,     1,     3,     1,     2,     5,     1,     1,     1,
+       1,     1,     0,     1,     1,     1,     1,     1,     0,     3,
+       3,     0,     3,     2,     0,     3,     0,     1,     1,     1,
+       1,     1,     1,     3,     1,     2,     5,     3,     4,     4,
        4,     4,     4,     4,     4,     4,     4,     4,     4,     4,
-       4,     4,     4,     5,     2,     0,     3,     2,     3,     4,
+       4,     4,     4,     4,     5,     2,     0,     3,     2,     3,
        4,     4,     4,     4,     4,     4,     4,     4,     4,     4,
-       4,     4,     4,     4,     5,     0,     1,     3,     3,     0,
-       3,     1,     2,     0,     0,     5,     5,     0,     5,     1,
-       1,     2,     5,     4,     5,     3,     1,     2,     2,     2,
-       2,     2,     2,     2,     2
+       4,     4,     4,     4,     4,     5,     0,     1,     3,     3,
+       0,     3,     1,     2,     0,     0,     5,     5,     0,     5,
+       1,     1,     2,     5,     4,     5,     3,     1,     2,     2,
+       2,     2,     2,     2,     2,     2
 };
 
-/* YYDEFACT[STATE-NAME] -- Default reduction number in state STATE-NUM.
-   Performed when YYTABLE doesn't specify something else to do.  Zero
-   means the default is an error.  */
-static const yytype_uint8 yydefact[] =
-{
-       2,     0,     4,     1,     0,     3,     0,     0,     0,     0,
-       0,     0,     0,   157,   166,     6,     0,     0,    49,     0,
-      95,     0,     0,     5,    21,    47,    67,    74,   127,    19,
-     161,     0,     7,     8,    12,    10,     9,    11,   168,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-     167,     0,   169,    50,    54,    52,    51,    53,   170,     0,
-      73,   171,     0,   103,     0,    96,    97,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-     101,    99,    98,   100,   172,     0,     0,   173,   160,   159,
-     174,     0,    87,   154,    13,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,    55,    70,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,   125,
-     104,     0,     0,     0,     0,     0,     0,     0,    76,    77,
-      80,    78,    79,     0,     0,     0,     0,     0,     0,     0,
-     128,    87,     0,    13,    90,   165,   153,     0,    24,    25,
-      26,    22,    23,    28,    27,    29,     0,    30,    35,    36,
-      37,    38,    32,    33,    39,    40,    41,    42,    44,    43,
-      45,    46,    31,     0,     0,    69,    71,     0,   102,   129,
-     131,   134,   135,   136,   137,   133,   132,   130,   138,   139,
-     140,   141,   142,   143,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,    93,    90,   106,   163,     0,     0,    82,
-      86,    84,    83,    85,     0,     0,   151,     0,     0,   158,
-       0,     0,    20,    34,    48,     0,     0,     0,     0,    68,
-      75,     0,   124,   125,   144,   107,   112,   109,   117,   118,
-     113,   114,   116,   115,   108,   110,   119,   111,   120,   121,
-     122,     0,     0,     0,     0,   162,     0,   164,    89,    88,
-     152,   149,   149,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,    72,   126,    92,    93,   123,   105,    91,
-       0,     0,    15,     0,    17,     0,    14,    63,    57,     0,
-       0,    60,     0,     0,    56,    66,    64,    65,    94,   145,
-     155,   156,     0,     0,     0,     0,     0,     0,   146,   150,
-      16,    18,    59,    58,    62,    61,     0,   148,   147
-};
 
-/* YYDEFGOTO[NTERM-NUM].  */
-static const yytype_int16 yydefgoto[] =
-{
-      -1,     1,     2,     4,    39,   177,    15,    16,    17,    69,
-     204,    18,   206,   207,    72,    19,   171,   254,   175,   248,
-     292,   293,    95,    96,   225,   226,    20,   348,   349,   320,
-     257,   258,   259,   176,    21,    31,   101,   102,    22,    23
-};
+#define yyerrok         (yyerrstatus = 0)
+#define yyclearin       (yychar = YYEMPTY)
+#define YYEMPTY         (-2)
+#define YYEOF           0
 
-/* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
-   STATE-NUM.  */
-#define YYPACT_NINF -55
-static const yytype_int16 yypact[] =
-{
-     -55,     9,   -55,   -55,    74,   -55,   -40,   -12,    12,    17,
-      24,    60,    62,   -55,   -55,    14,   102,     0,    22,     1,
-       3,     8,   -48,   -55,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,    71,   -55,   -55,   -55,   -55,   -55,   -55,   -55,    83,
-       7,   105,    36,    15,    87,   165,   166,   173,   172,   178,
-     179,   180,   181,   182,   183,   185,    23,   186,   187,   190,
-     -55,   167,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   116,
-     -55,   -55,   117,   -55,   123,   -55,   -55,   189,   191,   193,
-     195,    41,    96,   194,   192,   196,   198,   127,   151,   136,
-     -55,   -55,   -55,   -55,   -55,   137,   126,   -55,   -55,   -55,
-     -55,    -4,   138,   -55,   -55,   141,   142,   143,   144,   145,
-     146,   147,   148,   213,   150,   152,   153,   154,   155,   156,
-     157,   158,   159,   160,   161,   162,   163,   164,   168,   169,
-     215,   -55,   229,   230,   170,   171,   174,   175,   176,   177,
-     184,   188,   197,   199,   200,   201,   202,   203,   204,   231,
-     -55,   236,   232,   237,   241,   242,   130,   104,   -55,   -55,
-     -55,   -55,   -55,   240,   246,   244,   247,   133,   205,   206,
-     -55,   207,   210,   -55,   -55,    -5,   -27,   -54,   -55,   -55,
-     -55,   -55,   -55,   -55,   -55,   -55,   211,   -55,   -55,   -55,
-     -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,   -55,   -55,   212,    35,   -55,   -55,    47,   -55,   -55,
-     -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,   -55,   -55,   -55,   250,   214,   216,   217,   218,   220,
-     221,   222,   223,   224,   225,   226,   227,   228,   233,   234,
-     235,   238,   239,   251,   -55,    -5,   -55,   -44,     2,   -55,
-     -55,   -55,   -55,   -55,   -24,   253,   -55,   243,   245,   -55,
-     -37,   254,   -55,   -55,   -55,   255,    93,   256,    38,   -55,
-     -55,   229,   -55,   231,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,   257,   248,   249,     6,   -55,   258,   -55,   -55,   -55,
-     -55,   -55,   -55,    99,   101,   259,   260,    39,    59,   261,
-     262,   263,   264,   -55,   -55,   -55,   251,   -55,   -55,   -55,
-     -25,    -6,   -55,   267,   -55,   268,   -55,   -55,   -55,   269,
-     275,   -55,   277,   278,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,   -55,   265,   266,   270,   271,   272,   273,   -55,   252,
-     -55,   -55,   -55,   -55,   -55,   -55,    30,   -55,   -55
-};
+#define YYACCEPT        goto yyacceptlab
+#define YYABORT         goto yyabortlab
+#define YYERROR         goto yyerrorlab
 
-/* YYPGOTO[NTERM-NUM].  */
-static const yytype_int8 yypgoto[] =
-{
-     -55,   -55,   -55,   -55,   -55,    91,   -55,   -55,   -55,   -55,
-     -55,   -55,    27,   -55,   -55,   -55,   -55,   -55,    94,    55,
-     -55,   -49,   -55,   -55,   -55,    28,   -55,   -55,   -55,    -2,
-     -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55
-};
-
-/* YYTABLE[YYPACT[STATE-NUM]].  What to do in state STATE-NUM.  If
-   positive, shift that token.  If negative, reduce the rule which
-   number is the opposite.  If YYTABLE_NINF, syntax error.  */
-#define YYTABLE_NINF -82
-static const yytype_int16 yytable[] =
-{
-     249,   172,   255,   260,   261,    61,    70,   296,    73,     3,
-      74,   296,   105,   260,   261,    98,    99,   106,   262,    32,
-     110,   111,   303,   304,   100,   112,    75,    63,   295,    76,
-     125,    24,   126,    77,    78,    79,    80,    81,    82,   256,
-      33,   108,   339,   310,    83,   298,   109,   340,   138,   139,
-     299,   265,    84,    85,    86,    87,    88,   250,    89,    25,
-     251,   339,   252,   253,   -81,    90,   341,   173,    91,   -81,
-      92,    93,    62,    71,   297,    94,    34,     5,   318,    35,
-      97,    36,    37,    26,    64,     6,    38,    65,    27,    66,
-      67,     7,   266,   267,    68,    28,   268,   311,   312,   357,
-       8,     9,    10,   140,   358,   141,   113,   269,   328,   329,
-     107,   234,   330,   235,    40,    41,    42,    43,    44,   270,
-      45,   271,    46,    47,    48,    49,    50,    51,   331,   332,
-      11,    29,   333,    30,   146,   147,    12,   232,   233,    13,
-     240,   241,   103,    14,    52,    53,    54,    55,    56,    57,
-      58,    59,   307,   308,   104,   151,   152,   153,   154,   155,
-     156,   157,   158,   159,   160,   161,   162,   163,   322,   323,
-     324,   325,   114,   115,    60,   164,   165,   166,   167,   168,
-     116,   169,   117,   118,   119,   120,   130,   131,   132,   121,
-     122,   123,   124,   127,   128,   129,   133,   143,   170,   134,
-     136,   135,   137,   145,   142,   148,   144,   149,   150,   174,
-     178,   179,   180,   181,   182,   183,   184,   185,   186,   187,
-     203,   188,   189,   190,   191,   192,   193,   194,   195,   196,
-     197,   198,   199,   200,   205,   208,   224,   201,   202,   209,
-     210,   227,   228,   211,   212,   213,   214,   229,   230,   231,
-     236,   237,   239,   215,   238,   272,   291,   216,   300,   242,
-     306,   305,   315,   309,   247,   245,   217,   338,   218,   219,
-     220,   221,   222,   223,   342,   343,   344,   243,   244,   246,
-     263,   264,   345,   273,   346,   347,   275,   276,   274,   277,
-     278,   279,   280,   281,   282,   283,   284,   285,   313,   294,
-     321,   314,   286,   287,   288,     0,     0,   289,   290,     0,
-       0,     0,     0,     0,   301,     0,   302,   316,     0,     0,
-     356,   317,     0,     0,     0,     0,     0,   319,   326,   327,
-     334,   335,   336,   337,   350,   351,     0,     0,     0,   352,
-     353,   354,   355
-};
-
-#define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-55)))
-
-#define yytable_value_is_error(Yytable_value) \
-  YYID (0)
-
-static const yytype_int16 yycheck[] =
-{
-       5,     5,    29,    57,    58,     5,     5,     5,     5,     0,
-       7,     5,     5,    57,    58,    63,    64,    10,    72,     5,
-       5,     6,    59,    60,    72,    10,    23,     5,    72,    26,
-       7,    71,     9,    30,    31,    32,    33,    34,    35,    66,
-      26,     5,    67,     5,    41,    69,    10,    72,     7,     8,
-      74,    16,    49,    50,    51,    52,    53,    62,    55,    71,
-      65,    67,    67,    68,    69,    62,    72,    71,    65,    74,
-      67,    68,    72,    72,    72,    72,    62,     3,    72,    65,
-      72,    67,    68,    71,    62,    11,    72,    65,    71,    67,
-      68,    17,    57,    58,    72,    71,    61,    59,    60,    69,
-      26,    27,    28,     7,    74,     9,    19,    72,    69,    70,
-       5,     7,    73,     9,    12,    13,    14,    15,    16,    72,
-      18,    74,    20,    21,    22,    23,    24,    25,    69,    70,
-      56,    71,    73,    71,     7,     8,    62,     7,     8,    65,
-       7,     8,    71,    69,    42,    43,    44,    45,    46,    47,
-      48,    49,    59,    60,    71,    29,    30,    31,    32,    33,
-      34,    35,    36,    37,    38,    39,    40,    41,    69,    70,
-      69,    70,     7,     7,    72,    49,    50,    51,    52,    53,
-       7,    55,    10,     5,     5,     5,    19,    71,    71,     8,
-       8,     8,     7,     7,     7,     5,    73,     5,    72,    10,
-       7,    10,     7,     5,    10,    54,    10,    71,    71,    71,
-      69,    69,    69,    69,    69,    69,    69,    69,     5,    69,
-       5,    69,    69,    69,    69,    69,    69,    69,    69,    69,
-      69,    69,    69,    69,     5,     5,     5,    69,    69,    69,
-      69,     5,    10,    69,    69,    69,    69,    10,     7,     7,
-      10,     5,     5,    69,    10,     5,     5,    69,     5,    54,
-       5,     7,     5,     7,   173,   171,    69,   316,    69,    69,
-      69,    69,    69,    69,     7,     7,     7,    71,    71,    69,
-      69,    69,     7,    69,     7,     7,    69,    69,    72,    69,
-      69,    69,    69,    69,    69,    69,    69,    69,   271,   244,
-     302,   273,    69,    69,    69,    -1,    -1,    69,    69,    -1,
-      -1,    -1,    -1,    -1,    71,    -1,    71,    69,    -1,    -1,
-      68,    72,    -1,    -1,    -1,    -1,    -1,    69,    69,    69,
-      69,    69,    69,    69,    69,    69,    -1,    -1,    -1,    69,
-      69,    69,    69
-};
-
-/* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
-   symbol of state STATE-NUM.  */
-static const yytype_uint8 yystos[] =
-{
-       0,    76,    77,     0,    78,     3,    11,    17,    26,    27,
-      28,    56,    62,    65,    69,    81,    82,    83,    86,    90,
-     101,   109,   113,   114,    71,    71,    71,    71,    71,    71,
-      71,   110,     5,    26,    62,    65,    67,    68,    72,    79,
-      12,    13,    14,    15,    16,    18,    20,    21,    22,    23,
-      24,    25,    42,    43,    44,    45,    46,    47,    48,    49,
-      72,     5,    72,     5,    62,    65,    67,    68,    72,    84,
-       5,    72,    89,     5,     7,    23,    26,    30,    31,    32,
-      33,    34,    35,    41,    49,    50,    51,    52,    53,    55,
-      62,    65,    67,    68,    72,    97,    98,    72,    63,    64,
-      72,   111,   112,    71,    71,     5,    10,     5,     5,    10,
-       5,     6,    10,    19,     7,     7,     7,    10,     5,     5,
-       5,     8,     8,     8,     7,     7,     9,     7,     7,     5,
-      19,    71,    71,    73,    10,    10,     7,     7,     7,     8,
-       7,     9,    10,     5,    10,     5,     7,     8,    54,    71,
-      71,    29,    30,    31,    32,    33,    34,    35,    36,    37,
-      38,    39,    40,    41,    49,    50,    51,    52,    53,    55,
-      72,    91,     5,    71,    71,    93,   108,    80,    69,    69,
-      69,    69,    69,    69,    69,    69,     5,    69,    69,    69,
-      69,    69,    69,    69,    69,    69,    69,    69,    69,    69,
-      69,    69,    69,     5,    85,     5,    87,    88,     5,    69,
-      69,    69,    69,    69,    69,    69,    69,    69,    69,    69,
-      69,    69,    69,    69,     5,    99,   100,     5,    10,    10,
-       7,     7,     7,     8,     7,     9,    10,     5,    10,     5,
-       7,     8,    54,    71,    71,    93,    69,    80,    94,     5,
-      62,    65,    67,    68,    92,    29,    66,   105,   106,   107,
-      57,    58,    72,    69,    69,    16,    57,    58,    61,    72,
-      72,    74,     5,    69,    72,    69,    69,    69,    69,    69,
-      69,    69,    69,    69,    69,    69,    69,    69,    69,    69,
-      69,     5,    95,    96,    94,    72,     5,    72,    69,    74,
-       5,    71,    71,    59,    60,     7,     5,    59,    60,     7,
-       5,    59,    60,    87,   100,     5,    69,    72,    72,    69,
-     104,   104,    69,    70,    69,    70,    69,    69,    69,    70,
-      73,    69,    70,    73,    69,    69,    69,    69,    96,    67,
-      72,    72,     7,     7,     7,     7,     7,     7,   102,   103,
-      69,    69,    69,    69,    69,    69,    68,    69,    74
-};
-
-#define yyerrok		(yyerrstatus = 0)
-#define yyclearin	(yychar = YYEMPTY)
-#define YYEMPTY		(-2)
-#define YYEOF		0
-
-#define YYACCEPT	goto yyacceptlab
-#define YYABORT		goto yyabortlab
-#define YYERROR		goto yyerrorlab
-
-
-/* Like YYERROR except do call yyerror.  This remains here temporarily
-   to ease the transition to the new meaning of YYERROR, for GCC.
-   Once GCC version 2 has supplanted version 1, this can go.  However,
-   YYFAIL appears to be in use.  Nevertheless, it is formally deprecated
-   in Bison 2.4.2's NEWS entry, where a plan to phase it out is
-   discussed.  */
-
-#define YYFAIL		goto yyerrlab
-#if defined YYFAIL
-  /* This is here to suppress warnings from the GCC cpp's
-     -Wunused-macros.  Normally we don't worry about that warning, but
-     some users do, and we want to make it easy for users to remove
-     YYFAIL uses, which will produce warnings from Bison 2.5.  */
-#endif
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
@@ -1496,27 +1398,15 @@ do                                                              \
   else                                                          \
     {                                                           \
       yyerror (scanner, YY_("syntax error: cannot back up")); \
-      YYERROR;							\
-    }								\
-while (YYID (0))
+      YYERROR;                                                  \
+    }                                                           \
+while (0)
 
 /* Error token number */
-#define YYTERROR	1
-#define YYERRCODE	256
+#define YYTERROR        1
+#define YYERRCODE       256
 
 
-/* This macro is provided for backward compatibility. */
-#ifndef YY_LOCATION_PRINT
-# define YY_LOCATION_PRINT(File, Loc) ((void) 0)
-#endif
-
-
-/* YYLEX -- calling `yylex' with the right arguments.  */
-#ifdef YYLEX_PARAM
-# define YYLEX yylex (&yylval, YYLEX_PARAM)
-#else
-# define YYLEX yylex (&yylval, scanner)
-#endif
 
 /* Enable debugging if requested.  */
 #if YYDEBUG
@@ -1526,58 +1416,47 @@ while (YYID (0))
 #  define YYFPRINTF fprintf
 # endif
 
-# define YYDPRINTF(Args)			\
-do {						\
-  if (yydebug)					\
-    YYFPRINTF Args;				\
-} while (YYID (0))
+# define YYDPRINTF(Args)                        \
+do {                                            \
+  if (yydebug)                                  \
+    YYFPRINTF Args;                             \
+} while (0)
 
-# define YY_SYMBOL_PRINT(Title, Type, Value, Location)			  \
-do {									  \
-  if (yydebug)								  \
-    {									  \
-      YYFPRINTF (stderr, "%s ", Title);					  \
-      yy_symbol_print (stderr,						  \
-		  Type, Value, scanner); \
-      YYFPRINTF (stderr, "\n");						  \
-    }									  \
-} while (YYID (0))
+/* This macro is provided for backward compatibility. */
+#ifndef YY_LOCATION_PRINT
+# define YY_LOCATION_PRINT(File, Loc) ((void) 0)
+#endif
 
 
-/*--------------------------------.
-| Print this symbol on YYOUTPUT.  |
-`--------------------------------*/
+# define YY_SYMBOL_PRINT(Title, Type, Value, Location)                    \
+do {                                                                      \
+  if (yydebug)                                                            \
+    {                                                                     \
+      YYFPRINTF (stderr, "%s ", Title);                                   \
+      yy_symbol_print (stderr,                                            \
+                  Type, Value, scanner); \
+      YYFPRINTF (stderr, "\n");                                           \
+    }                                                                     \
+} while (0)
 
-/*ARGSUSED*/
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
+
+/*----------------------------------------.
+| Print this symbol's value on YYOUTPUT.  |
+`----------------------------------------*/
+
 static void
 yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, void *scanner)
-#else
-static void
-yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner)
-    FILE *yyoutput;
-    int yytype;
-    YYSTYPE const * const yyvaluep;
-    void *scanner;
-#endif
 {
   FILE *yyo = yyoutput;
   YYUSE (yyo);
+  YYUSE (scanner);
   if (!yyvaluep)
     return;
-  YYUSE (scanner);
 # ifdef YYPRINT
   if (yytype < YYNTOKENS)
     YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
-# else
-  YYUSE (yyoutput);
 # endif
-  switch (yytype)
-    {
-      default:
-        break;
-    }
+  YYUSE (yytype);
 }
 
 
@@ -1585,23 +1464,11 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner)
 | Print this symbol on YYOUTPUT.  |
 `--------------------------------*/
 
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
 static void
 yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, void *scanner)
-#else
-static void
-yy_symbol_print (yyoutput, yytype, yyvaluep, scanner)
-    FILE *yyoutput;
-    int yytype;
-    YYSTYPE const * const yyvaluep;
-    void *scanner;
-#endif
 {
-  if (yytype < YYNTOKENS)
-    YYFPRINTF (yyoutput, "token %s (", yytname[yytype]);
-  else
-    YYFPRINTF (yyoutput, "nterm %s (", yytname[yytype]);
+  YYFPRINTF (yyoutput, "%s %s (",
+             yytype < YYNTOKENS ? "token" : "nterm", yytname[yytype]);
 
   yy_symbol_value_print (yyoutput, yytype, yyvaluep, scanner);
   YYFPRINTF (yyoutput, ")");
@@ -1612,16 +1479,8 @@ yy_symbol_print (yyoutput, yytype, yyvaluep, scanner)
 | TOP (included).                                                   |
 `------------------------------------------------------------------*/
 
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
 static void
 yy_stack_print (yytype_int16 *yybottom, yytype_int16 *yytop)
-#else
-static void
-yy_stack_print (yybottom, yytop)
-    yytype_int16 *yybottom;
-    yytype_int16 *yytop;
-#endif
 {
   YYFPRINTF (stderr, "Stack now");
   for (; yybottom <= yytop; yybottom++)
@@ -1632,50 +1491,42 @@ yy_stack_print (yybottom, yytop)
   YYFPRINTF (stderr, "\n");
 }
 
-# define YY_STACK_PRINT(Bottom, Top)				\
-do {								\
-  if (yydebug)							\
-    yy_stack_print ((Bottom), (Top));				\
-} while (YYID (0))
+# define YY_STACK_PRINT(Bottom, Top)                            \
+do {                                                            \
+  if (yydebug)                                                  \
+    yy_stack_print ((Bottom), (Top));                           \
+} while (0)
 
 
 /*------------------------------------------------.
 | Report that the YYRULE is going to be reduced.  |
 `------------------------------------------------*/
 
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
 static void
-yy_reduce_print (YYSTYPE *yyvsp, int yyrule, void *scanner)
-#else
-static void
-yy_reduce_print (yyvsp, yyrule, scanner)
-    YYSTYPE *yyvsp;
-    int yyrule;
-    void *scanner;
-#endif
+yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, int yyrule, void *scanner)
 {
+  unsigned long int yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
   int yyi;
-  unsigned long int yylno = yyrline[yyrule];
   YYFPRINTF (stderr, "Reducing stack by rule %d (line %lu):\n",
-	     yyrule - 1, yylno);
+             yyrule - 1, yylno);
   /* The symbols being reduced.  */
   for (yyi = 0; yyi < yynrhs; yyi++)
     {
       YYFPRINTF (stderr, "   $%d = ", yyi + 1);
-      yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
-		       &(yyvsp[(yyi + 1) - (yynrhs)])
-		       		       , scanner);
+      yy_symbol_print (stderr,
+                       yystos[yyssp[yyi + 1 - yynrhs]],
+                       &(yyvsp[(yyi + 1) - (yynrhs)])
+                                              , scanner);
       YYFPRINTF (stderr, "\n");
     }
 }
 
-# define YY_REDUCE_PRINT(Rule)		\
-do {					\
-  if (yydebug)				\
-    yy_reduce_print (yyvsp, Rule, scanner); \
-} while (YYID (0))
+# define YY_REDUCE_PRINT(Rule)          \
+do {                                    \
+  if (yydebug)                          \
+    yy_reduce_print (yyssp, yyvsp, Rule, scanner); \
+} while (0)
 
 /* Nonzero means print parse trace.  It is left uninitialized so that
    multiple parsers can coexist.  */
@@ -1689,7 +1540,7 @@ int yydebug;
 
 
 /* YYINITDEPTH -- initial size of the parser's stacks.  */
-#ifndef	YYINITDEPTH
+#ifndef YYINITDEPTH
 # define YYINITDEPTH 200
 #endif
 
@@ -1712,15 +1563,8 @@ int yydebug;
 #   define yystrlen strlen
 #  else
 /* Return the length of YYSTR.  */
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
 static YYSIZE_T
 yystrlen (const char *yystr)
-#else
-static YYSIZE_T
-yystrlen (yystr)
-    const char *yystr;
-#endif
 {
   YYSIZE_T yylen;
   for (yylen = 0; yystr[yylen]; yylen++)
@@ -1736,16 +1580,8 @@ yystrlen (yystr)
 #  else
 /* Copy YYSRC to YYDEST, returning the address of the terminating '\0' in
    YYDEST.  */
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
 static char *
 yystpcpy (char *yydest, const char *yysrc)
-#else
-static char *
-yystpcpy (yydest, yysrc)
-    char *yydest;
-    const char *yysrc;
-#endif
 {
   char *yyd = yydest;
   const char *yys = yysrc;
@@ -1775,27 +1611,27 @@ yytnamerr (char *yyres, const char *yystr)
       char const *yyp = yystr;
 
       for (;;)
-	switch (*++yyp)
-	  {
-	  case '\'':
-	  case ',':
-	    goto do_not_strip_quotes;
+        switch (*++yyp)
+          {
+          case '\'':
+          case ',':
+            goto do_not_strip_quotes;
 
-	  case '\\':
-	    if (*++yyp != '\\')
-	      goto do_not_strip_quotes;
-	    /* Fall through.  */
-	  default:
-	    if (yyres)
-	      yyres[yyn] = *yyp;
-	    yyn++;
-	    break;
+          case '\\':
+            if (*++yyp != '\\')
+              goto do_not_strip_quotes;
+            /* Fall through.  */
+          default:
+            if (yyres)
+              yyres[yyn] = *yyp;
+            yyn++;
+            break;
 
-	  case '"':
-	    if (yyres)
-	      yyres[yyn] = '\0';
-	    return yyn;
-	  }
+          case '"':
+            if (yyres)
+              yyres[yyn] = '\0';
+            return yyn;
+          }
     do_not_strip_quotes: ;
     }
 
@@ -1818,11 +1654,11 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
+  YYSIZE_T yysize0 = yytnamerr (YY_NULLPTR, yytname[yytoken]);
   YYSIZE_T yysize = yysize0;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
-  const char *yyformat = YY_NULL;
+  const char *yyformat = YY_NULLPTR;
   /* Arguments of yyformat. */
   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
   /* Number of reported tokens (one for the "unexpected", one per
@@ -1830,10 +1666,6 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
   int yycount = 0;
 
   /* There are many possibilities here to consider:
-     - Assume YYFAIL is not used.  It's too flawed to consider.  See
-       <http://lists.gnu.org/archive/html/bison-patches/2009-12/msg00024.html>
-       for details.  YYERROR is fine as it does not invoke this
-       function.
      - If this state is a consistent state with a default action, then
        the only way this function was invoked is if the default action
        is an error action.  In that case, don't check for expected
@@ -1883,7 +1715,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                   }
                 yyarg[yycount++] = yytname[yyx];
                 {
-                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULL, yytname[yyx]);
+                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
                   if (! (yysize <= yysize1
                          && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
                     return 2;
@@ -1950,33 +1782,18 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 | Release the memory associated to this symbol.  |
 `-----------------------------------------------*/
 
-/*ARGSUSED*/
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
 static void
 yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, void *scanner)
-#else
-static void
-yydestruct (yymsg, yytype, yyvaluep, scanner)
-    const char *yymsg;
-    int yytype;
-    YYSTYPE *yyvaluep;
-    void *scanner;
-#endif
 {
   YYUSE (yyvaluep);
   YYUSE (scanner);
-
   if (!yymsg)
     yymsg = "Deleting";
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
 
-  switch (yytype)
-    {
-
-      default:
-        break;
-    }
+  YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
+  YYUSE (yytype);
+  YY_IGNORE_MAYBE_UNINITIALIZED_END
 }
 
 
@@ -1986,56 +1803,18 @@ yydestruct (yymsg, yytype, yyvaluep, scanner)
 | yyparse.  |
 `----------*/
 
-#ifdef YYPARSE_PARAM
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
-int
-yyparse (void *YYPARSE_PARAM)
-#else
-int
-yyparse (YYPARSE_PARAM)
-    void *YYPARSE_PARAM;
-#endif
-#else /* ! YYPARSE_PARAM */
-#if (defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)
 int
 yyparse (void *scanner)
-#else
-int
-yyparse (scanner)
-    void *scanner;
-#endif
-#endif
 {
 /* The lookahead symbol.  */
 int yychar;
 
 
-#if defined __GNUC__ && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
-/* Suppress an incorrect diagnostic about yylval being uninitialized.  */
-# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN \
-    _Pragma ("GCC diagnostic push") \
-    _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")\
-    _Pragma ("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-# define YY_IGNORE_MAYBE_UNINITIALIZED_END \
-    _Pragma ("GCC diagnostic pop")
-#else
+/* The semantic value of the lookahead symbol.  */
 /* Default value used for initialization, for pacifying older GCCs
    or non-GCC compilers.  */
-static YYSTYPE yyval_default;
-# define YY_INITIAL_VALUE(Value) = Value
-#endif
-#ifndef YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
-# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
-# define YY_IGNORE_MAYBE_UNINITIALIZED_END
-#endif
-#ifndef YY_INITIAL_VALUE
-# define YY_INITIAL_VALUE(Value) /* Nothing. */
-#endif
-
-/* The semantic value of the lookahead symbol.  */
-YYSTYPE yylval YY_INITIAL_VALUE(yyval_default);
+YY_INITIAL_VALUE (static YYSTYPE yyval_default;)
+YYSTYPE yylval YY_INITIAL_VALUE (= yyval_default);
 
     /* Number of syntax errors so far.  */
     int yynerrs;
@@ -2045,8 +1824,8 @@ YYSTYPE yylval YY_INITIAL_VALUE(yyval_default);
     int yyerrstatus;
 
     /* The stacks and their tools:
-       `yyss': related to states.
-       `yyvs': related to semantic values.
+       'yyss': related to states.
+       'yyvs': related to semantic values.
 
        Refer to the stacks through separate pointers, to allow yyoverflow
        to reallocate them elsewhere.  */
@@ -2114,23 +1893,23 @@ YYSTYPE yylval YY_INITIAL_VALUE(yyval_default);
 
 #ifdef yyoverflow
       {
-	/* Give user a chance to reallocate the stack.  Use copies of
-	   these so that the &'s don't force the real ones into
-	   memory.  */
-	YYSTYPE *yyvs1 = yyvs;
-	yytype_int16 *yyss1 = yyss;
+        /* Give user a chance to reallocate the stack.  Use copies of
+           these so that the &'s don't force the real ones into
+           memory.  */
+        YYSTYPE *yyvs1 = yyvs;
+        yytype_int16 *yyss1 = yyss;
 
-	/* Each stack pointer address is followed by the size of the
-	   data in use in that stack, in bytes.  This used to be a
-	   conditional around just the two extra args, but that might
-	   be undefined if yyoverflow is a macro.  */
-	yyoverflow (YY_("memory exhausted"),
-		    &yyss1, yysize * sizeof (*yyssp),
-		    &yyvs1, yysize * sizeof (*yyvsp),
-		    &yystacksize);
+        /* Each stack pointer address is followed by the size of the
+           data in use in that stack, in bytes.  This used to be a
+           conditional around just the two extra args, but that might
+           be undefined if yyoverflow is a macro.  */
+        yyoverflow (YY_("memory exhausted"),
+                    &yyss1, yysize * sizeof (*yyssp),
+                    &yyvs1, yysize * sizeof (*yyvsp),
+                    &yystacksize);
 
-	yyss = yyss1;
-	yyvs = yyvs1;
+        yyss = yyss1;
+        yyvs = yyvs1;
       }
 #else /* no yyoverflow */
 # ifndef YYSTACK_RELOCATE
@@ -2138,22 +1917,22 @@ YYSTYPE yylval YY_INITIAL_VALUE(yyval_default);
 # else
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
-	goto yyexhaustedlab;
+        goto yyexhaustedlab;
       yystacksize *= 2;
       if (YYMAXDEPTH < yystacksize)
-	yystacksize = YYMAXDEPTH;
+        yystacksize = YYMAXDEPTH;
 
       {
-	yytype_int16 *yyss1 = yyss;
-	union yyalloc *yyptr =
-	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
-	if (! yyptr)
-	  goto yyexhaustedlab;
-	YYSTACK_RELOCATE (yyss_alloc, yyss);
-	YYSTACK_RELOCATE (yyvs_alloc, yyvs);
+        yytype_int16 *yyss1 = yyss;
+        union yyalloc *yyptr =
+          (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
+        if (! yyptr)
+          goto yyexhaustedlab;
+        YYSTACK_RELOCATE (yyss_alloc, yyss);
+        YYSTACK_RELOCATE (yyvs_alloc, yyvs);
 #  undef YYSTACK_RELOCATE
-	if (yyss1 != yyssa)
-	  YYSTACK_FREE (yyss1);
+        if (yyss1 != yyssa)
+          YYSTACK_FREE (yyss1);
       }
 # endif
 #endif /* no yyoverflow */
@@ -2162,10 +1941,10 @@ YYSTYPE yylval YY_INITIAL_VALUE(yyval_default);
       yyvsp = yyvs + yysize - 1;
 
       YYDPRINTF ((stderr, "Stack size increased to %lu\n",
-		  (unsigned long int) yystacksize));
+                  (unsigned long int) yystacksize));
 
       if (yyss + yystacksize - 1 <= yyssp)
-	YYABORT;
+        YYABORT;
     }
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
@@ -2194,7 +1973,7 @@ yybackup:
   if (yychar == YYEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token: "));
-      yychar = YYLEX;
+      yychar = yylex (&yylval, scanner);
     }
 
   if (yychar <= YYEOF)
@@ -2259,7 +2038,7 @@ yyreduce:
   yylen = yyr2[yyn];
 
   /* If YYLEN is nonzero, implement the default value of the action:
-     `$$ = $1'.
+     '$$ = $1'.
 
      Otherwise, the following line sets YYVAL to garbage.
      This behavior is undocumented and Bison
@@ -2273,229 +2052,228 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-/* Line 1792 of yacc.c  */
-#line 547 "knot/conf/cf-parse.y"
+#line 548 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     { conf_start(scanner); }
+#line 2058 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 3:
-/* Line 1792 of yacc.c  */
-#line 547 "knot/conf/cf-parse.y"
+#line 548 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     { return 0; }
+#line 2064 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 7:
-/* Line 1792 of yacc.c  */
-#line 555 "knot/conf/cf-parse.y"
-    { conf_start_iface(scanner, (yyvsp[(1) - (1)].tok).t); }
+#line 556 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_iface(scanner, (yyvsp[0].tok).t); }
+#line 2070 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 8:
-/* Line 1792 of yacc.c  */
-#line 556 "knot/conf/cf-parse.y"
-    { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 557 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_iface(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2076 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 9:
-/* Line 1792 of yacc.c  */
-#line 557 "knot/conf/cf-parse.y"
-    { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 558 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_iface(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2082 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-/* Line 1792 of yacc.c  */
-#line 558 "knot/conf/cf-parse.y"
-    { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 559 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_iface(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2088 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 11:
-/* Line 1792 of yacc.c  */
-#line 559 "knot/conf/cf-parse.y"
-    { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 560 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_iface(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2094 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 12:
-/* Line 1792 of yacc.c  */
-#line 560 "knot/conf/cf-parse.y"
-    { conf_start_iface(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 561 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_iface(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2100 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 14:
-/* Line 1792 of yacc.c  */
-#line 564 "knot/conf/cf-parse.y"
+#line 565 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      if (this_iface->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "can't set port number before interface address\n");
      } else {
-       sockaddr_port_set(&this_iface->addr, (yyvsp[(3) - (4)].tok).i);
+       sockaddr_port_set(&this_iface->addr, (yyvsp[-1].tok).i);
      }
    }
+#line 2112 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 15:
-/* Line 1792 of yacc.c  */
-#line 571 "knot/conf/cf-parse.y"
+#line 572 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_iface->addr, AF_INET, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
+     conf_set_iface(scanner, &this_iface->addr, AF_INET, (yyvsp[-1].tok).t, CONFIG_DEFAULT_PORT);
    }
+#line 2120 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 16:
-/* Line 1792 of yacc.c  */
-#line 574 "knot/conf/cf-parse.y"
+#line 575 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_iface->addr, AF_INET, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
+     conf_set_iface(scanner, &this_iface->addr, AF_INET, (yyvsp[-3].tok).t, (yyvsp[-1].tok).i);
    }
+#line 2128 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 17:
-/* Line 1792 of yacc.c  */
-#line 577 "knot/conf/cf-parse.y"
+#line 578 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_iface->addr, AF_INET6, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
+     conf_set_iface(scanner, &this_iface->addr, AF_INET6, (yyvsp[-1].tok).t, CONFIG_DEFAULT_PORT);
    }
+#line 2136 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 18:
-/* Line 1792 of yacc.c  */
-#line 580 "knot/conf/cf-parse.y"
+#line 581 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_iface->addr, AF_INET6, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
+     conf_set_iface(scanner, &this_iface->addr, AF_INET6, (yyvsp[-3].tok).t, (yyvsp[-1].tok).i);
    }
+#line 2144 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 20:
-/* Line 1792 of yacc.c  */
-#line 587 "knot/conf/cf-parse.y"
+#line 588 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
    if (this_iface->addr.ss_family == AF_UNSPEC) {
      cf_error(scanner, "interface '%s' has no defined address", this_iface->name);
    }
  }
+#line 2154 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 22:
-/* Line 1792 of yacc.c  */
-#line 596 "knot/conf/cf-parse.y"
-    { new_config->version = (yyvsp[(3) - (4)].tok).t; }
+#line 597 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->version = (yyvsp[-1].tok).t; }
+#line 2160 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 23:
-/* Line 1792 of yacc.c  */
-#line 597 "knot/conf/cf-parse.y"
-    { ident_auto(scanner, SVERSION, new_config, (yyvsp[(3) - (4)].tok).i); }
+#line 598 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { ident_auto(scanner, SVERSION, new_config, (yyvsp[-1].tok).i); }
+#line 2166 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 24:
-/* Line 1792 of yacc.c  */
-#line 598 "knot/conf/cf-parse.y"
-    { new_config->identity = (yyvsp[(3) - (4)].tok).t; }
+#line 599 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->identity = (yyvsp[-1].tok).t; }
+#line 2172 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 25:
-/* Line 1792 of yacc.c  */
-#line 599 "knot/conf/cf-parse.y"
-    { ident_auto(scanner, IDENTITY, new_config, (yyvsp[(3) - (4)].tok).i); }
+#line 600 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { ident_auto(scanner, IDENTITY, new_config, (yyvsp[-1].tok).i); }
+#line 2178 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 26:
-/* Line 1792 of yacc.c  */
-#line 600 "knot/conf/cf-parse.y"
+#line 601 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      cf_warning(scanner, "option 'system.hostname' is deprecated, "
                          "use 'system.identity' instead");
-     free((yyvsp[(3) - (4)].tok).t);
+     free((yyvsp[-1].tok).t);
  }
+#line 2188 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 27:
-/* Line 1792 of yacc.c  */
-#line 605 "knot/conf/cf-parse.y"
-    { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = (yyvsp[(3) - (4)].tok).l; }
+#line 606 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->nsid = (yyvsp[-1].tok).t; new_config->nsid_len = (yyvsp[-1].tok).l; }
+#line 2194 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 28:
-/* Line 1792 of yacc.c  */
-#line 606 "knot/conf/cf-parse.y"
-    { new_config->nsid = (yyvsp[(3) - (4)].tok).t; new_config->nsid_len = strlen(new_config->nsid); }
+#line 607 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->nsid = (yyvsp[-1].tok).t; new_config->nsid_len = strlen(new_config->nsid); }
+#line 2200 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 29:
-/* Line 1792 of yacc.c  */
-#line 607 "knot/conf/cf-parse.y"
-    { ident_auto(scanner, NSID, new_config, (yyvsp[(3) - (4)].tok).i); }
+#line 608 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { ident_auto(scanner, NSID, new_config, (yyvsp[-1].tok).i); }
+#line 2206 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 30:
-/* Line 1792 of yacc.c  */
-#line 608 "knot/conf/cf-parse.y"
+#line 609 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     SET_NUM(new_config->max_udp_payload, (yyvsp[(3) - (4)].tok).i, KNOT_EDNS_MIN_UDP_PAYLOAD,
+     SET_NUM(new_config->max_udp_payload, (yyvsp[-1].tok).i, KNOT_EDNS_MIN_UDP_PAYLOAD,
              KNOT_EDNS_MAX_UDP_PAYLOAD, "max-udp-payload");
  }
+#line 2215 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 31:
-/* Line 1792 of yacc.c  */
-#line 612 "knot/conf/cf-parse.y"
+#line 613 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      cf_warning(scanner, "option 'system.storage' was relocated, "
                          "use 'zones.storage' instead");
-     new_config->storage = (yyvsp[(3) - (4)].tok).t;
+     new_config->storage = (yyvsp[-1].tok).t;
  }
+#line 2225 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 32:
-/* Line 1792 of yacc.c  */
-#line 617 "knot/conf/cf-parse.y"
-    { new_config->rundir = (yyvsp[(3) - (4)].tok).t; }
+#line 618 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->rundir = (yyvsp[-1].tok).t; }
+#line 2231 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 33:
-/* Line 1792 of yacc.c  */
-#line 618 "knot/conf/cf-parse.y"
-    { new_config->pidfile = (yyvsp[(3) - (4)].tok).t; }
+#line 619 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->pidfile = (yyvsp[-1].tok).t; }
+#line 2237 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 34:
-/* Line 1792 of yacc.c  */
-#line 619 "knot/conf/cf-parse.y"
+#line 620 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      cf_warning(scanner, "option 'system.key' is deprecated and it has no effect");
-     free((yyvsp[(4) - (5)].tok).t);
+     free((yyvsp[-1].tok).t);
  }
+#line 2246 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 35:
-/* Line 1792 of yacc.c  */
-#line 623 "knot/conf/cf-parse.y"
+#line 624 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     SET_NUM(new_config->workers, (yyvsp[(3) - (4)].tok).i, 1, 255, "workers");
+     SET_NUM(new_config->workers, (yyvsp[-1].tok).i, 1, 255, "workers");
  }
+#line 2254 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 36:
-/* Line 1792 of yacc.c  */
-#line 626 "knot/conf/cf-parse.y"
+#line 627 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     SET_NUM(new_config->bg_workers, (yyvsp[(3) - (4)].tok).i, 1, 255, "background-workers");
+     SET_NUM(new_config->bg_workers, (yyvsp[-1].tok).i, 1, 255, "background-workers");
  }
+#line 2262 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 37:
-/* Line 1792 of yacc.c  */
-#line 629 "knot/conf/cf-parse.y"
+#line 630 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     new_config->async_start = (yyvsp[(3) - (4)].tok).i;
+     new_config->async_start = (yyvsp[-1].tok).i;
  }
+#line 2270 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 38:
-/* Line 1792 of yacc.c  */
-#line 632 "knot/conf/cf-parse.y"
+#line 633 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      new_config->uid = new_config->gid = -1; // Invalidate
-     char* dpos = strchr((yyvsp[(3) - (4)].tok).t, '.'); // Find uid.gid format
+     char* dpos = strchr((yyvsp[-1].tok).t, '.'); // Find uid.gid format
      if (dpos != NULL) {
         struct group *grp = getgrnam(dpos + 1); // Skip dot
         if (grp != NULL) {
@@ -2505,92 +2283,100 @@ yyreduce:
         }
         *dpos = '\0'; // Cut off
      }
-     struct passwd* pwd = getpwnam((yyvsp[(3) - (4)].tok).t);
+     struct passwd* pwd = getpwnam((yyvsp[-1].tok).t);
      if (pwd != NULL) {
        new_config->uid = pwd->pw_uid;
      } else {
-       cf_error(scanner, "invalid user name '%s'", (yyvsp[(3) - (4)].tok).t);
+       cf_error(scanner, "invalid user name '%s'", (yyvsp[-1].tok).t);
      }
 
-     free((yyvsp[(3) - (4)].tok).t);
+     free((yyvsp[-1].tok).t);
  }
+#line 2296 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 39:
-/* Line 1792 of yacc.c  */
-#line 653 "knot/conf/cf-parse.y"
+#line 654 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_INT(new_config->max_conn_idle, (yyvsp[(3) - (4)].tok).i, "max-conn-idle");
+	SET_INT(new_config->max_conn_idle, (yyvsp[-1].tok).i, "max-conn-idle");
  }
+#line 2304 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 40:
-/* Line 1792 of yacc.c  */
-#line 656 "knot/conf/cf-parse.y"
+#line 657 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_INT(new_config->max_conn_hs, (yyvsp[(3) - (4)].tok).i, "max-conn-handshake");
+	SET_INT(new_config->max_conn_hs, (yyvsp[-1].tok).i, "max-conn-handshake");
  }
+#line 2312 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 41:
-/* Line 1792 of yacc.c  */
-#line 659 "knot/conf/cf-parse.y"
+#line 660 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_INT(new_config->max_conn_reply, (yyvsp[(3) - (4)].tok).i, "max-conn-reply");
+	SET_INT(new_config->max_conn_reply, (yyvsp[-1].tok).i, "max-conn-reply");
  }
+#line 2320 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 42:
-/* Line 1792 of yacc.c  */
-#line 662 "knot/conf/cf-parse.y"
+#line 663 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_INT(new_config->rrl, (yyvsp[(3) - (4)].tok).i, "rate-limit");
+	SET_INT(new_config->max_tcp_clients, (yyvsp[-1].tok).i, "max-tcp-clients");
  }
+#line 2328 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 43:
-/* Line 1792 of yacc.c  */
-#line 665 "knot/conf/cf-parse.y"
+#line 666 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).l, "rate-limit-size");
+	SET_INT(new_config->rrl, (yyvsp[-1].tok).i, "rate-limit");
  }
+#line 2336 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 44:
-/* Line 1792 of yacc.c  */
-#line 668 "knot/conf/cf-parse.y"
+#line 669 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_SIZE(new_config->rrl_size, (yyvsp[(3) - (4)].tok).i, "rate-limit-size");
+	SET_SIZE(new_config->rrl_size, (yyvsp[-1].tok).l, "rate-limit-size");
  }
+#line 2344 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 45:
-/* Line 1792 of yacc.c  */
-#line 671 "knot/conf/cf-parse.y"
+#line 672 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(new_config->rrl_slip, (yyvsp[(3) - (4)].tok).i, 1, RRL_SLIP_MAX, "rate-limit-slip");
+	SET_SIZE(new_config->rrl_size, (yyvsp[-1].tok).i, "rate-limit-size");
  }
+#line 2352 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 46:
-/* Line 1792 of yacc.c  */
-#line 674 "knot/conf/cf-parse.y"
+#line 675 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_INT(new_config->xfers, (yyvsp[(3) - (4)].tok).i, "transfers");
+	SET_NUM(new_config->rrl_slip, (yyvsp[-1].tok).i, 1, RRL_SLIP_MAX, "rate-limit-slip");
  }
+#line 2360 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 48:
-/* Line 1792 of yacc.c  */
-#line 681 "knot/conf/cf-parse.y"
+  case 47:
+#line 678 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+	SET_INT(new_config->xfers, (yyvsp[-1].tok).i, "transfers");
+ }
+#line 2368 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 49:
+#line 685 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      /* Check algorithm length. */
-     if (knot_tsig_digest_length((yyvsp[(3) - (5)].tok).alg) == 0) {
+     if (knot_tsig_digest_length((yyvsp[-2].tok).alg) == 0) {
         cf_error(scanner, "unsupported digest algorithm");
      }
 
      /* Normalize to FQDN */
-     char *fqdn = (yyvsp[(2) - (5)].tok).t;
+     char *fqdn = (yyvsp[-3].tok).t;
      size_t fqdnl = strlen(fqdn);
      if (fqdn[fqdnl - 1] != '.') {
         fqdnl = ((fqdnl + 2)/4+1)*4; /* '.', '\0' */
@@ -2617,9 +2403,9 @@ yyreduce:
              conf_key_t *k = malloc(sizeof(conf_key_t));
              memset(k, 0, sizeof(conf_key_t));
              k->k.name = dname;
-             k->k.algorithm = (yyvsp[(3) - (5)].tok).alg;
-             if (knot_binary_from_base64((yyvsp[(4) - (5)].tok).t, &(k->k.secret)) != 0) {
-                 cf_error(scanner, "invalid key secret '%s'", (yyvsp[(4) - (5)].tok).t);
+             k->k.algorithm = (yyvsp[-2].tok).alg;
+             if (knot_binary_from_base64((yyvsp[-1].tok).t, &(k->k.secret)) != 0) {
+                 cf_error(scanner, "invalid key secret '%s'", (yyvsp[-1].tok).t);
                  knot_dname_free(&dname, NULL);
                  free(k);
              } else {
@@ -2628,245 +2414,245 @@ yyreduce:
          }
      }
 
-     free((yyvsp[(4) - (5)].tok).t);
+     free((yyvsp[-1].tok).t);
      free(fqdn);
 }
-    break;
-
-  case 50:
-/* Line 1792 of yacc.c  */
-#line 731 "knot/conf/cf-parse.y"
-    { conf_start_remote(scanner, (yyvsp[(1) - (1)].tok).t); }
+#line 2421 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 51:
-/* Line 1792 of yacc.c  */
-#line 732 "knot/conf/cf-parse.y"
-    { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 735 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_remote(scanner, (yyvsp[0].tok).t); }
+#line 2427 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 52:
-/* Line 1792 of yacc.c  */
-#line 733 "knot/conf/cf-parse.y"
-    { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 736 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_remote(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2433 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 53:
-/* Line 1792 of yacc.c  */
-#line 734 "knot/conf/cf-parse.y"
-    { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 737 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_remote(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2439 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 54:
-/* Line 1792 of yacc.c  */
-#line 735 "knot/conf/cf-parse.y"
-    { conf_start_remote(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 738 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_remote(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2445 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 56:
-/* Line 1792 of yacc.c  */
-#line 739 "knot/conf/cf-parse.y"
+  case 55:
+#line 739 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_remote(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2451 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 57:
+#line 743 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      if (this_remote->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "can't set port number before interface address\n");
      } else {
-       sockaddr_port_set(&this_remote->addr, (yyvsp[(3) - (4)].tok).i);
+       sockaddr_port_set(&this_remote->addr, (yyvsp[-1].tok).i);
      }
    }
-    break;
-
-  case 57:
-/* Line 1792 of yacc.c  */
-#line 746 "knot/conf/cf-parse.y"
-    {
-     conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
-     this_remote->prefix = IPV4_PREFIXLEN;
-   }
+#line 2463 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 58:
-/* Line 1792 of yacc.c  */
-#line 750 "knot/conf/cf-parse.y"
+#line 750 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[(3) - (6)].tok).t, 0);
-     SET_NUM(this_remote->prefix, (yyvsp[(5) - (6)].tok).i, 0, IPV4_PREFIXLEN, "prefix length");
+     conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[-1].tok).t, CONFIG_DEFAULT_PORT);
+     this_remote->prefix = IPV4_PREFIXLEN;
    }
+#line 2472 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 59:
-/* Line 1792 of yacc.c  */
-#line 754 "knot/conf/cf-parse.y"
+#line 754 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
-     this_remote->prefix = IPV4_PREFIXLEN;
+     conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[-3].tok).t, 0);
+     SET_NUM(this_remote->prefix, (yyvsp[-1].tok).i, 0, IPV4_PREFIXLEN, "prefix length");
    }
+#line 2481 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 60:
-/* Line 1792 of yacc.c  */
-#line 758 "knot/conf/cf-parse.y"
+#line 758 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[(3) - (4)].tok).t, CONFIG_DEFAULT_PORT);
-     this_remote->prefix = IPV6_PREFIXLEN;
+     conf_set_iface(scanner, &this_remote->addr, AF_INET, (yyvsp[-3].tok).t, (yyvsp[-1].tok).i);
+     this_remote->prefix = IPV4_PREFIXLEN;
    }
+#line 2490 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 61:
-/* Line 1792 of yacc.c  */
-#line 762 "knot/conf/cf-parse.y"
+#line 762 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[(3) - (6)].tok).t, 0);
-     SET_NUM(this_remote->prefix, (yyvsp[(5) - (6)].tok).i, 0, IPV6_PREFIXLEN, "prefix length");
+     conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[-1].tok).t, CONFIG_DEFAULT_PORT);
+     this_remote->prefix = IPV6_PREFIXLEN;
    }
+#line 2499 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 62:
-/* Line 1792 of yacc.c  */
-#line 766 "knot/conf/cf-parse.y"
+#line 766 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[(3) - (6)].tok).t, (yyvsp[(5) - (6)].tok).i);
-     this_remote->prefix = IPV6_PREFIXLEN;
+     conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[-3].tok).t, 0);
+     SET_NUM(this_remote->prefix, (yyvsp[-1].tok).i, 0, IPV6_PREFIXLEN, "prefix length");
    }
+#line 2508 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 63:
-/* Line 1792 of yacc.c  */
-#line 770 "knot/conf/cf-parse.y"
+#line 770 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+     conf_set_iface(scanner, &this_remote->addr, AF_INET6, (yyvsp[-3].tok).t, (yyvsp[-1].tok).i);
+     this_remote->prefix = IPV6_PREFIXLEN;
+   }
+#line 2517 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 64:
+#line 774 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      if (this_remote->key != 0) {
        cf_error(scanner, "only one TSIG key definition is allowed in remote section\n");
      } else {
-        conf_key_add(scanner, &this_remote->key, (yyvsp[(3) - (4)].tok).t);
+        conf_key_add(scanner, &this_remote->key, (yyvsp[-1].tok).t);
      }
-     free((yyvsp[(3) - (4)].tok).t);
+     free((yyvsp[-1].tok).t);
    }
-    break;
-
-  case 64:
-/* Line 1792 of yacc.c  */
-#line 778 "knot/conf/cf-parse.y"
-    {
-     conf_set_iface(scanner, &this_remote->via, AF_INET, (yyvsp[(3) - (4)].tok).t, 0);
-   }
+#line 2530 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 65:
-/* Line 1792 of yacc.c  */
-#line 781 "knot/conf/cf-parse.y"
+#line 782 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_set_iface(scanner, &this_remote->via, AF_INET6, (yyvsp[(3) - (4)].tok).t, 0);
+     conf_set_iface(scanner, &this_remote->via, AF_INET, (yyvsp[-1].tok).t, 0);
    }
+#line 2538 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 66:
-/* Line 1792 of yacc.c  */
-#line 784 "knot/conf/cf-parse.y"
+#line 785 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     conf_remote_set_via(scanner, (yyvsp[(3) - (4)].tok).t);
-     free((yyvsp[(3) - (4)].tok).t);
+     conf_set_iface(scanner, &this_remote->via, AF_INET6, (yyvsp[-1].tok).t, 0);
    }
+#line 2546 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 68:
-/* Line 1792 of yacc.c  */
-#line 792 "knot/conf/cf-parse.y"
+  case 67:
+#line 788 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+     conf_remote_set_via(scanner, (yyvsp[-1].tok).t);
+     free((yyvsp[-1].tok).t);
+   }
+#line 2555 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 69:
+#line 796 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      if (this_remote->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "remote '%s' has no defined address", this_remote->name);
      }
    }
+#line 2565 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 69:
-/* Line 1792 of yacc.c  */
-#line 800 "knot/conf/cf-parse.y"
-    { conf_add_member_into_group(scanner, (yyvsp[(1) - (1)].tok).t); }
+  case 70:
+#line 804 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_add_member_into_group(scanner, (yyvsp[0].tok).t); }
+#line 2571 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 73:
-/* Line 1792 of yacc.c  */
-#line 810 "knot/conf/cf-parse.y"
-    { conf_start_group(scanner, (yyvsp[(1) - (1)].tok).t); }
-    break;
-
-  case 76:
-/* Line 1792 of yacc.c  */
-#line 819 "knot/conf/cf-parse.y"
-    {
-      this_list = &this_zone->acl.xfr_in;
-   }
+  case 74:
+#line 814 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_start_group(scanner, (yyvsp[0].tok).t); }
+#line 2577 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 77:
-/* Line 1792 of yacc.c  */
-#line 822 "knot/conf/cf-parse.y"
+#line 823 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-      this_list = &this_zone->acl.xfr_out;
+      this_list = &this_zone->acl.xfr_in;
    }
+#line 2585 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 78:
-/* Line 1792 of yacc.c  */
-#line 825 "knot/conf/cf-parse.y"
+#line 826 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-      this_list = &this_zone->acl.notify_in;
+      this_list = &this_zone->acl.xfr_out;
    }
+#line 2593 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 79:
-/* Line 1792 of yacc.c  */
-#line 828 "knot/conf/cf-parse.y"
+#line 829 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-      this_list = &this_zone->acl.notify_out;
+      this_list = &this_zone->acl.notify_in;
    }
+#line 2601 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 80:
-/* Line 1792 of yacc.c  */
-#line 831 "knot/conf/cf-parse.y"
+#line 832 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+      this_list = &this_zone->acl.notify_out;
+   }
+#line 2609 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 81:
+#line 835 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
       this_list = &this_zone->acl.update_in;
  }
-    break;
-
-  case 82:
-/* Line 1792 of yacc.c  */
-#line 837 "knot/conf/cf-parse.y"
-    { conf_acl_item(scanner, (yyvsp[(1) - (1)].tok).t); }
+#line 2617 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 83:
-/* Line 1792 of yacc.c  */
-#line 838 "knot/conf/cf-parse.y"
-    { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 841 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_acl_item(scanner, (yyvsp[0].tok).t); }
+#line 2623 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 84:
-/* Line 1792 of yacc.c  */
-#line 839 "knot/conf/cf-parse.y"
-    { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 842 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_acl_item(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2629 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 85:
-/* Line 1792 of yacc.c  */
-#line 840 "knot/conf/cf-parse.y"
-    { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 843 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_acl_item(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2635 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 86:
-/* Line 1792 of yacc.c  */
-#line 841 "knot/conf/cf-parse.y"
-    { conf_acl_item(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 844 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_acl_item(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2641 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 91:
-/* Line 1792 of yacc.c  */
-#line 850 "knot/conf/cf-parse.y"
+  case 87:
+#line 845 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_acl_item(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2647 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 92:
+#line 854 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
       /* Find existing node in remotes. */
       node_t* r = 0; conf_iface_t* found = 0;
       WALK_LIST (r, new_config->remotes) {
-	 if (strcmp(((conf_iface_t*)r)->name, (yyvsp[(2) - (3)].tok).t) == 0) {
+	 if (strcmp(((conf_iface_t*)r)->name, (yyvsp[-1].tok).t) == 0) {
 	    found = (conf_iface_t*)r;
 	    break;
 	 }
@@ -2874,7 +2660,7 @@ yyreduce:
 
       /* Append to list if found. */
       if (!found) {
-	 cf_error(scanner, "remote '%s' is not defined", (yyvsp[(2) - (3)].tok).t);
+	 cf_error(scanner, "remote '%s' is not defined", (yyvsp[-1].tok).t);
       } else {
 	 conf_remote_t *remote = malloc(sizeof(conf_remote_t));
 	 if (!remote) {
@@ -2886,352 +2672,352 @@ yyreduce:
       }
 
       /* Free text token. */
-      free((yyvsp[(2) - (3)].tok).t);
+      free((yyvsp[-1].tok).t);
    }
+#line 2678 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 92:
-/* Line 1792 of yacc.c  */
-#line 879 "knot/conf/cf-parse.y"
-    { query_module_create(scanner, (yyvsp[(1) - (2)].tok).t, (yyvsp[(2) - (2)].tok).t, true); free((yyvsp[(1) - (2)].tok).t); free((yyvsp[(2) - (2)].tok).t); }
-    break;
-
-  case 96:
-/* Line 1792 of yacc.c  */
-#line 887 "knot/conf/cf-parse.y"
-    { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+  case 93:
+#line 883 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { query_module_create(scanner, (yyvsp[-1].tok).t, (yyvsp[0].tok).t, true); free((yyvsp[-1].tok).t); free((yyvsp[0].tok).t); }
+#line 2684 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 97:
-/* Line 1792 of yacc.c  */
-#line 888 "knot/conf/cf-parse.y"
-    { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 891 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_zone_start(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2690 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 98:
-/* Line 1792 of yacc.c  */
-#line 889 "knot/conf/cf-parse.y"
-    { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 892 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_zone_start(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2696 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 99:
-/* Line 1792 of yacc.c  */
-#line 890 "knot/conf/cf-parse.y"
-    { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 893 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_zone_start(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2702 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 100:
-/* Line 1792 of yacc.c  */
-#line 891 "knot/conf/cf-parse.y"
-    { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 894 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_zone_start(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2708 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 101:
-/* Line 1792 of yacc.c  */
-#line 892 "knot/conf/cf-parse.y"
-    { conf_zone_start(scanner, strdup((yyvsp[(1) - (1)].tok).t)); }
+#line 895 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_zone_start(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2714 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 102:
-/* Line 1792 of yacc.c  */
-#line 893 "knot/conf/cf-parse.y"
+#line 896 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_zone_start(scanner, strdup((yyvsp[0].tok).t)); }
+#line 2720 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 103:
+#line 897 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
     unsigned prefix_len = 0;
-    SET_NUM(prefix_len, (yyvsp[(1) - (3)].tok).i, 0, 255, "origin prefix length");
-    size_t len = 3 + 1 + strlen((yyvsp[(3) - (3)].tok).t) + 1; /* <0,255> '/' rest */
+    SET_NUM(prefix_len, (yyvsp[-2].tok).i, 0, 255, "origin prefix length");
+    size_t len = 3 + 1 + strlen((yyvsp[0].tok).t) + 1; /* <0,255> '/' rest */
     char *name = malloc(len * sizeof(char));
     if (name == NULL) {
         cf_error(scanner, "out of memory");
     } else {
         name[0] = '\0';
-        if (snprintf(name, len, "%u/%s", prefix_len, (yyvsp[(3) - (3)].tok).t) < 0) {
+        if (snprintf(name, len, "%u/%s", prefix_len, (yyvsp[0].tok).t) < 0) {
             cf_error(scanner,"failed to convert rfc2317 origin to string");
         }
     }
-    free((yyvsp[(3) - (3)].tok).t);
+    free((yyvsp[0].tok).t);
     conf_zone_start(scanner, name);
  }
+#line 2741 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 103:
-/* Line 1792 of yacc.c  */
-#line 909 "knot/conf/cf-parse.y"
-    { conf_zone_start(scanner, (yyvsp[(1) - (1)].tok).t); }
-    break;
-
-  case 107:
-/* Line 1792 of yacc.c  */
-#line 916 "knot/conf/cf-parse.y"
-    { this_zone->file = (yyvsp[(3) - (4)].tok).t; }
+  case 104:
+#line 913 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_zone_start(scanner, (yyvsp[0].tok).t); }
+#line 2747 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 108:
-/* Line 1792 of yacc.c  */
-#line 917 "knot/conf/cf-parse.y"
-    { this_zone->build_diffs = (yyvsp[(3) - (4)].tok).i; }
+#line 920 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_zone->file = (yyvsp[-1].tok).t; }
+#line 2753 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 109:
-/* Line 1792 of yacc.c  */
-#line 918 "knot/conf/cf-parse.y"
-    { this_zone->enable_checks = (yyvsp[(3) - (4)].tok).i; }
+#line 921 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_zone->build_diffs = (yyvsp[-1].tok).i; }
+#line 2759 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 110:
-/* Line 1792 of yacc.c  */
-#line 919 "knot/conf/cf-parse.y"
-    { this_zone->storage = (yyvsp[(3) - (4)].tok).t; }
+#line 922 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_zone->enable_checks = (yyvsp[-1].tok).i; }
+#line 2765 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 111:
-/* Line 1792 of yacc.c  */
-#line 920 "knot/conf/cf-parse.y"
-    { this_zone->dnssec_keydir = (yyvsp[(3) - (4)].tok).t; }
+#line 923 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_zone->storage = (yyvsp[-1].tok).t; }
+#line 2771 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 112:
-/* Line 1792 of yacc.c  */
-#line 921 "knot/conf/cf-parse.y"
-    { this_zone->disable_any = (yyvsp[(3) - (4)].tok).i; }
+#line 924 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_zone->dnssec_keydir = (yyvsp[-1].tok).t; }
+#line 2777 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 113:
-/* Line 1792 of yacc.c  */
-#line 922 "knot/conf/cf-parse.y"
-    {
-	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
- }
+#line 925 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_zone->disable_any = (yyvsp[-1].tok).i; }
+#line 2783 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 114:
-/* Line 1792 of yacc.c  */
-#line 925 "knot/conf/cf-parse.y"
+#line 926 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_INT(this_zone->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, "zonefile-sync");
+	SET_INT(this_zone->dbsync_timeout, (yyvsp[-1].tok).i, "zonefile-sync");
  }
+#line 2791 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 115:
-/* Line 1792 of yacc.c  */
-#line 928 "knot/conf/cf-parse.y"
+#line 929 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
+	SET_INT(this_zone->dbsync_timeout, (yyvsp[-1].tok).i, "zonefile-sync");
  }
+#line 2799 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 116:
-/* Line 1792 of yacc.c  */
-#line 931 "knot/conf/cf-parse.y"
+#line 932 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_SIZE(this_zone->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
+	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[-1].tok).l, "ixfr-fslimit");
  }
+#line 2807 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 117:
-/* Line 1792 of yacc.c  */
-#line 934 "knot/conf/cf-parse.y"
+#line 935 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(this_zone->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
-   }
+	SET_SIZE(this_zone->ixfr_fslimit, (yyvsp[-1].tok).i, "ixfr-fslimit");
+ }
+#line 2815 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 118:
-/* Line 1792 of yacc.c  */
-#line 937 "knot/conf/cf-parse.y"
+#line 938 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(this_zone->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
+	SET_NUM(this_zone->notify_retries, (yyvsp[-1].tok).i, 1, INT_MAX, "notify-retries");
    }
+#line 2823 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 119:
-/* Line 1792 of yacc.c  */
-#line 940 "knot/conf/cf-parse.y"
-    { this_zone->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
+#line 941 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+	SET_NUM(this_zone->notify_timeout, (yyvsp[-1].tok).i, 1, INT_MAX, "notify-timeout");
+   }
+#line 2831 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 120:
-/* Line 1792 of yacc.c  */
-#line 941 "knot/conf/cf-parse.y"
-    {
-	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
- }
+#line 944 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_zone->dnssec_enable = (yyvsp[-1].tok).i; }
+#line 2837 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 121:
-/* Line 1792 of yacc.c  */
-#line 944 "knot/conf/cf-parse.y"
+#line 945 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(this_zone->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
+	SET_NUM(this_zone->sig_lifetime, (yyvsp[-1].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
+#line 2845 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 122:
-/* Line 1792 of yacc.c  */
-#line 947 "knot/conf/cf-parse.y"
+#line 948 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	this_zone->serial_policy = (yyvsp[(3) - (4)].tok).i;
+	SET_NUM(this_zone->sig_lifetime, (yyvsp[-1].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
+#line 2853 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 124:
-/* Line 1792 of yacc.c  */
-#line 954 "knot/conf/cf-parse.y"
-    { query_module_create(scanner, (yyvsp[(1) - (2)].tok).t, (yyvsp[(2) - (2)].tok).t, false); free((yyvsp[(1) - (2)].tok).t); free((yyvsp[(2) - (2)].tok).t); }
+  case 123:
+#line 951 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+	this_zone->serial_policy = (yyvsp[-1].tok).i;
+ }
+#line 2861 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 129:
-/* Line 1792 of yacc.c  */
-#line 963 "knot/conf/cf-parse.y"
-    { new_config->disable_any = (yyvsp[(3) - (4)].tok).i; }
+  case 125:
+#line 958 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { query_module_create(scanner, (yyvsp[-1].tok).t, (yyvsp[0].tok).t, false); free((yyvsp[-1].tok).t); free((yyvsp[0].tok).t); }
+#line 2867 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 130:
-/* Line 1792 of yacc.c  */
-#line 964 "knot/conf/cf-parse.y"
-    { new_config->build_diffs = (yyvsp[(3) - (4)].tok).i; }
+#line 967 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->disable_any = (yyvsp[-1].tok).i; }
+#line 2873 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 131:
-/* Line 1792 of yacc.c  */
-#line 965 "knot/conf/cf-parse.y"
-    { new_config->zone_checks = (yyvsp[(3) - (4)].tok).i; }
+#line 968 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->build_diffs = (yyvsp[-1].tok).i; }
+#line 2879 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 132:
-/* Line 1792 of yacc.c  */
-#line 966 "knot/conf/cf-parse.y"
-    {
-	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).l, "ixfr-fslimit");
- }
+#line 969 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->zone_checks = (yyvsp[-1].tok).i; }
+#line 2885 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 133:
-/* Line 1792 of yacc.c  */
-#line 969 "knot/conf/cf-parse.y"
+#line 970 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[(3) - (4)].tok).i, "ixfr-fslimit");
+	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[-1].tok).l, "ixfr-fslimit");
  }
+#line 2893 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 134:
-/* Line 1792 of yacc.c  */
-#line 972 "knot/conf/cf-parse.y"
+#line 973 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(new_config->notify_retries, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-retries");
-   }
+	SET_SIZE(new_config->ixfr_fslimit, (yyvsp[-1].tok).i, "ixfr-fslimit");
+ }
+#line 2901 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 135:
-/* Line 1792 of yacc.c  */
-#line 975 "knot/conf/cf-parse.y"
+#line 976 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(new_config->notify_timeout, (yyvsp[(3) - (4)].tok).i, 1, INT_MAX, "notify-timeout");
+	SET_NUM(new_config->notify_retries, (yyvsp[-1].tok).i, 1, INT_MAX, "notify-retries");
    }
+#line 2909 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 136:
-/* Line 1792 of yacc.c  */
-#line 978 "knot/conf/cf-parse.y"
+#line 979 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 0, INT_MAX, "zonefile-sync");
- }
+	SET_NUM(new_config->notify_timeout, (yyvsp[-1].tok).i, 1, INT_MAX, "notify-timeout");
+   }
+#line 2917 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 137:
-/* Line 1792 of yacc.c  */
-#line 981 "knot/conf/cf-parse.y"
+#line 982 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(new_config->dbsync_timeout, (yyvsp[(3) - (4)].tok).i, 0, INT_MAX, "zonefile-sync");
+	SET_NUM(new_config->dbsync_timeout, (yyvsp[-1].tok).i, 0, INT_MAX, "zonefile-sync");
  }
+#line 2925 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 138:
-/* Line 1792 of yacc.c  */
-#line 984 "knot/conf/cf-parse.y"
-    { new_config->storage = (yyvsp[(3) - (4)].tok).t; }
+#line 985 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+	SET_NUM(new_config->dbsync_timeout, (yyvsp[-1].tok).i, 0, INT_MAX, "zonefile-sync");
+ }
+#line 2933 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 139:
-/* Line 1792 of yacc.c  */
-#line 985 "knot/conf/cf-parse.y"
-    { new_config->dnssec_enable = (yyvsp[(3) - (4)].tok).i; }
+#line 988 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->storage = (yyvsp[-1].tok).t; }
+#line 2939 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 140:
-/* Line 1792 of yacc.c  */
-#line 986 "knot/conf/cf-parse.y"
-    { new_config->dnssec_keydir = (yyvsp[(3) - (4)].tok).t; }
+#line 989 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->dnssec_enable = (yyvsp[-1].tok).i; }
+#line 2945 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 141:
-/* Line 1792 of yacc.c  */
-#line 987 "knot/conf/cf-parse.y"
-    {
-	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
- }
+#line 990 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->dnssec_keydir = (yyvsp[-1].tok).t; }
+#line 2951 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 142:
-/* Line 1792 of yacc.c  */
-#line 990 "knot/conf/cf-parse.y"
+#line 991 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	SET_NUM(new_config->sig_lifetime, (yyvsp[(3) - (4)].tok).i, 10800, INT_MAX, "signature-lifetime");
+	SET_NUM(new_config->sig_lifetime, (yyvsp[-1].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
+#line 2959 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 143:
-/* Line 1792 of yacc.c  */
-#line 993 "knot/conf/cf-parse.y"
+#line 994 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-	new_config->serial_policy = (yyvsp[(3) - (4)].tok).i;
+	SET_NUM(new_config->sig_lifetime, (yyvsp[-1].tok).i, 10800, INT_MAX, "signature-lifetime");
  }
+#line 2967 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 145:
-/* Line 1792 of yacc.c  */
-#line 999 "knot/conf/cf-parse.y"
+  case 144:
+#line 997 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+	new_config->serial_policy = (yyvsp[-1].tok).i;
+ }
+#line 2975 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 146:
+#line 1003 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
   this_logmap = malloc(sizeof(conf_log_map_t));
   this_logmap->source = 0;
   this_logmap->prios = 0;
   add_tail(&this_log->map, &this_logmap->n);
 }
-    break;
-
-  case 147:
-/* Line 1792 of yacc.c  */
-#line 1009 "knot/conf/cf-parse.y"
-    { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i;
-	cf_warning(scanner, "multiple log severities are deprecated, "
-	                    "using the least serious one");
- }
+#line 2986 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 148:
-/* Line 1792 of yacc.c  */
-#line 1013 "knot/conf/cf-parse.y"
-    { this_logmap->prios |= (yyvsp[(2) - (3)].tok).i; }
+#line 1013 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_logmap->prios |= (yyvsp[-1].tok).i;
+	cf_warning(scanner, "multiple log severities are deprecated, "
+	                    "using the least serious one");
+ }
+#line 2995 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 150:
-/* Line 1792 of yacc.c  */
-#line 1017 "knot/conf/cf-parse.y"
-    {
-     this_logmap->source = (yyvsp[(2) - (3)].tok).i;
-     this_logmap = 0;
-   }
+  case 149:
+#line 1017 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { this_logmap->prios |= (yyvsp[-1].tok).i; }
+#line 3001 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 151:
-/* Line 1792 of yacc.c  */
-#line 1023 "knot/conf/cf-parse.y"
+#line 1021 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+     this_logmap->source = (yyvsp[-1].tok).i;
+     this_logmap = 0;
+   }
+#line 3010 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 152:
+#line 1027 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
   /* Find already existing rule. */
   this_log = 0;
   node_t *n = 0;
   WALK_LIST(n, new_config->logs) {
     conf_log_t* log = (conf_log_t*)n;
-    if (log->type == (yyvsp[(1) - (1)].tok).i) {
+    if (log->type == (yyvsp[0].tok).i) {
       this_log = log;
       break;
     }
@@ -3239,17 +3025,17 @@ yyreduce:
 
   if (!this_log) {
     this_log = malloc(sizeof(conf_log_t));
-    this_log->type = (yyvsp[(1) - (1)].tok).i;
+    this_log->type = (yyvsp[0].tok).i;
     this_log->file = 0;
     init_list(&this_log->map);
     add_tail(&new_config->logs, &this_log->n);
   }
 }
+#line 3035 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 152:
-/* Line 1792 of yacc.c  */
-#line 1045 "knot/conf/cf-parse.y"
+  case 153:
+#line 1049 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
   /* Find already existing rule. */
   this_log = 0;
@@ -3257,9 +3043,9 @@ yyreduce:
   WALK_LIST(n, new_config->logs) {
     conf_log_t* log = (conf_log_t*)n;
     if (log->type == LOGT_FILE) {
-      if (strcmp((yyvsp[(2) - (2)].tok).t, log->file) == 0) {
+      if (strcmp((yyvsp[0].tok).t, log->file) == 0) {
         this_log = log;
-	free((yyvsp[(2) - (2)].tok).t);
+	free((yyvsp[0].tok).t);
         break;
       }
     }
@@ -3269,49 +3055,49 @@ yyreduce:
   if (!this_log) {
     this_log = malloc(sizeof(conf_log_t));
     this_log->type = LOGT_FILE;
-    this_log->file = strcpath((yyvsp[(2) - (2)].tok).t);
+    this_log->file = strcpath((yyvsp[0].tok).t);
     init_list(&this_log->map);
     add_tail(&new_config->logs, &this_log->n);
   }
 }
+#line 3064 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 153:
-/* Line 1792 of yacc.c  */
-#line 1071 "knot/conf/cf-parse.y"
+  case 154:
+#line 1075 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
 }
+#line 3071 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 157:
-/* Line 1792 of yacc.c  */
-#line 1080 "knot/conf/cf-parse.y"
+  case 158:
+#line 1084 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     { }
-    break;
-
-  case 159:
-/* Line 1792 of yacc.c  */
-#line 1084 "knot/conf/cf-parse.y"
-    { conf_init_iface(scanner, NULL); }
+#line 3077 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 160:
-/* Line 1792 of yacc.c  */
-#line 1088 "knot/conf/cf-parse.y"
-    {
-    this_list = &new_config->ctl.allow;
-  }
+#line 1088 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { conf_init_iface(scanner, NULL); }
+#line 3083 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 161:
-/* Line 1792 of yacc.c  */
-#line 1094 "knot/conf/cf-parse.y"
-    { new_config->ctl.have = true; }
+#line 1092 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    {
+    this_list = &new_config->ctl.allow;
+  }
+#line 3091 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
   case 162:
-/* Line 1792 of yacc.c  */
-#line 1095 "knot/conf/cf-parse.y"
+#line 1098 "knot/conf/cf-parse.y" /* yacc.c:1646  */
+    { new_config->ctl.have = true; }
+#line 3097 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
+    break;
+
+  case 163:
+#line 1099 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
      if (this_iface->addr.ss_family == AF_UNSPEC) {
        cf_error(scanner, "control interface has no defined address");
@@ -3319,21 +3105,21 @@ yyreduce:
        new_config->ctl.iface = this_iface;
      }
  }
+#line 3109 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
-  case 163:
-/* Line 1792 of yacc.c  */
-#line 1102 "knot/conf/cf-parse.y"
+  case 164:
+#line 1106 "knot/conf/cf-parse.y" /* yacc.c:1646  */
     {
-     sockaddr_set(&this_iface->addr, AF_UNIX, (yyvsp[(3) - (4)].tok).t, 0);
+     sockaddr_set(&this_iface->addr, AF_UNIX, (yyvsp[-1].tok).t, 0);
      new_config->ctl.iface = this_iface;
-     free((yyvsp[(3) - (4)].tok).t);
+     free((yyvsp[-1].tok).t);
  }
+#line 3119 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
     break;
 
 
-/* Line 1792 of yacc.c  */
-#line 3337 "knot/conf/libknotd_la-cf-parse.c"
+#line 3123 "knot/conf/libknotd_la-cf-parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -3355,7 +3141,7 @@ yyreduce:
 
   *++yyvsp = yyval;
 
-  /* Now `shift' the result of the reduction.  Determine what state
+  /* Now 'shift' the result of the reduction.  Determine what state
      that goes to, based on the state we popped back to and the rule
      number reduced by.  */
 
@@ -3370,9 +3156,9 @@ yyreduce:
   goto yynewstate;
 
 
-/*------------------------------------.
-| yyerrlab -- here on detecting error |
-`------------------------------------*/
+/*--------------------------------------.
+| yyerrlab -- here on detecting error.  |
+`--------------------------------------*/
 yyerrlab:
   /* Make sure we have latest lookahead translation.  See comments at
      user semantic actions for why this is necessary.  */
@@ -3423,20 +3209,20 @@ yyerrlab:
   if (yyerrstatus == 3)
     {
       /* If just tried and failed to reuse lookahead token after an
-	 error, discard it.  */
+         error, discard it.  */
 
       if (yychar <= YYEOF)
-	{
-	  /* Return failure if at end of input.  */
-	  if (yychar == YYEOF)
-	    YYABORT;
-	}
+        {
+          /* Return failure if at end of input.  */
+          if (yychar == YYEOF)
+            YYABORT;
+        }
       else
-	{
-	  yydestruct ("Error: discarding",
-		      yytoken, &yylval, scanner);
-	  yychar = YYEMPTY;
-	}
+        {
+          yydestruct ("Error: discarding",
+                      yytoken, &yylval, scanner);
+          yychar = YYEMPTY;
+        }
     }
 
   /* Else will try to reuse lookahead token after shifting the error
@@ -3455,7 +3241,7 @@ yyerrorlab:
   if (/*CONSTCOND*/ 0)
      goto yyerrorlab;
 
-  /* Do not reclaim the symbols of the rule which action triggered
+  /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
   YYPOPSTACK (yylen);
   yylen = 0;
@@ -3468,29 +3254,29 @@ yyerrorlab:
 | yyerrlab1 -- common code for both syntax error and YYERROR.  |
 `-------------------------------------------------------------*/
 yyerrlab1:
-  yyerrstatus = 3;	/* Each real token shifted decrements this.  */
+  yyerrstatus = 3;      /* Each real token shifted decrements this.  */
 
   for (;;)
     {
       yyn = yypact[yystate];
       if (!yypact_value_is_default (yyn))
-	{
-	  yyn += YYTERROR;
-	  if (0 <= yyn && yyn <= YYLAST && yycheck[yyn] == YYTERROR)
-	    {
-	      yyn = yytable[yyn];
-	      if (0 < yyn)
-		break;
-	    }
-	}
+        {
+          yyn += YYTERROR;
+          if (0 <= yyn && yyn <= YYLAST && yycheck[yyn] == YYTERROR)
+            {
+              yyn = yytable[yyn];
+              if (0 < yyn)
+                break;
+            }
+        }
 
       /* Pop the current state because it cannot handle the error token.  */
       if (yyssp == yyss)
-	YYABORT;
+        YYABORT;
 
 
       yydestruct ("Error: popping",
-		  yystos[yystate], yyvsp, scanner);
+                  yystos[yystate], yyvsp, scanner);
       YYPOPSTACK (1);
       yystate = *yyssp;
       YY_STACK_PRINT (yyss, yyssp);
@@ -3541,14 +3327,14 @@ yyreturn:
       yydestruct ("Cleanup: discarding lookahead",
                   yytoken, &yylval, scanner);
     }
-  /* Do not reclaim the symbols of the rule which action triggered
+  /* Do not reclaim the symbols of the rule whose action triggered
      this YYABORT or YYACCEPT.  */
   YYPOPSTACK (yylen);
   YY_STACK_PRINT (yyss, yyssp);
   while (yyssp != yyss)
     {
       yydestruct ("Cleanup: popping",
-		  yystos[*yyssp], yyvsp, scanner);
+                  yystos[*yyssp], yyvsp, scanner);
       YYPOPSTACK (1);
     }
 #ifndef yyoverflow
@@ -3559,11 +3345,7 @@ yyreturn:
   if (yymsg != yymsgbuf)
     YYSTACK_FREE (yymsg);
 #endif
-  /* Make sure YYID is used.  */
-  return YYID (yyresult);
+  return yyresult;
 }
-
-
-/* Line 2055 of yacc.c  */
-#line 1113 "knot/conf/cf-parse.y"
+#line 1117 "knot/conf/cf-parse.y" /* yacc.c:1906  */
 
