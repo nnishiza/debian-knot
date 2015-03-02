@@ -14,11 +14,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <strings.h>
+#include <stdio.h>			// snprintf
+#include <stdlib.h>			// strtoul
+#include <strings.h>			// strcasecmp
 
 #include "libknot/descriptor.h"
+#include "common/macros.h"
 
 /*!
  * \brief Table with DNS classes.
@@ -33,7 +34,7 @@ static const char* dns_classes[] = {
 /*!
  * \brief RR type descriptors.
  */
-static const rdata_descriptor_t rdata_descriptors[] = {
+static const knot_rdata_descriptor_t rdata_descriptors[] = {
 	[0]                      = { { KNOT_RDATA_WF_REMAINDER,
 	                               KNOT_RDATA_WF_END }, NULL },
 	[KNOT_RRTYPE_A]          = { { 4, KNOT_RDATA_WF_END }, "A" },
@@ -106,10 +107,6 @@ static const rdata_descriptor_t rdata_descriptors[] = {
 	                               KNOT_RDATA_WF_END }, "NSEC3PARAM" },
 	[KNOT_RRTYPE_TLSA]       = { { KNOT_RDATA_WF_REMAINDER,
 	                               KNOT_RDATA_WF_END }, "TLSA" },
-	[KNOT_RRTYPE_CDS]        = { { KNOT_RDATA_WF_REMAINDER,
-	                               KNOT_RDATA_WF_END }, "CDS" },
-	[KNOT_RRTYPE_CDNSKEY]    = { { KNOT_RDATA_WF_REMAINDER,
-	                               KNOT_RDATA_WF_END }, "CDNSKEY" },
 	[KNOT_RRTYPE_SPF]        = { { KNOT_RDATA_WF_REMAINDER,
 	                               KNOT_RDATA_WF_END }, "SPF" },
 	[KNOT_RRTYPE_NID]        = { { 10, KNOT_RDATA_WF_END }, "NID" },
@@ -136,7 +133,7 @@ static const rdata_descriptor_t rdata_descriptors[] = {
 /*!
  * \brief Some (OBSOLETE) RR type descriptors.
  */
-static const rdata_descriptor_t obsolete_rdata_descriptors[] = {
+static const knot_rdata_descriptor_t obsolete_rdata_descriptors[] = {
 	[0]                      = { { KNOT_RDATA_WF_REMAINDER,
 	                               KNOT_RDATA_WF_END }, NULL },
 	[KNOT_RRTYPE_MD]         = { { KNOT_RDATA_WF_DECOMPRESSIBLE_DNAME,
@@ -157,7 +154,8 @@ static const rdata_descriptor_t obsolete_rdata_descriptors[] = {
 	                               KNOT_RDATA_WF_END }, "NXT" },
 };
 
-const rdata_descriptor_t *knot_get_rdata_descriptor(const uint16_t type)
+_public_
+const knot_rdata_descriptor_t *knot_get_rdata_descriptor(const uint16_t type)
 {
 	if (type <= KNOT_RRTYPE_ANY &&
 	    rdata_descriptors[type].type_name != NULL) {
@@ -167,7 +165,8 @@ const rdata_descriptor_t *knot_get_rdata_descriptor(const uint16_t type)
 	}
 }
 
-const rdata_descriptor_t *knot_get_obsolete_rdata_descriptor(const uint16_t type)
+_public_
+const knot_rdata_descriptor_t *knot_get_obsolete_rdata_descriptor(const uint16_t type)
 {
 	if (type <= KNOT_RRTYPE_NXT &&
 	    obsolete_rdata_descriptors[type].type_name != NULL) {
@@ -177,6 +176,7 @@ const rdata_descriptor_t *knot_get_obsolete_rdata_descriptor(const uint16_t type
 	}
 }
 
+_public_
 int knot_rrtype_to_string(const uint16_t rrtype,
                           char           *out,
                           const size_t   out_len)
@@ -187,7 +187,7 @@ int knot_rrtype_to_string(const uint16_t rrtype,
 
 	int ret;
 
-	const rdata_descriptor_t *descr = knot_get_rdata_descriptor(rrtype);
+	const knot_rdata_descriptor_t *descr = knot_get_rdata_descriptor(rrtype);
 
 	if (descr->type_name != NULL) {
 		ret = snprintf(out, out_len, "%s", descr->type_name);
@@ -202,6 +202,7 @@ int knot_rrtype_to_string(const uint16_t rrtype,
 	}
 }
 
+_public_
 int knot_rrtype_from_string(const char *name, uint16_t *num)
 {
 	if (name == NULL || num == NULL) {
@@ -238,6 +239,7 @@ int knot_rrtype_from_string(const char *name, uint16_t *num)
 	return 0;
 }
 
+_public_
 int knot_rrclass_to_string(const uint16_t rrclass,
                            char           *out,
                            const size_t   out_len)
@@ -261,6 +263,7 @@ int knot_rrclass_to_string(const uint16_t rrclass,
 	}
 }
 
+_public_
 int knot_rrclass_from_string(const char *name, uint16_t *num)
 {
 	if (name == NULL || num == NULL) {
@@ -297,6 +300,7 @@ int knot_rrclass_from_string(const char *name, uint16_t *num)
 	return 0;
 }
 
+_public_
 int knot_rrtype_is_metatype(const uint16_t type)
 {
 	return type == KNOT_RRTYPE_SIG  ||
@@ -308,6 +312,7 @@ int knot_rrtype_is_metatype(const uint16_t type)
 	       type == KNOT_RRTYPE_ANY;
 }
 
+_public_
 int knot_rrtype_is_ddns_forbidden(const uint16_t type)
 {
 	return type == KNOT_RRTYPE_RRSIG ||
@@ -315,6 +320,7 @@ int knot_rrtype_is_ddns_forbidden(const uint16_t type)
 	       type == KNOT_RRTYPE_NSEC3;
 }
 
+_public_
 int knot_rrtype_additional_needed(const uint16_t type)
 {
 	return type == KNOT_RRTYPE_NS ||
@@ -322,6 +328,7 @@ int knot_rrtype_additional_needed(const uint16_t type)
 	       type == KNOT_RRTYPE_SRV;
 }
 
+_public_
 bool knot_rrtype_should_be_lowercased(const uint16_t type)
 {
 	return type == KNOT_RRTYPE_NS    ||

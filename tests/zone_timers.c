@@ -19,7 +19,7 @@
 #include <time.h>
 #include <tap/basic.h>
 
-#include "libknot/common.h"
+#include "libknot/errcode.h"
 #include "common/mem.h"
 #include "common/namedb/namedb.h"
 #include "common/namedb/namedb_lmdb.h"

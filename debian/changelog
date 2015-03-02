@@ -1,44 +1,21 @@
-knot (1.6.3-1) unstable; urgency=medium
+knot (1.6.2+rosedb-3) trusty; urgency=medium
 
-  * New upstream version 1.6.3 (Thank you for AFL release)
-   + Features:
-    - CDS and CDNSKEY support in zone parser
-   + Bugfixes:
-    - Performance drop for NSEC-signed zones
-    - Proper handling of TCP short-writes
-    - Out-of-bound read in zone parser for long domain names in origin
-    - Out-of-bound read in packet parser for TSIG RR without RDATA
-    - Out-of-bound read in packet parser for malformed NAPTR RR
-   + Improvements:
-    - Add defaults for TCP config options into documentation
-    - Detailed error message if zone reload fails
+  * Set upstream distribution to trusty
+  * Also install rosedb_tool to /usr/sbin
 
- -- Ondřej Surý <ondrej@debian.org>  Wed, 08 Apr 2015 15:35:57 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 02 Mar 2015 23:26:49 +0100
 
-knot (1.6.2-1) unstable; urgency=medium
+knot (1.6.2+rosedb-2) trusty; urgency=medium
 
-  * New upstream version 1.6.2
-   + Features:
-    - Limiting number of parallel TCP clients (max-tcp-clients config option)
-   + Bugfixes:
-    - Ignore refresh and transfer events on non-slave zones
-    - Compilation with Dnstap support on FreeBSD
-    - Possible file descriptor leak when terminating inactive TCP clients
-  * Update patches for 1.6.2 release
+  * Make LMDB mandatory to always build rosedb
 
- -- Ondřej Surý <ondrej@debian.org>  Fri, 20 Feb 2015 11:09:34 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 02 Mar 2015 23:12:04 +0100
 
-knot (1.6.1-1) unstable; urgency=medium
+knot (1.6.2+rosedb-1) unstable; urgency=medium
 
-  * New upstream version 1.6.1
-   + Bugfixes:
-    - Journal file would sometimes outgrow its limit (ixfr-fslimit in configuration)
-    - Fixed incompatibility with OpenSSL 0.9.8
-    - Proper handling when hostname cannot be retreived (for NSID and CH)
-   + Features:
-    - DNSSEC Single Type Signing Scheme is now supported
+  * New upstream version 1.6.2+rosedb
 
- -- Ondřej Surý <ondrej@debian.org>  Tue, 30 Dec 2014 09:50:54 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 20 Feb 2015 09:51:47 +0100
 
 knot (1.6.0-1) unstable; urgency=medium
 

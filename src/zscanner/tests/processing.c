@@ -14,12 +14,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <inttypes.h>
-#include <stdio.h>
+#include <inttypes.h>			// PRIu64
+#include <stdio.h>			// printf
 
 #include "tests/processing.h"
 #include "scanner.h"
-#include "libknot/descriptor.c"
+#include "libknot/descriptor.c"		// knot_rrtype_to_string (implementation)
 
 const char *separator = "------\n";
 

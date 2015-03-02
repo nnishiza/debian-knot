@@ -8,20 +8,25 @@ Build-Depends-Indep: texinfo,
 		     texlive-font-utils,
 		     ghostscript,
 		     python-sphinx
-Build-Depends: debhelper (>= 9),
+Build-Depends: debhelper (>= 7),
 	       liburcu-dev (>= 0.4),
 	       libssl-dev,
+	       liblmdb-dev,
 	       libidn11-dev,
-	       dh-systemd,
-	       dh-autoreconf,
-	       autotools-dev,
 	       flex,
 	       bison,
 	       pkg-config,
-	       libsystemd-daemon-dev [linux-any],
-	       libsystemd-journal-dev [linux-any],
-	       liblmdb-dev
-Standards-Version: 3.9.6
+	       texinfo,
+	       texlive,
+	       texlive-latex-extra,
+	       texlive-font-utils,
+	       ghostscript,
+	       python-sphinx (>= 1.0.8+dfsg-2~),
+	       autotools-dev,
+	       automake,
+	       autoconf,
+	       libtool
+Standards-Version: 3.9.5
 Homepage: http://www.knot-dns.cz/
 Vcs-Browser: http://anonscm.debian.org/?p=users/ondrej/knot.git
 Vcs-Git: git://anonscm.debian.org/users/ondrej/knot.git
@@ -29,7 +34,6 @@ Vcs-Git: git://anonscm.debian.org/users/ondrej/knot.git
 Package: knot
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, knot-libs (= ${binary:Version})
-Recommends: systemd
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
  full and open source name server.

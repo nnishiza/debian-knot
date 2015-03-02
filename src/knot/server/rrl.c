@@ -24,7 +24,7 @@
 #include "knot/knot.h"
 #include "libknot/consts.h"
 #include "libknot/packet/wire.h"
-#include "common-knot/hattrie/murmurhash3.h"
+#include "common/trie/murmurhash3.h"
 #include "libknot/dnssec/random.h"
 #include "libknot/descriptor.h"
 #include "common/errors.h"
@@ -279,7 +279,7 @@ static void rrl_log_state(const struct sockaddr_storage *ss, uint16_t flags, uin
 {
 #ifdef RRL_ENABLE_LOG
 	char addr_str[SOCKADDR_STRLEN] = {0};
-	sockaddr_tostr(ss, addr_str, sizeof(addr_str));
+	sockaddr_tostr(addr_str, sizeof(addr_str), ss);
 
 	const char *what = "leaves";
 	if (flags & RRL_BF_ELIMIT) {

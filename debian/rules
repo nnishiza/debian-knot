@@ -23,30 +23,24 @@ else
 endif
 
 %:
-	dh $@ --with autotools-dev,systemd,autoreconf --parallel
+	dh $@ --parallel
 
 override_dh_auto_configure:
+	autoreconf -fi
 	dh_auto_configure -- \
 	  --sysconfdir=/etc \
 	  --localstatedir=/var/lib \
 	  --libexecdir=/usr/lib/knot \
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
-	  --enable-systemd=auto \
 	  $(RECVMMSG) \
 	  --disable-silent-rules
 
-override_dh_auto_build-arch:
-	dh_auto_build -- all
+override_dh_auto_build:
+	dh_auto_build -- all html
 
-override_dh_auto_build-indep:
-	dh_auto_build -- info pdf html
-
-override_dh_auto_install-arch:
-	dh_auto_install
-
-override_dh_auto_install-indep:
-	dh_auto_install -- install-info install-pdf install-html
+override_dh_auto_install:
+	dh_auto_install -- install install-html
 
 override_dh_auto_test:
 	-dh_auto_test
@@ -54,7 +48,7 @@ override_dh_auto_test:
 override_dh_strip:
 	dh_strip --dbg-package=knot-dbg
 
-override_dh_install-arch:
+override_dh_install:
 	# Install sample conf as /etc/knot/knot.conf
 	mv $(CURDIR)/debian/tmp/etc/knot/knot.sample.conf $(CURDIR)/debian/tmp/etc/knot/knot.conf
 	# Remove useless example zone from /etc/knot
@@ -63,15 +57,20 @@ override_dh_install-arch:
 	install -m 755 -d $(CURDIR)/debian/tmp/usr/lib/knot/
 	install -m 755 $(CURDIR)/debian/prepare-environment $(CURDIR)/debian/tmp/usr/lib/knot/
 
+	# Install rosedb-import.sh contrib script
+	install -m 755 $(CURDIR)/debian/rosedb-import.sh $(CURDIR)/debian/tmp/usr/sbin/
+
 	# Remove .la and .so
-	rm $(CURDIR)/debian/tmp/usr/lib/*/*.la $(CURDIR)/debian/tmp/usr/lib/*/*.so
+	-rm -f $(CURDIR)/debian/tmp/usr/lib/*/*.la \
+	       $(CURDIR)/debian/tmp/usr/lib/*/*.so \
+	       $(CURDIR)/debian/tmp/usr/lib/*.la \
+	       $(CURDIR)/debian/tmp/usr/lib/*.so
 
 	dh_install -Nknot-doc --list-missing
 
 	install -m 755 -d $(CURDIR)/debian/knot/etc/ufw/applications.d/
 	install -m 644 $(CURDIR)/debian/knot.ufw $(CURDIR)/debian/knot/etc/ufw/applications.d/knot
 
-override_dh_install-indep:
 	dh_install -pknot-doc --list-missing
 
 override_dh_installchangelogs:

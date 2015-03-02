@@ -1,5 +1,7 @@
 usr/sbin/knotc
 usr/sbin/knotd
+usr/sbin/rose*
+usr/bin/rose* /usr/sbin/
 usr/bin/knsec3hash
 usr/share/man/man5/knot.conf.5
 usr/share/man/man8/knotc.8

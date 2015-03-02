@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.6.3], [knot-dns@labs.nic.cz])
-AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
+AC_INIT([knot], [1.6.2-rosedb], [knot-dns@labs.nic.cz])
+AM_INIT_AUTOMAKE([foreign subdir-objects dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
 AC_CONFIG_HEADERS([src/config.h])
@@ -315,6 +315,7 @@ AM_CONDITIONAL([HAVE_DNSTAP], test "$opt_dnstap" != "no")
 dnl Check for LMDB
 KNOT_CHECK_HEADER([lmdb], [LMDB], [auto], [lmdb.h], [], [-llmdb])
 AS_IF([test "$enable_lmdb" = yes], [AC_DEFINE([HAVE_LMDB], [1], [Define to 1 to enable LMDB support])])
+AM_CONDITIONAL([HAVE_LMDB], test "$enable_lmdb" != "no")
 
 AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread], [], [AC_MSG_ERROR([pthreads not found])])
@@ -350,8 +351,8 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sched.h>]], [[cpuset_t* set = cpuset
 
 # Use -fvisibility=hidden when linking.
 # Let's leave it default now and use -export-symbols-regex in LDFLAGS
-#gl_VISIBILITY()
-#CFLAGS="$CFLAGS $CFLAG_VISIBILITY"
+gl_VISIBILITY()
+CFLAGS="$CFLAGS $CFLAG_VISIBILITY"
 
 # Add code coverage macro
 AX_CODE_COVERAGE
