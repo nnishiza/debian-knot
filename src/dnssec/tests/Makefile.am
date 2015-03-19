@@ -1,4 +1,5 @@
 AM_CPPFLAGS = \
+	-include $(top_builddir)/src/config.h \
 	-I$(top_srcdir)/libtap \
 	-I$(srcdir)/../shared \
 	-I$(srcdir)/../lib \
@@ -38,6 +39,7 @@ check_PROGRAMS = \
 	sign_der	\
 	shared_base32hex \
 	shared_dname	\
+	shared_strtonum	\
 	shared_wire	\
 	tsig
 

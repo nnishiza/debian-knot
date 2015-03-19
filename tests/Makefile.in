@@ -113,6 +113,7 @@ acl_OBJECTS = acl.$(OBJEXT)
 acl_LDADD = $(LDADD)
 acl_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -123,18 +124,21 @@ base32hex_OBJECTS = base32hex.$(OBJEXT)
 base32hex_LDADD = $(LDADD)
 base32hex_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 base64_SOURCES = base64.c
 base64_OBJECTS = base64.$(OBJEXT)
 base64_LDADD = $(LDADD)
 base64_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 changeset_SOURCES = changeset.c
 changeset_OBJECTS = changeset.$(OBJEXT)
 changeset_LDADD = $(LDADD)
 changeset_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 am_conf_OBJECTS = conf.$(OBJEXT)
 nodist_conf_OBJECTS = sample_conf.$(OBJEXT)
@@ -142,222 +146,259 @@ conf_OBJECTS = $(am_conf_OBJECTS) $(nodist_conf_OBJECTS)
 conf_LDADD = $(LDADD)
 conf_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 descriptor_SOURCES = descriptor.c
 descriptor_OBJECTS = descriptor.$(OBJEXT)
 descriptor_LDADD = $(LDADD)
 descriptor_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 dname_SOURCES = dname.c
 dname_OBJECTS = dname.$(OBJEXT)
 dname_LDADD = $(LDADD)
 dname_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 dthreads_SOURCES = dthreads.c
 dthreads_OBJECTS = dthreads.$(OBJEXT)
 dthreads_LDADD = $(LDADD)
 dthreads_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 edns_SOURCES = edns.c
 edns_OBJECTS = edns.$(OBJEXT)
 edns_LDADD = $(LDADD)
 edns_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 endian_SOURCES = endian.c
 endian_OBJECTS = endian.$(OBJEXT)
 endian_LDADD = $(LDADD)
 endian_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 fdset_SOURCES = fdset.c
 fdset_OBJECTS = fdset.$(OBJEXT)
 fdset_LDADD = $(LDADD)
 fdset_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 hattrie_SOURCES = hattrie.c
 hattrie_OBJECTS = hattrie.$(OBJEXT)
 hattrie_LDADD = $(LDADD)
 hattrie_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 hhash_SOURCES = hhash.c
 hhash_OBJECTS = hhash.$(OBJEXT)
 hhash_LDADD = $(LDADD)
 hhash_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 journal_SOURCES = journal.c
 journal_OBJECTS = journal.$(OBJEXT)
 journal_LDADD = $(LDADD)
 journal_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 namedb_SOURCES = namedb.c
 namedb_OBJECTS = namedb.$(OBJEXT)
 namedb_LDADD = $(LDADD)
 namedb_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 node_SOURCES = node.c
 node_OBJECTS = node.$(OBJEXT)
 node_LDADD = $(LDADD)
 node_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 overlay_SOURCES = overlay.c
 overlay_OBJECTS = overlay.$(OBJEXT)
 overlay_LDADD = $(LDADD)
 overlay_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 pkt_SOURCES = pkt.c
 pkt_OBJECTS = pkt.$(OBJEXT)
 pkt_LDADD = $(LDADD)
 pkt_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 am_process_answer_OBJECTS = process_answer.$(OBJEXT)
 process_answer_OBJECTS = $(am_process_answer_OBJECTS)
 process_answer_LDADD = $(LDADD)
 process_answer_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 am_process_query_OBJECTS = process_query.$(OBJEXT)
 process_query_OBJECTS = $(am_process_query_OBJECTS)
 process_query_LDADD = $(LDADD)
 process_query_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 query_module_SOURCES = query_module.c
 query_module_OBJECTS = query_module.$(OBJEXT)
 query_module_LDADD = $(LDADD)
 query_module_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 rdata_SOURCES = rdata.c
 rdata_OBJECTS = rdata.$(OBJEXT)
 rdata_LDADD = $(LDADD)
 rdata_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 rdataset_SOURCES = rdataset.c
 rdataset_OBJECTS = rdataset.$(OBJEXT)
 rdataset_LDADD = $(LDADD)
 rdataset_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 requestor_SOURCES = requestor.c
 requestor_OBJECTS = requestor.$(OBJEXT)
 requestor_LDADD = $(LDADD)
 requestor_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 rrl_SOURCES = rrl.c
 rrl_OBJECTS = rrl.$(OBJEXT)
 rrl_LDADD = $(LDADD)
 rrl_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 rrset_SOURCES = rrset.c
 rrset_OBJECTS = rrset.$(OBJEXT)
 rrset_LDADD = $(LDADD)
 rrset_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 rrset_wire_SOURCES = rrset_wire.c
 rrset_wire_OBJECTS = rrset_wire.$(OBJEXT)
 rrset_wire_LDADD = $(LDADD)
 rrset_wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 server_SOURCES = server.c
 server_OBJECTS = server.$(OBJEXT)
 server_LDADD = $(LDADD)
 server_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 utils_SOURCES = utils.c
 utils_OBJECTS = utils.$(OBJEXT)
 utils_LDADD = $(LDADD)
 utils_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 wire_SOURCES = wire.c
 wire_OBJECTS = wire.$(OBJEXT)
 wire_LDADD = $(LDADD)
 wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 worker_pool_SOURCES = worker_pool.c
 worker_pool_OBJECTS = worker_pool.$(OBJEXT)
 worker_pool_LDADD = $(LDADD)
 worker_pool_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 worker_queue_SOURCES = worker_queue.c
 worker_queue_OBJECTS = worker_queue.$(OBJEXT)
 worker_queue_LDADD = $(LDADD)
 worker_queue_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 yparser_SOURCES = yparser.c
 yparser_OBJECTS = yparser.$(OBJEXT)
 yparser_LDADD = $(LDADD)
 yparser_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 ypscheme_SOURCES = ypscheme.c
 ypscheme_OBJECTS = ypscheme.$(OBJEXT)
 ypscheme_LDADD = $(LDADD)
 ypscheme_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 yptrafo_SOURCES = yptrafo.c
 yptrafo_OBJECTS = yptrafo.$(OBJEXT)
 yptrafo_LDADD = $(LDADD)
 yptrafo_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 zone_events_SOURCES = zone_events.c
 zone_events_OBJECTS = zone_events.$(OBJEXT)
 zone_events_LDADD = $(LDADD)
 zone_events_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 zone_serial_SOURCES = zone_serial.c
 zone_serial_OBJECTS = zone_serial.$(OBJEXT)
 zone_serial_LDADD = $(LDADD)
 zone_serial_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 zone_timers_SOURCES = zone_timers.c
 zone_timers_OBJECTS = zone_timers.$(OBJEXT)
 zone_timers_LDADD = $(LDADD)
 zone_timers_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 zone_update_SOURCES = zone_update.c
 zone_update_OBJECTS = zone_update.$(OBJEXT)
 zone_update_LDADD = $(LDADD)
 zone_update_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 zonedb_SOURCES = zonedb.c
 zonedb_OBJECTS = zonedb.$(OBJEXT)
 zonedb_LDADD = $(LDADD)
 zonedb_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 ztree_SOURCES = ztree.c
 ztree_OBJECTS = ztree.$(OBJEXT)
 ztree_LDADD = $(LDADD)
 ztree_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -603,6 +644,7 @@ AM_LDFLAGS = \
 LDADD = \
 	$(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/src/libknot-yparser.la \
 	$(top_builddir)/src/libknotd.la
 
 EXTRA_DIST = data

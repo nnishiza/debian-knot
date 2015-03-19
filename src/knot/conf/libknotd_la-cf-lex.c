@@ -9,7 +9,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 37
+#define YY_FLEX_SUBMINOR_VERSION 39
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -159,7 +159,15 @@ typedef void* yyscan_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -192,6 +200,13 @@ typedef size_t yy_size_t;
                 int yyl;\
                 for ( yyl = n; yyl < yyleng; ++yyl )\
                     if ( yytext[yyl] == '\n' )\
+                        --yylineno;\
+            }while(0)
+    #define YY_LINENO_REWIND_TO(dst) \
+            do {\
+                const char *p;\
+                for ( p = yy_cp-1; p >= (dst); --p)\
+                    if ( *p == '\n' )\
                         --yylineno;\
             }while(0)
     
@@ -901,7 +916,7 @@ int hex2bin(const char* src, char *dst, size_t len) {
 
 #define YY_NO_INPUT 1
 
-#line 905 "knot/conf/libknotd_la-cf-lex.c"
+#line 920 "knot/conf/libknotd_la-cf-lex.c"
 
 #define INITIAL 0
 #define include 1
@@ -1031,7 +1046,12 @@ static int input (yyscan_t yyscanner );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1135,10 +1155,6 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 90 "knot/conf/cf-lex.l"
-
-#line 1141 "knot/conf/libknotd_la-cf-lex.c"
-
     yylval = yylval_param;
 
 	if ( !yyg->yy_init )
@@ -1167,6 +1183,11 @@ YY_DECL
 		cf__load_buffer_state(yyscanner );
 		}
 
+	{
+#line 90 "knot/conf/cf-lex.l"
+
+#line 1190 "knot/conf/libknotd_la-cf-lex.c"
+
 	while ( 1 )		/* loops until end-of-file is reached */
 		{
 		yy_cp = yyg->yy_c_buf_p;
@@ -1183,7 +1204,7 @@ YY_DECL
 yy_match:
 		do
 			{
-			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)];
+			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)] ;
 			if ( yy_accept[yy_current_state] )
 				{
 				yyg->yy_last_accepting_state = yy_current_state;
@@ -1940,7 +1961,7 @@ YY_RULE_SETUP
 #line 441 "knot/conf/cf-lex.l"
 ECHO;
 	YY_BREAK
-#line 1944 "knot/conf/libknotd_la-cf-lex.c"
+#line 1965 "knot/conf/libknotd_la-cf-lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2069,6 +2090,7 @@ ECHO;
 			"fatal flex scanner internal error--no action found" );
 	} /* end of action switch */
 		} /* end of scanning one token */
+	} /* end of user's declarations */
 } /* end of cf_lex */
 
 /* yy_get_next_buffer - try to read in a new buffer
@@ -3071,7 +3093,7 @@ void cf_free (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 441 "knot/conf/cf-lex.l"
+#line 440 "knot/conf/cf-lex.l"
 
 
 

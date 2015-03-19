@@ -1505,7 +1505,7 @@ Optional Features:
   --disable-daemon        Don't build Knot DNS main daemon
   --disable-utilities     Don't build Knot DNS utilities
   --disable-documentation Don't build Knot DNS documentation
-  --disable-fastparser    Use slower zone parser
+  --disable-fastparser    Disable use of fastest zone parser
   --enable-debug=server,zones,ns,loader,dnssec
                           compile selected debug modules [default=none]
   --enable-debuglevel=brief|verbose|details
@@ -1519,7 +1519,7 @@ Optional Features:
   --enable-systemd=auto|yes|no
                           enable systemd integration [default=auto]
   --enable-dnstap         Enable dnstap support (requires fstrm, protobuf-c)
-  --disable-rosedb        Do not enable static RR query module.
+  --enable-rosedb         Enable static RR query module.
   --enable-code-coverage  enable code coverage testing with gcov
 
 Optional Packages:
@@ -2635,8 +2635,8 @@ test "$program_suffix" != NONE &&
 ac_script='s/[\\$]/&&/g;s/;s,x,x,$//'
 program_transform_name=`$as_echo "$program_transform_name" | sed "$ac_script"`
 
-# expand $ac_aux_dir to an absolute path
-am_aux_dir=`cd $ac_aux_dir && pwd`
+# Expand $ac_aux_dir to an absolute path.
+am_aux_dir=`cd "$ac_aux_dir" && pwd`
 
 if test x"${MISSING+set}" != xset; then
   case $am_aux_dir in
@@ -3041,6 +3041,7 @@ END
     as_fn_error $? "Your 'rm' program is bad, sorry." "$LINENO" 5
   fi
 fi
+
 # Check whether --enable-silent-rules was given.
 if test "${enable_silent_rules+set}" = set; then :
   enableval=$enable_silent_rules;
@@ -5730,7 +5731,8 @@ else
     ;;
   *)
     lt_cv_sys_max_cmd_len=`(getconf ARG_MAX) 2> /dev/null`
-    if test -n "$lt_cv_sys_max_cmd_len"; then
+    if test -n "$lt_cv_sys_max_cmd_len" && \
+	test undefined != "$lt_cv_sys_max_cmd_len"; then
       lt_cv_sys_max_cmd_len=`expr $lt_cv_sys_max_cmd_len \/ 4`
       lt_cv_sys_max_cmd_len=`expr $lt_cv_sys_max_cmd_len \* 3`
     else
@@ -6131,10 +6133,6 @@ freebsd* | dragonfly*)
   fi
   ;;
 
-gnu*)
-  lt_cv_deplibs_check_method=pass_all
-  ;;
-
 haiku*)
   lt_cv_deplibs_check_method=pass_all
   ;;
@@ -6173,11 +6171,11 @@ irix5* | irix6* | nonstopux*)
   ;;
 
 # This must be glibc/ELF.
-linux* | k*bsd*-gnu | kopensolaris*-gnu)
+linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
   lt_cv_deplibs_check_method=pass_all
   ;;
 
-netbsd*)
+netbsd* | netbsdelf*-gnu)
   if echo __ELF__ | $CC -E - | $GREP __ELF__ > /dev/null; then
     lt_cv_deplibs_check_method='match_pattern /lib[^/]+(\.so\.[0-9]+\.[0-9]+|_pic\.a)$'
   else
@@ -7270,12 +7268,19 @@ s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
 	    LD="${LD-ld} -m elf_i386_fbsd"
 	    ;;
 	  x86_64-*linux*)
-	    LD="${LD-ld} -m elf_i386"
+	    case `/usr/bin/file conftest.o` in
+	      *x86-64*)
+		LD="${LD-ld} -m elf32_x86_64"
+		;;
+	      *)
+		LD="${LD-ld} -m elf_i386"
+		;;
+	    esac
 	    ;;
-	  powerpc64le-*linux*)
+	  powerpc64le-*)
 	    LD="${LD-ld} -m elf32lppclinux"
 	    ;;
-	  powerpc64-*linux*)
+	  powerpc64-*)
 	    LD="${LD-ld} -m elf32ppclinux"
 	    ;;
 	  s390x-*linux*)
@@ -7294,10 +7299,10 @@ s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
 	  x86_64-*linux*)
 	    LD="${LD-ld} -m elf_x86_64"
 	    ;;
-	  powerpcle-*linux*)
+	  powerpcle-*)
 	    LD="${LD-ld} -m elf64lppc"
 	    ;;
-	  powerpc-*linux*)
+	  powerpc-*)
 	    LD="${LD-ld} -m elf64ppc"
 	    ;;
 	  s390*-*linux*|s390*-*tpf*)
@@ -8838,7 +8843,7 @@ lt_prog_compiler_static=
       lt_prog_compiler_static='-non_shared'
       ;;
 
-    linux* | k*bsd*-gnu | kopensolaris*-gnu)
+    linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
       case $cc_basename in
       # old Intel for x86_64 which still supported -KPIC.
       ecc*)
@@ -9316,6 +9321,9 @@ $as_echo_n "checking whether the $compiler linker ($LD) supports shared librarie
   openbsd*)
     with_gnu_ld=no
     ;;
+  linux* | k*bsd*-gnu | gnu*)
+    link_all_deplibs=no
+    ;;
   esac
 
   ld_shlibs=yes
@@ -9537,7 +9545,7 @@ _LT_EOF
       fi
       ;;
 
-    netbsd*)
+    netbsd* | netbsdelf*-gnu)
       if echo __ELF__ | $CC -E - | $GREP __ELF__ >/dev/null; then
 	archive_cmds='$LD -Bshareable $libobjs $deplibs $linker_flags -o $lib'
 	wlarc=
@@ -9714,6 +9722,7 @@ _LT_EOF
 	if test "$aix_use_runtimelinking" = yes; then
 	  shared_flag="$shared_flag "'${wl}-G'
 	fi
+	link_all_deplibs=no
       else
 	# not using gcc
 	if test "$host_cpu" = ia64; then
@@ -10167,7 +10176,7 @@ $as_echo "$lt_cv_irix_exported_symbol" >&6; }
       link_all_deplibs=yes
       ;;
 
-    netbsd*)
+    netbsd* | netbsdelf*-gnu)
       if echo __ELF__ | $CC -E - | $GREP __ELF__ >/dev/null; then
 	archive_cmds='$LD -Bshareable -o $lib $libobjs $deplibs $linker_flags'  # a.out
       else
@@ -11004,17 +11013,6 @@ freebsd* | dragonfly*)
   esac
   ;;
 
-gnu*)
-  version_type=linux # correct to gnu/linux during the next big refactor
-  need_lib_prefix=no
-  need_version=no
-  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}${major} ${libname}${shared_ext}'
-  soname_spec='${libname}${release}${shared_ext}$major'
-  shlibpath_var=LD_LIBRARY_PATH
-  shlibpath_overrides_runpath=no
-  hardcode_into_libs=yes
-  ;;
-
 haiku*)
   version_type=linux # correct to gnu/linux during the next big refactor
   need_lib_prefix=no
@@ -11131,7 +11129,7 @@ linux*oldld* | linux*aout* | linux*coff*)
   ;;
 
 # This must be glibc/ELF.
-linux* | k*bsd*-gnu | kopensolaris*-gnu)
+linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
   version_type=linux # correct to gnu/linux during the next big refactor
   need_lib_prefix=no
   need_version=no
@@ -11180,14 +11178,10 @@ fi
   # before this can be enabled.
   hardcode_into_libs=yes
 
-  # Add ABI-specific directories to the system library path.
-  sys_lib_dlsearch_path_spec="/lib64 /usr/lib64 /lib /usr/lib"
-
   # Append ld.so.conf contents to the search path
   if test -f /etc/ld.so.conf; then
     lt_ld_extra=`awk '/^include / { system(sprintf("cd /etc; cat %s 2>/dev/null", \$2)); skip = 1; } { if (!skip) print \$0; skip = 0; }' < /etc/ld.so.conf | $SED -e 's/#.*//;/^[	 ]*hwcap[	 ]/d;s/[:,	]/ /g;s/=[^=]*$//;s/=[^= ]* / /g;s/"//g;/^$/d' | tr '\n' ' '`
-    sys_lib_dlsearch_path_spec="$sys_lib_dlsearch_path_spec $lt_ld_extra"
-
+    sys_lib_dlsearch_path_spec="/lib /usr/lib $lt_ld_extra"
   fi
 
   # We used to test for /lib/ld.so.1 and disable shared libraries on
@@ -11197,6 +11191,18 @@ fi
   # people can always --disable-shared, the test was removed, and we
   # assume the GNU/Linux dynamic linker is in use.
   dynamic_linker='GNU/Linux ld.so'
+  ;;
+
+netbsdelf*-gnu)
+  version_type=linux
+  need_lib_prefix=no
+  need_version=no
+  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major ${libname}${shared_ext}'
+  soname_spec='${libname}${release}${shared_ext}$major'
+  shlibpath_var=LD_LIBRARY_PATH
+  shlibpath_overrides_runpath=no
+  hardcode_into_libs=yes
+  dynamic_linker='NetBSD ld.elf_so'
   ;;
 
 netbsd*)
@@ -12187,7 +12193,7 @@ pkgconfigdir=$with_pkgconfigdir
 
 
 
-ac_config_files="$ac_config_files src/libknot.pc src/libknot-int.pc src/dnssec/libdnssec.pc"
+ac_config_files="$ac_config_files src/libknot.pc src/libknot-int.pc src/libknot-yparser.pc src/dnssec/libdnssec.pc"
 
 
 # Build Knot DNS daemon
@@ -12247,12 +12253,22 @@ fi
 
 
 
-# Set zone parser type
 # Check whether --enable-fastparser was given.
 if test "${enable_fastparser+set}" = set; then :
   enableval=$enable_fastparser;
 else
-  enable_fastparser=yes
+
+    # Set zone parser type - fastest on release build, slowest on dev build
+    if test -d ".git" -o "$PATCH_VERSION" = "dev"; then :
+
+        enable_fastparser=no
+
+else
+
+    	enable_fastparser=yes
+
+fi
+
 fi
 
  if test "$enable_fastparser" = "yes"; then
@@ -13912,7 +13928,10 @@ fi
 # Check whether --with-lmdb was given.
 if test "${with_lmdb+set}" = set; then :
   withval=$with_lmdb;
-    with_lmdb=$withval,
+    with_lmdb=$withval
+
+else
+
     with_lmdb=yes
 
 fi
@@ -14072,7 +14091,6 @@ else
   HAVE_ROSEDB_TRUE='#'
   HAVE_ROSEDB_FALSE=
 fi
-
 
 
 ############################################
@@ -15081,8 +15099,7 @@ else
 fi
 
 
-ac_config_files="$ac_config_files Makefile doc/Makefile man/Makefile samples/Makefile patches/Makefile libtap/Makefile src/Makefile tests/Makefile src/dnstap/Makefile src/zscanner/Makefile src/dnssec/Makefile src/dnssec/man/Makefile src/dnssec/man/keymgr.8 src/dnssec/man/knsec3hash.1 src/dnssec/tests/Makefile src/dnssec/utils/Makefile doc/conf.py man/khost.1 man/knotc.8 man/knotd.8 man/kdig.1 man/knsupdate.1 man/knot.conf.5"
-
+ac_config_files="$ac_config_files Makefile doc/Makefile man/Makefile samples/Makefile libtap/Makefile src/Makefile tests/Makefile src/dnstap/Makefile src/zscanner/Makefile src/dnssec/Makefile src/dnssec/man/Makefile src/dnssec/man/keymgr.8 src/dnssec/man/knsec3hash.1 src/dnssec/tests/Makefile src/dnssec/utils/Makefile doc/conf.py man/khost.1 man/knotc.8 man/knotd.8 man/kdig.1 man/knsupdate.1 man/knot.conf.5"
 
 
 cat >confcache <<\_ACEOF
@@ -16136,12 +16153,12 @@ do
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "src/libknot.pc") CONFIG_FILES="$CONFIG_FILES src/libknot.pc" ;;
     "src/libknot-int.pc") CONFIG_FILES="$CONFIG_FILES src/libknot-int.pc" ;;
+    "src/libknot-yparser.pc") CONFIG_FILES="$CONFIG_FILES src/libknot-yparser.pc" ;;
     "src/dnssec/libdnssec.pc") CONFIG_FILES="$CONFIG_FILES src/dnssec/libdnssec.pc" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "man/Makefile") CONFIG_FILES="$CONFIG_FILES man/Makefile" ;;
     "samples/Makefile") CONFIG_FILES="$CONFIG_FILES samples/Makefile" ;;
-    "patches/Makefile") CONFIG_FILES="$CONFIG_FILES patches/Makefile" ;;
     "libtap/Makefile") CONFIG_FILES="$CONFIG_FILES libtap/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "tests/Makefile") CONFIG_FILES="$CONFIG_FILES tests/Makefile" ;;

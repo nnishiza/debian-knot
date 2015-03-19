@@ -84,7 +84,8 @@ check_PROGRAMS = binary$(EXEEXT) crypto$(EXEEXT) \
 	keystore_pkcs8_dir$(EXEEXT) keytag$(EXEEXT) list$(EXEEXT) \
 	nsec_bitmap$(EXEEXT) nsec_hash$(EXEEXT) random$(EXEEXT) \
 	sign$(EXEEXT) sign_der$(EXEEXT) shared_base32hex$(EXEEXT) \
-	shared_dname$(EXEEXT) shared_wire$(EXEEXT) tsig$(EXEEXT)
+	shared_dname$(EXEEXT) shared_strtonum$(EXEEXT) \
+	shared_wire$(EXEEXT) tsig$(EXEEXT)
 subdir = src/dnssec/tests
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
@@ -191,6 +192,11 @@ shared_dname_OBJECTS = shared_dname.$(OBJEXT)
 shared_dname_LDADD = $(LDADD)
 shared_dname_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(builddir)/../libdnssec.la
+shared_strtonum_SOURCES = shared_strtonum.c
+shared_strtonum_OBJECTS = shared_strtonum.$(OBJEXT)
+shared_strtonum_LDADD = $(LDADD)
+shared_strtonum_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(builddir)/../libdnssec.la
 shared_wire_SOURCES = shared_wire.c
 shared_wire_OBJECTS = shared_wire.$(OBJEXT)
 shared_wire_LDADD = $(LDADD)
@@ -248,13 +254,13 @@ am__v_CCLD_1 =
 SOURCES = binary.c crypto.c kasp_dir_escape.c kasp_dir_file.c \
 	kasp_store.c key.c key_algorithm.c keyid.c keystore_pkcs8.c \
 	keystore_pkcs8_dir.c keytag.c list.c nsec_bitmap.c nsec_hash.c \
-	random.c shared_base32hex.c shared_dname.c shared_wire.c \
-	sign.c sign_der.c tsig.c
+	random.c shared_base32hex.c shared_dname.c shared_strtonum.c \
+	shared_wire.c sign.c sign_der.c tsig.c
 DIST_SOURCES = binary.c crypto.c kasp_dir_escape.c kasp_dir_file.c \
 	kasp_store.c key.c key_algorithm.c keyid.c keystore_pkcs8.c \
 	keystore_pkcs8_dir.c keytag.c list.c nsec_bitmap.c nsec_hash.c \
-	random.c shared_base32hex.c shared_dname.c shared_wire.c \
-	sign.c sign_der.c tsig.c
+	random.c shared_base32hex.c shared_dname.c shared_strtonum.c \
+	shared_wire.c sign.c sign_der.c tsig.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -437,6 +443,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CPPFLAGS = \
+	-include $(top_builddir)/src/config.h \
 	-I$(top_srcdir)/libtap \
 	-I$(srcdir)/../shared \
 	-I$(srcdir)/../lib \
@@ -566,6 +573,10 @@ shared_dname$(EXEEXT): $(shared_dname_OBJECTS) $(shared_dname_DEPENDENCIES) $(EX
 	@rm -f shared_dname$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_dname_OBJECTS) $(shared_dname_LDADD) $(LIBS)
 
+shared_strtonum$(EXEEXT): $(shared_strtonum_OBJECTS) $(shared_strtonum_DEPENDENCIES) $(EXTRA_shared_strtonum_DEPENDENCIES) 
+	@rm -f shared_strtonum$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(shared_strtonum_OBJECTS) $(shared_strtonum_LDADD) $(LIBS)
+
 shared_wire$(EXEEXT): $(shared_wire_OBJECTS) $(shared_wire_DEPENDENCIES) $(EXTRA_shared_wire_DEPENDENCIES) 
 	@rm -f shared_wire$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_wire_OBJECTS) $(shared_wire_LDADD) $(LIBS)
@@ -605,6 +616,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_base32hex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_dname.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_strtonum.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sign.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sign_der.Po@am__quote@
