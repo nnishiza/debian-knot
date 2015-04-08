@@ -1,3 +1,20 @@
+knot (1.6.3-1) unstable; urgency=medium
+
+  * New upstream version 1.6.3 (Thank you for AFL release)
+   + Features:
+    - CDS and CDNSKEY support in zone parser
+   + Bugfixes:
+    - Performance drop for NSEC-signed zones
+    - Proper handling of TCP short-writes
+    - Out-of-bound read in zone parser for long domain names in origin
+    - Out-of-bound read in packet parser for TSIG RR without RDATA
+    - Out-of-bound read in packet parser for malformed NAPTR RR
+   + Improvements:
+    - Add defaults for TCP config options into documentation
+    - Detailed error message if zone reload fails
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 08 Apr 2015 15:35:57 +0200
+
 knot (1.6.2-1) unstable; urgency=medium
 
   * New upstream version 1.6.2
