@@ -83,8 +83,8 @@ check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
 	dnssec_sign$(EXEEXT) dnssec_zone_nsec$(EXEEXT) \
 	dthreads$(EXEEXT) edns$(EXEEXT) fdset$(EXEEXT) \
 	hattrie$(EXEEXT) hhash$(EXEEXT) journal$(EXEEXT) \
-	namedb$(EXEEXT) node$(EXEEXT) pkt$(EXEEXT) \
-	process_answer$(EXEEXT) process_query$(EXEEXT) \
+	namedb$(EXEEXT) net_shortwrite$(EXEEXT) node$(EXEEXT) \
+	pkt$(EXEEXT) process_answer$(EXEEXT) process_query$(EXEEXT) \
 	query_module$(EXEEXT) rdata$(EXEEXT) rdataset$(EXEEXT) \
 	requestor$(EXEEXT) rrl$(EXEEXT) rrset$(EXEEXT) \
 	rrset_wire$(EXEEXT) server$(EXEEXT) wire$(EXEEXT) \
@@ -218,6 +218,12 @@ namedb_SOURCES = namedb.c
 namedb_OBJECTS = namedb.$(OBJEXT)
 namedb_LDADD = $(LDADD)
 namedb_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
+net_shortwrite_SOURCES = net_shortwrite.c
+net_shortwrite_OBJECTS = net_shortwrite.$(OBJEXT)
+net_shortwrite_LDADD = $(LDADD)
+net_shortwrite_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
 node_SOURCES = node.c
@@ -377,16 +383,17 @@ am__v_CCLD_1 =
 SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	$(nodist_conf_SOURCES) descriptor.c dname.c dnssec_keys.c \
 	dnssec_nsec3.c dnssec_sign.c dnssec_zone_nsec.c dthreads.c \
-	edns.c fdset.c hattrie.c hhash.c journal.c namedb.c node.c \
-	pkt.c $(process_answer_SOURCES) $(process_query_SOURCES) \
-	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	rrset_wire.c server.c wire.c worker_pool.c worker_queue.c \
-	zone_events.c zone_timers.c zone_update.c zonedb.c ztree.c
+	edns.c fdset.c hattrie.c hhash.c journal.c namedb.c \
+	net_shortwrite.c node.c pkt.c $(process_answer_SOURCES) \
+	$(process_query_SOURCES) query_module.c rdata.c rdataset.c \
+	requestor.c rrl.c rrset.c rrset_wire.c server.c wire.c \
+	worker_pool.c worker_queue.c zone_events.c zone_timers.c \
+	zone_update.c zonedb.c ztree.c
 DIST_SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	descriptor.c dname.c dnssec_keys.c dnssec_nsec3.c \
 	dnssec_sign.c dnssec_zone_nsec.c dthreads.c edns.c fdset.c \
-	hattrie.c hhash.c journal.c namedb.c node.c pkt.c \
-	$(process_answer_SOURCES) $(process_query_SOURCES) \
+	hattrie.c hhash.c journal.c namedb.c net_shortwrite.c node.c \
+	pkt.c $(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
 	rrset_wire.c server.c wire.c worker_pool.c worker_queue.c \
 	zone_events.c zone_timers.c zone_update.c zonedb.c ztree.c
@@ -696,6 +703,10 @@ namedb$(EXEEXT): $(namedb_OBJECTS) $(namedb_DEPENDENCIES) $(EXTRA_namedb_DEPENDE
 	@rm -f namedb$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(namedb_OBJECTS) $(namedb_LDADD) $(LIBS)
 
+net_shortwrite$(EXEEXT): $(net_shortwrite_OBJECTS) $(net_shortwrite_DEPENDENCIES) $(EXTRA_net_shortwrite_DEPENDENCIES) 
+	@rm -f net_shortwrite$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(net_shortwrite_OBJECTS) $(net_shortwrite_LDADD) $(LIBS)
+
 node$(EXEEXT): $(node_OBJECTS) $(node_DEPENDENCIES) $(EXTRA_node_DEPENDENCIES) 
 	@rm -f node$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(node_OBJECTS) $(node_LDADD) $(LIBS)
@@ -800,6 +811,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hhash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/namedb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/net_shortwrite.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/node.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pkt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process_answer.Po@am__quote@
