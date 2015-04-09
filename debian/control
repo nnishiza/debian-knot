@@ -18,8 +18,7 @@ Build-Depends: autotools-dev,
                libidn11-dev,
                libjansson-dev (>= 2.4),
                liblmdb-dev,
-               libsystemd-daemon-dev [linux-any],
-               libsystemd-journal-dev [linux-any],
+               libsystemd-dev [linux-any],
                liburcu-dev (>= 0.4),
                pkg-config
 Standards-Version: 3.9.6
