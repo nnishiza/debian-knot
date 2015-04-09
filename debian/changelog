@@ -1,3 +1,12 @@
+knot (1.99.1+newconfig0-1) experimental; urgency=medium
+
+  * New upstream version 1.99.1+newconfig0
+  * keymgr now resides in /usr/sbin
+  * Use libsystemd-dev instead of separated -dev libraries (Closes: #779759)
+  * Update sphinx patch
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 09 Apr 2015 11:32:22 +0200
+
 knot (1.99.1-1) experimental; urgency=medium
 
   * New upstream version 1.99.1
