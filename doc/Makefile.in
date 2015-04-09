@@ -155,9 +155,6 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LCOV = @LCOV@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
-LEX = @LEX@
-LEXLIB = @LEXLIB@
-LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -196,8 +193,6 @@ SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
 VERSION_INFO = @VERSION_INFO@
-YACC = @YACC@
-YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -399,14 +394,14 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+@HAVE_DOCS_FALSE@info-local:
+@HAVE_MAKEINFO_FALSE@info-local:
+@HAVE_SPHINXBUILD_FALSE@info-local:
 @HAVE_DOCS_FALSE@html-local:
 @HAVE_SPHINXBUILD_FALSE@html-local:
 @HAVE_DOCS_FALSE@pdf-local:
 @HAVE_PDFLATEX_FALSE@pdf-local:
 @HAVE_SPHINXBUILD_FALSE@pdf-local:
-@HAVE_DOCS_FALSE@info-local:
-@HAVE_MAKEINFO_FALSE@info-local:
-@HAVE_SPHINXBUILD_FALSE@info-local:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-local mostlyclean-am
@@ -463,11 +458,7 @@ mostlyclean: mostlyclean-am
 
 mostlyclean-am: mostlyclean-generic mostlyclean-libtool
 
-@HAVE_DOCS_FALSE@pdf: pdf-am
-
-@HAVE_PDFLATEX_TRUE@pdf: pdf-am
-
-@HAVE_SPHINXBUILD_FALSE@pdf: pdf-am
+pdf: pdf-am
 
 pdf-am: pdf-local
 
@@ -493,7 +484,7 @@ uninstall-am:
 	uninstall uninstall-am
 
 
-.PHONY: html-local singlehtml pdf-local info-local
+.PHONY: html-local singlehtml pdf-local info-local man
 
 @HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@html-local:
 @HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/html
@@ -510,7 +501,6 @@ uninstall-am:
 @HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Running LaTeX files through pdflatex..."
 @HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(MAKE) -C $(SPHINXBUILDDIR)/latex all-pdf
 @HAVE_DOCS_TRUE@@HAVE_PDFLATEX_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "pdflatex finished; the PDF files are in $(SPHINXBUILDDIR)/latex."
-@HAVE_DOCS_TRUE@@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@pdf:
 @HAVE_DOCS_TRUE@@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "You need to install pdflatex and re-run configure to be"
 @HAVE_DOCS_TRUE@@HAVE_PDFLATEX_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "able to generate PDF documentation."
 
@@ -522,7 +512,12 @@ uninstall-am:
 @HAVE_DOCS_TRUE@@HAVE_MAKEINFO_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "You need to install GNU Texinfo and re-run configure to be"
 @HAVE_DOCS_TRUE@@HAVE_MAKEINFO_FALSE@@HAVE_SPHINXBUILD_TRUE@	@echo "able to generate info pages."
 
-@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_FALSE@html-local singlehtml pdf-local info-local:
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@man:
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	$(SPHINXBUILD) -b man -D version="__VERSION__" -D today="__DATE__" $(ALLSPHINXOPTS) $(SPHINXBUILDDIR)/man
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_TRUE@	@echo "Build finished. The man pages are in $(SPHINXBUILDDIR)/man."
+
+@HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_FALSE@html-local singlehtml pdf-local info-local man:
 @HAVE_DOCS_TRUE@@HAVE_SPHINXBUILD_FALSE@	@echo "Please install sphinx (python-sphinx) to generate Knot DNS documentation."
 
 clean-local:
