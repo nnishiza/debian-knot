@@ -1,3 +1,20 @@
+/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "libknot/libknot.h"
 #include "knot/nameserver/nsec_proofs.h"
 #include "knot/nameserver/process_query.h"
 #include "knot/nameserver/internet.h"
@@ -506,30 +523,15 @@ dbg_ns_exec_verb(
 	// search for previous until we find name lesser than wildcard
 	assert(closest_encloser != NULL);
 
-	knot_dname_t *wildcard =
-		ns_wildcard_child_name(closest_encloser->owner);
+	knot_dname_t *wildcard = ns_wildcard_child_name(closest_encloser->owner);
 	if (wildcard == NULL) {
 		return KNOT_ERROR; /* servfail */
 	}
 
-	const zone_node_t *prev_new = previous;
-
-	while (knot_dname_cmp(prev_new->owner, wildcard) > 0) {
-dbg_ns_exec_verb(
-		char *name = knot_dname_to_str_alloc(prev_new->owner);
-		dbg_ns_verb("Previous node: %s\n", name);
-		free(name);
-);
-		assert(prev_new != zone->apex);
+	const zone_node_t *prev_new = zone_contents_find_previous(zone, wildcard);
+	while (prev_new->flags != NODE_FLAGS_AUTH) {
 		prev_new = prev_new->prev;
 	}
-	assert(knot_dname_cmp(prev_new->owner, wildcard) < 0);
-
-dbg_ns_exec_verb(
-	char *name = knot_dname_to_str_alloc(prev_new->owner);
-	dbg_ns_verb("Previous node: %s\n", name);
-	free(name);
-);
 
 	/* Directly discard dname. */
 	knot_dname_free(&wildcard, NULL);

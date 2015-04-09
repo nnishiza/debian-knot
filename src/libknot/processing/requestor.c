@@ -55,8 +55,7 @@ static int request_ensure_connected(struct knot_request *request)
 	return KNOT_EOK;
 }
 
-static int request_send(struct knot_request *request,
-                        const struct timeval *timeout)
+static int request_send(struct knot_request *request, struct timeval *timeout)
 {
 	/* Wait for writeability or error. */
 	int ret = request_ensure_connected(request);
@@ -71,7 +70,7 @@ static int request_send(struct knot_request *request,
 
 	/* Send query. */
 	if (use_tcp(request)) {
-		ret = tcp_send_msg(request->fd, wire, wire_len);
+		ret = tcp_send_msg(request->fd, wire, wire_len, timeout);
 	} else {
 		ret = udp_send_msg(request->fd, wire, wire_len, NULL);
 	}
@@ -233,12 +232,12 @@ static int request_io(struct knot_requestor *req, struct knot_request *last,
 	knot_pkt_t *resp = last->resp;
 
 	/* Data to be sent. */
-	if (req->overlay.state == KNOT_NS_PROC_FULL) {
+	if (req->overlay.state == KNOT_STATE_PRODUCE) {
 
 		/* Process query and send it out. */
-		knot_overlay_out(&req->overlay, query);
+		knot_overlay_produce(&req->overlay, query);
 
-		if (req->overlay.state == KNOT_NS_PROC_MORE) {
+		if (req->overlay.state == KNOT_STATE_CONSUME) {
 			ret = request_send(last, timeout);
 			if (ret != KNOT_EOK) {
 				return ret;
@@ -247,14 +246,14 @@ static int request_io(struct knot_requestor *req, struct knot_request *last,
 	}
 
 	/* Data to be read. */
-	if (req->overlay.state == KNOT_NS_PROC_MORE) {
+	if (req->overlay.state == KNOT_STATE_CONSUME) {
 		/* Read answer and process it. */
 		ret = request_recv(last, timeout);
 		if (ret < 0) {
 			return ret;
 		}
 
-		knot_overlay_in(&req->overlay, resp);
+		knot_overlay_consume(&req->overlay, resp);
 	}
 
 	return KNOT_EOK;
@@ -266,7 +265,7 @@ static int exec_request(struct knot_requestor *req, struct knot_request *last,
 	int ret = KNOT_EOK;
 
 	/* Do I/O until the processing is satisifed or fails. */
-	while (req->overlay.state & (KNOT_NS_PROC_FULL|KNOT_NS_PROC_MORE)) {
+	while (req->overlay.state & (KNOT_STATE_PRODUCE|KNOT_STATE_CONSUME)) {
 		ret = request_io(req, last, timeout);
 		if (ret != KNOT_EOK) {
 			knot_overlay_reset(&req->overlay);
@@ -275,7 +274,7 @@ static int exec_request(struct knot_requestor *req, struct knot_request *last,
 	}
 
 	/* Expect complete request. */
-	if (req->overlay.state == KNOT_NS_PROC_FAIL) {
+	if (req->overlay.state == KNOT_STATE_FAIL) {
 		ret = KNOT_LAYER_ERROR;
 	}
 

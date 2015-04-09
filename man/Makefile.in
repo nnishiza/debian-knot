@@ -78,12 +78,13 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 @HAVE_DAEMON_TRUE@am__append_1 = knot.conf.5 knotc.8 knotd.8
-@HAVE_UTILS_TRUE@am__append_2 = kdig.1 khost.1 knsupdate.1
+@HAVE_UTILS_TRUE@am__append_2 = kdig.1 khost.1 knsupdate.1 knot1to2.1
 subdir = man
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/khost.1.in $(srcdir)/knotc.8.in $(srcdir)/knotd.8.in \
 	$(srcdir)/kdig.1.in $(srcdir)/knsupdate.1.in \
-	$(srcdir)/knot.conf.5.in $(dist_man_MANS)
+	$(srcdir)/knot.conf.5.in $(srcdir)/knot1to2.1.in \
+	$(dist_man_MANS)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_set_version_info.m4 \
@@ -97,7 +98,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/src/config.h
 CONFIG_CLEAN_FILES = khost.1 knotc.8 knotd.8 kdig.1 knsupdate.1 \
-	knot.conf.5
+	knot.conf.5 knot1to2.1
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -194,9 +195,6 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LCOV = @LCOV@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
-LEX = @LEX@
-LEXLIB = @LEXLIB@
-LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -235,8 +233,6 @@ SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
 VERSION_INFO = @VERSION_INFO@
-YACC = @YACC@
-YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -356,6 +352,8 @@ kdig.1: $(top_builddir)/config.status $(srcdir)/kdig.1.in
 knsupdate.1: $(top_builddir)/config.status $(srcdir)/knsupdate.1.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 knot.conf.5: $(top_builddir)/config.status $(srcdir)/knot.conf.5.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+knot1to2.1: $(top_builddir)/config.status $(srcdir)/knot1to2.1.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 
 mostlyclean-libtool:

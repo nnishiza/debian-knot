@@ -674,11 +674,6 @@ liburcu_LIBS
 liburcu_CFLAGS
 systemd_LIBS
 systemd_CFLAGS
-YFLAGS
-YACC
-LEXLIB
-LEX_OUTPUT_ROOT
-LEX
 config_dir
 storage_dir
 run_dir
@@ -861,8 +856,6 @@ gnutls_CFLAGS
 gnutls_LIBS
 jansson_CFLAGS
 jansson_LIBS
-YACC
-YFLAGS
 systemd_CFLAGS
 systemd_LIBS
 liburcu_CFLAGS
@@ -1505,7 +1498,7 @@ Optional Features:
   --disable-daemon        Don't build Knot DNS main daemon
   --disable-utilities     Don't build Knot DNS utilities
   --disable-documentation Don't build Knot DNS documentation
-  --disable-fastparser    Use slower zone parser
+  --disable-fastparser    Disable use of fastest zone parser
   --enable-debug=server,zones,ns,loader,dnssec
                           compile selected debug modules [default=none]
   --enable-debuglevel=brief|verbose|details
@@ -1519,7 +1512,7 @@ Optional Features:
   --enable-systemd=auto|yes|no
                           enable systemd integration [default=auto]
   --enable-dnstap         Enable dnstap support (requires fstrm, protobuf-c)
-  --disable-rosedb        Do not enable static RR query module.
+  --enable-rosedb         Enable static RR query module.
   --enable-code-coverage  enable code coverage testing with gcov
 
 Optional Packages:
@@ -1563,12 +1556,6 @@ Some influential environment variables:
               C compiler flags for jansson, overriding pkg-config
   jansson_LIBS
               linker flags for jansson, overriding pkg-config
-  YACC        The `Yet Another Compiler Compiler' implementation to use.
-              Defaults to the first program found out of: `bison -y', `byacc',
-              `yacc'.
-  YFLAGS      The list of arguments that will be passed by default to $YACC.
-              This script will default YFLAGS to the empty string to avoid a
-              default value of `-d' given by some make applications.
   systemd_CFLAGS
               C compiler flags for systemd, overriding pkg-config
   systemd_LIBS
@@ -2635,8 +2622,8 @@ test "$program_suffix" != NONE &&
 ac_script='s/[\\$]/&&/g;s/;s,x,x,$//'
 program_transform_name=`$as_echo "$program_transform_name" | sed "$ac_script"`
 
-# expand $ac_aux_dir to an absolute path
-am_aux_dir=`cd $ac_aux_dir && pwd`
+# Expand $ac_aux_dir to an absolute path.
+am_aux_dir=`cd "$ac_aux_dir" && pwd`
 
 if test x"${MISSING+set}" != xset; then
   case $am_aux_dir in
@@ -3041,6 +3028,7 @@ END
     as_fn_error $? "Your 'rm' program is bad, sorry." "$LINENO" 5
   fi
 fi
+
 # Check whether --enable-silent-rules was given.
 if test "${enable_silent_rules+set}" = set; then :
   enableval=$enable_silent_rules;
@@ -5730,7 +5718,8 @@ else
     ;;
   *)
     lt_cv_sys_max_cmd_len=`(getconf ARG_MAX) 2> /dev/null`
-    if test -n "$lt_cv_sys_max_cmd_len"; then
+    if test -n "$lt_cv_sys_max_cmd_len" && \
+	test undefined != "$lt_cv_sys_max_cmd_len"; then
       lt_cv_sys_max_cmd_len=`expr $lt_cv_sys_max_cmd_len \/ 4`
       lt_cv_sys_max_cmd_len=`expr $lt_cv_sys_max_cmd_len \* 3`
     else
@@ -6131,10 +6120,6 @@ freebsd* | dragonfly*)
   fi
   ;;
 
-gnu*)
-  lt_cv_deplibs_check_method=pass_all
-  ;;
-
 haiku*)
   lt_cv_deplibs_check_method=pass_all
   ;;
@@ -6173,11 +6158,11 @@ irix5* | irix6* | nonstopux*)
   ;;
 
 # This must be glibc/ELF.
-linux* | k*bsd*-gnu | kopensolaris*-gnu)
+linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
   lt_cv_deplibs_check_method=pass_all
   ;;
 
-netbsd*)
+netbsd* | netbsdelf*-gnu)
   if echo __ELF__ | $CC -E - | $GREP __ELF__ > /dev/null; then
     lt_cv_deplibs_check_method='match_pattern /lib[^/]+(\.so\.[0-9]+\.[0-9]+|_pic\.a)$'
   else
@@ -7270,12 +7255,19 @@ s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
 	    LD="${LD-ld} -m elf_i386_fbsd"
 	    ;;
 	  x86_64-*linux*)
-	    LD="${LD-ld} -m elf_i386"
+	    case `/usr/bin/file conftest.o` in
+	      *x86-64*)
+		LD="${LD-ld} -m elf32_x86_64"
+		;;
+	      *)
+		LD="${LD-ld} -m elf_i386"
+		;;
+	    esac
 	    ;;
-	  powerpc64le-*linux*)
+	  powerpc64le-*)
 	    LD="${LD-ld} -m elf32lppclinux"
 	    ;;
-	  powerpc64-*linux*)
+	  powerpc64-*)
 	    LD="${LD-ld} -m elf32ppclinux"
 	    ;;
 	  s390x-*linux*)
@@ -7294,10 +7286,10 @@ s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
 	  x86_64-*linux*)
 	    LD="${LD-ld} -m elf_x86_64"
 	    ;;
-	  powerpcle-*linux*)
+	  powerpcle-*)
 	    LD="${LD-ld} -m elf64lppc"
 	    ;;
-	  powerpc-*linux*)
+	  powerpc-*)
 	    LD="${LD-ld} -m elf64ppc"
 	    ;;
 	  s390*-*linux*|s390*-*tpf*)
@@ -8838,7 +8830,7 @@ lt_prog_compiler_static=
       lt_prog_compiler_static='-non_shared'
       ;;
 
-    linux* | k*bsd*-gnu | kopensolaris*-gnu)
+    linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
       case $cc_basename in
       # old Intel for x86_64 which still supported -KPIC.
       ecc*)
@@ -9316,6 +9308,9 @@ $as_echo_n "checking whether the $compiler linker ($LD) supports shared librarie
   openbsd*)
     with_gnu_ld=no
     ;;
+  linux* | k*bsd*-gnu | gnu*)
+    link_all_deplibs=no
+    ;;
   esac
 
   ld_shlibs=yes
@@ -9537,7 +9532,7 @@ _LT_EOF
       fi
       ;;
 
-    netbsd*)
+    netbsd* | netbsdelf*-gnu)
       if echo __ELF__ | $CC -E - | $GREP __ELF__ >/dev/null; then
 	archive_cmds='$LD -Bshareable $libobjs $deplibs $linker_flags -o $lib'
 	wlarc=
@@ -9714,6 +9709,7 @@ _LT_EOF
 	if test "$aix_use_runtimelinking" = yes; then
 	  shared_flag="$shared_flag "'${wl}-G'
 	fi
+	link_all_deplibs=no
       else
 	# not using gcc
 	if test "$host_cpu" = ia64; then
@@ -10167,7 +10163,7 @@ $as_echo "$lt_cv_irix_exported_symbol" >&6; }
       link_all_deplibs=yes
       ;;
 
-    netbsd*)
+    netbsd* | netbsdelf*-gnu)
       if echo __ELF__ | $CC -E - | $GREP __ELF__ >/dev/null; then
 	archive_cmds='$LD -Bshareable -o $lib $libobjs $deplibs $linker_flags'  # a.out
       else
@@ -11004,17 +11000,6 @@ freebsd* | dragonfly*)
   esac
   ;;
 
-gnu*)
-  version_type=linux # correct to gnu/linux during the next big refactor
-  need_lib_prefix=no
-  need_version=no
-  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}${major} ${libname}${shared_ext}'
-  soname_spec='${libname}${release}${shared_ext}$major'
-  shlibpath_var=LD_LIBRARY_PATH
-  shlibpath_overrides_runpath=no
-  hardcode_into_libs=yes
-  ;;
-
 haiku*)
   version_type=linux # correct to gnu/linux during the next big refactor
   need_lib_prefix=no
@@ -11131,7 +11116,7 @@ linux*oldld* | linux*aout* | linux*coff*)
   ;;
 
 # This must be glibc/ELF.
-linux* | k*bsd*-gnu | kopensolaris*-gnu)
+linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
   version_type=linux # correct to gnu/linux during the next big refactor
   need_lib_prefix=no
   need_version=no
@@ -11180,14 +11165,10 @@ fi
   # before this can be enabled.
   hardcode_into_libs=yes
 
-  # Add ABI-specific directories to the system library path.
-  sys_lib_dlsearch_path_spec="/lib64 /usr/lib64 /lib /usr/lib"
-
   # Append ld.so.conf contents to the search path
   if test -f /etc/ld.so.conf; then
     lt_ld_extra=`awk '/^include / { system(sprintf("cd /etc; cat %s 2>/dev/null", \$2)); skip = 1; } { if (!skip) print \$0; skip = 0; }' < /etc/ld.so.conf | $SED -e 's/#.*//;/^[	 ]*hwcap[	 ]/d;s/[:,	]/ /g;s/=[^=]*$//;s/=[^= ]* / /g;s/"//g;/^$/d' | tr '\n' ' '`
-    sys_lib_dlsearch_path_spec="$sys_lib_dlsearch_path_spec $lt_ld_extra"
-
+    sys_lib_dlsearch_path_spec="/lib /usr/lib $lt_ld_extra"
   fi
 
   # We used to test for /lib/ld.so.1 and disable shared libraries on
@@ -11197,6 +11178,18 @@ fi
   # people can always --disable-shared, the test was removed, and we
   # assume the GNU/Linux dynamic linker is in use.
   dynamic_linker='GNU/Linux ld.so'
+  ;;
+
+netbsdelf*-gnu)
+  version_type=linux
+  need_lib_prefix=no
+  need_version=no
+  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major ${libname}${shared_ext}'
+  soname_spec='${libname}${release}${shared_ext}$major'
+  shlibpath_var=LD_LIBRARY_PATH
+  shlibpath_overrides_runpath=no
+  hardcode_into_libs=yes
+  dynamic_linker='NetBSD ld.elf_so'
   ;;
 
 netbsd*)
@@ -12187,7 +12180,7 @@ pkgconfigdir=$with_pkgconfigdir
 
 
 
-ac_config_files="$ac_config_files src/libknot.pc src/libknot-int.pc src/dnssec/libdnssec.pc"
+ac_config_files="$ac_config_files src/libknot.pc src/libknot-int.pc src/libknot-yparser.pc src/dnssec/libdnssec.pc"
 
 
 # Build Knot DNS daemon
@@ -12247,12 +12240,22 @@ fi
 
 
 
-# Set zone parser type
 # Check whether --enable-fastparser was given.
 if test "${enable_fastparser+set}" = set; then :
   enableval=$enable_fastparser;
 else
-  enable_fastparser=yes
+
+    # Set zone parser type - fastest on release build, slowest on dev build
+    if test -d ".git" -o "$PATCH_VERSION" = "dev"; then :
+
+        enable_fastparser=no
+
+else
+
+    	enable_fastparser=yes
+
+fi
+
 fi
 
  if test "$enable_fastparser" = "yes"; then
@@ -12823,283 +12826,7 @@ fi
 #########################################
 # Dependencies needed for Knot DNS daemon
 #########################################
-for ac_prog in flex lex
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_prog_LEX+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -n "$LEX"; then
-  ac_cv_prog_LEX="$LEX" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_LEX="$ac_prog"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-fi
-fi
-LEX=$ac_cv_prog_LEX
-if test -n "$LEX"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LEX" >&5
-$as_echo "$LEX" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  test -n "$LEX" && break
-done
-test -n "$LEX" || LEX=":"
-
-if test "x$LEX" != "x:"; then
-  cat >conftest.l <<_ACEOF
-%%
-a { ECHO; }
-b { REJECT; }
-c { yymore (); }
-d { yyless (1); }
-e { /* IRIX 6.5 flex 2.5.4 underquotes its yyless argument.  */
-    yyless ((input () != 0)); }
-f { unput (yytext[0]); }
-. { BEGIN INITIAL; }
-%%
-#ifdef YYTEXT_POINTER
-extern char *yytext;
-#endif
-int
-main (void)
-{
-  return ! yylex () + ! yywrap ();
-}
-_ACEOF
-{ { ac_try="$LEX conftest.l"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$LEX conftest.l") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking lex output file root" >&5
-$as_echo_n "checking lex output file root... " >&6; }
-if ${ac_cv_prog_lex_root+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-
-if test -f lex.yy.c; then
-  ac_cv_prog_lex_root=lex.yy
-elif test -f lexyy.c; then
-  ac_cv_prog_lex_root=lexyy
-else
-  as_fn_error $? "cannot find output from $LEX; giving up" "$LINENO" 5
-fi
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_prog_lex_root" >&5
-$as_echo "$ac_cv_prog_lex_root" >&6; }
-LEX_OUTPUT_ROOT=$ac_cv_prog_lex_root
-
-if test -z "${LEXLIB+set}"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking lex library" >&5
-$as_echo_n "checking lex library... " >&6; }
-if ${ac_cv_lib_lex+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-
-    ac_save_LIBS=$LIBS
-    ac_cv_lib_lex='none needed'
-    for ac_lib in '' -lfl -ll; do
-      LIBS="$ac_lib $ac_save_LIBS"
-      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-`cat $LEX_OUTPUT_ROOT.c`
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_lex=$ac_lib
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-      test "$ac_cv_lib_lex" != 'none needed' && break
-    done
-    LIBS=$ac_save_LIBS
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lex" >&5
-$as_echo "$ac_cv_lib_lex" >&6; }
-  test "$ac_cv_lib_lex" != 'none needed' && LEXLIB=$ac_cv_lib_lex
-fi
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether yytext is a pointer" >&5
-$as_echo_n "checking whether yytext is a pointer... " >&6; }
-if ${ac_cv_prog_lex_yytext_pointer+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  # POSIX says lex can declare yytext either as a pointer or an array; the
-# default is implementation-dependent.  Figure out which it is, since
-# not all implementations provide the %pointer and %array declarations.
-ac_cv_prog_lex_yytext_pointer=no
-ac_save_LIBS=$LIBS
-LIBS="$LEXLIB $ac_save_LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-  #define YYTEXT_POINTER 1
-`cat $LEX_OUTPUT_ROOT.c`
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_prog_lex_yytext_pointer=yes
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_save_LIBS
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_prog_lex_yytext_pointer" >&5
-$as_echo "$ac_cv_prog_lex_yytext_pointer" >&6; }
-if test $ac_cv_prog_lex_yytext_pointer = yes; then
-
-$as_echo "#define YYTEXT_POINTER 1" >>confdefs.h
-
-fi
-rm -f conftest.l $LEX_OUTPUT_ROOT.c
-
-fi
 if test "$enable_daemon" = "yes"; then :
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for reentrant lex" >&5
-$as_echo_n "checking for reentrant lex... " >&6; }
-if ${ac_cv_path_LEX+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -z "$LEX"; then
-  ac_path_LEX_found=false
-  # Loop through the user's path and test for each of PROGNAME-LIST
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_prog in $LEX flex gflex; do
-    for ac_exec_ext in '' $ac_executable_extensions; do
-      ac_path_LEX="$as_dir/$ac_prog$ac_exec_ext"
-      as_fn_executable_p "$ac_path_LEX" || continue
-cat >conftest.l <<_ACEOF
-%{
-%}
-
-%option reentrant
-%option bison-bridge
-%option noinput
-%option nounput
-%option noreject
-
-BLANK  \t\n
-
-%%
-<<EOF>> return 0;
-%%
-_ACEOF
-{ { ac_try="$ac_path_LEX conftest.l"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$ac_path_LEX conftest.l") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }
-test $ac_status -eq 0 && ac_cv_path_LEX=$ac_path_LEX ac_path_LEX_found=true
-rm -f conftest.l lexyy.c lex.yy.c
-
-      $ac_path_LEX_found && break 3
-    done
-  done
-  done
-IFS=$as_save_IFS
-  if test -z "$ac_cv_path_LEX"; then
-    as_fn_error $? "could not find lex that supports reentrant parsers" "$LINENO" 5
-  fi
-else
-  ac_cv_path_LEX=$LEX
-fi
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_path_LEX" >&5
-$as_echo "$ac_cv_path_LEX" >&6; }
-LEX=$ac_cv_path_LEX
-
-if test "$LEX" = :; then
-  LEX=${am_missing_run}flex
-fi
-
-for ac_prog in 'bison -y' byacc
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_prog_YACC+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -n "$YACC"; then
-  ac_cv_prog_YACC="$YACC" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_YACC="$ac_prog"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-fi
-fi
-YACC=$ac_cv_prog_YACC
-if test -n "$YACC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $YACC" >&5
-$as_echo "$YACC" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  test -n "$YACC" && break
-done
-test -n "$YACC" || YACC="yacc"
-
-YACC_BISON=`bison --version | awk '{print $1;exit}'`
-if test "x$YACC_BISON" != "xbison"; then :
-  as_fn_error $? "GNU bison needed for reentrant parsers, set the \$YACC variable before running configure" "$LINENO" 5
-fi
 
 
 fi
@@ -13912,7 +13639,10 @@ fi
 # Check whether --with-lmdb was given.
 if test "${with_lmdb+set}" = set; then :
   withval=$with_lmdb;
-    with_lmdb=$withval,
+    with_lmdb=$withval
+
+else
+
     with_lmdb=yes
 
 fi
@@ -14072,7 +13802,6 @@ else
   HAVE_ROSEDB_TRUE='#'
   HAVE_ROSEDB_FALSE=
 fi
-
 
 
 ############################################
@@ -15081,8 +14810,7 @@ else
 fi
 
 
-ac_config_files="$ac_config_files Makefile doc/Makefile man/Makefile samples/Makefile patches/Makefile libtap/Makefile src/Makefile tests/Makefile src/dnstap/Makefile src/zscanner/Makefile src/dnssec/Makefile src/dnssec/man/Makefile src/dnssec/man/keymgr.8 src/dnssec/man/knsec3hash.1 src/dnssec/tests/Makefile src/dnssec/utils/Makefile doc/conf.py man/khost.1 man/knotc.8 man/knotd.8 man/kdig.1 man/knsupdate.1 man/knot.conf.5"
-
+ac_config_files="$ac_config_files Makefile doc/Makefile man/Makefile samples/Makefile libtap/Makefile src/Makefile tests/Makefile tests-fuzz/Makefile src/dnstap/Makefile src/zscanner/Makefile src/dnssec/Makefile src/dnssec/man/Makefile src/dnssec/man/keymgr.8 src/dnssec/man/knsec3hash.1 src/dnssec/tests/Makefile src/dnssec/utils/Makefile doc/conf.py man/khost.1 man/knotc.8 man/knotd.8 man/kdig.1 man/knsupdate.1 man/knot.conf.5 man/knot1to2.1"
 
 
 cat >confcache <<\_ACEOF
@@ -16136,15 +15864,16 @@ do
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "src/libknot.pc") CONFIG_FILES="$CONFIG_FILES src/libknot.pc" ;;
     "src/libknot-int.pc") CONFIG_FILES="$CONFIG_FILES src/libknot-int.pc" ;;
+    "src/libknot-yparser.pc") CONFIG_FILES="$CONFIG_FILES src/libknot-yparser.pc" ;;
     "src/dnssec/libdnssec.pc") CONFIG_FILES="$CONFIG_FILES src/dnssec/libdnssec.pc" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "man/Makefile") CONFIG_FILES="$CONFIG_FILES man/Makefile" ;;
     "samples/Makefile") CONFIG_FILES="$CONFIG_FILES samples/Makefile" ;;
-    "patches/Makefile") CONFIG_FILES="$CONFIG_FILES patches/Makefile" ;;
     "libtap/Makefile") CONFIG_FILES="$CONFIG_FILES libtap/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "tests/Makefile") CONFIG_FILES="$CONFIG_FILES tests/Makefile" ;;
+    "tests-fuzz/Makefile") CONFIG_FILES="$CONFIG_FILES tests-fuzz/Makefile" ;;
     "src/dnstap/Makefile") CONFIG_FILES="$CONFIG_FILES src/dnstap/Makefile" ;;
     "src/zscanner/Makefile") CONFIG_FILES="$CONFIG_FILES src/zscanner/Makefile" ;;
     "src/dnssec/Makefile") CONFIG_FILES="$CONFIG_FILES src/dnssec/Makefile" ;;
@@ -16160,6 +15889,7 @@ do
     "man/kdig.1") CONFIG_FILES="$CONFIG_FILES man/kdig.1" ;;
     "man/knsupdate.1") CONFIG_FILES="$CONFIG_FILES man/knsupdate.1" ;;
     "man/knot.conf.5") CONFIG_FILES="$CONFIG_FILES man/knot.conf.5" ;;
+    "man/knot1to2.1") CONFIG_FILES="$CONFIG_FILES man/knot1to2.1" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

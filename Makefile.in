@@ -81,7 +81,8 @@ subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog THANKS \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) COPYING ar-lib \
-	compile config.guess config.sub install-sh missing ltmain.sh
+	compile config.guess config.sub depcomp install-sh missing \
+	ylwrap ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_set_version_info.m4 \
@@ -236,9 +237,6 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LCOV = @LCOV@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
-LEX = @LEX@
-LEXLIB = @LEXLIB@
-LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -277,8 +275,6 @@ SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
 VERSION_INFO = @VERSION_INFO@
-YACC = @YACC@
-YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -353,7 +349,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = libtap src tests samples doc man patches
+SUBDIRS = libtap src tests tests-fuzz samples doc man
 AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--disable-code-coverage
 
@@ -871,14 +867,12 @@ code-coverage-capture:
 
 code-coverage-html:
 @CODE_COVERAGE_ENABLED_TRUE@	@echo "Generating code coverage HTML report (this might take a while)"
-@CODE_COVERAGE_ENABLED_TRUE@	@cp src/knot/conf/cf-lex.l src/knot/conf/cf-parse.y src/
 @CODE_COVERAGE_ENABLED_TRUE@	LANG=C $(GENHTML) $(code_coverage_quiet) \
 @CODE_COVERAGE_ENABLED_TRUE@		--output-directory $(CODE_COVERAGE_HTML) \
 @CODE_COVERAGE_ENABLED_TRUE@		--title "Knot DNS $(PACKAGE_VERSION) Code Coverage" \
 @CODE_COVERAGE_ENABLED_TRUE@		--legend --show-details \
 @CODE_COVERAGE_ENABLED_TRUE@		--ignore-errors source \
 @CODE_COVERAGE_ENABLED_TRUE@		$(CODE_COVERAGE_INFO)
-@CODE_COVERAGE_ENABLED_TRUE@	-@rm src/cf-lex.l src/cf-parse.y
 @CODE_COVERAGE_ENABLED_FALSE@	@echo "You need to run configure with --enable-code-coverage to enable code coverage"
 
 code-coverage-summary:

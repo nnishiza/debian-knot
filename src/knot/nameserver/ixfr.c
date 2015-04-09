@@ -14,6 +14,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <urcu.h>
+
 #include "knot/nameserver/ixfr.h"
 #include "knot/nameserver/axfr.h"
 #include "knot/nameserver/internet.h"
@@ -22,6 +24,7 @@
 #include "knot/updates/apply.h"
 #include "knot/common/debug.h"
 #include "knot/zone/serial.h"
+#include "libknot/libknot.h"
 #include "libknot/descriptor.h"
 #include "libknot/internal/utils.h"
 #include "libknot/rrtype/soa.h"
@@ -163,7 +166,7 @@ static int ixfr_process_changeset(knot_pkt_t *pkt, const void *item,
 #undef IXFR_SAFE_PUT
 
 /*! \brief Loads IXFRs from journal. */
-static int ixfr_load_chsets(list_t *chgsets, zone_t *zone,
+static int ixfr_load_chsets(list_t *chgsets, const zone_t *zone,
                             const knot_rrset_t *their_soa)
 {
 	assert(chgsets);
@@ -177,9 +180,11 @@ static int ixfr_load_chsets(list_t *chgsets, zone_t *zone,
 		return KNOT_EUPTODATE;
 	}
 
-	pthread_mutex_lock(&zone->journal_lock);
-	ret = journal_load_changesets(zone, chgsets, serial_from, serial_to);
-	pthread_mutex_unlock(&zone->journal_lock);
+	char *path = conf_journalfile(conf(), zone->name);
+	pthread_mutex_lock((pthread_mutex_t *)&zone->journal_lock);
+	ret = journal_load_changesets(path, zone, chgsets, serial_from, serial_to);
+	pthread_mutex_unlock((pthread_mutex_t *)&zone->journal_lock);
+	free(path);
 
 	if (ret != KNOT_EOK) {
 		changesets_free(chgsets);
@@ -201,16 +206,16 @@ static int ixfr_query_check(struct query_data *qdata)
 	const knot_rrset_t *their_soa = knot_pkt_rr(authority, 0);
 	if (authority->count < 1 || their_soa->type != KNOT_RRTYPE_SOA) {
 		qdata->rcode = KNOT_RCODE_FORMERR;
-		return KNOT_NS_PROC_FAIL;
+		return KNOT_STATE_FAIL;
 	}
 	/* SOA needs to match QNAME. */
 	NS_NEED_QNAME(qdata, their_soa->owner, KNOT_RCODE_FORMERR);
 
 	/* Check transcation security and zone contents. */
-	NS_NEED_AUTH(&qdata->zone->conf->acl.xfr_out, qdata);
+	NS_NEED_AUTH(qdata, qdata->zone->name, ACL_ACTION_XFER);
 	NS_NEED_ZONE_CONTENTS(qdata, KNOT_RCODE_SERVFAIL); /* Check expiration. */
 
-	return KNOT_NS_PROC_DONE;
+	return KNOT_STATE_DONE;
 }
 
 /*! \brief Cleans up ixfr processing context. */
@@ -233,7 +238,7 @@ static int ixfr_answer_init(struct query_data *qdata)
 {
 	/* Check IXFR query validity. */
 	int state = ixfr_query_check(qdata);
-	if (state == KNOT_NS_PROC_FAIL) {
+	if (state == KNOT_STATE_FAIL) {
 		if (qdata->rcode == KNOT_RCODE_FORMERR) {
 			return KNOT_EMALF;
 		} else {
@@ -296,31 +301,31 @@ static int ixfr_answer_soa(knot_pkt_t *pkt, struct query_data *qdata)
 {
 	dbg_ns("%s: answering IXFR/SOA\n", __func__);
 	if (pkt == NULL || qdata == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return KNOT_STATE_FAIL;
 	}
 
 	/* Check query. */
 	int state = ixfr_query_check(qdata);
-	if (state == KNOT_NS_PROC_FAIL) {
+	if (state == KNOT_STATE_FAIL) {
 		return state; /* Malformed query. */
 	}
 
 	/* Reserve space for TSIG. */
-	knot_pkt_reserve(pkt, knot_tsig_wire_maxsize(qdata->sign.tsig_key));
+	knot_pkt_reserve(pkt, knot_tsig_wire_maxsize(&qdata->sign.tsig_key));
 
 	/* Guaranteed to have zone contents. */
 	const zone_node_t *apex = qdata->zone->contents->apex;
 	knot_rrset_t soa_rr = node_rrset(apex, KNOT_RRTYPE_SOA);
 	if (knot_rrset_empty(&soa_rr)) {
-		return KNOT_NS_PROC_FAIL;
+		return KNOT_STATE_FAIL;
 	}
 	int ret = knot_pkt_put(pkt, 0, &soa_rr, 0);
 	if (ret != KNOT_EOK) {
 		qdata->rcode = KNOT_RCODE_SERVFAIL;
-		return KNOT_NS_PROC_FAIL;
+		return KNOT_STATE_FAIL;
 	}
 
-	return KNOT_NS_PROC_DONE;
+	return KNOT_STATE_DONE;
 }
 
 /* ------------------------- IXFR-in processing ----------------------------- */
@@ -568,7 +573,7 @@ static bool out_of_zone(const knot_rrset_t *rr, struct ixfr_proc *proc)
  * \param pkt    Packet containing the IXFR reply in wire format.
  * \param adata  Answer data, including processing context.
  *
- * \return KNOT_NS_PROC_MORE, KNOT_NS_PROC_DONE, KNOT_NS_PROC_FAIL
+ * \return KNOT_STATE_CONSUME, KNOT_STATE_DONE, KNOT_STATE_FAIL
  */
 static int process_ixfrin_packet(knot_pkt_t *pkt, struct answer_data *adata)
 {
@@ -583,7 +588,7 @@ static int process_ixfrin_packet(knot_pkt_t *pkt, struct answer_data *adata)
 	for (uint16_t i = 0; i < answer->count; ++i) {
 		if (journal_limit_exceeded(ixfr)) {
 			IXFRIN_LOG(LOG_WARNING, "journal is full");
-			return KNOT_NS_PROC_FAIL;
+			return KNOT_STATE_FAIL;
 		}
 
 		const knot_rrset_t *rr = knot_pkt_rr(answer, i);
@@ -594,16 +599,16 @@ static int process_ixfrin_packet(knot_pkt_t *pkt, struct answer_data *adata)
 		int ret = ixfrin_step(rr, ixfr);
 		if (ret != KNOT_EOK) {
 			IXFRIN_LOG(LOG_WARNING, "failed (%s)", knot_strerror(ret));
-			return KNOT_NS_PROC_FAIL;
+			return KNOT_STATE_FAIL;
 		}
 
 		if (ixfr->state == IXFR_DONE) {
 			// Transfer done, do not consume more RRs.
-			return KNOT_NS_PROC_DONE;
+			return KNOT_STATE_DONE;
 		}
 	}
 
-	return KNOT_NS_PROC_MORE;
+	return KNOT_STATE_CONSUME;
 }
 
 /* --------------------------------- API ------------------------------------ */
@@ -611,7 +616,7 @@ static int process_ixfrin_packet(knot_pkt_t *pkt, struct answer_data *adata)
 int ixfr_query(knot_pkt_t *pkt, struct query_data *qdata)
 {
 	if (pkt == NULL || qdata == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return KNOT_STATE_FAIL;
 	}
 
 	int ret = KNOT_EOK;
@@ -643,29 +648,29 @@ int ixfr_query(knot_pkt_t *pkt, struct query_data *qdata)
 			return axfr_query_process(pkt, qdata);
 		default:            /* Server errors. */
 			IXFROUT_LOG(LOG_ERR, "failed to start (%s)", knot_strerror(ret));
-			return KNOT_NS_PROC_FAIL;
+			return KNOT_STATE_FAIL;
 		}
 	}
 
 	/* Reserve space for TSIG. */
-	knot_pkt_reserve(pkt, knot_tsig_wire_maxsize(qdata->sign.tsig_key));
+	knot_pkt_reserve(pkt, knot_tsig_wire_maxsize(&qdata->sign.tsig_key));
 
 	/* Answer current packet (or continue). */
 	ret = xfr_process_list(pkt, &ixfr_process_changeset, qdata);
 	switch(ret) {
 	case KNOT_ESPACE: /* Couldn't write more, send packet and continue. */
-		return KNOT_NS_PROC_FULL; /* Check for more. */
+		return KNOT_STATE_PRODUCE; /* Check for more. */
 	case KNOT_EOK:    /* Last response. */
 		gettimeofday(&now, NULL);
 		IXFROUT_LOG(LOG_INFO,
 		            "finished, %.02f seconds, %u messages, %u bytes",
 		            time_diff(&ixfr->proc.tstamp, &now) / 1000.0,
 		            ixfr->proc.npkts, ixfr->proc.nbytes);
-		ret = KNOT_NS_PROC_DONE;
+		ret = KNOT_STATE_DONE;
 		break;
 	default:          /* Generic error. */
 		IXFROUT_LOG(LOG_ERR, "failed (%s)", knot_strerror(ret));
-		ret = KNOT_NS_PROC_FAIL;
+		ret = KNOT_STATE_FAIL;
 		break;
 	}
 
@@ -686,7 +691,7 @@ static int check_format(knot_pkt_t *pkt)
 int ixfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 {
 	if (pkt == NULL || adata == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return KNOT_STATE_FAIL;
 	}
 
 	/* Check RCODE. */
@@ -696,13 +701,13 @@ int ixfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 		if (lut != NULL) {
 			IXFRIN_LOG(LOG_WARNING, "server responded with %s", lut->name);
 		}
-		return KNOT_NS_PROC_FAIL;
+		return KNOT_STATE_FAIL;
 	}
-	
+
 	if (adata->ext == NULL) {
 		if (check_format(pkt) != KNOT_EOK) {
 			IXFRIN_LOG(LOG_WARNING, "malformed response");
-			return KNOT_NS_PROC_FAIL;
+			return KNOT_STATE_FAIL;
 		}
 
 		/* Check for AXFR-style IXFR. */
@@ -711,7 +716,7 @@ int ixfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 			adata->response_type = KNOT_RESPONSE_AXFR;
 			return axfr_answer_process(pkt, adata);
 		}
-	
+
 		/* Initialize processing with first packet. */
 		NS_NEED_TSIG_SIGNED(&adata->param->tsig_ctx, 0);
 		if (!zone_transfer_needed(adata->param->zone, pkt)) {
@@ -721,7 +726,7 @@ int ixfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 				/* Single-SOA answer. */
 				IXFRIN_LOG(LOG_INFO, "zone is up-to-date");
 			}
-			return KNOT_NS_PROC_DONE;
+			return KNOT_STATE_DONE;
 		}
 
 		IXFRIN_LOG(LOG_INFO, "starting");
@@ -729,18 +734,18 @@ int ixfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 		int ret = ixfrin_answer_init(adata);
 		if (ret != KNOT_EOK) {
 			IXFRIN_LOG(LOG_WARNING, "failed (%s)", knot_strerror(ret));
-			return KNOT_NS_PROC_FAIL;
+			return KNOT_STATE_FAIL;
 		}
 	} else {
 		NS_NEED_TSIG_SIGNED(&adata->param->tsig_ctx, 100);
 	}
 
 	int ret = process_ixfrin_packet(pkt, adata);
-	if (ret == KNOT_NS_PROC_DONE) {
+	if (ret == KNOT_STATE_DONE) {
 		NS_NEED_TSIG_SIGNED(&adata->param->tsig_ctx, 0);
 		int fret = ixfrin_finalize(adata);
 		if (fret != KNOT_EOK) {
-			ret = KNOT_NS_PROC_FAIL;
+			ret = KNOT_STATE_FAIL;
 		}
 	}
 
