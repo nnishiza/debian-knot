@@ -15,7 +15,7 @@ knot.sample.conf: knot.sample.conf.in
 	  $(edit) $${srcdir}$@.in >$@.tmp
 	mv $@.tmp $@
 
-EXTRA_DIST = knot.sample.conf.in example.com.zone knot.conf.rosedb
+EXTRA_DIST = knot.sample.conf.in example.com.zone
 
 install-data-local: knot.sample.conf
 	[ -d $(DESTDIR)/$(config_dir) ] || \

@@ -18,11 +18,10 @@
 #include <assert.h>
 #include <tap/basic.h>
 
-#include "common/hhash.h"
-#include "common/macros.h"
-#include "common/mempattern.h"
+#include "common-knot/hhash.h"
+#include "libknot/mempattern.h"
 #include "common/mempool.h"
-#include "libknot/errcode.h"
+#include "libknot/common.h"
 
 /* Test defines. */
 #define ELEM_COUNT 65535
@@ -33,7 +32,7 @@ static const char *alphabet = "0123abcdABCDwxyzWXYZ.-_";
 char *test_randstr_mm(struct mm_ctx *mm)
 {
 	unsigned len = (5 + rand() % 251) + 1;
-	char *s = mm_alloc(mm, len * sizeof(char));
+	char *s = mm->alloc(mm->ctx, len * sizeof(char));
 	for (unsigned i = 0; i < len - 1; ++i) {
 		s[i] = alphabet[rand() % strlen(alphabet)];
 	}

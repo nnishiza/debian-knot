@@ -27,8 +27,8 @@ int main(int argc, char *argv[])
 {
 	plan(122);
 
-	const    knot_rdata_descriptor_t *descr;
-	char     name[BUF_LEN];
+	const    rdata_descriptor_t *descr;
+	char     name[BUF_LEN] = { 0 };
 	int      ret;
 	uint16_t num;
 

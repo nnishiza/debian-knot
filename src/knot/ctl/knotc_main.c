@@ -26,7 +26,6 @@
 #endif
 
 #include "knot/knot.h"
-#include "common/macros.h"
 #include "common/mem.h"
 #include "libknot/descriptor.h"
 #include "knot/ctl/process.h"
@@ -236,7 +235,7 @@ static int cmd_remote(const char *cmd, uint16_t rrt, int argc, char *argv[])
 
 	/* Connect to remote. */
 	char addr_str[SOCKADDR_STRLEN] = {0};
-	sockaddr_tostr(addr_str, sizeof(addr_str), &r->addr);
+	sockaddr_tostr(&r->addr, addr_str, sizeof(addr_str));
 
 	int s = net_connected_socket(SOCK_STREAM, &r->addr, &r->via, 0);
 	if (s < 0) {
@@ -255,7 +254,7 @@ static int cmd_remote(const char *cmd, uint16_t rrt, int argc, char *argv[])
 	}
 
 	/* Send and free packet. */
-	int ret = tcp_send_msg(s, pkt->wire, pkt->size);
+	int ret = tcp_send_msg(s, pkt->wire, pkt->size, NULL);
 	knot_pkt_free(&pkt);
 
 	/* Evaluate and wait for reply. */

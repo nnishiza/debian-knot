@@ -870,7 +870,7 @@ static yyconst flex_int32_t yy_rule_can_match_eol[95] =
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "common/sockaddr.h"
+#include "common-knot/sockaddr.h"
 #include "knot/conf/conf.h"
 #include "knot/conf/includes.h"
 #include "knot/conf/extra.h"

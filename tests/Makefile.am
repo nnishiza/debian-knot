@@ -22,14 +22,13 @@ check_PROGRAMS = \
 	dnssec_zone_nsec		\
 	dthreads			\
 	edns				\
-	endian				\
 	fdset				\
 	hattrie				\
 	hhash				\
 	journal				\
 	namedb				\
+	net_shortwrite			\
 	node				\
-	overlay				\
 	pkt				\
 	process_answer			\
 	process_query			\

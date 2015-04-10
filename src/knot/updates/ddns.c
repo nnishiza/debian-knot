@@ -22,11 +22,12 @@
 #include "knot/updates/changesets.h"
 #include "knot/updates/zone-update.h"
 #include "libknot/packet/pkt.h"
+#include "libknot/common.h"
 #include "libknot/consts.h"
 #include "libknot/rrtype/soa.h"
-#include "common/mempattern.h"
+#include "libknot/mempattern.h"
 #include "libknot/descriptor.h"
-#include "common/lists.h"
+#include "common-knot/lists.h"
 
 /* ----------------------------- prereq check ------------------------------- */
 

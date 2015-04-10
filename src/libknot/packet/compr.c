@@ -20,8 +20,6 @@
 
 #include "common/debug.h"
 #include "common/log.h"
-#include "common/macros.h"
-
 #include "libknot/errcode.h"
 #include "libknot/packet/pkt.h"
 #include "libknot/util/tolower.h"
@@ -35,14 +33,14 @@ static bool compr_label_match(const uint8_t *n, const uint8_t *p)
 	if (*n != *p) {
 		return false;
 	}
-
+	
 	uint8_t len = *n;
 	for (uint8_t i = 0; i < len; ++i) {
 		if (knot_tolower(n[1 + i]) != knot_tolower(p[1 + i])) {
 			return false;
 		}
 	}
-
+	
 	return true;
 }
 
@@ -55,7 +53,6 @@ static bool compr_label_match(const uint8_t *n, const uint8_t *p)
 		written += (len); \
 	}
 
-_public_
 int knot_compr_put_dname(const knot_dname_t *dname, uint8_t *dst, uint16_t max,
                          knot_compr_t *compr)
 {

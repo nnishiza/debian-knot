@@ -14,7 +14,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>	// NULL
+#include <stdlib.h>
 
 #include "zscanner/error.h"
 
@@ -161,7 +161,6 @@ static const err_table_t err_msgs[] = {
 	ERR_ITEM( 0, NULL ) // Terminator
 };
 
-__attribute__((visibility("default")))
 const char* zs_strerror(const int code)
 {
 	const err_table_t *err = err_msgs;
@@ -176,7 +175,6 @@ const char* zs_strerror(const int code)
 	return NULL;
 }
 
-__attribute__((visibility("default")))
 const char* zs_errorname(const int code)
 {
 	const err_table_t *err = err_msgs;

@@ -98,6 +98,9 @@ enum knot_rr_type {
 	KNOT_RRTYPE_NSEC3PARAM =  51, /*!< NSEC3 parameters. */
 	KNOT_RRTYPE_TLSA       =  52, /*!< DANE record. */
 
+	KNOT_RRTYPE_CDS        =  59, /*!< Child delegation signer. */
+	KNOT_RRTYPE_CDNSKEY    =  60, /*!< Child DNS key. */
+
 	KNOT_RRTYPE_SPF        =  99, /*!< Sender policy framework. */
 
 	KNOT_RRTYPE_NID        = 104, /*!< Node identifier. */
@@ -161,7 +164,7 @@ typedef struct {
 	const int  block_types[KNOT_MAX_RDATA_BLOCKS];
 	/*!< RR type name. */
 	const char *type_name;
-} knot_rdata_descriptor_t;
+} rdata_descriptor_t;
 
 /*!
  * \brief Gets rdata descriptor for given RR name.
@@ -171,7 +174,7 @@ typedef struct {
  * \retval RR descriptor for given name, NULL descriptor if
  *         unknown type.
  */
-const knot_rdata_descriptor_t *knot_get_rdata_descriptor(const uint16_t type);
+const rdata_descriptor_t *knot_get_rdata_descriptor(const uint16_t type);
 
 /*!
  * \brief Gets rdata descriptor for given RR name (obsolete version).
@@ -181,7 +184,7 @@ const knot_rdata_descriptor_t *knot_get_rdata_descriptor(const uint16_t type);
  * \retval RR descriptor for given name, NULL descriptor if
  *         unknown type.
  */
-const knot_rdata_descriptor_t *knot_get_obsolete_rdata_descriptor(const uint16_t type);
+const rdata_descriptor_t *knot_get_obsolete_rdata_descriptor(const uint16_t type);
 
 /*!
  * \brief Converts numeric type representation to mnemonic string.

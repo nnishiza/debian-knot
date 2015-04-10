@@ -31,24 +31,19 @@
 #include <cap-ng.h>
 #endif /* HAVE_CAP_NG_H */
 
-#include "common/sockaddr.h"
+#include "common-knot/sockaddr.h"
 #include "common-knot/fdset.h"
-#include "common/macros.h"
 #include "common/mempool.h"
-#include "common/net.h"
-
-#include "libknot/packet/wire.h"
-#include "libknot/dnssec/crypto.h"
-#include "libknot/dnssec/random.h"
-#include "libknot/processing/overlay.h"
-
 #include "knot/knot.h"
 #include "knot/server/tcp-handler.h"
+#include "libknot/packet/wire.h"
 #include "knot/nameserver/process_query.h"
+#include "libknot/dnssec/crypto.h"
+#include "libknot/dnssec/random.h"
 
 /*! \brief TCP context data. */
 typedef struct tcp_context {
-	struct knot_overlay overlay;/*!< Query processing overlay. */
+	knot_process_t query_ctx;   /*!< Query processing context. */
 	server_t *server;           /*!< Name server structure. */
 	struct iovec iov[2];        /*!< TX/RX buffers. */
 	unsigned client_threshold;  /*!< Index of first TCP client. */
@@ -81,9 +76,11 @@ static enum fdset_sweep_state tcp_sweep(fdset_t *set, int i, void *data)
 	socklen_t len = sizeof(struct sockaddr_storage);
 	if (getpeername(fd, (struct sockaddr*)&ss, &len) == 0) {
 		char addr_str[SOCKADDR_STRLEN] = {0};
-		sockaddr_tostr(addr_str, sizeof(addr_str), &ss);
+		sockaddr_tostr(&ss, addr_str, sizeof(addr_str));
 		log_notice("TCP, terminated inactive client, address '%s'", addr_str);
 	}
+
+	close(fd);
 
 	return FDSET_SWEEP;
 }
@@ -117,13 +114,14 @@ static int tcp_handle(tcp_context_t *tcp, int fd,
 	rcu_read_unlock();
 
 	/* Receive data. */
-	int ret = tcp_recv_msg(fd, rx->iov_base, rx->iov_len, &tmout);
+	struct timeval recv_tmout = tmout;
+	int ret = tcp_recv_msg(fd, rx->iov_base, rx->iov_len, &recv_tmout);
 	if (ret <= 0) {
 		dbg_net("tcp: client on fd=%d disconnected\n", fd);
 		if (ret == KNOT_EAGAIN) {
 			rcu_read_lock();
 			char addr_str[SOCKADDR_STRLEN] = {0};
-			sockaddr_tostr(addr_str, sizeof(addr_str), &ss);
+			sockaddr_tostr(&ss, addr_str, sizeof(addr_str));
 			log_warning("TCP, connection timed out, address '%s'",
 			            addr_str);
 			rcu_read_unlock();
@@ -133,26 +131,22 @@ static int tcp_handle(tcp_context_t *tcp, int fd,
 		rx->iov_len = ret;
 	}
 
-	/* Create packets. */
-	mm_ctx_t *mm = tcp->overlay.mm;
-	knot_pkt_t *ans = knot_pkt_new(tx->iov_base, tx->iov_len, mm);
-	knot_pkt_t *query = knot_pkt_new(rx->iov_base, rx->iov_len, mm);
-
-	/* Initialize processing overlay. */
-	knot_overlay_init(&tcp->overlay, mm);
-	knot_overlay_add(&tcp->overlay, NS_PROC_QUERY, &param);
+	/* Create query processing context. */
+	knot_process_begin(&tcp->query_ctx, &param, NS_PROC_QUERY);
 
 	/* Input packet. */
-	int state = knot_overlay_in(&tcp->overlay, query);
+	int state = knot_process_in(rx->iov_base, rx->iov_len, &tcp->query_ctx);
 
 	/* Resolve until NOOP or finished. */
 	ret = KNOT_EOK;
-	while (state & (KNOT_NS_PROC_FULL|KNOT_NS_PROC_FAIL)) {
-		state = knot_overlay_out(&tcp->overlay, ans);
+	while (state & (NS_PROC_FULL|NS_PROC_FAIL)) {
+		uint16_t tx_len = tx->iov_len;
+		state = knot_process_out(tx->iov_base, &tx_len, &tcp->query_ctx);
 
-		/* Send, if response generation passed and wasn't ignored. */
-		if (ans->size > 0 && !(state & (KNOT_NS_PROC_FAIL|KNOT_NS_PROC_NOOP))) {
-			if (tcp_send_msg(fd, ans->wire, ans->size) != ans->size) {
+		/* If it has response, send it. */
+		if (tx_len > 0) {
+			struct timeval send_tmout = tmout;
+			if (tcp_send_msg(fd, tx->iov_base, tx_len, &send_tmout) != tx_len) {
 				ret = KNOT_ECONNREFUSED;
 				break;
 			}
@@ -160,12 +154,7 @@ static int tcp_handle(tcp_context_t *tcp, int fd,
 	}
 
 	/* Reset after processing. */
-	knot_overlay_finish(&tcp->overlay);
-	knot_overlay_deinit(&tcp->overlay);
-
-	/* Cleanup. */
-	knot_pkt_free(&query);
-	knot_pkt_free(&ans);
+	knot_process_finish(&tcp->query_ctx);
 
 	return ret;
 }
@@ -201,6 +190,179 @@ int tcp_accept(int fd)
 	return incoming;
 }
 
+static int select_read(int fd, struct timeval *timeout)
+{
+	fd_set set;
+	FD_ZERO(&set);
+	FD_SET(fd, &set);
+	return select(fd + 1, &set, NULL, NULL, timeout);
+}
+
+static int select_write(int fd, struct timeval *timeout)
+{
+	fd_set set;
+	FD_ZERO(&set);
+	FD_SET(fd, &set);
+
+	return select(fd + 1, NULL, &set, NULL, timeout);
+}
+
+int tcp_recv_data(int fd, uint8_t *buf, int len, struct timeval *timeout)
+{
+	int ret = 0;
+	int rcvd = 0;
+	int flags = 0;
+
+#ifdef MSG_NOSIGNAL
+	flags |= MSG_NOSIGNAL;
+#endif
+
+	while (rcvd < len) {
+		/* Receive data. */
+		ret = recv(fd, buf + rcvd, len - rcvd, flags);
+		if (ret > 0) {
+			rcvd += ret;
+			continue;
+		}
+		/* Check for disconnected socket. */
+		if (ret == 0) {
+			return KNOT_ECONNREFUSED;
+		}
+
+		/* Check for no data available. */
+		if (errno == EAGAIN || errno == EINTR) {
+			/* Continue only if timeout didn't expire. */
+			ret = select_read(fd, timeout);
+			if (ret > 0) {
+				continue;
+			} else {
+				return KNOT_ETIMEOUT;
+			}
+		} else {
+			return KNOT_ECONN;
+		}
+	}
+
+	return rcvd;
+}
+
+/*!
+ * \brief Shift processed data out of iovec structure.
+ */
+static void iovec_shift(struct iovec **iov_ptr, int *iovcnt_ptr, size_t done)
+{
+	struct iovec *iov = *iov_ptr;
+	int iovcnt = *iovcnt_ptr;
+
+	for (int i = 0; i < iovcnt && done > 0; i++) {
+		if (iov[i].iov_len > done) {
+			iov[i].iov_base += done;
+			iov[i].iov_len -= done;
+			done = 0;
+		} else {
+			done -= iov[i].iov_len;
+			*iov_ptr += 1;
+			*iovcnt_ptr -= 1;
+		}
+	}
+
+	assert(done == 0);
+}
+
+/*!
+ * \brief Send out TCP data with timeout in case the output buffer is full.
+ */
+static int send_data(int fd, struct iovec iov[], int iovcnt, struct timeval *timeout)
+{
+	size_t total = 0;
+	for (int i = 0; i < iovcnt; i++) {
+		total += iov[i].iov_len;
+	}
+
+	for (size_t avail = total; avail > 0; /* nop */) {
+		ssize_t sent = writev(fd, iov, iovcnt);
+		if (sent == avail) {
+			break;
+		}
+
+		/* Short write. */
+		if (sent > 0) {
+			avail -= sent;
+			iovec_shift(&iov, &iovcnt, sent);
+			continue;
+		}
+
+		/* Error. */
+		if (sent == -1) {
+			if (errno == EAGAIN || errno == EINTR) {
+				int ret = select_write(fd, timeout);
+				if (ret > 0) {
+					continue;
+				} else if (ret == 0) {
+					return KNOT_ETIMEOUT;
+				}
+			}
+
+			return KNOT_ECONN;
+		}
+
+		/* Unreachable. */
+		assert(0);
+	}
+
+	return total;
+}
+
+int tcp_send_msg(int fd, const uint8_t *msg, size_t msglen, struct timeval *timeout)
+{
+	/* Create iovec for gathered write. */
+	struct iovec iov[2];
+	uint16_t pktsize = htons(msglen);
+	iov[0].iov_base = &pktsize;
+	iov[0].iov_len = sizeof(uint16_t);
+	iov[1].iov_base = (void *)msg;
+	iov[1].iov_len = msglen;
+
+	/* Send. */
+	ssize_t ret = send_data(fd, iov, 2, timeout);
+	if (ret < 0) {
+		return ret;
+	}
+
+	return msglen; /* Do not count the size prefix. */
+}
+
+int tcp_recv_msg(int fd, uint8_t *buf, size_t len, struct timeval *timeout)
+{
+	if (buf == NULL || fd < 0) {
+		return KNOT_EINVAL;
+	}
+
+	/* Receive size. */
+	unsigned short pktsize = 0;
+	int ret = tcp_recv_data(fd, (uint8_t *)&pktsize, sizeof(pktsize), timeout);
+	if (ret != sizeof(pktsize)) {
+		return ret;
+	}
+
+	pktsize = ntohs(pktsize);
+	dbg_net("tcp: incoming packet size=%hu on fd=%d\n", pktsize, fd);
+
+	// Check packet size
+	if (len < pktsize) {
+		return KNOT_ENOMEM;
+	}
+
+	/* Receive payload. */
+	ret = tcp_recv_data(fd, buf, pktsize, timeout);
+	if (ret != pktsize) {
+		return ret;
+	}
+
+	dbg_net("tcp: received packet size=%d on fd=%d\n", ret, fd);
+	return ret;
+}
+
 static int tcp_event_accept(tcp_context_t *tcp, unsigned i)
 {
 	/* Accept client. */
@@ -231,7 +393,7 @@ static int tcp_event_serve(tcp_context_t *tcp, unsigned i)
 	int ret = tcp_handle(tcp, fd, &tcp->iov[0], &tcp->iov[1]);
 
 	/* Flush per-query memory. */
-	mp_flush(tcp->overlay.mm->ctx);
+	mp_flush(tcp->query_ctx.mm.ctx);
 
 	if (ret == KNOT_EOK) {
 		/* Update socket activity timer. */
@@ -311,14 +473,12 @@ int tcp_master(dthread_t *thread)
 	tcp_context_t tcp;
 	memset(&tcp, 0, sizeof(tcp_context_t));
 
-	/* Create big enough memory cushion. */
-	mm_ctx_t mm;
-	mm_ctx_mempool(&mm, 4 * sizeof(knot_pkt_t));
-
 	/* Create TCP answering context. */
 	tcp.server = handler->server;
 	tcp.thread_id = handler->thread_id[dt_get_id(thread)];
-	tcp.overlay.mm = &mm;
+
+	/* Create big enough memory cushion. */
+	mm_ctx_mempool(&tcp.query_ctx.mm, 4 * sizeof(knot_pkt_t));
 
 	/* Prepare structures for bound sockets. */
 	fdset_init(&tcp.set, list_size(&conf()->ifaces) + CONFIG_XFERS);
@@ -341,7 +501,7 @@ int tcp_master(dthread_t *thread)
 	for(;;) {
 
 		/* Check handler state. */
-		if (unlikely(*iostate & ServerReload)) {
+		if (knot_unlikely(*iostate & ServerReload)) {
 			*iostate &= ~ServerReload;
 
 			/* Cancel client connections. */
@@ -377,7 +537,7 @@ int tcp_master(dthread_t *thread)
 finish:
 	free(tcp.iov[0].iov_base);
 	free(tcp.iov[1].iov_base);
-	mp_delete(mm.ctx);
+	mp_delete(tcp.query_ctx.mm.ctx);
 	fdset_clear(&tcp.set);
 	ref_release(ref);
 

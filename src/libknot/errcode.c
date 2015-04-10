@@ -17,10 +17,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "libknot/errcode.h"
-
 #include "common/errors.h"
-#include "common/macros.h"
+#include "libknot/errcode.h"
 
 const error_table_t error_messages[] = {
 	{ KNOT_EOK, "OK" },
@@ -128,13 +126,11 @@ const error_table_t error_messages[] = {
 	{ KNOT_ERROR, NULL } /* Terminator */
 };
 
-_public_
 const char *knot_strerror(int code)
 {
 	return error_to_str(error_messages, code);
 }
 
-_public_
 int knot_map_errno_internal(int fallback, int arg0, ...)
 {
 	/* Iterate all variable-length arguments. */

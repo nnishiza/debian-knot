@@ -19,22 +19,21 @@
 #include <stdlib.h>
 
 #include "common/mempool.h"
-#include "libknot/processing/layer.h"
-#include "libknot/processing/requestor.h"
+#include "libknot/processing/process.h"
+#include "knot/nameserver/requestor.h"
+#include "knot/server/tcp-handler.h"
 #include "fake_server.h"
 
 /* @note Purpose of this test is not to verify process_answer functionality,
  *       but simply if the requesting/receiving works, so mirror is okay. */
-static int reset(knot_layer_t *ctx) { return KNOT_NS_PROC_FULL; }
-static int begin(knot_layer_t *ctx, void *module_param) { return reset(ctx); }
-static int finish(knot_layer_t *ctx) { return KNOT_NS_PROC_NOOP; }
-static int in(knot_layer_t *ctx, knot_pkt_t *pkt) { return KNOT_NS_PROC_DONE; }
-static int out(knot_layer_t *ctx, knot_pkt_t *pkt) { return KNOT_NS_PROC_MORE; }
+static int begin(knot_process_t *ctx, void *module_param) { return NS_PROC_MORE; }
+static int answer(knot_pkt_t *pkt, knot_process_t *ctx) { return NS_PROC_DONE; }
+static int reset(knot_process_t *ctx) { return NS_PROC_NOOP; }
+static int noop(knot_pkt_t *pkt, knot_process_t *ctx) { return NS_PROC_NOOP; }
 
 /*! \brief Dummy answer processing module. */
-const knot_layer_api_t dummy_module = {
-        &begin, &reset, &finish,
-        &in, &out, &knot_layer_noop
+const knot_process_module_t dummy_module = {
+        &begin, &reset, &reset, &answer, &noop, &noop
 };
 
 static void* responder_thread(void *arg)
@@ -42,7 +41,7 @@ static void* responder_thread(void *arg)
 	int fd = *((int *)arg);
 	uint8_t buf[KNOT_WIRE_MAX_PKTSIZE];
 	while(true) {
-		int client = accept(fd, NULL, NULL);
+		int client = tcp_accept(fd);
 		if (client < 0) {
 			break;
 		}
@@ -52,7 +51,7 @@ static void* responder_thread(void *arg)
 			break;
 		}
 		knot_wire_set_qr(buf);
-		tcp_send_msg(client, buf, len);
+		tcp_send_msg(client, buf, len, NULL);
 		close(client);
 	}
 	return NULL;
@@ -64,44 +63,42 @@ static void* responder_thread(void *arg)
 #define CONNECTED_TESTS    4
 #define TESTS_COUNT DISCONNECTED_TESTS + CONNECTED_TESTS
 
-static struct knot_request *make_query(struct knot_requestor *requestor,  conf_iface_t *remote)
+static struct request *make_query(struct requestor *requestor,  conf_iface_t *remote)
 {
 	knot_pkt_t *pkt = knot_pkt_new(NULL, KNOT_WIRE_MAX_PKTSIZE, requestor->mm);
 	assert(pkt);
 	knot_pkt_put_question(pkt, ROOT_DNAME, KNOT_CLASS_IN, KNOT_RRTYPE_SOA);
 
-	const struct sockaddr *dst = (const struct sockaddr *)&remote->addr;
-	const struct sockaddr *src = (const struct sockaddr *)&remote->via;
-	return knot_request_make(requestor->mm, dst, src, pkt, 0);
+	return requestor_make(requestor, remote, pkt);
 }
 
-static void test_disconnected(struct knot_requestor *requestor, conf_iface_t *remote)
+static void test_disconnected(struct requestor *requestor, conf_iface_t *remote)
 {
 	/* Enqueue packet. */
-	int ret = knot_requestor_enqueue(requestor, make_query(requestor, remote));
+	int ret = requestor_enqueue(requestor, make_query(requestor, remote), NULL);
 	is_int(KNOT_ECONN, ret, "requestor: disconnected/enqueue");
 
 	/* Wait for completion. */
 	struct timeval tv = { 5, 0 };
-	ret = knot_requestor_exec(requestor, &tv);
+	ret = requestor_exec(requestor, &tv);
 	is_int(KNOT_ENOENT, ret, "requestor: disconnected/wait");
 }
 
-static void test_connected(struct knot_requestor *requestor, conf_iface_t *remote)
+static void test_connected(struct requestor *requestor, conf_iface_t *remote)
 {
 	/* Enqueue packet. */
-	int ret = knot_requestor_enqueue(requestor, make_query(requestor, remote));
+	int ret = requestor_enqueue(requestor, make_query(requestor, remote), NULL);;
 	is_int(KNOT_EOK, ret, "requestor: connected/enqueue");
 
 	/* Wait for completion. */
 	struct timeval tv = { 5, 0 };
-	ret = knot_requestor_exec(requestor, &tv);
+	ret = requestor_exec(requestor, &tv);
 	is_int(KNOT_EOK, ret, "requestor: connected/wait");
 
 	/* Enqueue multiple queries. */
 	ret = KNOT_EOK;
 	for (unsigned i = 0; i < 10; ++i) {
-		ret |= knot_requestor_enqueue(requestor, make_query(requestor, remote));
+		ret |= requestor_enqueue(requestor, make_query(requestor, remote), NULL);;
 	}
 	is_int(KNOT_EOK, ret, "requestor: multiple enqueue");
 
@@ -109,7 +106,7 @@ static void test_connected(struct knot_requestor *requestor, conf_iface_t *remot
 	ret = KNOT_EOK;
 	for (unsigned i = 0; i < 10; ++i) {
 		struct timeval tv = { 5, 0 };
-		ret |= knot_requestor_exec(requestor, &tv);
+		ret |= requestor_exec(requestor, &tv);
 	}
 	is_int(KNOT_EOK, ret, "requestor: multiple wait");
 }
@@ -120,7 +117,6 @@ int main(int argc, char *argv[])
 
 	mm_ctx_t mm;
 	mm_ctx_mempool(&mm, MM_DEFAULT_BLKSIZE);
-
 	conf_iface_t remote;
 	memset(&remote, 0, sizeof(conf_iface_t));
 	sockaddr_set(&remote.addr, AF_INET, "127.0.0.1", 0);
@@ -129,12 +125,11 @@ int main(int argc, char *argv[])
 	/* Create fake server environment. */
 	server_t server;
 	int ret = create_fake_server(&server, &mm);
-	ok(ret == KNOT_EOK, "requestor: initialize fake server");
+	ok(ret == KNOT_EOK, "requestor: failed to initialize fake server");
 
 	/* Initialize requestor. */
-	struct knot_requestor requestor;
-	knot_requestor_init(&requestor, &mm);
-	knot_requestor_overlay(&requestor, &dummy_module, NULL);
+	struct requestor requestor;
+	requestor_init(&requestor, &dummy_module, &mm);
 
 	/* Test requestor in disconnected environment. */
 	test_disconnected(&requestor, &remote);
@@ -142,7 +137,7 @@ int main(int argc, char *argv[])
 	/* Bind to random port. */
 	int origin_fd = net_bound_socket(SOCK_STREAM, &remote.addr);
 	assert(origin_fd > 0);
-	socklen_t addr_len = sockaddr_len((struct sockaddr *)&remote.addr);
+	socklen_t addr_len = sockaddr_len(&remote.addr);
 	getsockname(origin_fd, (struct sockaddr *)&remote.addr, &addr_len);
 	ret = listen(origin_fd, 10);
 	assert(ret == 0);
@@ -159,12 +154,12 @@ int main(int argc, char *argv[])
 	/* Terminate responder. */
 	int responder = net_connected_socket(SOCK_STREAM, &remote.addr, NULL, 0);
 	assert(responder > 0);
-	tcp_send_msg(responder, (const uint8_t *)"", 1);
+	tcp_send_msg(responder, (const uint8_t *)"", 1, NULL);
 	(void) pthread_join(thread, 0);
 	close(responder);
 
 	/* Close requestor. */
-	knot_requestor_clear(&requestor);
+	requestor_clear(&requestor);
 	close(origin_fd);
 
 	/* Cleanup. */

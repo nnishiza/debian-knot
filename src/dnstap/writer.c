@@ -20,6 +20,7 @@
 #include <string.h>                     // strdup
 
 #include "libknot/errcode.h"
+#include "libknot/common.h"
 
 #include "dnstap/dnstap.h"
 #include "dnstap/writer.h"

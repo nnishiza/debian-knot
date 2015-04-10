@@ -21,7 +21,7 @@
 #include <openssl/evp.h>
 #include <pthread.h>
 
-#include "common/macros.h"
+#include "libknot/common.h"
 #include "libknot/dnssec/config.h"
 #include "libknot/dnssec/crypto.h"
 
@@ -160,13 +160,12 @@ static void deinit_gost_engine(void)
 #endif
 
 /*- public API --------------------------------------------------------------*/
-_public_
+
 void knot_crypto_init(void)
 {
 	OpenSSL_add_all_digests();
 }
 
-_public_
 void knot_crypto_cleanup(void)
 {
 	knot_crypto_unload_engines();
@@ -178,13 +177,11 @@ void knot_crypto_cleanup(void)
 	knot_crypto_cleanup_thread();
 }
 
-_public_
 void knot_crypto_cleanup_thread(void)
 {
 	ERR_remove_state(0);
 }
 
-_public_
 void knot_crypto_init_threads(void)
 {
 	// locking
@@ -200,7 +197,6 @@ void knot_crypto_init_threads(void)
 #endif
 }
 
-_public_
 void knot_crypto_cleanup_threads(void)
 {
 	if (openssl_mutex) {
@@ -208,7 +204,6 @@ void knot_crypto_cleanup_threads(void)
 	}
 }
 
-_public_
 void knot_crypto_load_engines(void)
 {
 #if KNOT_ENABLE_GOST
@@ -218,7 +213,6 @@ void knot_crypto_load_engines(void)
 #endif
 }
 
-_public_
 void knot_crypto_unload_engines(void)
 {
 #if KNOT_ENABLE_GOST

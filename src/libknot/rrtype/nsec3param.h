@@ -86,8 +86,4 @@ int knot_nsec3param_from_wire(knot_nsec3_params_t *params,
  *
  * \param params Structure with NSEC3 params.
  */
-static inline
-void knot_nsec3param_free(knot_nsec3_params_t *params)
-{
-	free(params->salt);
-}
+void knot_nsec3param_free(knot_nsec3_params_t *params);

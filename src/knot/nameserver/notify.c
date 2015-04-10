@@ -25,6 +25,7 @@
 #include "libknot/consts.h"
 #include "knot/zone/zonedb.h"
 #include "knot/zone/timers.h"
+#include "libknot/common.h"
 #include "libknot/packet/wire.h"
 #include "knot/updates/acl.h"
 #include "common-knot/evsched.h"
@@ -56,18 +57,18 @@ static int notify_check_query(struct query_data *qdata)
 	NS_NEED_ZONE(qdata, KNOT_RCODE_NOTAUTH);
 	NS_NEED_AUTH(&zone->conf->acl.notify_in, qdata);
 
-	return KNOT_NS_PROC_DONE;
+	return NS_PROC_DONE;
 }
 
 int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 {
 	if (pkt == NULL || qdata == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL;
 	}
 
 	/* Validate notification query. */
 	int state = notify_check_query(qdata);
-	if (state == KNOT_NS_PROC_FAIL) {
+	if (state == NS_PROC_FAIL) {
 		switch (qdata->rcode) {
 		case KNOT_RCODE_NOTAUTH: /* Not authoritative or ACL check failed. */
 			NOTIFY_QLOG(LOG_NOTICE, "unauthorized request");
@@ -80,7 +81,7 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 	}
 
 	/* Reserve space for TSIG. */
-	knot_pkt_reserve(pkt, knot_tsig_wire_maxsize(qdata->sign.tsig_key));
+	knot_pkt_reserve(pkt, tsig_wire_maxsize(qdata->sign.tsig_key));
 
 	/* SOA RR in answer may be included, recover serial. */
 	const knot_pktsection_t *answer = knot_pkt_section(qdata->query, KNOT_ANSWER);
@@ -101,10 +102,10 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 	zone_events_schedule(zone, ZONE_EVENT_REFRESH, ZONE_EVENT_NOW);
 	int ret = zone_events_write_persistent(zone);
 	if (ret != KNOT_EOK) {
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL;
 	}
 
-	return KNOT_NS_PROC_DONE;
+	return NS_PROC_DONE;
 }
 
 #undef NOTIFY_QLOG
@@ -116,7 +117,7 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 int notify_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 {
 	if (pkt == NULL || adata == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL;
 	}
 
 	/* Check RCODE. */
@@ -126,12 +127,12 @@ int notify_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 		if (lut != NULL) {
 			NOTIFY_RLOG(LOG_WARNING, "server responded with %s", lut->name);
 		}
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL;
 	}
 
 	NS_NEED_TSIG_SIGNED(&adata->param->tsig_ctx, 0);
 
-	return KNOT_NS_PROC_DONE; /* No processing. */
+	return NS_PROC_DONE; /* No processing. */
 }
 
 #undef NOTIFY_RLOG

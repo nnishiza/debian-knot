@@ -31,7 +31,7 @@
 static int log_message(int state, const knot_pkt_t *pkt, struct query_data *qdata, void *ctx)
 {
 	if (pkt == NULL || qdata == NULL || ctx == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL;
 	}
 
 	int ret = KNOT_ERROR;
@@ -63,7 +63,7 @@ static int log_message(int state, const knot_pkt_t *pkt, struct query_data *qdat
 	                      protocol,
 	                      pkt->wire, pkt->size, &tv, &tv);
 	if (ret != KNOT_EOK) {
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL; 
 	}
 	Dnstap__Dnstap dnstap = DNSTAP__DNSTAP__INIT;
 	dnstap.type = DNSTAP__DNSTAP__TYPE__MESSAGE;
@@ -74,7 +74,7 @@ static int log_message(int state, const knot_pkt_t *pkt, struct query_data *qdat
 	size_t size = 0;
 	dt_pack(&dnstap, &frame, &size);
 	if (frame == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL;
 	}
 
 	/* Submit a request. */
@@ -82,7 +82,7 @@ static int log_message(int state, const knot_pkt_t *pkt, struct query_data *qdat
 	                                   fstrm_free_wrapper, NULL);
 	if (res != fstrm_res_success) {
 		free(frame);
-		state = KNOT_NS_PROC_FAIL;
+		state = NS_PROC_FAIL;
 	}
 
 	return state;
@@ -92,7 +92,7 @@ static int log_message(int state, const knot_pkt_t *pkt, struct query_data *qdat
 static int dnstap_message_log(int state, knot_pkt_t *pkt, struct query_data *qdata, void *ctx)
 {
 	if (pkt == NULL || qdata == NULL || ctx == NULL) {
-		return KNOT_NS_PROC_FAIL;
+		return NS_PROC_FAIL;
 	}
 
 	return log_message(state, pkt, qdata, ctx);
@@ -104,7 +104,7 @@ static struct fstrm_writer* dnstap_unix_writer(const char *path)
 	struct fstrm_unix_writer_options *opt = NULL;
 	struct fstrm_writer_options *wopt = NULL;
 	struct fstrm_writer *writer = NULL;
-
+	
 	opt = fstrm_unix_writer_options_init();
 	if (opt == NULL) {
 		goto finish;
@@ -132,7 +132,7 @@ static struct fstrm_writer* dnstap_file_writer(const char *path)
 	struct fstrm_file_options *fopt = NULL;
 	struct fstrm_writer_options *wopt = NULL;
 	struct fstrm_writer *writer = NULL;
-
+	
 	fopt = fstrm_file_options_init();
 	if (fopt == NULL) {
 		goto finish;

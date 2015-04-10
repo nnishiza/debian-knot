@@ -26,19 +26,19 @@
 
 #pragma once
 
-#include "libknot/processing/layer.h"
+#include "libknot/processing/process.h"
 #include "knot/server/server.h"
 #include "knot/updates/acl.h"
 
 /* Query processing module implementation. */
-const knot_layer_api_t *process_query_get_module(void);
+const knot_process_module_t *process_query_get_module(void);
 #define NS_PROC_QUERY process_query_get_module()
 #define NS_PROC_QUERY_ID 1
 
 /*! \brief Query processing logging common base. */
 #define NS_PROC_LOG(severity, remote, zone_name, operation, msg, ...) do { \
 	char addr_str[SOCKADDR_STRLEN] = {0}; \
-	sockaddr_tostr(addr_str, sizeof(addr_str), remote); \
+	sockaddr_tostr(remote, addr_str, sizeof(addr_str)); \
 	log_msg_zone(severity, zone_name, operation ", %s: " msg, \
 	             addr_str, ##__VA_ARGS__); \
 	} while (0)

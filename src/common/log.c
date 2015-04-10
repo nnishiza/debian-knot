@@ -27,11 +27,9 @@
 #endif
 
 #include "common/log.h"
-#include "common/lists.h"
-#include "common/macros.h"
-#include "common/strlcpy.h"
+#include "common-knot/lists.h"
+#include "common-knot/strlcpy.h"
 #include "knot/conf/conf.h"
-#include "libknot/errcode.h"
 
 /* Single log message buffer length (one line). */
 #define LOG_BUFLEN 512
@@ -124,7 +122,7 @@ static uint8_t sink_levels(struct log_sink *log, int facility, logsrc_t src)
 	assert(log);
 
 	// Check facility
-	if (unlikely(log->facility_count == 0 || facility >= log->facility_count)) {
+	if (knot_unlikely(log->facility_count == 0 || facility >= log->facility_count)) {
 		return 0;
 	}
 
@@ -134,7 +132,7 @@ static uint8_t sink_levels(struct log_sink *log, int facility, logsrc_t src)
 static int sink_levels_set(struct log_sink *log, int facility, logsrc_t src, uint8_t levels)
 {
 	// Check facility
-	if (unlikely(log->facility_count == 0 || facility >= log->facility_count)) {
+	if (knot_unlikely(log->facility_count == 0 || facility >= log->facility_count)) {
 		return KNOT_EINVAL;
 	}
 
@@ -205,7 +203,7 @@ bool log_isopen()
 static int log_open_file(struct log_sink *log, const char* filename)
 {
 	// Check facility
-	if (unlikely(log->facility_count  == 0 ||
+	if (knot_unlikely(log->facility_count  == 0 ||
 	                  LOGT_FILE + log->file_count >= log->facility_count)) {
 		return KNOT_ERROR;
 	}

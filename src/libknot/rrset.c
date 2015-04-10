@@ -20,15 +20,13 @@
 
 #include "libknot/rrset.h"
 
-#include "common/macros.h"
-#include "common/mempattern.h"
-
 #include "libknot/consts.h"
+#include "libknot/common.h"
+#include "libknot/mempattern.h"
 #include "libknot/descriptor.h"
 #include "libknot/dname.h"
 #include "libknot/rrtype/naptr.h"
 
-_public_
 knot_rrset_t *knot_rrset_new(const knot_dname_t *owner, uint16_t type,
                              uint16_t rclass, mm_ctx_t *mm)
 {
@@ -39,6 +37,7 @@ knot_rrset_t *knot_rrset_new(const knot_dname_t *owner, uint16_t type,
 
 	knot_rrset_t *ret = mm_alloc(mm, sizeof(knot_rrset_t));
 	if (ret == NULL) {
+		ERR_ALLOC_FAILED;
 		knot_dname_free(&owner_cpy, mm);
 		return NULL;
 	}
@@ -48,7 +47,6 @@ knot_rrset_t *knot_rrset_new(const knot_dname_t *owner, uint16_t type,
 	return ret;
 }
 
-_public_
 void knot_rrset_init(knot_rrset_t *rrset, knot_dname_t *owner, uint16_t type,
                      uint16_t rclass)
 {
@@ -59,13 +57,11 @@ void knot_rrset_init(knot_rrset_t *rrset, knot_dname_t *owner, uint16_t type,
 	rrset->additional = NULL;
 }
 
-_public_
 void knot_rrset_init_empty(knot_rrset_t *rrset)
 {
 	knot_rrset_init(rrset, NULL, 0, KNOT_CLASS_IN);
 }
 
-_public_
 knot_rrset_t *knot_rrset_copy(const knot_rrset_t *src, mm_ctx_t *mm)
 {
 	if (src == NULL) {
@@ -87,7 +83,6 @@ knot_rrset_t *knot_rrset_copy(const knot_rrset_t *src, mm_ctx_t *mm)
 	return rrset;
 }
 
-_public_
 void knot_rrset_free(knot_rrset_t **rrset, mm_ctx_t *mm)
 {
 	if (rrset == NULL || *rrset == NULL) {
@@ -100,7 +95,6 @@ void knot_rrset_free(knot_rrset_t **rrset, mm_ctx_t *mm)
 	*rrset = NULL;
 }
 
-_public_
 void knot_rrset_clear(knot_rrset_t *rrset, mm_ctx_t *mm)
 {
 	if (rrset) {
@@ -109,7 +103,6 @@ void knot_rrset_clear(knot_rrset_t *rrset, mm_ctx_t *mm)
 	}
 }
 
-_public_
 int knot_rrset_add_rdata(knot_rrset_t *rrset,
                          const uint8_t *rdata, const uint16_t size,
                          const uint32_t ttl, mm_ctx_t *mm)
@@ -124,7 +117,6 @@ int knot_rrset_add_rdata(knot_rrset_t *rrset,
 	return knot_rdataset_add(&rrset->rrs, rr, mm);
 }
 
-_public_
 bool knot_rrset_equal(const knot_rrset_t *r1,
                       const knot_rrset_t *r2,
                       knot_rrset_compare_type_t cmp)
@@ -152,7 +144,6 @@ bool knot_rrset_equal(const knot_rrset_t *r1,
 	return true;
 }
 
-_public_
 bool knot_rrset_empty(const knot_rrset_t *rrset)
 {
 	if (rrset) {
@@ -163,13 +154,11 @@ bool knot_rrset_empty(const knot_rrset_t *rrset)
 	}
 }
 
-_public_
 uint32_t knot_rrset_ttl(const knot_rrset_t *rrset)
 {
 	return knot_rdata_ttl(knot_rdataset_at(&(rrset->rrs), 0));
 }
 
-_public_
 int knot_rrset_rr_to_canonical(knot_rrset_t *rrset)
 {
 	if (rrset == NULL || rrset->rrs.rr_count != 1) {
@@ -187,7 +176,7 @@ int knot_rrset_rr_to_canonical(knot_rrset_t *rrset)
 		return KNOT_EOK;
 	}
 
-	const knot_rdata_descriptor_t *desc = knot_get_rdata_descriptor(rrset->type);
+	const rdata_descriptor_t *desc = knot_get_rdata_descriptor(rrset->type);
 	if (desc->type_name == NULL) {
 		desc = knot_get_obsolete_rdata_descriptor(rrset->type);
 	}
@@ -196,6 +185,7 @@ int knot_rrset_rr_to_canonical(knot_rrset_t *rrset)
 	assert(rdata);
 	uint16_t rdlen = knot_rdata_rdlen(rdata);
 	uint8_t *pos = knot_rdata_data(rdata);
+	uint8_t *endpos = pos + rdlen;
 
 	/* No RDATA */
 	if (rdlen == 0) {
@@ -216,7 +206,7 @@ int knot_rrset_rr_to_canonical(knot_rrset_t *rrset)
 			pos += knot_dname_size(pos);
 			break;
 		case KNOT_RDATA_WF_NAPTR_HEADER:
-			pos += knot_naptr_header_size(pos, rdata + rdlen);
+			pos += knot_naptr_header_size(pos, endpos);
 			break;
 		case KNOT_RDATA_WF_REMAINDER:
 			break;

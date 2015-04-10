@@ -36,9 +36,8 @@
 #include <cap-ng.h>
 #endif /* HAVE_CAP_NG_H */
 
-#include "common/sockaddr.h"
-#include "common/macros.h"
-#include "common/mempattern.h"
+#include "common-knot/sockaddr.h"
+#include "libknot/mempattern.h"
 #include "common/mempool.h"
 #include "knot/knot.h"
 #include "knot/server/udp-handler.h"
@@ -47,7 +46,7 @@
 #include "libknot/consts.h"
 #include "libknot/packet/pkt.h"
 #include "libknot/dnssec/crypto.h"
-#include "libknot/processing/overlay.h"
+#include "libknot/processing/process.h"
 
 /* Buffer identifiers. */
 enum {
@@ -58,9 +57,9 @@ enum {
 
 /*! \brief UDP context data. */
 typedef struct udp_context {
-	struct knot_overlay overlay; /*!< Query processing overlay. */
-	server_t *server;            /*!< Name server structure. */
-	unsigned thread_id;          /*!< Thread identifier. */
+	knot_process_t query_ctx; /*!< Query processing context. */
+	server_t *server;         /*!< Name server structure. */
+	unsigned thread_id;       /*!< Thread identifier. */
 } udp_context_t;
 
 /* FD_COPY macro compat. */
@@ -129,41 +128,37 @@ void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
 	param.thread_id = udp->thread_id;
 
 	/* Rate limit is applied? */
-	if (unlikely(udp->server->rrl != NULL) && udp->server->rrl->rate > 0) {
+	if (knot_unlikely(udp->server->rrl != NULL) && udp->server->rrl->rate > 0) {
 		param.proc_flags |= NS_QUERY_LIMIT_RATE;
 	}
 
-	/* Create packets. */
-	mm_ctx_t *mm = udp->overlay.mm;
-	knot_pkt_t *query = knot_pkt_new(rx->iov_base, rx->iov_len, mm);
-	knot_pkt_t *ans = knot_pkt_new(tx->iov_base, tx->iov_len, mm);
-
 	/* Create query processing context. */
-	knot_overlay_init(&udp->overlay, mm);
-	knot_overlay_add(&udp->overlay, NS_PROC_QUERY, &param);
+	knot_process_begin(&udp->query_ctx, &param, NS_PROC_QUERY);
 
 	/* Input packet. */
-	int state = knot_overlay_in(&udp->overlay, query);
+	int state = knot_process_in(rx->iov_base, rx->iov_len, &udp->query_ctx);
 
 	/* Process answer. */
-	while (state & (KNOT_NS_PROC_FULL|KNOT_NS_PROC_FAIL)) {
-		state = knot_overlay_out(&udp->overlay, ans);
+	uint16_t tx_len = tx->iov_len;
+	if (state == NS_PROC_FULL) {
+		state = knot_process_out(tx->iov_base, &tx_len, &udp->query_ctx);
+	}
+
+	/* Process error response (if failed). */
+	if (state == NS_PROC_FAIL) {
+		tx_len = tx->iov_len; /* Reset size. */
+		state = knot_process_out(tx->iov_base, &tx_len, &udp->query_ctx);
 	}
 
 	/* Send response only if finished successfuly. */
-	if (state == KNOT_NS_PROC_DONE) {
-		tx->iov_len = ans->size;
+	if (state == NS_PROC_DONE) {
+		tx->iov_len = tx_len;
 	} else {
 		tx->iov_len = 0;
 	}
 
-	/* Reset after processing. */
-	knot_overlay_finish(&udp->overlay);
-	knot_overlay_deinit(&udp->overlay);
-
-	/* Cleanup. */
-	knot_pkt_free(&query);
-	knot_pkt_free(&ans);
+	/* Reset context. */
+	knot_process_finish(&udp->query_ctx);
 }
 
 /* Check for sendmmsg syscall. */
@@ -449,6 +444,18 @@ void __attribute__ ((constructor)) udp_master_init()
 #endif /* HAVE_RECVMMSG */
 }
 
+
+int udp_send_msg(int fd, const uint8_t *msg, size_t msglen, struct sockaddr *addr)
+{
+	int addr_len = sockaddr_len((struct sockaddr_storage *)addr);
+	int ret = sendto(fd, msg, msglen, 0, addr, addr_len);
+	if (ret != msglen) {
+		return KNOT_ECONN;
+	}
+
+	return ret;
+}
+
 /*! \brief Release the reference on the interface list and clear watched fdset. */
 static void forget_ifaces(ifacelist_t *ifaces, fd_set *set, int maxfd)
 {
@@ -508,9 +515,7 @@ int udp_master(dthread_t *thread)
 	udp.thread_id = handler->thread_id[thr_id];
 
 	/* Create big enough memory cushion. */
-	mm_ctx_t mm;
-	mm_ctx_mempool(&mm, 4 * sizeof(knot_pkt_t));
-	udp.overlay.mm = &mm;
+	mm_ctx_mempool(&udp.query_ctx.mm, 4 * sizeof(knot_pkt_t));
 
 	/* Chose select as epoll/kqueue has larger overhead for a
 	 * single or handful of sockets. */
@@ -525,7 +530,7 @@ int udp_master(dthread_t *thread)
 	for (;;) {
 
 		/* Check handler state. */
-		if (unlikely(*iostate & ServerReload)) {
+		if (knot_unlikely(*iostate & ServerReload)) {
 			*iostate &= ~ServerReload;
 			udp.thread_id = handler->thread_id[thr_id];
 
@@ -555,7 +560,7 @@ int udp_master(dthread_t *thread)
 				if ((rcvd = _udp_recv(fd, rq)) > 0) {
 					_udp_handle(&udp, rq);
 					/* Flush allocated memory. */
-					mp_flush(mm.ctx);
+					mp_flush(udp.query_ctx.mm.ctx);
 					_udp_send(rq);
 					udp_pps_sample(rcvd, thr_id);
 				}
@@ -565,7 +570,7 @@ int udp_master(dthread_t *thread)
 
 	_udp_deinit(rq);
 	forget_ifaces(ref, &fds, maxfd);
-	mp_delete(mm.ctx);
+	mp_delete(udp.query_ctx.mm.ctx);
 	return KNOT_EOK;
 }
 

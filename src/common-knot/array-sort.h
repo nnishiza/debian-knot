@@ -40,10 +40,6 @@
  *  undef'd.
  */
 
-#pragma once
-
-#include "common/macros.h"
-
 typedef unsigned uns;
 
 #ifndef ASORT_LT

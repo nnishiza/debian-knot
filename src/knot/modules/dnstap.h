@@ -1,5 +1,5 @@
 /*!
- * \file modules/dnstap.h
+ * \file dnstap.h
  *
  * \author Marek Vavrusa <marek.vavrusa@nic.cz>
  *
@@ -21,6 +21,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 
 #pragma once
 
