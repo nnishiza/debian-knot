@@ -81,7 +81,7 @@ build_triplet = @build@
 host_triplet = @host@
 sbin_PROGRAMS = knotc$(EXEEXT) knotd$(EXEEXT)
 bin_PROGRAMS = kdig$(EXEEXT) khost$(EXEEXT) knsupdate$(EXEEXT) \
-	knsec3hash$(EXEEXT)
+	knsec3hash$(EXEEXT) $(am__EXEEXT_1)
 @HAVE_DNSTAP_TRUE@am__append_1 = \
 @HAVE_DNSTAP_TRUE@	knot/modules/dnstap.c			\
 @HAVE_DNSTAP_TRUE@	knot/modules/dnstap.h
@@ -89,6 +89,11 @@ bin_PROGRAMS = kdig$(EXEEXT) khost$(EXEEXT) knsupdate$(EXEEXT) \
 @HAVE_DNSTAP_TRUE@am__append_2 = dnstap/libdnstap.la
 @HAVE_DNSTAP_TRUE@am__append_3 = dnstap/libdnstap.la
 @HAVE_DNSTAP_TRUE@am__append_4 = dnstap/libdnstap.la
+@HAVE_ROSEDB_TRUE@am__append_5 = \
+@HAVE_ROSEDB_TRUE@	knot/modules/rosedb.c			\
+@HAVE_ROSEDB_TRUE@	knot/modules/rosedb.h
+
+@HAVE_ROSEDB_TRUE@am__append_6 = rosedb_tool
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/config.h.in knot/conf/libknotd_la-cf-lex.c \
@@ -227,8 +232,10 @@ am__libknotd_la_SOURCES_DIST = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/zone/zonedb.c knot/zone/zonedb.h knot/zone/zonedb-load.c \
 	knot/zone/zonedb-load.h knot/zone/zonefile.c \
 	knot/zone/zonefile.h knot/modules/dnstap.c \
-	knot/modules/dnstap.h
+	knot/modules/dnstap.h knot/modules/rosedb.c \
+	knot/modules/rosedb.h
 @HAVE_DNSTAP_TRUE@am__objects_1 = knot/modules/libknotd_la-dnstap.lo
+@HAVE_ROSEDB_TRUE@am__objects_2 = knot/modules/libknotd_la-rosedb.lo
 am_libknotd_la_OBJECTS = knot/conf/libknotd_la-libknotd_la-cf-lex.lo \
 	knot/conf/libknotd_la-libknotd_la-cf-parse.lo \
 	knot/conf/libknotd_la-conf.lo knot/conf/libknotd_la-extra.lo \
@@ -284,7 +291,8 @@ am_libknotd_la_OBJECTS = knot/conf/libknotd_la-libknotd_la-cf-lex.lo \
 	knot/zone/libknotd_la-zone-load.lo \
 	knot/zone/libknotd_la-zonedb.lo \
 	knot/zone/libknotd_la-zonedb-load.lo \
-	knot/zone/libknotd_la-zonefile.lo $(am__objects_1)
+	knot/zone/libknotd_la-zonefile.lo $(am__objects_1) \
+	$(am__objects_2)
 libknotd_la_OBJECTS = $(am_libknotd_la_OBJECTS)
 libknotd_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -309,6 +317,7 @@ libknotus_la_OBJECTS = $(am_libknotus_la_OBJECTS)
 libknotus_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libknotus_la_LDFLAGS) $(LDFLAGS) -o $@
+@HAVE_ROSEDB_TRUE@am__EXEEXT_1 = rosedb_tool$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
 am_kdig_OBJECTS = utils/dig/dig_exec.$(OBJEXT) \
 	utils/dig/dig_main.$(OBJEXT) utils/dig/dig_params.$(OBJEXT)
@@ -335,6 +344,11 @@ am_knsupdate_OBJECTS = utils/nsupdate/nsupdate_exec.$(OBJEXT) \
 	utils/nsupdate/nsupdate_params.$(OBJEXT)
 knsupdate_OBJECTS = $(am_knsupdate_OBJECTS)
 knsupdate_DEPENDENCIES = $(BIN_LIBS) zscanner/libzscanner.la
+am__rosedb_tool_SOURCES_DIST = knot/modules/rosedb_tool.c
+@HAVE_ROSEDB_TRUE@am_rosedb_tool_OBJECTS =  \
+@HAVE_ROSEDB_TRUE@	knot/modules/rosedb_tool.$(OBJEXT)
+rosedb_tool_OBJECTS = $(am_rosedb_tool_OBJECTS)
+@HAVE_ROSEDB_TRUE@rosedb_tool_DEPENDENCIES = libknot.la libknotd.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -390,12 +404,12 @@ SOURCES = $(libknot_la_SOURCES) $(libknotcs_la_SOURCES) \
 	$(libknotd_la_SOURCES) $(libknots_la_SOURCES) \
 	$(libknotus_la_SOURCES) $(kdig_SOURCES) $(khost_SOURCES) \
 	$(knotc_SOURCES) $(knotd_SOURCES) $(knsec3hash_SOURCES) \
-	$(knsupdate_SOURCES)
+	$(knsupdate_SOURCES) $(rosedb_tool_SOURCES)
 DIST_SOURCES = $(libknot_la_SOURCES) $(libknotcs_la_SOURCES) \
 	$(am__libknotd_la_SOURCES_DIST) $(libknots_la_SOURCES) \
 	$(libknotus_la_SOURCES) $(kdig_SOURCES) $(khost_SOURCES) \
 	$(knotc_SOURCES) $(knotd_SOURCES) $(knsec3hash_SOURCES) \
-	$(knsupdate_SOURCES)
+	$(knsupdate_SOURCES) $(am__rosedb_tool_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -876,7 +890,7 @@ libknotd_la_SOURCES = knot/conf/cf-lex.l knot/conf/cf-parse.y \
 	knot/zone/zone.h knot/zone/zone-load.c knot/zone/zone-load.h \
 	knot/zone/zonedb.c knot/zone/zonedb.h knot/zone/zonedb-load.c \
 	knot/zone/zonedb-load.h knot/zone/zonefile.c \
-	knot/zone/zonefile.h $(am__append_1)
+	knot/zone/zonefile.h $(am__append_1) $(am__append_5)
 
 # libraries
 libknot_la_LIBADD = libknotcs.la zscanner/libzscanner.la
@@ -900,6 +914,8 @@ kdig_LDADD = $(BIN_LIBS) $(libidn_LIBS) $(am__append_2)
 khost_LDADD = $(BIN_LIBS) $(libidn_LIBS) $(am__append_3)
 knsupdate_LDADD = $(BIN_LIBS) zscanner/libzscanner.la
 knsec3hash_LDADD = $(BIN_LIBS)
+@HAVE_ROSEDB_TRUE@rosedb_tool_SOURCES = knot/modules/rosedb_tool.c
+@HAVE_ROSEDB_TRUE@rosedb_tool_LDADD = libknot.la libknotd.la
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -914,9 +930,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnits src/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnits src/Makefile
+	  $(AUTOMAKE) --gnu src/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -1319,6 +1335,8 @@ knot/zone/libknotd_la-zonefile.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/modules/libknotd_la-dnstap.lo: knot/modules/$(am__dirstamp) \
 	knot/modules/$(DEPDIR)/$(am__dirstamp)
+knot/modules/libknotd_la-rosedb.lo: knot/modules/$(am__dirstamp) \
+	knot/modules/$(DEPDIR)/$(am__dirstamp)
 
 libknotd.la: $(libknotd_la_OBJECTS) $(libknotd_la_DEPENDENCIES) $(EXTRA_libknotd_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(libknotd_la_LINK)  $(libknotd_la_OBJECTS) $(libknotd_la_LIBADD) $(LIBS)
@@ -1434,22 +1452,6 @@ clean-binPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-
-installcheck-binPROGRAMS: $(bin_PROGRAMS)
-	bad=0; pid=$$$$; list="$(bin_PROGRAMS)"; for p in $$list; do \
-	  case ' $(AM_INSTALLCHECK_STD_OPTIONS_EXEMPT) ' in \
-	   *" $$p "* | *" $(srcdir)/$$p "*) continue;; \
-	  esac; \
-	  f=`echo "$$p" | \
-	     sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
-	  for opt in --help --version; do \
-	    if "$(DESTDIR)$(bindir)/$$f" $$opt >c$${pid}_.out \
-	         2>c$${pid}_.err </dev/null \
-		 && test -n "`cat c$${pid}_.out`" \
-		 && test -z "`cat c$${pid}_.err`"; then :; \
-	    else echo "$$f does not support $$opt" 1>&2; bad=1; fi; \
-	  done; \
-	done; rm -f c$${pid}_.???; exit $$bad
 install-sbinPROGRAMS: $(sbin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	@list='$(sbin_PROGRAMS)'; test -n "$(sbindir)" || list=; \
@@ -1499,22 +1501,6 @@ clean-sbinPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-
-installcheck-sbinPROGRAMS: $(sbin_PROGRAMS)
-	bad=0; pid=$$$$; list="$(sbin_PROGRAMS)"; for p in $$list; do \
-	  case ' $(AM_INSTALLCHECK_STD_OPTIONS_EXEMPT) ' in \
-	   *" $$p "* | *" $(srcdir)/$$p "*) continue;; \
-	  esac; \
-	  f=`echo "$$p" | \
-	     sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
-	  for opt in --help --version; do \
-	    if "$(DESTDIR)$(sbindir)/$$f" $$opt >c$${pid}_.out \
-	         2>c$${pid}_.err </dev/null \
-		 && test -n "`cat c$${pid}_.out`" \
-		 && test -z "`cat c$${pid}_.err`"; then :; \
-	    else echo "$$f does not support $$opt" 1>&2; bad=1; fi; \
-	  done; \
-	done; rm -f c$${pid}_.???; exit $$bad
 utils/dig/$(am__dirstamp):
 	@$(MKDIR_P) utils/dig
 	@: > utils/dig/$(am__dirstamp)
@@ -1595,6 +1581,12 @@ utils/nsupdate/nsupdate_params.$(OBJEXT):  \
 knsupdate$(EXEEXT): $(knsupdate_OBJECTS) $(knsupdate_DEPENDENCIES) $(EXTRA_knsupdate_DEPENDENCIES) 
 	@rm -f knsupdate$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(knsupdate_OBJECTS) $(knsupdate_LDADD) $(LIBS)
+knot/modules/rosedb_tool.$(OBJEXT): knot/modules/$(am__dirstamp) \
+	knot/modules/$(DEPDIR)/$(am__dirstamp)
+
+rosedb_tool$(EXEEXT): $(rosedb_tool_OBJECTS) $(rosedb_tool_DEPENDENCIES) $(EXTRA_rosedb_tool_DEPENDENCIES) 
+	@rm -f rosedb_tool$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(rosedb_tool_OBJECTS) $(rosedb_tool_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -1688,7 +1680,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-nsec.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-dnstap.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-rosedb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-synth_record.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/rosedb_tool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-axfr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-capture.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-chaos.Plo@am__quote@
@@ -2275,6 +2269,13 @@ knot/modules/libknotd_la-dnstap.lo: knot/modules/dnstap.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/modules/libknotd_la-dnstap.lo `test -f 'knot/modules/dnstap.c' || echo '$(srcdir)/'`knot/modules/dnstap.c
 
+knot/modules/libknotd_la-rosedb.lo: knot/modules/rosedb.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/modules/libknotd_la-rosedb.lo -MD -MP -MF knot/modules/$(DEPDIR)/libknotd_la-rosedb.Tpo -c -o knot/modules/libknotd_la-rosedb.lo `test -f 'knot/modules/rosedb.c' || echo '$(srcdir)/'`knot/modules/rosedb.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/modules/$(DEPDIR)/libknotd_la-rosedb.Tpo knot/modules/$(DEPDIR)/libknotd_la-rosedb.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/modules/rosedb.c' object='knot/modules/libknotd_la-rosedb.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/modules/libknotd_la-rosedb.lo `test -f 'knot/modules/rosedb.c' || echo '$(srcdir)/'`knot/modules/rosedb.c
+
 utils/common/libknotus_la-exec.lo: utils/common/exec.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-exec.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-exec.Tpo -c -o utils/common/libknotus_la-exec.lo `test -f 'utils/common/exec.c' || echo '$(srcdir)/'`utils/common/exec.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-exec.Tpo utils/common/$(DEPDIR)/libknotus_la-exec.Plo
@@ -2665,7 +2666,7 @@ install-ps: install-ps-recursive
 
 install-ps-am:
 
-installcheck-am: installcheck-binPROGRAMS installcheck-sbinPROGRAMS
+installcheck-am:
 
 maintainer-clean: maintainer-clean-recursive
 	-rm -rf common-knot/$(DEPDIR) common-knot/hattrie/$(DEPDIR) common/$(DEPDIR) common/namedb/$(DEPDIR) knot/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/util/$(DEPDIR) utils/common/$(DEPDIR) utils/dig/$(DEPDIR) utils/host/$(DEPDIR) utils/nsec3hash/$(DEPDIR) utils/nsupdate/$(DEPDIR)
@@ -2703,8 +2704,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	install-html-am install-info install-info-am \
 	install-libLTLIBRARIES install-man install-pdf install-pdf-am \
 	install-ps install-ps-am install-sbinPROGRAMS install-strip \
-	installcheck installcheck-am installcheck-binPROGRAMS \
-	installcheck-sbinPROGRAMS installdirs installdirs-am \
+	installcheck installcheck-am installdirs installdirs-am \
 	maintainer-clean maintainer-clean-generic mostlyclean \
 	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
 	pdf pdf-am ps ps-am tags tags-am uninstall uninstall-am \

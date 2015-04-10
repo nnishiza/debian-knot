@@ -413,9 +413,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/tests/Makefile.inc $(am_
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnits src/zscanner/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/zscanner/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnits src/zscanner/Makefile
+	  $(AUTOMAKE) --gnu src/zscanner/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.6.3], [knot-dns@labs.nic.cz])
-AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
+AC_INIT([knot], [1.6.3-rosedb], [knot-dns@labs.nic.cz])
+AM_INIT_AUTOMAKE([gnu subdir-objects dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
 AC_CONFIG_HEADERS([src/config.h])
@@ -94,6 +94,14 @@ esac
 if test "$enable_systemd" = yes; then
     AC_DEFINE([ENABLE_SYSTEMD], [1], [Use systemd integration.])
 fi
+
+dnl Check for rosedb module
+AC_ARG_ENABLE([rosedb],
+    AS_HELP_STRING([--enable-rosedb], [Enable static RR query module.]),
+    [], [enable_rosedb=no])
+
+AS_IF([test "$enable_rosedb" = yes], [AC_DEFINE([HAVE_ROSEDB], [1], [Define to 1 to enable static RR query module.])])
+AM_CONDITIONAL([HAVE_ROSEDB], [test "$enable_rosedb" = yes])
 
 # Debug modules
 AC_ARG_ENABLE([debug],
@@ -409,6 +417,7 @@ AC_MSG_RESULT([
     Fast zone parser:      ${enable_fastparser}
     Utilities with IDN:    ${with_libidn}
     Systemd integration:   ${enable_systemd}
+    Rosedb module:         ${enable_rosedb}
     Dnstap support:        ${opt_dnstap}
     Code coverage:         ${enable_code_coverage}
     LMDB support:          ${enable_lmdb}

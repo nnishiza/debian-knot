@@ -290,9 +290,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnits doc/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu doc/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnits doc/Makefile
+	  $(AUTOMAKE) --gnu doc/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -392,9 +392,9 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 @HAVE_PDFLATEX_FALSE@pdf-local:
 @HAVE_SPHINXBUILD_FALSE@pdf-local:
-@HAVE_SPHINXBUILD_FALSE@html-local:
 @HAVE_MAKEINFO_FALSE@info-local:
 @HAVE_SPHINXBUILD_FALSE@info-local:
+@HAVE_SPHINXBUILD_FALSE@html-local:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-local mostlyclean-am
