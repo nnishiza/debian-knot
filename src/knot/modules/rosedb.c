@@ -21,7 +21,6 @@
 #include "libknot/rrtype/rdname.h"
 #include "libknot/dnssec/random.h"
 #include "libknot/rrset-dump.h"
-#include "libknot/util/utils.h"
 
 /*! \note Below is an implementation of basic RR cache in LMDB,
  *        it shall be replaced with the namedb API later, when
@@ -140,20 +139,17 @@ static inline void pack_str(char **stream, const char *str) {
 	memcpy(*stream, str, len);
 	*stream += len;
 }
-
 static inline char *unpack_str(char **stream) {
 	char *ret = *stream;
 	*stream += PACKED_LEN(ret);
 	return ret;
 }
-
 static inline void pack_bin(char **stream, const void *data, uint32_t len) {
 	knot_wire_write_u32((uint8_t *)*stream, len);
 	*stream += sizeof(uint32_t);
 	memcpy(*stream, data, len);
 	*stream += len;
 }
-
 static inline void *unpack_bin(char **stream, uint32_t *len) {
 	*len = knot_wire_read_u32((uint8_t *)*stream);
 	*stream += sizeof(uint32_t);
@@ -161,7 +157,6 @@ static inline void *unpack_bin(char **stream, uint32_t *len) {
 	*stream += *len;
 	return ret;
 }
-
 static MDB_val pack_key(const knot_dname_t *name)
 {
 	MDB_val key = { knot_dname_size(name), (void *)name };
@@ -192,7 +187,6 @@ static int unpack_entry(MDB_val *data, struct entry *entry)
 
 	val = unpack_bin(&stream, &len);
 	memcpy(&entry->data.type, val, sizeof(uint16_t));
-
 	knot_rdataset_t *rrs = &entry->data.rrs;
 	val = unpack_bin(&stream, &len);
 	memcpy(&rrs->rr_count, val, sizeof(uint16_t));
@@ -351,8 +345,6 @@ static int stream_skip(char **stream, size_t *maxlen, int nbytes)
 		return KNOT_ESPACE; \
 	}
 
-#define sockaddr_tostr_wrap(buf, maxlen, ss) sockaddr_tostr((ss), (buf), (maxlen))
-
 static int rosedb_log_message(char *stream, size_t *maxlen, knot_pkt_t *pkt,
                               const char *threat_code, struct query_data *qdata)
 {
@@ -367,15 +359,16 @@ static int rosedb_log_message(char *stream, size_t *maxlen, knot_pkt_t *pkt,
 	STREAM_WRITE(stream, maxlen, strftime, "%Y-%m-%d %H:%M:%S\t", &tm);
 
 	/* Field 2/3 Remote, local address. */
-	addr = *qdata->param->remote;
+	const struct sockaddr *remote = (const struct sockaddr *)qdata->param->remote;
+	memcpy(&addr, remote, sockaddr_len(remote));
 	int client_port = sockaddr_port(&addr);
 	sockaddr_port_set(&addr, 0);
-	STREAM_WRITE(stream, maxlen, sockaddr_tostr_wrap, &addr);
+	STREAM_WRITE(stream, maxlen, sockaddr_tostr, &addr);
 	STREAM_WRITE(stream, maxlen, snprintf, "\t");
 	getsockname(qdata->param->socket, (struct sockaddr *)&addr, &addr_len);
 	int server_port = sockaddr_port(&addr);
 	sockaddr_port_set(&addr, 0);
-	STREAM_WRITE(stream, maxlen, sockaddr_tostr_wrap, &addr);
+	STREAM_WRITE(stream, maxlen, sockaddr_tostr, &addr);
 	STREAM_WRITE(stream, maxlen, snprintf, "\t");
 
 	/* Field 4/5 Local, remote port. */
@@ -430,7 +423,7 @@ static int rosedb_log_message(char *stream, size_t *maxlen, knot_pkt_t *pkt,
 	return KNOT_EOK;
 }
 
-static int rosedb_send_log(int sock, struct sockaddr_storage *dst_addr, knot_pkt_t *pkt,
+static int rosedb_send_log(int sock, struct sockaddr *dst_addr, knot_pkt_t *pkt,
                            const char *threat_code, struct query_data *qdata)
 {
 	char buf[SYSLOG_BUFLEN];
@@ -458,7 +451,7 @@ static int rosedb_send_log(int sock, struct sockaddr_storage *dst_addr, knot_pkt
 	}
 
 	/* Send log message line. */
-	sendto(sock, buf, sizeof(buf) - maxlen, 0, (struct sockaddr *)dst_addr, sockaddr_len(dst_addr));
+	sendto(sock, buf, sizeof(buf) - maxlen, 0, dst_addr, sockaddr_len(dst_addr));
 
 	return ret;
 }
@@ -475,7 +468,7 @@ static int rosedb_synth_rr(knot_pkt_t *pkt, struct entry *entry, uint16_t qtype)
 		return ret;
 	}
 
-	ret = knot_pkt_put(pkt, COMPR_HINT_QNAME, rr, KNOT_PF_FREE);
+	ret = knot_pkt_put(pkt, KNOT_COMPR_HINT_QNAME, rr, KNOT_PF_FREE);
 
 	return ret;
 }
@@ -525,7 +518,7 @@ static int rosedb_synth(knot_pkt_t *pkt, const knot_dname_t *key, struct iter *i
 	if (sockaddr_set(&syslog_addr, AF_INET, entry.syslog_ip, DEFAULT_PORT) == KNOT_EOK) {
 		int sock = net_unbound_socket(AF_INET, &syslog_addr);
 		if (sock > 0) {
-			rosedb_send_log(sock, &syslog_addr, pkt,
+			rosedb_send_log(sock, (struct sockaddr *)&syslog_addr, pkt,
 			                entry.threat_code, qdata);
 			close(sock);
 		}
@@ -565,7 +558,7 @@ static int rosedb_query_txn(MDB_txn *txn, MDB_dbi dbi, knot_pkt_t *pkt, struct q
 static int rosedb_query(int state, knot_pkt_t *pkt, struct query_data *qdata, void *ctx)
 {
 	if (pkt == NULL || qdata == NULL || ctx == NULL) {
-		return NS_PROC_FAIL;
+		return KNOT_NS_PROC_FAIL;
 	}
 
 	struct cache *cache = ctx;
@@ -584,7 +577,7 @@ static int rosedb_query(int state, knot_pkt_t *pkt, struct query_data *qdata, vo
 
 	mdb_txn_abort(txn);
 
-	return NS_PROC_DONE;
+	return KNOT_NS_PROC_DONE;
 }
 
 int rosedb_load(struct query_plan *plan, struct query_module *self)

@@ -81,10 +81,10 @@ check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
 	changeset$(EXEEXT) conf$(EXEEXT) descriptor$(EXEEXT) \
 	dname$(EXEEXT) dnssec_keys$(EXEEXT) dnssec_nsec3$(EXEEXT) \
 	dnssec_sign$(EXEEXT) dnssec_zone_nsec$(EXEEXT) \
-	dthreads$(EXEEXT) edns$(EXEEXT) fdset$(EXEEXT) \
+	dthreads$(EXEEXT) edns$(EXEEXT) endian$(EXEEXT) fdset$(EXEEXT) \
 	hattrie$(EXEEXT) hhash$(EXEEXT) journal$(EXEEXT) \
-	namedb$(EXEEXT) net_shortwrite$(EXEEXT) node$(EXEEXT) \
-	pkt$(EXEEXT) process_answer$(EXEEXT) process_query$(EXEEXT) \
+	namedb$(EXEEXT) node$(EXEEXT) overlay$(EXEEXT) pkt$(EXEEXT) \
+	process_answer$(EXEEXT) process_query$(EXEEXT) \
 	query_module$(EXEEXT) rdata$(EXEEXT) rdataset$(EXEEXT) \
 	requestor$(EXEEXT) rrl$(EXEEXT) rrset$(EXEEXT) \
 	rrset_wire$(EXEEXT) server$(EXEEXT) wire$(EXEEXT) \
@@ -100,7 +100,8 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/knot-check-header.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
-	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/m4/visibility.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -190,6 +191,12 @@ edns_LDADD = $(LDADD)
 edns_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
+endian_SOURCES = endian.c
+endian_OBJECTS = endian.$(OBJEXT)
+endian_LDADD = $(LDADD)
+endian_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
 fdset_SOURCES = fdset.c
 fdset_OBJECTS = fdset.$(OBJEXT)
 fdset_LDADD = $(LDADD)
@@ -220,16 +227,16 @@ namedb_LDADD = $(LDADD)
 namedb_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
-net_shortwrite_SOURCES = net_shortwrite.c
-net_shortwrite_OBJECTS = net_shortwrite.$(OBJEXT)
-net_shortwrite_LDADD = $(LDADD)
-net_shortwrite_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
-	$(top_builddir)/src/libknotd.la \
-	$(top_builddir)/src/libknots.la
 node_SOURCES = node.c
 node_OBJECTS = node.$(OBJEXT)
 node_LDADD = $(LDADD)
 node_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/src/libknotd.la \
+	$(top_builddir)/src/libknots.la
+overlay_SOURCES = overlay.c
+overlay_OBJECTS = overlay.$(OBJEXT)
+overlay_LDADD = $(LDADD)
+overlay_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
 	$(top_builddir)/src/libknotd.la \
 	$(top_builddir)/src/libknots.la
 pkt_SOURCES = pkt.c
@@ -383,16 +390,16 @@ am__v_CCLD_1 =
 SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	$(nodist_conf_SOURCES) descriptor.c dname.c dnssec_keys.c \
 	dnssec_nsec3.c dnssec_sign.c dnssec_zone_nsec.c dthreads.c \
-	edns.c fdset.c hattrie.c hhash.c journal.c namedb.c \
-	net_shortwrite.c node.c pkt.c $(process_answer_SOURCES) \
+	edns.c endian.c fdset.c hattrie.c hhash.c journal.c namedb.c \
+	node.c overlay.c pkt.c $(process_answer_SOURCES) \
 	$(process_query_SOURCES) query_module.c rdata.c rdataset.c \
 	requestor.c rrl.c rrset.c rrset_wire.c server.c wire.c \
 	worker_pool.c worker_queue.c zone_events.c zone_timers.c \
 	zone_update.c zonedb.c ztree.c
 DIST_SOURCES = acl.c base32hex.c base64.c changeset.c $(conf_SOURCES) \
 	descriptor.c dname.c dnssec_keys.c dnssec_nsec3.c \
-	dnssec_sign.c dnssec_zone_nsec.c dthreads.c edns.c fdset.c \
-	hattrie.c hhash.c journal.c namedb.c net_shortwrite.c node.c \
+	dnssec_sign.c dnssec_zone_nsec.c dthreads.c edns.c endian.c \
+	fdset.c hattrie.c hhash.c journal.c namedb.c node.c overlay.c \
 	pkt.c $(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
 	rrset_wire.c server.c wire.c worker_pool.c worker_queue.c \
@@ -433,6 +440,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
 CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
@@ -452,6 +460,7 @@ EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GENHTML = @GENHTML@
 GREP = @GREP@
+HAVE_VISIBILITY = @HAVE_VISIBILITY@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -600,9 +609,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu tests/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign tests/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu tests/Makefile
+	  $(AUTOMAKE) --foreign tests/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -683,6 +692,10 @@ edns$(EXEEXT): $(edns_OBJECTS) $(edns_DEPENDENCIES) $(EXTRA_edns_DEPENDENCIES)
 	@rm -f edns$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(edns_OBJECTS) $(edns_LDADD) $(LIBS)
 
+endian$(EXEEXT): $(endian_OBJECTS) $(endian_DEPENDENCIES) $(EXTRA_endian_DEPENDENCIES) 
+	@rm -f endian$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(endian_OBJECTS) $(endian_LDADD) $(LIBS)
+
 fdset$(EXEEXT): $(fdset_OBJECTS) $(fdset_DEPENDENCIES) $(EXTRA_fdset_DEPENDENCIES) 
 	@rm -f fdset$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(fdset_OBJECTS) $(fdset_LDADD) $(LIBS)
@@ -703,13 +716,13 @@ namedb$(EXEEXT): $(namedb_OBJECTS) $(namedb_DEPENDENCIES) $(EXTRA_namedb_DEPENDE
 	@rm -f namedb$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(namedb_OBJECTS) $(namedb_LDADD) $(LIBS)
 
-net_shortwrite$(EXEEXT): $(net_shortwrite_OBJECTS) $(net_shortwrite_DEPENDENCIES) $(EXTRA_net_shortwrite_DEPENDENCIES) 
-	@rm -f net_shortwrite$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(net_shortwrite_OBJECTS) $(net_shortwrite_LDADD) $(LIBS)
-
 node$(EXEEXT): $(node_OBJECTS) $(node_DEPENDENCIES) $(EXTRA_node_DEPENDENCIES) 
 	@rm -f node$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(node_OBJECTS) $(node_LDADD) $(LIBS)
+
+overlay$(EXEEXT): $(overlay_OBJECTS) $(overlay_DEPENDENCIES) $(EXTRA_overlay_DEPENDENCIES) 
+	@rm -f overlay$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(overlay_OBJECTS) $(overlay_LDADD) $(LIBS)
 
 pkt$(EXEEXT): $(pkt_OBJECTS) $(pkt_DEPENDENCIES) $(EXTRA_pkt_DEPENDENCIES) 
 	@rm -f pkt$(EXEEXT)
@@ -806,13 +819,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dnssec_zone_nsec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dthreads.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/endian.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fdset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hattrie.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hhash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/namedb.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/net_shortwrite.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/node.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/overlay.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pkt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process_answer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process_query.Po@am__quote@

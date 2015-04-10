@@ -32,7 +32,7 @@
 #include "libknot/rrtype/nsec3.h"
 #include "common/base32hex.h"
 #include "libknot/descriptor.h"
-#include "libknot/mempattern.h"
+#include "common/mempattern.h"
 #include "knot/dnssec/zone-nsec.h"
 
 #include "knot/zone/semantic-check.h"
@@ -126,7 +126,7 @@ static char *error_messages[(-ZC_ERR_UNKNOWN) + 1] = {
 void err_handler_init(err_handler_t *h)
 {
 	memset(h, 0, sizeof(err_handler_t));
-	memset(h->errors, 0, sizeof(uint) * (-ZC_ERR_UNKNOWN + 1));
+	memset(h->errors, 0, sizeof(unsigned) * (-ZC_ERR_UNKNOWN + 1));
 	h->options.log_cname = 0;
 	h->options.log_glue = 0;
 	h->options.log_rrsigs = 0;
@@ -529,7 +529,6 @@ static int rdata_nsec_to_type_array(const knot_rdataset_t *rrs, uint16_t type,
 		uint8_t *bitmap =
 			malloc(sizeof(uint8_t) * (bitmap_size));
 		if (bitmap == NULL) {
-			ERR_ALLOC_FAILED;
 			free(*array);
 			return KNOT_ENOMEM;
 		}
@@ -546,7 +545,6 @@ static int rdata_nsec_to_type_array(const knot_rdataset_t *rrs, uint16_t type,
 						    sizeof(uint16_t) *
 						    *count);
 				if (tmp == NULL) {
-					ERR_ALLOC_FAILED;
 					free(bitmap);
 					free(*array);
 					return KNOT_ENOMEM;

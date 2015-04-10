@@ -138,7 +138,6 @@ int zone_dump_text(zone_contents_t *zone, const struct sockaddr_storage *from, F
 	// Allocate auxiliary buffer for dumping operations.
 	char *buf = malloc(DUMP_BUF_LEN);
 	if (buf == NULL) {
-		ERR_ALLOC_FAILED;
 		return KNOT_ENOMEM;
 	}
 
@@ -227,7 +226,7 @@ int zone_dump_text(zone_contents_t *zone, const struct sockaddr_storage *from, F
 	// If a master server is configured, dump info about it.
 	if (from) {
 		char addr_str[SOCKADDR_STRLEN] = {0};
-		sockaddr_tostr(from, addr_str, sizeof(addr_str));
+		sockaddr_tostr(addr_str, sizeof(addr_str), from);
 
 		fprintf(file, ";; Transfered from %s\n", addr_str);
 	}

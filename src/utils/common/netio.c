@@ -31,7 +31,7 @@
 #include "utils/common/msg.h"		// WARN
 #include "libknot/descriptor.h"		// KNOT_CLASS_IN
 #include "libknot/errcode.h"		// KNOT_E
-#include "common-knot/sockaddr.h"	// sockaddr_tostr, sockaddr_portnum
+#include "common/sockaddr.h"		// sockaddr_tostr, sockaddr_portnum
 
 srv_info_t* srv_info_create(const char *name, const char *service)
 {
@@ -142,7 +142,7 @@ void get_addr_str(const struct sockaddr_storage *ss,
 	char addr_str[SOCKADDR_STRLEN] = {0};
 
 	// Get network address string and port number.
-	sockaddr_tostr(ss, addr_str, sizeof(addr_str));
+	sockaddr_tostr(addr_str, sizeof(addr_str), ss);
 
 	// Calculate needed buffer size
 	const char *sock_name = get_sockname(socktype);

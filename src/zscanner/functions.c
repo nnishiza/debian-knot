@@ -17,8 +17,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "zscanner/error.h"
 #include "zscanner/functions.h"
+#include "zscanner/error.h"
+#include "zscanner/scanner.h"		// ASCII_0
 
 const uint8_t digit_to_num[] = {
     ['0'] = 0, ['1'] = 1, ['2'] = 2, ['3'] = 3, ['4'] = 4,
@@ -792,9 +793,9 @@ void wire_dname_to_str(const uint8_t  *data,
 
 		// Just in case use \123 notation.
 		text[text_len++] = '\\';
-		text[text_len++] = (data[i] / 100)      + '0';
-		text[text_len++] = (data[i] /  10) % 10 + '0';
-		text[text_len++] = (data[i]      ) % 10 + '0';
+		text[text_len++] = (data[i] / 100)      + ASCII_0;
+		text[text_len++] = (data[i] /  10) % 10 + ASCII_0;
+		text[text_len++] = (data[i]      ) % 10 + ASCII_0;
 
 		label_len--;
 	}

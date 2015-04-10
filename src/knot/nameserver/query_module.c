@@ -1,11 +1,12 @@
 #include "knot/nameserver/query_module.h"
-#include "libknot/mempattern.h"
+#include "common/mempattern.h"
 #include "libknot/errcode.h"
-#include "common-knot/strlcpy.h"
+#include "common/strlcpy.h"
 
 /* Compiled-in module headers. */
 #include "knot/modules/synth_record.h"
-#if HAVE_ROSEDB
+#include "knot/modules/dnsproxy.h"
+#if HAVE_LMDB
 #include "knot/modules/rosedb.h"
 #endif
 #if USE_DNSTAP
@@ -22,7 +23,8 @@ struct compiled_module {
 /*! \note All modules should be dynamically loaded later on. */
 struct compiled_module MODULES[] = {
         { "synth_record", &synth_record_load, &synth_record_unload },
-#if HAVE_ROSEDB
+        { "dnsproxy", &dnsproxy_load, &dnsproxy_unload },
+#ifdef HAVE_LMDB
         { "rosedb", &rosedb_load, &rosedb_unload },
 #endif
 #if USE_DNSTAP

@@ -3,7 +3,6 @@
 
 #include "knot/modules/rosedb.c"
 #include "zscanner/scanner.h"
-#include "libknot/libknot.h"
 #include "common/mem.h"
 #include "common/getline.h"
 

@@ -96,9 +96,6 @@
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
 
-/* Define to 1 to enable static RR query module. */
-#undef HAVE_ROSEDB
-
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
@@ -149,6 +146,10 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define to 1 or 0, depending whether the compiler supports simple visibility
+   declarations. */
+#undef HAVE_VISIBILITY
 
 /* Server debug. */
 #undef KNOTD_SERVER_DEBUG
