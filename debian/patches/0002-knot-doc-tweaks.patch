@@ -1,5 +1,15 @@
---- knot.orig/doc/Makefile.am
-+++ knot/doc/Makefile.am
+From: =?utf-8?q?Ond=C5=99ej_Sur=C3=BD?= <ondrej@debian.org>
+Date: Tue, 16 Jun 2015 14:44:45 +0200
+Subject: knot-doc-tweaks
+
+---
+ doc/Makefile.am | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index 652d200..e065fc6 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
 @@ -15,7 +15,7 @@ EXTRA_DIST = \
  SPHINXBUILDDIR = _build
  ALLSPHINXOPTS  = -n -d $(SPHINXBUILDDIR)/doctrees -D latex_paper_size=a4 $(SPHINXOPTS) .

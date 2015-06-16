@@ -1,5 +1,16 @@
---- knot.orig/configure
-+++ knot/configure
+From: =?utf-8?q?Ond=C5=99ej_Sur=C3=BD?= <ondrej@debian.org>
+Date: Tue, 16 Jun 2015 14:44:44 +0200
+Subject: loosen-openssl-dependency
+
+---
+ configure    | 17 -----------------
+ configure.ac |  8 --------
+ 2 files changed, 25 deletions(-)
+
+diff --git a/configure b/configure
+index ea45edf..1a00e7d 100755
+--- a/configure
++++ b/configure
 @@ -13619,23 +13619,6 @@ if test "$with_openssl" = "no"; then :
  
  fi
@@ -24,8 +35,10 @@
  
  
  # Check whether --with-libidn was given.
---- knot.orig/configure.ac
-+++ knot/configure.ac
+diff --git a/configure.ac b/configure.ac
+index f6b9f37..2fe7f24 100644
+--- a/configure.ac
++++ b/configure.ac
 @@ -289,14 +289,6 @@ AS_IF([test "$with_openssl" = "no"],[
    AC_MSG_ERROR([OpenSSL library is required.])
  ])
