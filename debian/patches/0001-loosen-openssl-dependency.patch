@@ -1,6 +1,6 @@
 --- knot.orig/configure
 +++ knot/configure
-@@ -13589,23 +13589,6 @@ if test "$with_openssl" = "no"; then :
+@@ -13619,23 +13619,6 @@ if test "$with_openssl" = "no"; then :
  
  fi
  
@@ -26,7 +26,7 @@
  # Check whether --with-libidn was given.
 --- knot.orig/configure.ac
 +++ knot/configure.ac
-@@ -279,14 +279,6 @@ AS_IF([test "$with_openssl" = "no"],[
+@@ -289,14 +289,6 @@ AS_IF([test "$with_openssl" = "no"],[
    AC_MSG_ERROR([OpenSSL library is required.])
  ])
  
