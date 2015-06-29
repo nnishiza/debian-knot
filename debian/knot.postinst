@@ -18,7 +18,9 @@ if [ "$1" = "configure" ]; then
 	if ! knotc checkconf 2>/dev/null >/dev/null; then
 	    BACKUP_DIR=/var/backups/knot/$(date +%Y%m%d-%H%M%S)
 	    mkdir -p ${BACKUP_DIR}
+	    echo "Backup config file /etc/knot/knot.conf to ${BACKUP_DIR}."
 	    cp -a /etc/knot/knot.conf ${BACKUP_DIR}/
+	    echo "Converting config file /etc/knot/knot.conf to new format."
 	    /usr/lib/knot/knot1to2 -i ${BACKUP_DIR}/knot.conf -o /etc/knot/knot.conf
 	fi
     fi
