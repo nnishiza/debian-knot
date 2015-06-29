@@ -1,38 +1,8 @@
-knot (1.99.1+newconfig0-1) experimental; urgency=medium
+knot (2.0.0-1) experimental; urgency=medium
 
-  * New upstream version 1.99.1+newconfig0
-  * keymgr now resides in /usr/sbin
-  * Use libsystemd-dev instead of separated -dev libraries (Closes: #779759)
-  * Update sphinx patch
+  * New upstream version 2.0.0
 
- -- Ondřej Surý <ondrej@debian.org>  Thu, 09 Apr 2015 11:32:22 +0200
-
-knot (1.99.1-1) experimental; urgency=medium
-
-  * New upstream version 1.99.1
-  * Update patches for 1.99.1 release
-  * Remove git upstream cherry-picks from 1.99.0
-
- -- Ondřej Surý <ondrej@debian.org>  Wed, 11 Feb 2015 17:11:56 +0100
-
-knot (1.99.0-1) experimental; urgency=medium
-
-  * New upstream version 1.99.0 (2.0.0-alpha0)
-  * Prepare master-experimental for experimental 1.99.0 branch leading to
-    2.0.0 release with GnuTLS crypto library, new configuration format
-    and other improvements
-  * Pull some upstream fixes and move dnssec binaries to /usr/sbin
-  * Packaging changes:
-   + Replace libssl-dev with gnutls-dev to reflect upstream crypto library
-     change
-   + Remove 0001-loosen-openssl-dependency.patch since it's not needed
-     anymore
-   + Add libjansson-dev (>= 2.4) to Build-Depends
-   + Run wrap-and-sort -a over debian/* files
-   + Install keymgr to knot and new libraries and headers to knot-libs (no
-     stable SOVERSION yet)
-
- -- Ondřej Surý <ondrej@debian.org>  Wed, 31 Dec 2014 13:37:54 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 29 Jun 2015 10:28:55 +0200
 
 knot (1.6.1-1) unstable; urgency=medium
 

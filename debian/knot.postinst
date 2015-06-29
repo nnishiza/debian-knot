@@ -11,6 +11,15 @@ if [ "$1" = "configure" ]; then
     dpkg-statoverride --list /var/lib/knot > /dev/null || dpkg-statoverride --update --add knot knot 0755 /var/lib/knot
     dpkg-statoverride --list /etc/knot/knot.conf > /dev/null || dpkg-statoverride --update --add knot knot 0640 /etc/knot/knot.conf
     dpkg-statoverride --list /etc/knot > /dev/null || dpkg-statoverride --update --add knot knot 0750 /etc/knot
+
+    
+    # Convert the configuration file to a new format if we are upgrading
+    if [ -n "$2" ] && dpkg --compare-versions "$2" lt "2.0.0~"; then
+	BACKUP_DIR=/var/backups/knot/$(date +%Y%m%d-%H%M%S)
+	mkdir -p ${BACKUP_DIR}
+	cp -a /etc/knot/knot.conf ${BACKUP_DIR}/
+	knot1to2 ${BACKUP_DIR}/knot.conf /etc/knot/knot.conf
+    fi
 fi
 
 #DEBHELPER#
