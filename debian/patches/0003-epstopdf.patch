@@ -1,0 +1,20 @@
+--- knot.orig/doc/conf.py.in
++++ knot/doc/conf.py.in
+@@ -177,7 +177,7 @@ latex_elements = {
+ #'pointsize': '10pt',
+ 
+ # Additional stuff for the LaTeX preamble.
+-#'preamble': '',
++# 'preamble': '',
+ 
+ # No empty pages between chapters
+ 'classoptions': ',openany,oneside',
+@@ -195,7 +195,7 @@ latex_documents = [
+ 
+ # The name of an image file (relative to this directory) to place at the top of
+ # the title page.
+-latex_logo = 'logo.eps'
++latex_logo = 'logo.pdf'
+ 
+ # For "manual" documents, if this is true, then toplevel headings are parts,
+ # not chapters.

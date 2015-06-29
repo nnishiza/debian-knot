@@ -61,7 +61,9 @@ override_dh_auto_build-arch:
 	dh_auto_build -- all
 
 override_dh_auto_build-indep:
+	epspdf doc/logo.eps
 	dh_auto_build -- info pdf html
+	rm doc/logo.eps
 
 override_dh_auto_install-arch:
 	dh_auto_install
