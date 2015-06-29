@@ -44,7 +44,7 @@ ifeq (yes,$(ENABLE_SYSTEMD))
 endif
 
 %:
-	dh $@ --with autotools-dev,systemd,autoreconf $(DH_SYSTEMD) --parallel
+	dh $@ --with autotools-dev,autoreconf $(DH_SYSTEMD) --parallel
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
