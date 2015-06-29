@@ -1,9 +1,12 @@
 etc/knot/knot.conf
-usr/sbin/keymgr
 usr/bin/knsec3hash
+usr/lib/knot/knot1to2
 usr/lib/knot/prepare-environment
+usr/sbin/keymgr
 usr/sbin/knotc
 usr/sbin/knotd
+usr/share/bash-completion/completions/keymgr
+usr/share/man/man1/knot1to2.1
 usr/share/man/man1/knsec3hash.1
 usr/share/man/man5/knot.conf.5
 usr/share/man/man8/keymgr.8

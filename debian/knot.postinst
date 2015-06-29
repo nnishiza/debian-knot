@@ -18,7 +18,7 @@ if [ "$1" = "configure" ]; then
 	BACKUP_DIR=/var/backups/knot/$(date +%Y%m%d-%H%M%S)
 	mkdir -p ${BACKUP_DIR}
 	cp -a /etc/knot/knot.conf ${BACKUP_DIR}/
-	knot1to2 ${BACKUP_DIR}/knot.conf /etc/knot/knot.conf
+	/usr/lib/knot/knot1to2 ${BACKUP_DIR}/knot.conf /etc/knot/knot.conf
     fi
 fi
 
