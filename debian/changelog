@@ -1,8 +1,11 @@
-knot (2.0.0-1) experimental; urgency=medium
+knot (2.0.0-1~exp1) experimental; urgency=medium
 
   * New upstream version 2.0.0
+  * Automatically convert knot.conf and add not about the conversion to
+    debian/knot.NEWS
+  * Install knot1to2 configuration file conversion tool
 
- -- Ondřej Surý <ondrej@debian.org>  Mon, 29 Jun 2015 10:28:55 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 29 Jun 2015 10:40:45 +0200
 
 knot (1.6.1-1) unstable; urgency=medium
 
