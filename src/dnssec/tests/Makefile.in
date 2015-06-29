@@ -84,14 +84,14 @@ check_PROGRAMS = binary$(EXEEXT) crypto$(EXEEXT) \
 	keystore_pkcs8_dir$(EXEEXT) keytag$(EXEEXT) list$(EXEEXT) \
 	nsec_bitmap$(EXEEXT) nsec_hash$(EXEEXT) random$(EXEEXT) \
 	sign$(EXEEXT) sign_der$(EXEEXT) shared_base32hex$(EXEEXT) \
-	shared_dname$(EXEEXT) shared_strtonum$(EXEEXT) \
-	shared_wire$(EXEEXT) tsig$(EXEEXT)
+	shared_bignum$(EXEEXT) shared_dname$(EXEEXT) \
+	shared_strtonum$(EXEEXT) shared_wire$(EXEEXT) tsig$(EXEEXT)
 subdir = src/dnssec/tests
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
-	$(top_srcdir)/m4/ax_set_version_info.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
@@ -106,7 +106,7 @@ CONFIG_CLEAN_VPATH_FILES =
 binary_SOURCES = binary.c
 binary_OBJECTS = binary.$(OBJEXT)
 binary_LDADD = $(LDADD)
-binary_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+binary_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -115,112 +115,117 @@ am__v_lt_1 =
 crypto_SOURCES = crypto.c
 crypto_OBJECTS = crypto.$(OBJEXT)
 crypto_LDADD = $(LDADD)
-crypto_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+crypto_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 event_keystate_SOURCES = event_keystate.c
 event_keystate_OBJECTS = event_keystate.$(OBJEXT)
 event_keystate_LDADD = $(LDADD)
-event_keystate_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+event_keystate_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 kasp_dir_escape_SOURCES = kasp_dir_escape.c
 kasp_dir_escape_OBJECTS = kasp_dir_escape.$(OBJEXT)
 kasp_dir_escape_LDADD = $(LDADD)
-kasp_dir_escape_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+kasp_dir_escape_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 kasp_dir_file_SOURCES = kasp_dir_file.c
 kasp_dir_file_OBJECTS = kasp_dir_file.$(OBJEXT)
 kasp_dir_file_LDADD = $(LDADD)
-kasp_dir_file_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+kasp_dir_file_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 kasp_store_SOURCES = kasp_store.c
 kasp_store_OBJECTS = kasp_store.$(OBJEXT)
 kasp_store_LDADD = $(LDADD)
-kasp_store_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+kasp_store_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 key_SOURCES = key.c
 key_OBJECTS = key.$(OBJEXT)
 key_LDADD = $(LDADD)
-key_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+key_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 key_algorithm_SOURCES = key_algorithm.c
 key_algorithm_OBJECTS = key_algorithm.$(OBJEXT)
 key_algorithm_LDADD = $(LDADD)
-key_algorithm_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+key_algorithm_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 keyid_SOURCES = keyid.c
 keyid_OBJECTS = keyid.$(OBJEXT)
 keyid_LDADD = $(LDADD)
-keyid_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+keyid_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 keystore_pkcs8_SOURCES = keystore_pkcs8.c
 keystore_pkcs8_OBJECTS = keystore_pkcs8.$(OBJEXT)
 keystore_pkcs8_LDADD = $(LDADD)
-keystore_pkcs8_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+keystore_pkcs8_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 keystore_pkcs8_dir_SOURCES = keystore_pkcs8_dir.c
 keystore_pkcs8_dir_OBJECTS = keystore_pkcs8_dir.$(OBJEXT)
 keystore_pkcs8_dir_LDADD = $(LDADD)
-keystore_pkcs8_dir_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+keystore_pkcs8_dir_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 keytag_SOURCES = keytag.c
 keytag_OBJECTS = keytag.$(OBJEXT)
 keytag_LDADD = $(LDADD)
-keytag_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+keytag_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 list_SOURCES = list.c
 list_OBJECTS = list.$(OBJEXT)
 list_LDADD = $(LDADD)
-list_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+list_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 nsec_bitmap_SOURCES = nsec_bitmap.c
 nsec_bitmap_OBJECTS = nsec_bitmap.$(OBJEXT)
 nsec_bitmap_LDADD = $(LDADD)
-nsec_bitmap_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+nsec_bitmap_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 nsec_hash_SOURCES = nsec_hash.c
 nsec_hash_OBJECTS = nsec_hash.$(OBJEXT)
 nsec_hash_LDADD = $(LDADD)
-nsec_hash_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+nsec_hash_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 random_SOURCES = random.c
 random_OBJECTS = random.$(OBJEXT)
 random_LDADD = $(LDADD)
-random_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+random_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 shared_base32hex_SOURCES = shared_base32hex.c
 shared_base32hex_OBJECTS = shared_base32hex.$(OBJEXT)
 shared_base32hex_LDADD = $(LDADD)
-shared_base32hex_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+shared_base32hex_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(builddir)/../libdnssec.la
+shared_bignum_SOURCES = shared_bignum.c
+shared_bignum_OBJECTS = shared_bignum.$(OBJEXT)
+shared_bignum_LDADD = $(LDADD)
+shared_bignum_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 shared_dname_SOURCES = shared_dname.c
 shared_dname_OBJECTS = shared_dname.$(OBJEXT)
 shared_dname_LDADD = $(LDADD)
-shared_dname_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+shared_dname_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 shared_strtonum_SOURCES = shared_strtonum.c
 shared_strtonum_OBJECTS = shared_strtonum.$(OBJEXT)
 shared_strtonum_LDADD = $(LDADD)
-shared_strtonum_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+shared_strtonum_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 shared_wire_SOURCES = shared_wire.c
 shared_wire_OBJECTS = shared_wire.$(OBJEXT)
 shared_wire_LDADD = $(LDADD)
-shared_wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+shared_wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 sign_SOURCES = sign.c
 sign_OBJECTS = sign.$(OBJEXT)
 sign_LDADD = $(LDADD)
-sign_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+sign_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 sign_der_SOURCES = sign_der.c
 sign_der_OBJECTS = sign_der.$(OBJEXT)
 sign_der_LDADD = $(LDADD)
-sign_der_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+sign_der_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 tsig_SOURCES = tsig.c
 tsig_OBJECTS = tsig.$(OBJEXT)
 tsig_LDADD = $(LDADD)
-tsig_DEPENDENCIES = $(top_builddir)/libtap/libtap.a \
+tsig_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -260,14 +265,14 @@ SOURCES = binary.c crypto.c event_keystate.c kasp_dir_escape.c \
 	kasp_dir_file.c kasp_store.c key.c key_algorithm.c keyid.c \
 	keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
 	nsec_bitmap.c nsec_hash.c random.c shared_base32hex.c \
-	shared_dname.c shared_strtonum.c shared_wire.c sign.c \
-	sign_der.c tsig.c
+	shared_bignum.c shared_dname.c shared_strtonum.c shared_wire.c \
+	sign.c sign_der.c tsig.c
 DIST_SOURCES = binary.c crypto.c event_keystate.c kasp_dir_escape.c \
 	kasp_dir_file.c kasp_store.c key.c key_algorithm.c keyid.c \
 	keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
 	nsec_bitmap.c nsec_hash.c random.c shared_base32hex.c \
-	shared_dname.c shared_strtonum.c shared_wire.c sign.c \
-	sign_der.c tsig.c
+	shared_bignum.c shared_dname.c shared_strtonum.c shared_wire.c \
+	sign.c sign_der.c tsig.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -303,6 +308,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
@@ -314,6 +320,8 @@ CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
+DNSTAP_CFLAGS = @DNSTAP_CFLAGS@
+DNSTAP_LIBS = @DNSTAP_LIBS@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -363,14 +371,12 @@ PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PROTOC_C = @PROTOC_C@
 RANLIB = @RANLIB@
 RELEASE_DATE = @RELEASE_DATE@
-RELEASE_INFO = @RELEASE_INFO@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
-VERSION_INFO = @VERSION_INFO@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -383,6 +389,7 @@ am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
+bash_completions_dir = @bash_completions_dir@
 bindir = @bindir@
 build = @build@
 build_alias = @build_alias@
@@ -410,16 +417,19 @@ install_sh = @install_sh@
 jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
+libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
 libidn_CFLAGS = @libidn_CFLAGS@
 libidn_LIBS = @libidn_LIBS@
+libknot_VERSION_INFO = @libknot_VERSION_INFO@
 libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
 libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
 liburcu_PKGCONFIG = @liburcu_PKGCONFIG@
+libzscanner_VERSION_INFO = @libzscanner_VERSION_INFO@
 lmdb_CFLAGS = @lmdb_CFLAGS@
 lmdb_LIBS = @lmdb_LIBS@
 localedir = @localedir@
@@ -458,7 +468,7 @@ AM_LDFLAGS = \
 	-static
 
 LDADD = \
-	$(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 
 CLEANFILES = runtests.log
@@ -575,6 +585,10 @@ shared_base32hex$(EXEEXT): $(shared_base32hex_OBJECTS) $(shared_base32hex_DEPEND
 	@rm -f shared_base32hex$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_base32hex_OBJECTS) $(shared_base32hex_LDADD) $(LIBS)
 
+shared_bignum$(EXEEXT): $(shared_bignum_OBJECTS) $(shared_bignum_DEPENDENCIES) $(EXTRA_shared_bignum_DEPENDENCIES) 
+	@rm -f shared_bignum$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(shared_bignum_OBJECTS) $(shared_bignum_LDADD) $(LIBS)
+
 shared_dname$(EXEEXT): $(shared_dname_OBJECTS) $(shared_dname_DEPENDENCIES) $(EXTRA_shared_dname_DEPENDENCIES) 
 	@rm -f shared_dname$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_dname_OBJECTS) $(shared_dname_LDADD) $(LIBS)
@@ -622,6 +636,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nsec_hash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_base32hex.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_bignum.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_dname.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_strtonum.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_wire.Po@am__quote@

@@ -489,25 +489,23 @@ int server_reload(server_t *server, const char *cf)
 		return KNOT_EINVAL;
 	}
 
-	int ret = KNOT_EOK;
-
 	if (cf != NULL) {
 		log_info("reloading configuration file '%s'", cf);
 		conf_t *new_conf = NULL;
-		ret = conf_clone(&new_conf);
+		int ret = conf_clone(&new_conf);
 		if (ret != KNOT_EOK) {
 			log_fatal("failed to initialize configuration (%s)",
 			          knot_strerror(ret));
-			return EXIT_FAILURE;
+			return ret;
 		}
 
 		/* Import the configuration file. */
 		ret = conf_import(new_conf, cf, true);
 		if (ret != KNOT_EOK) {
-			log_fatal("failed to load configuration file '%s' (%s)",
-			          cf, knot_strerror(ret));
+			log_fatal("failed to load configuration file (%s)",
+			          knot_strerror(ret));
 			conf_free(new_conf, false);
-			return EXIT_FAILURE;
+			return ret;
 		}
 
 		/* Run post-open config operations. */
@@ -516,7 +514,7 @@ int server_reload(server_t *server, const char *cf)
 			log_fatal("failed to use configuration (%s)",
 			          knot_strerror(res));
 			conf_free(new_conf, false);
-			return EXIT_FAILURE;
+			return ret;
 		}
 
 		conf_update(new_conf);
@@ -530,7 +528,7 @@ int server_reload(server_t *server, const char *cf)
 
 	log_info("configuration reloaded");
 
-	return ret;
+	return KNOT_EOK;
 }
 
 void server_stop(server_t *server)
@@ -601,7 +599,7 @@ static int reconfigure_rate_limits(conf_t *conf, server_t *server)
 
 	/* Rate limiting. */
 	if (!server->rrl && rrl > 0) {
-		val = conf_get(conf, C_SRV, C_RATE_LIMIT_SIZE);
+		val = conf_get(conf, C_SRV, C_RATE_LIMIT_TBL_SIZE);
 		server->rrl = rrl_create(conf_int(&val));
 		if (!server->rrl) {
 			log_error("failed to initialize rate limiting table");

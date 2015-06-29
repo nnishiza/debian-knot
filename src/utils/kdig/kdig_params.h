@@ -30,6 +30,7 @@
 
 #include "utils/common/params.h"
 #include "utils/common/exec.h"
+#include "utils/common/sign.h"
 #include "libknot/libknot.h"
 #include "libknot/internal/sockaddr.h"
 
@@ -119,8 +120,8 @@ struct query {
 	int32_t		class_num;
 	/*!< Type number (16unsigned + -1 uninitialized). */
 	int32_t		type_num;
-	/*!< SOA serial for XFR. */
-	uint32_t	xfr_serial;
+	/*!< SOA serial for IXFR and NOTIFY (32unsigned + -1 uninitialized). */
+	int64_t		serial;
 	/*!< NOTIFY query. */
 	bool		notify;
 	/*!< Header flags. */
@@ -133,10 +134,8 @@ struct query {
 	bool		nsid;
 	/*!< EDNS version (8unsigned + -1 uninitialized). */
 	int16_t		edns;
-	/*!< Key parameters. */
-	knot_key_params_t key_params;
-	/*!< Context for operations with signatures. */
-	sign_context_t	sign_ctx;
+	/*!< Transaction signature. */
+	knot_tsig_key_t tsig_key;
 	/*!< EDNS client subnet. */
 	subnet_t	*subnet;
 #if USE_DNSTAP

@@ -45,14 +45,10 @@ char* pid_filename()
 	char *rundir = conf_abs_path(&val, NULL);
 	val = conf_get(conf(), C_SRV, C_PIDFILE);
 	char *pidfile = conf_abs_path(&val, rundir);
+	free(rundir);
 	rcu_read_unlock();
 
-	if (rundir != NULL) {
-		free(rundir);
-		return pidfile;
-	} else {
-		return NULL;
-	}
+	return pidfile;
 }
 
 pid_t pid_read(const char* fn)
@@ -115,7 +111,7 @@ int pid_write(const char* fn)
 			ret = KNOT_ERROR;
 		close(fd);
 	} else {
-		ret = knot_map_errno(errno);
+		ret = knot_map_errno();
 	}
 
 	return ret;

@@ -1,6 +1,4 @@
-.. meta::
-   :description: reStructuredText plaintext markup language
-
+.. highlight:: console
 .. _Installation:
 
 ************
@@ -33,47 +31,26 @@ Required libraries
 
 Knot DNS requires few libraries to be compiled:
 
-* OpenSSL, at least 1.0.0 (1.0.1 is required for ECDSA)
+* GnuTLS, at least 3.0
+* Jansson, at least 2.3
 * Userspace RCU, at least 0.5.4
-* libcap-ng, at least 0.6.4 (optional library)
-* lmdb (optional library)
-* libsystemd (optional library)
+* lmdb (included)
+* libcap-ng, at least 0.6.4 (optional)
+* libidn (optional)
+* libsystemd (optional)
+
+The LMDB library is required. It is included with the Knot DNS source code,
+however linking with the system library is preferred.
 
 If the libcap-ng library is available, Knot DNS will take advantage of the
-POSIX 1003.1e capabilites(7) by sandboxing the exposed threads.  Most
-rights are stripped from the exposed threads for security reasons.
+POSIX 1003.1e :manpage:`capabilites(7)` by sandboxing the exposed threads.
+Most rights are stripped from the exposed threads for security reasons.
 
-If the LMDB library is available, the server will be able to store timers
-for slave zones in file-backed storage and the timers will persist across
-server restarts.
+The libidn library is a prerequisite for IDNA2003 (International Domain Names)
+support in Knot DNS utilities.
 
 If the libsystemd library is available, the server will use systemd's startup
 notifications mechanism and journald for logging.
-
-You can probably find OpenSSL library already included in
-your system or distribution.  If not, OpenSSL can be found at
-http://www.openssl.org.
-
-.. _Userspace RCU:
-
-Userspace RCU
--------------
-
-`Liburcu <http://urcu.so>`_ is a userspace RCU (read-copy-update) library.
-This data synchronization library provides read-side access which scales
-linearly with the number of cores. It does so by allowing multiple
-copies of a given data structure to live at the same time, and by
-monitoring the data structure accesses to detect grace periods after
-which memory reclamation is possible.
-
-Binary packages for Debian can be found under ``liburcu1`` for the
-library and ``liburcu-dev`` for development files.
-
-Minimum supported version of Userspace RCU library is 0.5.4,
-but we recommend using latest available version.
-It is crucial especially on non-Linux systems, as we got some compatibility
-patches accepted to later releases of Userspace RCU.
-OpenBSD, NetBSD and OS X platforms are supported from version 0.7.0.
 
 .. _Installation from source code:
 
@@ -104,16 +81,6 @@ For all available configure options run::
 
     $ ./configure --help
 
-If you have trouble with unknown syscalls under valgrind, disable recvmmsg by
-adding a parameter ``--enable-recvmmsg=no`` to configure.
-
-Knot DNS has also support for link time optimizations.  You can enable
-it by the configure parameter ``./configure --enable-lto=yes``.  It is
-however disabled by default as it is known to be broken in some
-compiler versions and may result in an unexpected behaviour.  Link
-time optimizations also disables the possibility to debug the
-resulting binaries.
-
 Compilation
 -----------
 
@@ -122,10 +89,6 @@ After running ``./configure`` you can compile Knot DNS by running
 files::
 
     $ make
-
-Knot DNS build process is safe to parallelize using ``make -j N``,
-where N is a number of concurrent processes. Using this the compilation speed
-can be increased.
 
 Installation
 ------------
@@ -160,15 +123,15 @@ be used by adding::
 to your ``/etc/apt/sources.list`` or into separate file in
 ``/etc/apt/sources.list.d/``.
 
-As an example, for Debian wheezy the Knot DNS packages can be added by
+As an example, for Debian jessie the Knot DNS packages can be added by
 executing following command as the root user::
 
-    $ cat >/etc/apt/sources.list.d/knot.list <<EOF
-    deb     http://deb.knot-dns.cz/debian/ wheezy main
-    deb-src http://deb.knot-dns.cz/debian/ wheezy main
+    # cat >/etc/apt/sources.list.d/knot.list <<EOF
+    deb     http://deb.knot-dns.cz/debian/ jessie main
+    deb-src http://deb.knot-dns.cz/debian/ jessie main
     EOF
-    $ apt-get update
-    $ apt-get install knot
+    # apt-get update
+    # apt-get install knot
 
 Ubuntu Linux
 ------------
@@ -197,30 +160,32 @@ Fedora Linux
 ------------
 
 The RPM packages for Knot DNS are available in official Fedora
-repositories since Fedora 18 (Spherical Cow). Look for ``knot``
+repositories since Fedora 18 (Spherical Cow). Search for the ``knot``
 package in your package manager. To install the package using Yum, run
 the following command as the root user::
 
-    $ yum install knot
-
-FreeBSD
--------
-
-Knot DNS is in ports tree under ``dns/knot``::
-
-    $ cd /usr/ports/dns/knot
-    $ sudo make install
+    # yum install knot
 
 Arch Linux
 ----------
 
-Knot DNS is available official package repository (AUR)::
+Knot DNS is available official package repository (AUR). To install the
+package, run::
 
-    https://aur.archlinux.org/packages/knot/
+    # pacman -S knot
 
 Gentoo Linux
 ------------
 
-Knot DNS is available from Gentoo package repository::
+Knot DNS is also available in Gentoo package repository. However, you will
+probably need to unmask the package prior starting the installation::
 
-    https://packages.gentoo.org/package/net-dns/knot
+    # emerge -a knot
+
+FreeBSD
+-------
+
+Knot DNS is in ports tree under ``dns/knot``. To install the port, run::
+
+    # cd /usr/ports/dns/knot
+    # make install

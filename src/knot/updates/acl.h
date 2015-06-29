@@ -32,11 +32,11 @@
 
 /*! \brief ACL actions. */
 typedef enum {
-	ACL_ACTION_DENY = 0,
-	ACL_ACTION_XFER = 1,
-	ACL_ACTION_NOTF = 2,
-	ACL_ACTION_DDNS = 3,
-	ACL_ACTION_CNTL = 4
+	ACL_ACTION_NONE     = 0,
+	ACL_ACTION_NOTIFY   = 1,
+	ACL_ACTION_TRANSFER = 2,
+	ACL_ACTION_UPDATE   = 3,
+	ACL_ACTION_CONTROL  = 4
 } acl_action_t;
 
 /*!
@@ -44,11 +44,11 @@ typedef enum {
  *
  * \param ss1     First address storage.
  * \param ss2     Second address storage.
- * \param prefix  Netblock length.
+ * \param prefix  Netblock length (negative value for maximum prefix length).
  */
 bool netblock_match(const struct sockaddr_storage *ss1,
                     const struct sockaddr_storage *ss2,
-                    unsigned prefix);
+                    int prefix);
 
 /*!
  * \brief Checks if the address and/or tsig key matches given ACL list.

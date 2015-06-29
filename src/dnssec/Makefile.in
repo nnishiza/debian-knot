@@ -86,8 +86,8 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(include_dnssec_HEADERS) AUTHORS COPYING ChangeLog INSTALL \
 	NEWS README
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
-	$(top_srcdir)/m4/ax_set_version_info.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
@@ -169,9 +169,10 @@ libdnssec_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(libdnssec_la_LDFLAGS) $(LDFLAGS) -o $@
 libshared_la_LIBADD =
 am_libshared_la_OBJECTS = shared/libshared_la-base32hex.lo \
-	shared/libshared_la-dname.lo shared/libshared_la-fs.lo \
-	shared/libshared_la-hex.lo shared/libshared_la-hex_gnutls.lo \
-	shared/libshared_la-path.lo shared/libshared_la-pem.lo
+	shared/libshared_la-bignum.lo shared/libshared_la-dname.lo \
+	shared/libshared_la-fs.lo shared/libshared_la-hex.lo \
+	shared/libshared_la-hex_gnutls.lo shared/libshared_la-path.lo \
+	shared/libshared_la-pem.lo
 libshared_la_OBJECTS = $(am_libshared_la_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -288,6 +289,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
@@ -299,6 +301,8 @@ CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
+DNSTAP_CFLAGS = @DNSTAP_CFLAGS@
+DNSTAP_LIBS = @DNSTAP_LIBS@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -348,14 +352,12 @@ PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PROTOC_C = @PROTOC_C@
 RANLIB = @RANLIB@
 RELEASE_DATE = @RELEASE_DATE@
-RELEASE_INFO = @RELEASE_INFO@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
-VERSION_INFO = @VERSION_INFO@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -368,6 +370,7 @@ am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
+bash_completions_dir = @bash_completions_dir@
 bindir = @bindir@
 build = @build@
 build_alias = @build_alias@
@@ -395,16 +398,19 @@ install_sh = @install_sh@
 jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
+libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
 libidn_CFLAGS = @libidn_CFLAGS@
 libidn_LIBS = @libidn_LIBS@
+libknot_VERSION_INFO = @libknot_VERSION_INFO@
 libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
 libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
 liburcu_PKGCONFIG = @liburcu_PKGCONFIG@
+libzscanner_VERSION_INFO = @libzscanner_VERSION_INFO@
 lmdb_CFLAGS = @lmdb_CFLAGS@
 lmdb_LIBS = @lmdb_LIBS@
 localedir = @localedir@
@@ -429,7 +435,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = . utils tests man
+SUBDIRS = . utils tests
 AM_CPPFLAGS = \
 	-include $(top_builddir)/src/config.h \
 	-I$(srcdir)/shared \
@@ -451,6 +457,8 @@ libshared_la_CPPFLAGS = \
 libshared_la_SOURCES = \
 	shared/base32hex.c \
 	shared/base32hex.h \
+	shared/bignum.c \
+	shared/bignum.h \
 	shared/dname.c \
 	shared/dname.h \
 	shared/fs.c \
@@ -469,12 +477,12 @@ libshared_la_SOURCES = \
 
 libdnssec_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-fvisibility=hidden
+	$(CFLAG_VISIBILITY)
 
 libdnssec_la_LDFLAGS = \
 	$(gnutls_LIBS) \
 	$(jansson_LIBS) \
-	$(VERSION_INFO)
+	$(libdnssec_VERSION_INFO)
 
 libdnssec_la_LIBADD = \
 	libshared.la
@@ -785,6 +793,8 @@ shared/$(DEPDIR)/$(am__dirstamp):
 	@: > shared/$(DEPDIR)/$(am__dirstamp)
 shared/libshared_la-base32hex.lo: shared/$(am__dirstamp) \
 	shared/$(DEPDIR)/$(am__dirstamp)
+shared/libshared_la-bignum.lo: shared/$(am__dirstamp) \
+	shared/$(DEPDIR)/$(am__dirstamp)
 shared/libshared_la-dname.lo: shared/$(am__dirstamp) \
 	shared/$(DEPDIR)/$(am__dirstamp)
 shared/libshared_la-fs.lo: shared/$(am__dirstamp) \
@@ -867,6 +877,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/sign/$(DEPDIR)/libdnssec_la-der.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/sign/$(DEPDIR)/libdnssec_la-sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-base32hex.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-bignum.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-dname.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-fs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-hex.Plo@am__quote@
@@ -1163,6 +1174,13 @@ shared/libshared_la-base32hex.lo: shared/base32hex.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='shared/base32hex.c' object='shared/libshared_la-base32hex.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libshared_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o shared/libshared_la-base32hex.lo `test -f 'shared/base32hex.c' || echo '$(srcdir)/'`shared/base32hex.c
+
+shared/libshared_la-bignum.lo: shared/bignum.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libshared_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT shared/libshared_la-bignum.lo -MD -MP -MF shared/$(DEPDIR)/libshared_la-bignum.Tpo -c -o shared/libshared_la-bignum.lo `test -f 'shared/bignum.c' || echo '$(srcdir)/'`shared/bignum.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) shared/$(DEPDIR)/libshared_la-bignum.Tpo shared/$(DEPDIR)/libshared_la-bignum.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='shared/bignum.c' object='shared/libshared_la-bignum.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libshared_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o shared/libshared_la-bignum.lo `test -f 'shared/bignum.c' || echo '$(srcdir)/'`shared/bignum.c
 
 shared/libshared_la-dname.lo: shared/dname.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libshared_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT shared/libshared_la-dname.lo -MD -MP -MF shared/$(DEPDIR)/libshared_la-dname.Tpo -c -o shared/libshared_la-dname.lo `test -f 'shared/dname.c' || echo '$(srcdir)/'`shared/dname.c

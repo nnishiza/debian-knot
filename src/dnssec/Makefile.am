@@ -1,4 +1,4 @@
-SUBDIRS = . utils tests man
+SUBDIRS = . utils tests
 
 AM_CPPFLAGS = \
 	-include $(top_builddir)/src/config.h \
@@ -22,6 +22,8 @@ libshared_la_CPPFLAGS = \
 libshared_la_SOURCES = \
 	shared/base32hex.c \
 	shared/base32hex.h \
+	shared/bignum.c \
+	shared/bignum.h \
 	shared/dname.c \
 	shared/dname.h \
 	shared/fs.c \
@@ -40,12 +42,12 @@ libshared_la_SOURCES = \
 
 libdnssec_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-fvisibility=hidden
+	$(CFLAG_VISIBILITY)
 
 libdnssec_la_LDFLAGS = \
 	$(gnutls_LIBS) \
 	$(jansson_LIBS) \
-	$(VERSION_INFO)
+	$(libdnssec_VERSION_INFO)
 
 libdnssec_la_LIBADD = \
 	libshared.la

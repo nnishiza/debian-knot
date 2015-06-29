@@ -1,6 +1,4 @@
-.. meta::
-   :description: reStructuredText plaintext markup language
-
+.. highlight:: none
 .. _Requirements:
 
 ************

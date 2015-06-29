@@ -60,7 +60,9 @@ const char *syntax_ok =
 	"  -   domain: example. # comment\n"
 	"      master: bind\n"
 	"  - domain: example.\n"
-	"    master: bind\n";
+	"    master: bind\n"
+	"zone2:\n"
+	"    - a: b # different indentation";
 
 const char *syntax_error1 =
 	"f:\n"
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
 		ret = yp_parse(yp);
 		ok(ret == KNOT_EOK, "parse %i. key0 with value", i);
 		ok(yp->key_len == 1 && yp->key[0] == 'b' &&
-		   yp->data_len == 1 && yp->key[0] == 'b' &&
+		   yp->data_len == 1 && yp->data[0] == 'b' &&
 		   yp->event == YP_EKEY0 && yp->line_count == line + i,
 		   "compare %i. key0 with value", i);
 	}
@@ -116,7 +118,7 @@ int main(int argc, char *argv[])
 		ret = yp_parse(yp);
 		ok(ret == KNOT_EOK, "parse %i. key1 with value", i);
 		ok(yp->key_len == 1 && yp->key[0] == 'f' &&
-		   yp->data_len == 1 && yp->key[0] == 'f' &&
+		   yp->data_len == 1 && yp->data[0] == 'f' &&
 		   yp->event == YP_EKEY1 && yp->line_count == line + i,
 		   "compare %i. key1 with value", i);
 	}
@@ -143,7 +145,7 @@ int main(int argc, char *argv[])
 		ret = yp_parse(yp);
 		ok(ret == KNOT_EOK, "parse %i. id", i);
 		ok(yp->key_len == 1 && yp->key[0] == 'd' &&
-		   yp->data_len == 1 && yp->key[0] == 'd' &&
+		   yp->data_len == 1 && yp->data[0] == 'd' &&
 		   yp->event == YP_EID && yp->line_count == line + i,
 		   "compare %i. id", i);
 	}
@@ -180,6 +182,20 @@ int main(int argc, char *argv[])
 		   "compare key1");
 	}
 
+	line = 39;
+	ret = yp_parse(yp);
+	ok(ret == KNOT_EOK, "parse key0");
+	ok(yp->key_len == 5 && strcmp(yp->key, "zone2") == 0 &&
+	   yp->data_len == 0 &&
+	   yp->event == YP_EKEY0 && yp->line_count == line,
+	   "compare key0 value");
+	ret = yp_parse(yp);
+	ok(ret == KNOT_EOK, "parse key1");
+	ok(yp->key_len == 1 && strcmp(yp->key, "a") == 0 &&
+	   yp->data_len == 1 && strcmp(yp->data, "b") == 0 &&
+	   yp->event == YP_EID && yp->line_count == line + 1,
+	   "compare key1 value");
+
 	ret = yp_parse(yp);
 	ok(ret == KNOT_EOF, "parse EOF");
 
@@ -191,7 +207,7 @@ int main(int argc, char *argv[])
 	ret = yp_parse(yp);
 	ok(ret == KNOT_EOK, "parse key1");
 	ret = yp_parse(yp);
-	ok(ret == KNOT_EPARSEFAIL, "parse invalid key1");
+	ok(ret == KNOT_YP_EINVAL_INDENT, "parse key1 - invalid indentation");
 
 	// Error input 2.
 	ret = yp_set_input_string(yp, syntax_error2, strlen(syntax_error2));
@@ -201,7 +217,7 @@ int main(int argc, char *argv[])
 	ret = yp_parse(yp);
 	ok(ret == KNOT_EOK, "parse key1");
 	ret = yp_parse(yp);
-	ok(ret == KNOT_EPARSEFAIL, "parse invalid key1");
+	ok(ret == KNOT_YP_EINVAL_INDENT, "parse key1 - invalid indentation");
 
 	// Error input 3.
 	ret = yp_set_input_string(yp, syntax_error3, strlen(syntax_error3));
@@ -211,7 +227,7 @@ int main(int argc, char *argv[])
 	ret = yp_parse(yp);
 	ok(ret == KNOT_EOK, "parse key1");
 	ret = yp_parse(yp);
-	ok(ret == KNOT_EPARSEFAIL, "parse invalid key1");
+	ok(ret == KNOT_YP_EINVAL_INDENT, "parse key1 - invalid indentation");
 
 	yp_deinit(yp);
 

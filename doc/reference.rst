@@ -1,6 +1,4 @@
-.. meta::
-   :description: reStructuredText plaintext markup language
-
+.. highlight:: yaml
 .. _Configuration Reference:
 
 ***********************
@@ -15,13 +13,13 @@ Description
 Configuration file for Knot DNS uses simplified YAML format. Simplified means
 that not all features are supported.
 
-For the configuration items description, there are some symbol with the
+For the configuration items description, there are some symbols with the
 folowing meaning:
 
 - *INT* - Integer
 - *STR* - Textual string
 - *HEXSTR* - Hexadecimal string (with ``0x`` prefix)
-- *BOOL* - Boolean value (``on`` or ``off``)
+- *BOOL* - Boolean value (``on``, ``off``, ``true`` or ``false``)
 - *TIME* - Number of seconds, integer with possible time mutliplier suffix
   (``s`` ~ 1, ``m`` ~ 60, ``h`` ~ 3600 or ``d`` ~ 24 * 3600)
 - *SIZE* - Number of bytes, integer with possible size multiplier suffix
@@ -85,18 +83,18 @@ General options related to the server.
      rundir: STR
      user: STR[:STR]
      pidfile: STR
-     workers: INT
+     udp-workers: INT
+     tcp-workers: INT
      background-workers: INT
-     asynchronous-start: BOOL
-     max-conn-idle: TIME
-     max-conn-handshake: TIME
-     max-conn-reply: TIME
+     async-start: BOOL
+     tcp-idle-timeout: TIME
+     tcp-handshake-timeout: TIME
+     tcp-reply-timeout: TIME
      max-tcp-clients: INT
      max-udp-payload: SIZE
-     transfers: INT
      rate-limit: INT
      rate-limit-slip: INT
-     rate-limit-size: INT
+     rate-limit-table-size: INT
      listen: ADDR[@INT] ...
 
 .. _server_identity:
@@ -106,9 +104,9 @@ identity
 
 An identity of the server returned in the response for the query for TXT
 record ``id.server.`` or ``hostname.bind.`` in the CHAOS class (see RFC 4892).
-If empty, FQDN hostname is used.
+Set empty value to disable.
 
-Default: disabled
+Default: FQDN hostname
 
 .. _server_version:
 
@@ -117,18 +115,18 @@ version
 
 A version of the server software returned in the response for the query
 for TXT record ``version.server.`` or ``version.bind.`` in the CHAOS
-class (see RFC 4892). If empty, automatic version is used.
+class (see RFC 4892). Set empty value to disable.
 
-Default: disabled
+Default: server version
 
 .. _server_nsid:
 
 nsid
 ----
 
-A DNS name server identifier (see RFC 5001). If empty, FQDN hostname is used.
+A DNS name server identifier (see RFC 5001). Set empty value to disable.
 
-Default: disabled
+Default: FQDN hostname
 
 .. _server_rundir:
 
@@ -159,12 +157,21 @@ A PID file location.
 
 Default: :ref:`rundir<server_rundir>`/knot.pid
 
-.. _server_workers:
+.. _server_udp-workers:
 
-workers
--------
+udp-workers
+-----------
 
-A number of quering workers (threads) per server interface.
+A number of quering UDP workers (threads).
+
+Default: auto-estimated optimal value based on the number of online CPUs
+
+.. _server_tcp-workers:
+
+tcp-workers
+-----------
+
+A number of quering TCP workers (threads).
 
 Default: auto-estimated optimal value based on the number of online CPUs
 
@@ -178,30 +185,30 @@ loading, zone updates, etc.).
 
 Default: auto-estimated optimal value based on the number of online CPUs
 
-.. _server_asynchronous-start:
+.. _server_async-start:
 
-asynchronous-start
-------------------
+async-start
+-----------
 
 If enabled, server doesn't wait for the zones to be loaded and starts
 responding immediately with SERVFAIL answers until the zone loads.
 
 Default: off
 
-.. _server_max-conn-idle:
+.. _server_tcp-idle-timeout:
 
-max-conn-idle
--------------
+tcp-idle-timeout
+----------------
 
 Maximum idle time between requests on a TCP connection. This also limits
 receiving of a single query, each query must be received in this time limit.
 
 Default: 20
 
-.. _server_max-conn-handshake:
+.. _server_tcp-handshake-timeout:
 
-max-conn-handshake
-------------------
+tcp-handshake-timeout
+---------------------
 
 Maximum time between newly accepted TCP connection and the first query.
 This is useful to disconnect inactive connections faster than connections
@@ -209,10 +216,10 @@ that already made at least 1 meaningful query.
 
 Default: 5
 
-.. _server_max-conn-reply:
+.. _server_tcp-reply-timeout:
 
-max-conn-reply
---------------
+tcp-reply-timeout
+-----------------
 
 Maximum time to wait for a reply to an issued SOA query.
 
@@ -227,16 +234,6 @@ A maximum number of TCP clients connected in parallel, set this below the file
 descriptor limit to avoid resource exhaustion.
 
 Default: 100
-
-.. _server_transfers:
-
-transfers
----------
-
-A maximum number of parallel transfers, including pending SOA queries. The
-minimum value is determined by the number of CPUs.
-
-Default: 10
 
 .. _server_rate-limit:
 
@@ -255,16 +252,16 @@ is recalculated each second.
 
 Default: 0 (disabled)
 
-.. _server_rate-limit-size:
+.. _server_rate-limit-table-size:
 
-rate-limit-size
----------------
+rate-limit-table-size
+---------------------
 
-Size of hashtable buckets. The larger the hashtable, the lesser probability
-of a hash collision, but at the expense of additional memory costs. Each bucket
-is estimated roughly to 32 bytes. Size should be selected as a reasonably large
-prime due to the better hash function distribution properties. Hash table is
-internally chained and works well up to a fill rate of 90 %, general
+Size of the hashtable in number of buckets. The larger the hashtable, the lesser
+probability of a hash collision, but at the expense of additional memory costs.
+Each bucket is estimated roughly to 32 bytes. Size should be selected as
+a reasonably large prime due to the better hash function distribution properties.
+Hash table is internally chained and works well up to a fill rate of 90 %, general
 rule of thumb is to select a prime near 1.2 * maximum_qps.
 
 Default: 393241
@@ -354,15 +351,16 @@ Default: empty
 ACL section
 ===========
 
-Access control list rules definition.
+Access control list rule definition.
 
 ::
 
  acl:
    - id: STR
-     address: ADDR[/INT]
-     key: key_id
-     action: deny | xfer | notify | update | control ...
+     address: ADDR[/INT] ...
+     key: key_id ...
+     action: transfer | notify | update | control ...
+     deny: BOOL
 
 .. _acl_id:
 
@@ -376,8 +374,8 @@ An ACL rule identifier.
 address
 -------
 
-A single IP address or network subnet with the given prefix the query
-must match.
+An ordered list of IP addresses or network subnets. The query must match
+one of them. Empty value means that address match is not required.
 
 Default: empty
 
@@ -386,7 +384,8 @@ Default: empty
 key
 ---
 
-A :ref:`reference<key_id>` to the TSIG key the query must match.
+An ordered list of :ref:`reference<key_id>`\ s to TSIG keys. The query must
+match one of them. Empty value means that TSIG key is not required.
 
 Default: empty
 
@@ -399,13 +398,22 @@ An ordered list of allowed actions.
 
 Possible values:
 
-- ``deny`` - Block the matching query
-- ``xfer`` - Allow zone transfer
+- ``transfer`` - Allow zone transfer
 - ``notify`` - Allow incoming notify
 - ``update`` - Allow zone updates
 - ``control`` - Allow remote control
 
-Default: deny
+Default: empty
+
+.. _acl_deny:
+
+deny
+----
+
+Deny if :ref:`address<acl_address>`, :ref:`key<acl_key>` and
+:ref:`action<acl_action>` match.
+
+Default: off
 
 .. _Control section:
 
@@ -414,8 +422,8 @@ Control section
 
 Configuration of the server remote control.
 
-Caution: The control protocol is not encrypted, and susceptible to replay
-attacks in a short timeframe until message digest expires, for that reason,
+*Caution:* The control protocol is not encrypted and is susceptible to replay
+attacks in a short timeframe until message digest expires. For that reason,
 it is recommended to use default UNIX socket.
 
 ::
@@ -443,7 +451,7 @@ acl
 An ordered list of :ref:`references<acl_id>` to ACL rules allowing the remote
 control.
 
-Caution: This option has no effect with UNIX socket.
+*Caution:* This option has no effect with UNIX socket.
 
 Default: empty
 
@@ -458,8 +466,8 @@ Definition of remote servers for zone transfers or notifications.
 
  remote:
    - id: STR
-     address: ADDR[@INT]
-     via: ADDR[@INT]
+     address: ADDR[@INT] ...
+     via: ADDR[@INT] ...
      key: key_id
 
 .. _remote_id:
@@ -474,9 +482,10 @@ A remote identifier.
 address
 -------
 
-A destination IP address of the remote server. Optional destination port
-specification (default is 53) can be appended to the address using ``@``
-separator.
+An ordered list of destination IP addresses which are used for communication
+with the remote server. The addresses are tried in sequence unless the
+operation is successful. Optional destination port (default is 53)
+can be appended to the address using ``@`` separator.
 
 Default: empty
 
@@ -485,9 +494,9 @@ Default: empty
 via
 ---
 
-A source IP address which is used to communicate with the remote server.
-Optional source port specification can be appended to the address using
-``@`` separator.
+An ordered list of source IP addresses. The first address with the same family
+as the destination address is used. Optional source port (default is random)
+can be appended to the address using ``@`` separator.
 
 Default: empty
 
@@ -507,30 +516,15 @@ Template section
 ================
 
 A template is shareable zone settings which can be used for configuration of
-many zones at one place. A special default template (with *default* identifier)
+many zones at one place. A special default template (with the *default* identifier)
 can be used for general quering configuration or as an implicit default
-configuration if a zone doesn't have a teplate specified.
+configuration if a zone doesn't have another template specified.
 
 ::
 
  template:
    - id: STR
-     storage: STR
-     master: remote_id ...
-     notify: remote_id ...
-     acl: acl_id ...
-     semantic-checks: BOOL
-     disable-any: BOOL
-     notify-timeout: TIME
-     notify-retries: INT
-     zonefile-sync: TIME
-     ixfr-from-differences: BOOL
-     ixfr-fslimit: SIZE
-     dnssec-enable: BOOL
-     dnssec-keydir: STR
-     signature-lifetime: TIME
-     serial-policy: increment | unixtime
-     module: STR/STR ...
+     # All zone options (excluding 'template' item)
 
 .. _template_id:
 
@@ -539,7 +533,68 @@ id
 
 A template identifier.
 
-.. _template_storage:
+.. _Zone section:
+
+Zone section
+============
+
+Definition of zones served by the server.
+
+::
+
+ zone:
+   - domain: DNAME
+     template: template_id
+     file: STR
+     storage: STR
+     master: remote_id ...
+     ddns-master: remote_id
+     notify: remote_id ...
+     acl: acl_id ...
+     semantic-checks: BOOL
+     disable-any: BOOL
+     zonefile-sync: TIME
+     ixfr-from-differences: BOOL
+     max-journal-size: SIZE
+     dnssec-signing: BOOL
+     kasp-db: STR
+     serial-policy: increment | unixtime
+     module: STR/STR ...
+
+.. _zone_domain:
+
+domain
+------
+
+A zone name identifier.
+
+.. _zone_template:
+
+template
+--------
+
+A :ref:`reference<template_id>` to a configuration template. If not specified
+and the *default* template exists, the default template is used.
+
+Default: empty
+
+.. _zone_file:
+
+file
+----
+
+A path to the zone file. Non absolute path is relative to
+:ref:`storage<zone_storage>`. It is also possible to use the following formatters:
+
+- ``%s`` - means the current zone name in the textual representation (beware
+  of special characters which are escaped or encoded in the \\DDD form where
+  DDD is corresponding decimal ASCII code). The zone name doesn't include the
+  terminating dot, except for the root zone.
+- ``%%`` - means the ``%`` character
+
+Default: :ref:`storage<zone_storage>`/``%s``\ .zone
+
+.. _zone_storage:
 
 storage
 -------
@@ -548,7 +603,7 @@ A data directory for storing zone files, journal files and timers database.
 
 Default: ``${localstatedir}/lib/knot`` (configured with ``--with-storage=path``)
 
-.. _template_master:
+.. _zone_master:
 
 master
 ------
@@ -557,7 +612,17 @@ An ordered list of :ref:`references<remote_id>` to zone master servers.
 
 Default: empty
 
-.. _template_notify:
+.. _zone_ddns-master:
+
+ddns-master
+-----------
+
+A :ref:`references<remote_id>` to zone primary master server.
+If not specified, the first :ref:`master<zone_master>` server is used.
+
+Default: empty
+
+.. _zone_notify:
 
 notify
 ------
@@ -567,7 +632,7 @@ message is sent if the zone changes.
 
 Default: empty
 
-.. _template_acl:
+.. _zone_acl:
 
 acl
 ---
@@ -577,7 +642,7 @@ or disallow zone transfers, updates or incoming notifies.
 
 Default: empty
 
-.. _template_semantic-checks:
+.. _zone_semantic-checks:
 
 semantic-checks
 ---------------
@@ -617,7 +682,7 @@ Extra checks:
 
 Default: off
 
-.. _template_disable-any:
+.. _zone_disable-any:
 
 disable-any
 -----------
@@ -628,25 +693,7 @@ the risk of DNS reflection attack.
 
 Default: off
 
-.. _template_notify-timeout:
-
-notify-timeout
---------------
-
-The time how long will server wait for a notify response.
-
-Default: 60
-
-.. _template_notify-retries:
-
-notify-retries
---------------
-
-The number of retries the server sends a notify message.
-
-Default: 5
-
-.. _template_zonefile-sync:
+.. _zone_zonefile-sync:
 
 zonefile-sync
 -------------
@@ -656,14 +703,15 @@ on the disk (see :ref:`file<zone_file>`). The server will serve the latest
 zone even after restart using zone journal, but the zone file on the disk will
 only be synced after ``zonefile-sync`` time has expired (or after manual zone
 flush) This is applicable when the zone is updated via IXFR, DDNS or automatic
-DNSSEC signing.
+DNSSEC signing. In order to disable automatic zonefile synchronization, -1 value
+can be used.
 
 *Caution:* If you are serving large zones with frequent updates where
 the immediate sync to zone file is not desirable, increase the default value.
 
 Default: 0 (immediate)
 
-.. _template_ixfr-from-differences:
+.. _zone_ixfr-from-differences:
 
 ixfr-from-differences
 ---------------------
@@ -672,50 +720,42 @@ If enabled, the server creates zone differences from changes you made to the
 zone file upon server reload. This option is only relevant if the server
 is a master server for the zone.
 
+*Caution:* This option has no effect with enabled
+:ref:`dnssec-signing<zone_dnssec-signing>`.
+
 Default: off
 
-.. _template_ixfr-fslimit:
+.. _zone_max_journal_size:
 
-ixfr-fslimit
-------------
+max-journal-size
+----------------
 
-Maximum zone journal file.
+Maximum size of the zone journal file.
 
 Default: unlimited
 
-.. _template_dnssec-enable:
+.. _zone_dnssec-signing:
 
-dnssec-enable
--------------
+dnssec-signing
+--------------
 
 If enabled, automatic DNSSEC signing for the zone is turned on.
 
+*Caution:* Cannot be enabled on a slave zone.
+
 Default: off
 
-.. _template_dnssec-keydir:
+.. _zone_kasp_db:
 
-dnssec-keydir
--------------
+kasp-db
+-------
 
-A data directory for storing DNSSEC signing keys. Non absolute path is
-relative to :ref:`storage<template_storage>`.
+A KASP database path. Non absolute path is relative to
+:ref:`storage<zone_storage>`.
 
-Default: :ref:`storage<template_storage>`/keys
+Default: :ref:`storage<zone_storage>`/keys
 
-.. _template_signature-lifetime:
-
-signature-lifetime
-------------------
-
-The time how long the automatically generated DNSSEC signatures should be valid.
-Expiration will thus be set as current time (in the moment of signing)
-+ ``signature-lifetime``. The signatures are refreshed one tenth of the
-signature lifetime before the signature expiration (i.e. 3 days before the
-expiration with the default value). Minimum possible value is 10801.
-
-Default: 30 * 24 * 3600
-
-.. _template_serial-policy:
+.. _zone_serial-policy:
 
 serial-policy
 -------------
@@ -736,59 +776,13 @@ done by hand (see RFC 1982).
 
 Default: increment
 
-.. _template_module:
+.. _zone_module:
 
 module
 ------
 
 An ordered list of references to query modules in the form
 *module_name/module_id*.
-
-Default: empty
-
-.. _Zone section:
-
-Zone section
-============
-
-Definitions of zones served by the server.
-
-Zone configuration is a superset of :ref:`template configuration<Template section>`,
-so each zone configuration can contain all template configuration options which
-may override possible template configuration.
-
-::
-
- zone:
-   - domain: DNAME
-     file: STR
-     template: template_id
-     # All template options
-
-.. _zone_domain:
-
-domain
-------
-
-A zone name identifier.
-
-.. _zone_file:
-
-file
-----
-
-A path to the zone file. Non absolute path is relative to
-:ref:`storage<template_storage>`.
-
-Default: :ref:`storage<template_storage>`/``domain``.zone
-
-.. _zone_template:
-
-template
---------
-
-A :ref:`reference<template_id>` to configuration template. If not specified
-and *default* template exists, then the default template is used.
 
 Default: empty
 
@@ -822,15 +816,15 @@ will be logged to both standard error output and syslog. The ``info`` and
 ::
 
  log:
-   - to: stdout | stderr | syslog | STR
+   - target: stdout | stderr | syslog | STR
      server: critical | error | warning | notice | info | debug
      zone: critical | error | warning | notice | info | debug
      any: critical | error | warning | notice | info | debug
 
-.. _log_to:
+.. _log_target:
 
-to
---
+target
+------
 
 A logging output.
 
@@ -839,7 +833,7 @@ Possible values:
 - ``stdout`` - Standard output
 - ``stderr`` - Standard error output
 - ``syslog`` - Syslog
-- *file_name* - File.
+- *file\_name* - File.
 
 .. _log_server:
 
@@ -916,9 +910,9 @@ given prefix and subnet.
    - id: STR
      type: forward | reverse
      prefix: STR
-     zone: DNAME
+     origin: DNAME
      ttl: INT
-     address: ADDR[/INT]
+     network: ADDR[/INT]
 
 .. _mod-synth-record_id:
 
@@ -948,17 +942,17 @@ prefix
 
 A record owner prefix.
 
-Caution: *prefix* doesn’t allow dots, address parts in the synthetic names are
+*Caution:* *prefix* doesn’t allow dots, address parts in the synthetic names are
 separated with a dash.
 
 Default: empty
 
-.. _mod-synth-record_zone:
+.. _mod-synth-record_origin:
 
-zone
-----
+origin
+------
 
-A zone name suffix (only valid for :ref:`reverse type<mod-synth-record_type>`).
+A zone origin (only valid for :ref:`reverse type<mod-synth-record_type>`).
 
 Default: empty
 
@@ -971,9 +965,9 @@ Time to live of the generated records.
 
 Default: 3600
 
-.. _mod-synth-record_address:
+.. _mod-synth-record_network:
 
-address
+network
 -------
 
 A network subnet in the form of *address/prefix*.
@@ -1037,6 +1031,6 @@ A module identifier.
 dbdir
 -----
 
-A path to the directory where the database will is stored.
+A path to the directory where the database is stored.
 
 Default: empty

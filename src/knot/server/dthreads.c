@@ -127,7 +127,7 @@ static void *thread_ep(void *data)
 
 	// Unblock SIGALRM
 	sigset_t mask;
-	sigemptyset(&mask);
+	(void)sigemptyset(&mask);
 	sigaddset(&mask, SIGALRM);
 	pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
 
@@ -805,7 +805,7 @@ int dt_unit_lock(dt_unit_t *unit)
 
 	/* Map errors. */
 	if (ret < 0) {
-		return knot_map_errno(EINVAL, EAGAIN);
+		return knot_map_errno();
 	}
 
 	return KNOT_EOK;
@@ -822,7 +822,7 @@ int dt_unit_unlock(dt_unit_t *unit)
 
 	/* Map errors. */
 	if (ret < 0) {
-		return knot_map_errno(EINVAL, EAGAIN);
+		return knot_map_errno();
 	}
 
 	return KNOT_EOK;

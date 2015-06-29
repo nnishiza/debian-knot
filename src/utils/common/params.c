@@ -242,10 +242,10 @@ int params_parse_class(const char *value, uint16_t *rclass)
 	}
 }
 
-int params_parse_type(const char *value, uint16_t *rtype, uint32_t *xfr_serial,
+int params_parse_type(const char *value, uint16_t *rtype, int64_t *serial,
                       bool *notify)
 {
-	if (value == NULL || rtype == NULL || xfr_serial == NULL) {
+	if (value == NULL || rtype == NULL || serial == NULL) {
 		DBG_NULL;
 		return KNOT_EINVAL;
 	}
@@ -274,24 +274,26 @@ int params_parse_type(const char *value, uint16_t *rtype, uint32_t *xfr_serial,
 		if (*rtype == KNOT_RRTYPE_IXFR) {
 			DBG("SOA serial is required for IXFR query\n");
 			return KNOT_EINVAL;
+		} else {
+			*serial = -1;
 		}
 	} else {
-		// Additional parameter is accepted for IXFR only.
-		if (*rtype == KNOT_RRTYPE_IXFR) {
+		// Additional parameter is accepted for IXFR or NOTIFY.
+		if (*rtype == KNOT_RRTYPE_IXFR || *notify) {
 			const char *param_str = value + 1 + param_pos;
 			char *end;
 
 			// Convert string to serial.
-			unsigned long long serial = strtoull(param_str, &end, 10);
+			unsigned long long num = strtoull(param_str, &end, 10);
 
 			// Check for bad serial string.
 			if (end == param_str || *end != '\0' ||
-			    serial > UINT32_MAX) {
+			    num > UINT32_MAX) {
 				DBG("bad SOA serial %s\n", param_str);
 				return KNOT_EINVAL;
 			}
 
-			*xfr_serial = serial;
+			*serial = num;
 		} else {
 			DBG("unsupported parameter in query type '%s'\n", value);
 			return KNOT_EINVAL;
@@ -376,72 +378,6 @@ int params_parse_num(const char *value, uint32_t *dst)
 	}
 
 	*dst = num;
-
-	return KNOT_EOK;
-}
-
-int params_parse_tsig(const char *value, knot_key_params_t *key_params)
-{
-	if (value == NULL || key_params == NULL) {
-		DBG_NULL;
-		return KNOT_EINVAL;
-	}
-
-	/* Invalidate previous key. */
-	if (key_params->name) {
-		ERR("key specified multiple times.\n");
-		return KNOT_EINVAL;
-	}
-
-	char *h = strdup(value);
-	if (!h) {
-		return KNOT_ENOMEM;
-	}
-
-	/* Separate to avoid multiple allocs. */
-	char *k = NULL, *s = NULL;
-	if ((k = (char*)strchr(h, ':'))) { /* Second part - NAME|SECRET */
-		*k++ = '\0';               /* String separator */
-		s = (char*)strchr(k, ':'); /* Thirt part - |SECRET */
-	}
-
-	/* Determine algorithm. */
-	key_params->algorithm = DNSSEC_TSIG_HMAC_MD5;
-	if (s) {
-		*s++ = '\0';               /* Last part separator */
-		dnssec_tsig_algorithm_t alg = dnssec_tsig_algorithm_from_name(h);
-		if (alg != DNSSEC_TSIG_UNKNOWN) {
-			DBG("%s: parsed algorithm '%s'\n", __func__, h);
-			key_params->algorithm = alg;
-		} else {
-			ERR("invalid TSIG algorithm name '%s'\n", h);
-			free(h);
-			return KNOT_EINVAL;
-		}
-	} else {
-		s = k; /* Ignore first part, push down. */
-		k = h;
-	}
-
-	if (!s) {
-		ERR("invalid key option format, use [hmac:]keyname:secret\n");
-		free(h);
-		return KNOT_EINVAL;
-	}
-
-	/* Set key name and secret. */
-	key_params->name = knot_dname_from_str_alloc(k);
-	knot_dname_to_lower(key_params->name);
-	dnssec_binary_t secret64 = { .size = strlen(s), .data = (uint8_t *) s };
-	int r = dnssec_binary_from_base64(&secret64, &key_params->secret);
-	if (r != KNOT_EOK) {
-		free(h);
-		return r;
-	}
-
-	DBG("%s: parsed name '%s'\n", __func__, k);
-	DBG("%s: parsed secret '%s'\n", __func__, s);
-	free(h);
 
 	return KNOT_EOK;
 }

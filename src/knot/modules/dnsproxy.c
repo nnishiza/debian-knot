@@ -31,7 +31,7 @@ const yp_item_t scheme_mod_dnsproxy[] = {
 };
 
 /* Defines. */
-#define MODULE_ERR(msg...) log_error("module 'dnsproxy', " msg)
+#define MODULE_ERR(msg, ...) log_error("module 'dnsproxy', " msg, ##__VA_ARGS__)
 
 struct dnsproxy {
 	struct sockaddr_storage remote;
@@ -71,7 +71,7 @@ static int dnsproxy_fwd(int state, knot_pkt_t *pkt, struct query_data *qdata, vo
 	/* Forward request. */
 	ret = knot_requestor_enqueue(&re, req);
 	if (ret == KNOT_EOK) {
-		conf_val_t val = conf_get(conf(), C_SRV, C_MAX_CONN_HANDSHAKE);
+		conf_val_t val = conf_get(conf(), C_SRV, C_TCP_HSHAKE_TIMEOUT);
 		struct timeval tv = { conf_int(&val), 0 };
 		ret = knot_requestor_exec(&re, &tv);
 	} else {
