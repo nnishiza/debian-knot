@@ -20,7 +20,8 @@ Build-Depends:
  libidn11-dev,
  libjansson-dev (>= 2.4),
  liblmdb-dev,
- libsystemd-dev [linux-any],
+ libsystemd-dev [linux-any] | libsystemd-daemon-dev [linux-any],
+ libsystemd-dev [linux-any] | libsystemd-journal-dev [linux-any],
  liburcu-dev (>= 0.4),
  pkg-config
 Standards-Version: 3.9.6
