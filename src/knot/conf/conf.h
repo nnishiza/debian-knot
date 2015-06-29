@@ -16,7 +16,7 @@
 /*!
  * \file
  *
- * Server configuration and API.
+ * Server configuration interface.
  *
  * \addtogroup config
  *
@@ -25,172 +25,173 @@
 
 #pragma once
 
-#include <stdlib.h>
 #include <sys/socket.h>
 
+#include "knot/conf/base.h"
 #include "knot/conf/scheme.h"
-#include "libknot/internal/lists.h"
-#include "libknot/internal/namedb/namedb.h"
-#include "libknot/rrtype/tsig.h"
-#include "libknot/yparser/ypscheme.h"
 
-#define CONF_XFERS		10
-#define CONF_DEFAULT_ID		((uint8_t *)"\x08""default\0")
-#define CONF_DEFAULT_FILE	(CONFIG_DIR "/knot.conf")
-//#define CONF_DEFAULT_DBDIR	(STORAGE_DIR "/confdb")
-
+/*! Configuration remote getter output. */
 typedef struct {
-	const struct namedb_api *api;
-	yp_item_t *scheme;
-	mm_ctx_t *mm;
-	namedb_t *db;
-	// Read-only transaction for config access.
-	namedb_txn_t read_txn;
-	// For automatic NSID or CH ident.
-	char *hostname;
-	// For reload if started with config file.
-	char *filename;
-	// Temporary database path.
-	char *tmp_dir;
-	// List of active query modules.
-	list_t query_modules;
-	// Default query modules plan.
-	struct query_plan *query_plan;
-} conf_t;
-
-typedef struct {
+	/*! Target socket address. */
 	struct sockaddr_storage addr;
+	/*! Local outgoing socket address. */
 	struct sockaddr_storage via;
+	/*! TSIG key. */
 	knot_tsig_key_t key;
 } conf_remote_t;
 
+/*! Configuration getter output. */
 typedef struct {
+	/*! Item description. */
 	const yp_item_t *item;
+	/*! Whole data (can be array). */
 	const uint8_t *blob;
+	/*! Whole data length. */
 	size_t blob_len;
 	// Public items.
+	/*! Current single data. */
 	const uint8_t *data;
+	/*! Current single data length. */
 	size_t len;
-	int code; // Return code.
+	/*! Value getter return code. */
+	int code;
 } conf_val_t;
 
+/*! Configuration section iterator. */
 typedef struct {
+	/*! Item description. */
 	const yp_item_t *item;
+	/*! Namedb iterator. */
 	namedb_iter_t *iter;
+	/*! Key0 database code. */
 	uint8_t key0_code;
 	// Public items.
-	int code; // Return code.
+	/*! Iterator return code. */
+	int code;
 } conf_iter_t;
 
+/*! Configuration module getter output. */
 typedef struct {
+	/*! Module name. */
 	yp_name_t *name;
+	/*! Module id data. */
 	uint8_t *data;
+	/*! Module id data length. */
 	size_t len;
 } conf_mod_id_t;
 
-extern conf_t *s_conf;
-
-static inline conf_t* conf(void) {
-	return s_conf;
-}
-
-int conf_new(
-	conf_t **conf,
-	const yp_item_t *scheme,
-	const char *db_dir
-);
-
-int conf_clone(
-	conf_t **conf
-);
-
-int conf_post_open(
-	conf_t *conf
-);
-
-void conf_update(
-	conf_t *conf
-);
-
-void conf_free(
-	conf_t *conf,
-	bool is_clone
-);
-
-int conf_activate_modules(
-	conf_t *conf,
-	knot_dname_t *zone_name,
-	list_t *query_modules,
-	struct query_plan **query_plan
-);
-
-void conf_deactivate_modules(
-	conf_t *conf,
-	list_t *query_modules,
-	struct query_plan *query_plan
-);
-
-int conf_parse(
+conf_val_t conf_get_txn(
 	conf_t *conf,
 	namedb_txn_t *txn,
-	const char *input,
-	bool is_file,
-	size_t *incl_depth
-);
-
-int conf_import(
-	conf_t *conf,
-	const char *input,
-	bool is_file
-);
-
-int conf_export(
-	conf_t *conf,
-	const char *file_name,
-	yp_style_t style
-);
-
-/*****************/
-
-conf_val_t conf_get(
-	conf_t *conf,
 	const yp_name_t *key0_name,
 	const yp_name_t *key1_name
 );
-
-conf_val_t conf_id_get(
+static inline conf_val_t conf_get(
 	conf_t *conf,
+	const yp_name_t *key0_name,
+	const yp_name_t *key1_name)
+{
+	return conf_get_txn(conf, &conf->read_txn, key0_name, key1_name);
+}
+
+conf_val_t conf_rawid_get_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
+	const yp_name_t *key0_name,
+	const yp_name_t *key1_name,
+	const uint8_t *id,
+	size_t id_len
+);
+static inline conf_val_t conf_rawid_get(
+	conf_t *conf,
+	const yp_name_t *key0_name,
+	const yp_name_t *key1_name,
+	const uint8_t *id,
+	size_t id_len)
+{
+	return conf_rawid_get_txn(conf, &conf->read_txn, key0_name, key1_name,
+	                          id, id_len);
+}
+
+conf_val_t conf_id_get_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key0_name,
 	const yp_name_t *key1_name,
 	conf_val_t *id
 );
-
-conf_val_t conf_mod_get(
+static inline conf_val_t conf_id_get(
 	conf_t *conf,
+	const yp_name_t *key0_name,
+	const yp_name_t *key1_name,
+	conf_val_t *id)
+{
+	return conf_id_get_txn(conf, &conf->read_txn, key0_name, key1_name, id);
+}
+
+conf_val_t conf_mod_get_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key1_name,
 	const conf_mod_id_t *mod_id
 );
-
-conf_val_t conf_zone_get(
+static inline conf_val_t conf_mod_get(
 	conf_t *conf,
+	const yp_name_t *key1_name,
+	const conf_mod_id_t *mod_id)
+{
+	return conf_mod_get_txn(conf, &conf->read_txn, key1_name, mod_id);
+}
+
+conf_val_t conf_zone_get_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key1_name,
 	const knot_dname_t *dname
 );
-
-conf_val_t conf_default_get(
+static inline conf_val_t conf_zone_get(
 	conf_t *conf,
+	const yp_name_t *key1_name,
+	const knot_dname_t *dname)
+{
+	return conf_zone_get_txn(conf, &conf->read_txn, key1_name, dname);
+}
+
+conf_val_t conf_default_get_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key1_name
 );
-
-size_t conf_id_count(
+static inline conf_val_t conf_default_get(
 	conf_t *conf,
+	const yp_name_t *key1_name)
+{
+	return conf_default_get_txn(conf, &conf->read_txn, key1_name);
+}
+
+size_t conf_id_count_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key0_name
 );
-
-conf_iter_t conf_iter(
+static inline size_t conf_id_count(
 	conf_t *conf,
+	const yp_name_t *key0_name)
+{
+	return conf_id_count_txn(conf, &conf->read_txn, key0_name);
+}
+
+conf_iter_t conf_iter_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key0_name
 );
+static inline conf_iter_t conf_iter(
+	conf_t *conf,
+	const yp_name_t *key0_name)
+{
+	return conf_iter_txn(conf, &conf->read_txn, key0_name);
+}
 
 void conf_iter_next(
 	conf_t *conf,
@@ -231,13 +232,27 @@ const char* conf_str(
 	conf_val_t *val
 );
 
+const knot_dname_t* conf_dname(
+	conf_val_t *val
+);
+
+void conf_data(
+	conf_val_t *val
+);
+
+struct sockaddr_storage conf_addr(
+	conf_val_t *val,
+	const char *sock_base_dir
+);
+
+struct sockaddr_storage conf_net(
+	conf_val_t *val,
+	int *prefix_length
+);
+
 char* conf_abs_path(
 	conf_val_t *val,
 	const char *base_dir
-);
-
-const knot_dname_t* conf_dname(
-	conf_val_t *val
 );
 
 conf_mod_id_t* conf_mod_id(
@@ -248,49 +263,87 @@ void conf_free_mod_id(
 	conf_mod_id_t *mod_id
 );
 
-struct sockaddr_storage conf_addr(
-	conf_val_t *val,
-	const char *sock_base_dir
-);
-
-struct sockaddr_storage conf_net(
-	conf_val_t *val,
-	unsigned *prefix_length
-);
-
-void conf_data(
-	conf_val_t *val
-);
-
-char* conf_zonefile(
+char* conf_zonefile_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	const knot_dname_t *zone
 );
-
-char* conf_journalfile(
+static inline char* conf_zonefile(
 	conf_t *conf,
+	const knot_dname_t *zone)
+{
+	return conf_zonefile_txn(conf, &conf->read_txn, zone);
+}
+
+char* conf_journalfile_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	const knot_dname_t *zone
 );
-
-size_t conf_udp_threads(
-	conf_t *conf
-);
-
-size_t conf_tcp_threads(
-	conf_t *conf
-);
-
-int conf_bg_threads(
-	conf_t *conf
-);
-
-void conf_user(
+static inline char* conf_journalfile(
 	conf_t *conf,
+	const knot_dname_t *zone)
+{
+	return conf_journalfile_txn(conf, &conf->read_txn, zone);
+}
+
+size_t conf_udp_threads_txn(
+	conf_t *conf,
+	namedb_txn_t *txn
+);
+static inline size_t conf_udp_threads(
+	conf_t *conf)
+{
+	return conf_udp_threads_txn(conf, &conf->read_txn);
+}
+
+size_t conf_tcp_threads_txn(
+	conf_t *conf,
+	namedb_txn_t *txn
+);
+static inline size_t conf_tcp_threads(
+	conf_t *conf)
+{
+	return conf_tcp_threads_txn(conf, &conf->read_txn);
+}
+
+size_t conf_bg_threads_txn(
+	conf_t *conf,
+	namedb_txn_t *txn
+);
+static inline size_t conf_bg_threads(
+	conf_t *conf)
+{
+	return conf_bg_threads_txn(conf, &conf->read_txn);
+}
+
+int conf_user_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
 	int *uid,
 	int *gid
 );
-
-conf_remote_t conf_remote(
+static inline int conf_user(
 	conf_t *conf,
-	conf_val_t *id
+	int *uid,
+	int *gid)
+{
+	return conf_user_txn(conf, &conf->read_txn, uid, gid);
+}
+
+conf_remote_t conf_remote_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
+	conf_val_t *id,
+	size_t index
 );
+static inline conf_remote_t conf_remote(
+	conf_t *conf,
+	conf_val_t *id,
+	size_t index)
+{
+	return conf_remote_txn(conf, &conf->read_txn, id, index);
+
+}
+
+/*! @} */

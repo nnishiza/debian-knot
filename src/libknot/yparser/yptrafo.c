@@ -14,6 +14,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <arpa/inet.h>
@@ -79,11 +80,11 @@ static int yp_str_to_txt(
 static int yp_bool_to_bin(
 	TXT_BIN_PARAMS)
 {
-	if (strcasecmp(txt, "on") == 0) {
+	if (strcasecmp(txt, "on") == 0 || strcasecmp(txt, "true") == 0) {
 		bin[0] = '\0'; // Just in case.
 		*bin_len = 1;
 		return KNOT_EOK;
-	} else if (strcasecmp(txt, "off") == 0) {
+	} else if (strcasecmp(txt, "off") == 0 || strcasecmp(txt, "false") == 0) {
 		*bin_len = 0;
 		return KNOT_EOK;
 	}
@@ -293,6 +294,31 @@ static int yp_int_to_txt(
 	return KNOT_EOK;
 }
 
+static uint8_t sock_type_guess(
+	char const *txt,
+	size_t txt_len)
+{
+	size_t dots = 0;
+	size_t semicolons = 0;
+	size_t digits = 0;
+
+	// Analyze the string.
+	for (size_t i = 0; i < txt_len; i++) {
+		if (txt[i] == '.') dots++;
+		else if (txt[i] == ':') semicolons++;
+		else if (isdigit((int)txt[i]) != 0) digits++;
+	}
+
+	// Guess socket type.
+	if (semicolons >= 1) {
+		return 6;
+	} else if (semicolons == 0 && dots == 3 && digits >= 3) {
+		return 4;
+	} else {
+		return 0;
+	}
+}
+
 static int addr_to_bin(
 	TXT_BIN_PARAMS,
 	bool allow_unix)
@@ -300,21 +326,19 @@ static int addr_to_bin(
 	struct in_addr  addr4;
 	struct in6_addr addr6;
 
-	uint8_t type;
+	uint8_t type = sock_type_guess(txt, txt_len);
+
 	size_t addr_len;
 	const void *addr;
 
-	if (inet_pton(AF_INET, txt, &addr4) == 1) {
-		type = 4;
+	if (type == 4 && inet_pton(AF_INET, txt, &addr4) == 1) {
 		addr_len = sizeof(addr4.s_addr);
 		addr = &(addr4.s_addr);
-	} else if (inet_pton(AF_INET6, txt, &addr6) == 1) {
-		type = 6;
+	} else if (type == 6 && inet_pton(AF_INET6, txt, &addr6) == 1) {
 		addr_len = sizeof(addr6.s6_addr);
 		addr = &(addr6.s6_addr);
-	} else if (allow_unix && txt_len > 0) {
-		type = 0;
-		addr_len = txt_len;
+	} else if (type == 0 && allow_unix && txt_len > 0) {
+		addr_len = txt_len + 1; // + trailing zero.
 		addr = txt;
 	} else {
 		return KNOT_EINVAL;
@@ -344,7 +368,7 @@ static int addr_to_txt(
 	int ret;
 	switch (type) {
 	case 0:
-		ret = snprintf(txt, *txt_len, "%.*s", (int)bin_len, bin);
+		ret = snprintf(txt, *txt_len, "%s", bin);
 		if (ret <= 0 || ret >= *txt_len) {
 			return KNOT_ESPACE;
 		}
@@ -595,7 +619,6 @@ static int yp_dname_to_txt(
 	return KNOT_EOK;
 }
 
-_public_
 int yp_item_to_bin(
 	const yp_item_t *item,
 	const char *txt,
@@ -675,7 +698,6 @@ static int yp_item_to_txt_unquoted(
 	}
 }
 
-_public_
 int yp_item_to_txt(
 	const yp_item_t *item,
 	const uint8_t *bin,
@@ -726,7 +748,6 @@ int yp_item_to_txt(
 	return KNOT_EOK;
 }
 
-_public_
 struct sockaddr_storage yp_addr(
 	const uint8_t *data,
 	size_t data_len,

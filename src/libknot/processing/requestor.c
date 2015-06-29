@@ -148,7 +148,9 @@ struct knot_request *knot_request_make(mm_ctx_t *mm,
 _public_
 int knot_request_free(mm_ctx_t *mm, struct knot_request *request)
 {
-	close(request->fd);
+	if (request->fd >= 0) {
+		close(request->fd);
+	}
 	knot_pkt_free(&request->query);
 	knot_pkt_free(&request->resp);
 
@@ -253,6 +255,7 @@ static int request_io(struct knot_requestor *req, struct knot_request *last,
 			return ret;
 		}
 
+		(void) knot_pkt_parse(resp, 0);
 		knot_overlay_consume(&req->overlay, resp);
 	}
 
@@ -274,7 +277,7 @@ static int exec_request(struct knot_requestor *req, struct knot_request *last,
 	}
 
 	/* Expect complete request. */
-	if (req->overlay.state == KNOT_STATE_FAIL) {
+	if (req->overlay.state != KNOT_STATE_DONE) {
 		ret = KNOT_LAYER_ERROR;
 	}
 

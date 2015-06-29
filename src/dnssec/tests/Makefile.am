@@ -12,7 +12,7 @@ AM_LDFLAGS = \
 	-static
 
 LDADD = \
-	$(top_builddir)/libtap/libtap.a \
+	$(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 
 CLEANFILES = runtests.log
@@ -39,6 +39,7 @@ check_PROGRAMS = \
 	sign		\
 	sign_der	\
 	shared_base32hex \
+	shared_bignum	\
 	shared_dname	\
 	shared_strtonum	\
 	shared_wire	\

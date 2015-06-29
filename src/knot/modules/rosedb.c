@@ -24,7 +24,7 @@
 #include "libknot/internal/utils.h"
 
 /* Module configuration scheme. */
-#define MOD_DBDIR		"\x06""dbdir"
+#define MOD_DBDIR		"\x05""dbdir"
 
 const yp_item_t scheme_mod_rosedb[] = {
 	{ C_ID,      YP_TSTR, YP_VNONE },
@@ -340,7 +340,7 @@ int cache_remove(MDB_txn *txn, MDB_dbi dbi, const knot_dname_t *name)
 #define DEFAULT_PORT 514
 #define SYSLOG_BUFLEN 1024 /* RFC3164, 4.1 message size. */
 #define SYSLOG_FACILITY 3  /* System daemon. */
-#define MODULE_ERR(msg...) log_error("module 'rose', " msg)
+#define MODULE_ERR(msg, ...) log_error("module 'rose', " msg, ##__VA_ARGS__)
 
 /*! \brief Safe stream skipping. */
 static int stream_skip(char **stream, size_t *maxlen, int nbytes)
@@ -356,8 +356,8 @@ static int stream_skip(char **stream, size_t *maxlen, int nbytes)
 }
 
 /*! \brief Stream write with constraints checks. */
-#define STREAM_WRITE(stream, maxlen, fn, args...) \
-	if (stream_skip(&(stream), (maxlen), fn(stream, *(maxlen), args)) != KNOT_EOK) { \
+#define STREAM_WRITE(stream, maxlen, fn, args, ...) \
+	if (stream_skip(&(stream), (maxlen), fn(stream, *(maxlen), args, ##__VA_ARGS__)) != KNOT_EOK) { \
 		return KNOT_ESPACE; \
 	}
 

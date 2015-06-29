@@ -1,16 +1,66 @@
-Knot DNS 1.99.1 (2015-02-11)
-============================
+Knot DNS 2.0.0 (2015-06-26)
+===========================
 
-Features:
+Bugfixes:
 ---------
- - DNSSEC: basic KASP support (generate initial keys, ZSK rollover)
-
-Knot DNS 1.99.0 (2014-12-31)
-============================
+ - Fix lost NOTIFY message if received during zone transfer
+ - Disable fast zone parser when compiled in Clang (workaround for Clang bug)
+ - kdig: Record correct dnstap SocketProtocol when retrying over TCP
+ - kdig: Hide TSIG section with +noall
+ - Do not set AA flag for AXFR/IXFR queries
 
 Features:
 ---------
  - DNSSEC: separate library, switch to GnuTLS, new utilities
+ - DNSSEC: basic KASP support (generate initial keys, ZSK rollover)
+ - Configuration: New text format in YAML, binary store in LMDB
+ - Zone parser: Split long TXT/SPF strings into multiple strings
+ - kdig: Add generic dump style option (+generic)
+ - Try all master servers in multi-master environment
+ - Improved remotes and ACLs (multiple addresses, multiple keys)
+ - Basic support for zone file patterns (%s to substitute zone name)
+ - Disable zone file synchronization by setting 'zonefile_sync' to '-1'
+ - knsupdate: Add input prompt in interactive mode and 'quit' command
+ - knsupdate: Allow TSIG algorithm specification in interactive prompt
+
+Improvements:
+-------------
+ - Zone dump: Do not write class for SOA record (unified with other RR types)
+ - Zone dump: Do not write master server address into the zone file
+ - Documentation: Manual pages are included in HTML and PDF
+
+Knot DNS 1.6.3 (2015-04-08)
+===========================
+
+Bugfixes:
+---------
+ - Performance drop for NSEC-signed zones
+ - Proper handling of TCP short-writes
+ - Out-of-bound read in zone parser for long domain names in origin (AFL fuzzer)
+ - Out-of-bound read in packet parser for TSIG RR without RDATA (AFL fuzzer)
+ - Out-of-bound read in packet parser for malformed NAPTR RR (AFL fuzzer)
+
+Features:
+--------
+ - CDS and CDNSKEY support in zone parser
+
+Improvements:
+-------------
+ - Add defaults for TCP config options into documentation
+ - Detailed error message if zone reload fails
+
+Knot DNS 1.6.2 (2015-02-19)
+===========================
+
+Features:
+---------
+ - Limiting number of parallel TCP clients (max-tcp-clients config option)
+
+Bugfixes:
+---------
+ - Ignore refresh and transfer events on non-slave zones
+ - Compilation with Dnstap support on FreeBSD
+ - Possible file descriptor leak when terminating inactive TCP clients
 
 Knot DNS 1.6.1 (2014-12-13)
 ===========================

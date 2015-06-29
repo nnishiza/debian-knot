@@ -4,20 +4,18 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/dnssec/lib
 
-AM_LDFLAGS = \
-	$(libcrypto_LIBS)
-
 LDADD = \
-	$(top_builddir)/libtap/libtap.a \
-	$(top_builddir)/src/libknot-int.la \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la \
 	$(top_builddir)/src/libknotd.la \
-	$(top_builddir)/src/libknot-yparser.la
+	$(libcrypto_LIBS)
 
 check_PROGRAMS = \
 	acl				\
 	base32hex			\
 	base64				\
 	changeset			\
+	conf				\
 	descriptor			\
 	dname				\
 	dthreads			\
@@ -26,6 +24,7 @@ check_PROGRAMS = \
 	fdset				\
 	hattrie				\
 	hhash				\
+	internal_mem			\
 	journal				\
 	namedb				\
 	net_shortwrite			\
@@ -42,6 +41,7 @@ check_PROGRAMS = \
 	rrset				\
 	rrset_wire			\
 	server				\
+	tsig_key			\
 	utils				\
 	wire				\
 	worker_pool			\
@@ -64,6 +64,8 @@ check-local: $(check_PROGRAMS)
 					-L $(top_builddir)/tests/runtests.log \
 					$(check_PROGRAMS)
 
-process_query_SOURCES = process_query.c fake_server.h
-process_answer_SOURCES = process_answer.c fake_server.h
+acl_SOURCES = acl.c test_conf.h
+conf_SOURCES = conf.c test_conf.h
+process_query_SOURCES = process_query.c fake_server.h test_conf.h
+process_answer_SOURCES = process_answer.c fake_server.h test_conf.h
 CLEANFILES = runtests.log

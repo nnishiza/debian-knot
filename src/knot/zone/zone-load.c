@@ -138,15 +138,14 @@ int zone_load_post(conf_t *conf, zone_contents_t *contents, zone_t *zone,
 		return KNOT_EINVAL;
 	}
 
-	int ret = KNOT_EOK;
 	changeset_t change;
-	ret = changeset_init(&change, zone->name);
+	int ret = changeset_init(&change, zone->name);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
 
 	/* Sign zone using DNSSEC (if configured). */
-	conf_val_t val = conf_zone_get(conf, C_DNSSEC_ENABLE, zone->name);
+	conf_val_t val = conf_zone_get(conf, C_DNSSEC_SIGNING, zone->name);
 	bool dnssec_enable = conf_bool(&val);
 	val = conf_zone_get(conf, C_IXFR_DIFF, zone->name);
 	bool build_diffs = conf_bool(&val);

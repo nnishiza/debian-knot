@@ -19,6 +19,7 @@
 #define _WITH_GETLINE
 #endif
 
+#include "libknot/internal/macros.h"
 #include "libknot/internal/getline.h"
 
 #include <stdio.h>		// getline or fgetln
@@ -48,11 +49,11 @@ ssize_t knot_getline(char **lineptr, size_t *n, FILE *stream)
 			return -1;
 		}
 		*lineptr = tmp;
+		*n = length + 1;
 	}
 
 	memcpy(*lineptr, buffer, length);
 	(*lineptr)[length] = '\0';
-	*n = length;
 
 	return length;
 #endif

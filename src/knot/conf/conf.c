@@ -15,662 +15,58 @@
 */
 
 #include <assert.h>
-#include <dirent.h>
 #include <grp.h>
-#include <inttypes.h>
 #include <pwd.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <urcu.h>
 
-#include "knot/conf/conf.h"
+#include "knot/conf/base.h"
 #include "knot/conf/confdb.h"
-#include "knot/conf/tools.h"
 #include "knot/common/log.h"
-#include "knot/nameserver/query_module.h"
-#include "knot/nameserver/internet.h"
 #include "knot/server/dthreads.h"
-#include "libknot/errcode.h"
+#include "libknot/libknot.h"
 #include "libknot/internal/macros.h"
 #include "libknot/internal/mem.h"
-#include "libknot/internal/mempattern.h"
-#include "libknot/internal/mempool.h"
-#include "libknot/internal/namedb/namedb_lmdb.h"
 #include "libknot/internal/sockaddr.h"
-#include "libknot/yparser/ypformat.h"
+#include "libknot/internal/strlcat.h"
 #include "libknot/yparser/yptrafo.h"
 
-#define MAX_INCLUDE_DEPTH	5
+/*! Configuration specific logging. */
+#define CONF_LOG(severity, msg, ...) do { \
+	log_msg(severity, "config, " msg, ##__VA_ARGS__); \
+	} while (0)
 
-conf_t *s_conf;
+#define CONF_LOG_ZONE(severity, zone, msg, ...) do { \
+	log_msg_zone(severity, zone, "config, " msg, ##__VA_ARGS__); \
+	} while (0)
 
-int conf_new(
-	conf_t **conf,
-	const yp_item_t *scheme,
-	const char *db_dir)
-{
-	if (conf == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	conf_t *out = malloc(sizeof(conf_t));
-	if (out == NULL) {
-		return KNOT_ENOMEM;
-	}
-	memset(out, 0, sizeof(conf_t));
-
-	// Initialize config scheme.
-	int ret = yp_scheme_copy(&out->scheme, scheme);
-	if (ret != KNOT_EOK) {
-		free(out);
-		return ret;
-	}
-
-	// Prepare namedb api.
-	out->mm = malloc(sizeof(mm_ctx_t));
-	mm_ctx_mempool(out->mm, MM_DEFAULT_BLKSIZE);
-	struct namedb_lmdb_opts lmdb_opts = NAMEDB_LMDB_OPTS_INITIALIZER;
-	lmdb_opts.flags.env = NAMEDB_LMDB_NOTLS;
-
-	// A temporary solution until proper trie support in namedb is available.
-	if (db_dir == NULL) {
-		char tpl[] = "/tmp/knot-confdb.XXXXXX";
-		db_dir = mkdtemp(tpl);
-		if (db_dir == NULL) {
-			log_error("failed to create temporary directory");
-			return EXIT_FAILURE;
-		}
-		out->tmp_dir = strdup(db_dir);
-	}
-	lmdb_opts.path = db_dir;
-	out->api = namedb_lmdb_api();
-
-	// Open database.
-	ret = out->api->init(&out->db, out->mm, &lmdb_opts);
-	if (ret != KNOT_EOK) {
-		goto new_error;
-	}
-
-	// Initialize/check database.
-	namedb_txn_t txn;
-	ret = out->api->txn_begin(out->db, &txn, 0);
-	if (ret != KNOT_EOK) {
-		out->api->deinit(out->db);
-		goto new_error;
-	}
-
-	ret = conf_db_init(out, &txn);
-	if (ret != KNOT_EOK) {
-		out->api->txn_abort(&txn);
-		out->api->deinit(out->db);
-		goto new_error;
-	}
-
-	ret = out->api->txn_commit(&txn);
-	if (ret != KNOT_EOK) {
-		out->api->deinit(out->db);
-		goto new_error;
-	}
-
-	// Open common read-only transaction.
-	ret = out->api->txn_begin(out->db, &out->read_txn, NAMEDB_RDONLY);
-	if (ret != KNOT_EOK) {
-		out->api->deinit(out->db);
-		goto new_error;
-	}
-
-	*conf = out;
-
-	return KNOT_EOK;
-new_error:
-	yp_scheme_free(out->scheme);
-	free(out->mm);
-	free(out);
-
-	return ret;
-}
-
-int conf_clone(
-	conf_t **conf)
-{
-	if (conf == NULL || s_conf == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	conf_t *out = malloc(sizeof(conf_t));
-	if (out == NULL) {
-		return KNOT_ENOMEM;
-	}
-	memset(out, 0, sizeof(conf_t));
-
-	// Initialize config scheme.
-	int ret = yp_scheme_copy(&out->scheme, s_conf->scheme);
-	if (ret != KNOT_EOK) {
-		free(out);
-		return ret;
-	}
-
-	// Set shared items.
-	out->api = s_conf->api;
-	out->mm = s_conf->mm;
-	out->db = s_conf->db;
-	out->filename = s_conf->filename;
-	out->tmp_dir = s_conf->tmp_dir;
-
-	// Open common read-only transaction.
-	ret = out->api->txn_begin(out->db, &out->read_txn, NAMEDB_RDONLY);
-	if (ret != KNOT_EOK) {
-		yp_scheme_free(out->scheme);
-		free(out);
-		return ret;
-	}
-
-	*conf = out;
-
-	return KNOT_EOK;
-}
-
-int conf_post_open(
-	conf_t *conf)
-{
-	if (conf == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	conf->hostname = sockaddr_hostname();
-
-	int ret = conf_activate_modules(conf, NULL, &conf->query_modules,
-	                                &conf->query_plan);
-	if (ret != KNOT_EOK) {
-		free(conf->hostname);
-		return ret;
-	}
-
-	return KNOT_EOK;
-}
-
-void conf_update(
-	conf_t *conf)
-{
-	if (conf == NULL) {
-		return;
-	}
-
-	conf_t **current_conf = &s_conf;
-	conf_t *old_conf = rcu_xchg_pointer(current_conf, conf);
-
-	synchronize_rcu();
-
-	if (old_conf) {
-		conf_free(old_conf, true);
-	}
-}
-
-void conf_free(
-	conf_t *conf,
-	bool is_clone)
-{
-	if (conf == NULL) {
-		return;
-	}
-
-	yp_scheme_free(conf->scheme);
-	conf->api->txn_abort(&conf->read_txn);
-	free(conf->hostname);
-
-	if (conf->query_plan != NULL) {
-		conf_deactivate_modules(conf, &conf->query_modules,
-		                        conf->query_plan);
-	}
-
-	if (!is_clone) {
-		conf->api->deinit(conf->db);
-		free(conf->mm);
-		free(conf->filename);
-	}
-
-	// Remove temporary database.
-	DIR *dir;
-	if (!is_clone && conf->tmp_dir != NULL &&
-	    (dir = opendir(conf->tmp_dir)) != NULL) {
-		// Prepare own dirent structure (see NOTES in man readdir_r).
-		size_t len = offsetof(struct dirent, d_name) +
-		             fpathconf(dirfd(dir), _PC_NAME_MAX) + 1;
-
-		struct dirent *entry = malloc(len);
-		if (entry != NULL) {
-			memset(entry, 0, len);
-			struct dirent *result = NULL;
-			int ret;
-
-			while ((ret = readdir_r(dir, entry, &result)) == 0 &&
-			       result != NULL) {
-				if (entry->d_name[0] == '.') {
-					continue;
-				}
-				char *file = sprintf_alloc("%s/%s",
-							   conf->tmp_dir,
-							   entry->d_name);
-				remove(file);
-				free(file);
-			}
-
-			free(entry);
-			closedir(dir);
-			remove(conf->tmp_dir);
-			free(conf->tmp_dir);
-		}
-	}
-
-	free(conf);
-}
-
-int conf_activate_modules(
-	conf_t *conf,
-	knot_dname_t *zone_name,
-	list_t *query_modules,
-	struct query_plan **query_plan)
-{
-	if (conf == NULL || query_modules == NULL || query_plan == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	conf_val_t val;
-
-	// Get list of associated modules.
-	if (zone_name != NULL) {
-		val = conf_zone_get(conf, C_MODULE, zone_name);
-	} else {
-		val = conf_default_get(conf, C_MODULE);
-	}
-
-	if (val.code == KNOT_ENOENT) {
-		return KNOT_EOK;
-	} else if (val.code != KNOT_EOK) {
-		return val.code;
-	}
-
-	// Create query plan.
-	*query_plan = query_plan_create(conf->mm);
-	if (*query_plan == NULL) {
-		return KNOT_ENOMEM;
-	}
-
-	if (zone_name != NULL) {
-		// Only supported zone class is now IN.
-		internet_query_plan(*query_plan);
-	}
-
-	// Initialize query modules list.
-	init_list(query_modules);
-
-	// Open the modules.
-	while (val.code == KNOT_EOK) {
-		conf_mod_id_t *mod_id = conf_mod_id(&val);
-		if (mod_id == NULL) {
-			return KNOT_ENOMEM;
-		}
-
-		// Open the module.
-		struct query_module *mod = query_module_open(conf, mod_id, conf->mm);
-		if (mod == NULL) {
-			conf_free_mod_id(mod_id);
-			return KNOT_ENOMEM;
-		}
-
-		// Load the module.
-		int ret = mod->load(*query_plan, mod);
-		if (ret != KNOT_EOK) {
-			query_module_close(mod);
-			return ret;
-		}
-
-		add_tail(query_modules, &mod->node);
-
-		conf_val_next(&val);
-	}
-
-	return KNOT_EOK;
-}
-
-void conf_deactivate_modules(
-	conf_t *conf,
-	list_t *query_modules,
-	struct query_plan *query_plan)
-{
-	if (conf == NULL || query_modules == NULL || query_plan == NULL) {
-		return;
-	}
-
-	// Free query modules list.
-	struct query_module *mod = NULL, *next = NULL;
-	WALK_LIST_DELSAFE(mod, next, *query_modules) {
-		mod->unload(mod);
-		query_module_close(mod);
-	}
-
-	// Free query plan.
-	query_plan_free(query_plan);
-}
-
-static int parser_process(
+conf_val_t conf_get_txn(
 	conf_t *conf,
 	namedb_txn_t *txn,
-	yp_parser_t *parser,
-	yp_check_ctx_t *ctx,
-	size_t *incl_depth)
+	const yp_name_t *key0_name,
+	const yp_name_t *key1_name)
 {
-	int ret = yp_scheme_check_parser(ctx, parser);
-	if (ret != KNOT_EOK) {
-		return ret;
+	conf_val_t val = { NULL };
+
+	if (key0_name == NULL || key1_name == NULL) {
+		val.code = KNOT_EINVAL;
+		CONF_LOG(LOG_DEBUG, "conf_get (%s)", knot_strerror(val.code));
+		return val;
 	}
 
-	ret = conf_db_set(conf, txn, ctx);
-	if (ret != KNOT_EOK) {
-		return ret;
+	val.code = conf_db_get(conf, txn, key0_name, key1_name, NULL, 0, &val);
+	switch (val.code) {
+	default:
+		CONF_LOG(LOG_ERR, "failed to read '%s/%s' (%s)",
+		         key0_name + 1, key1_name + 1, knot_strerror(val.code));
+		// FALLTHROUGH
+	case KNOT_EOK:
+	case KNOT_ENOENT:
+		return val;
 	}
-
-	const yp_item_t *item = (ctx->event == YP_EKEY0) ? ctx->key0 : ctx->key1;
-	conf_call_f *sem_check = (conf_call_f *)item->misc[0];
-	conf_call_f *callback = (conf_call_f *)item->misc[1];
-	conf_args_t args = {
-		conf, txn, parser->file.name, incl_depth, ctx->key0, ctx->key1,
-		ctx->id, ctx->id_len, ctx->data, ctx->data_len
-	};
-
-	// Call semantic check if any.
-	if (sem_check != NULL && (ret = sem_check(&args)) != KNOT_EOK) {
-		return ret;
-	}
-
-	// Call callback function if any.
-	if (callback != NULL && (ret = callback(&args)) != KNOT_EOK) {
-		return ret;
-	}
-
-	return KNOT_EOK;
 }
 
-int conf_parse(
+conf_val_t conf_rawid_get_txn(
 	conf_t *conf,
 	namedb_txn_t *txn,
-	const char *input,
-	bool is_file,
-	size_t *incl_depth)
-{
-	if (conf == NULL || txn == NULL || input == NULL ||
-	    incl_depth == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	// Check for include loop.
-	if ((*incl_depth)++ > MAX_INCLUDE_DEPTH) {
-		return KNOT_EPARSEFAIL;
-	}
-
-	yp_parser_t *parser = malloc(sizeof(yp_parser_t));
-	if (parser == NULL) {
-		return KNOT_ENOMEM;
-	}
-	yp_init(parser);
-
-	int ret;
-	if (is_file) {
-		ret = yp_set_input_file(parser, input);
-	} else {
-		ret = yp_set_input_string(parser, input, strlen(input));
-	}
-	if (ret != KNOT_EOK) {
-		goto init_error;
-	}
-
-	yp_check_ctx_t *ctx = yp_scheme_check_init(conf->scheme);
-	if (ctx == NULL) {
-		ret = KNOT_ENOMEM;
-		goto init_error;
-	}
-
-	while ((ret = yp_parse(parser)) == KNOT_EOK) {
-		ret = parser_process(conf, txn, parser, ctx, incl_depth);
-		if (ret != KNOT_EOK) {
-			break;
-		}
-	}
-
-	yp_scheme_check_deinit(ctx);
-
-	if (ret != KNOT_EOF) {
-		log_error("invalid configuration%s%s%s, line %zu (%s)",
-		          (is_file ? " file '" : ""),
-		          (is_file ? input : ""),
-		          (is_file ? "'" : ""),
-		          parser->line_count, knot_strerror(ret));
-		goto init_error;
-	}
-
-	(*incl_depth)--;
-
-	ret = KNOT_EOK;
-init_error:
-	yp_deinit(parser);
-	free(parser);
-
-	return ret;
-}
-
-int conf_import(
-	conf_t *conf,
-	const char *input,
-	bool is_file)
-{
-	if (conf == NULL || input == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	namedb_txn_t txn;
-	int ret = conf->api->txn_begin(conf->db, &txn, 0);
-	if (ret != KNOT_EOK) {
-		return ret;
-	}
-
-	// Drop the current DB content.
-	ret = conf->api->clear(&txn);
-	if (ret != KNOT_EOK) {
-		conf->api->txn_abort(&txn);
-		return ret;
-	}
-
-	// Initialize new DB.
-	ret = conf_db_init(conf, &txn);
-	if (ret != KNOT_EOK) {
-		conf->api->txn_abort(&txn);
-		return ret;
-	}
-
-	size_t depth = 0;
-
-	// Parse and import given file.
-	ret = conf_parse(conf, &txn, input, is_file, &depth);
-	if (ret != KNOT_EOK) {
-		conf->api->txn_abort(&txn);
-		return ret;
-	}
-
-	// Commit new configuration.
-	ret = conf->api->txn_commit(&txn);
-	if (ret != KNOT_EOK) {
-		return ret;
-	}
-
-	// Update read-only transaction.
-	conf->api->txn_abort(&conf->read_txn);
-	ret = conf->api->txn_begin(conf->db, &conf->read_txn, NAMEDB_RDONLY);
-	if (ret != KNOT_EOK) {
-		return ret;
-	}
-
-	return KNOT_EOK;
-}
-
-static int export_group(
-	conf_t *conf,
-	FILE *fp,
-	yp_item_t *group,
-	uint8_t *id,
-	size_t id_len,
-	char *out,
-	size_t out_len,
-	yp_style_t style)
-{
-	yp_item_t *item;
-	for (item = group->sub_items; item->name != NULL; item++) {
-		conf_val_t bin;
-		bin.code = conf_db_get(conf, &conf->read_txn, group->name,
-		                       item->name, id, id_len, &bin);
-		if (bin.code == KNOT_ENOENT) {
-			continue;
-		} else if (bin.code != KNOT_EOK) {
-			return bin.code;
-		}
-
-		// Format single/multiple-valued item.
-		size_t values = conf_val_count(&bin);
-		for (size_t i = 1; i <= values; i++) {
-			conf_db_val(&bin);
-			int ret = yp_format_key1(item, bin.data, bin.len, out,
-			                         out_len, style, i == 1,
-			                         i == values);
-			if (ret != KNOT_EOK) {
-				return ret;
-			}
-			fprintf(fp, "%s", out);
-
-			if (values > 1) {
-				conf_val_next(&bin);
-			}
-		}
-	}
-
-	fprintf(fp, "\n");
-
-	return KNOT_EOK;
-}
-
-int conf_export(
-	conf_t *conf,
-	const char *file_name,
-	yp_style_t style)
-{
-	if (conf == NULL || file_name == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	// Prepare common buffer;
-	const size_t buff_len = 2 * CONF_MAX_DATA_LEN; // Rough limit.
-	char *buff = malloc(buff_len);
-	if (buff == NULL) {
-		return KNOT_ENOMEM;
-	}
-
-	FILE *fp = fopen(file_name, "w");
-	if (fp == NULL) {
-		free(buff);
-		return KNOT_EFILE;
-	}
-
-	int ret;
-
-	// Iterate over the current scheme.
-	yp_item_t *item;
-	for (item = conf->scheme; item->name != NULL; item++) {
-		// Skip non-group items (include).
-		if (item->type != YP_TGRP) {
-			continue;
-		}
-
-		// Check if the item is ever stored in DB.
-		uint8_t item_code;
-		ret = conf_db_code(conf, &conf->read_txn, CONF_CODE_KEY0_ROOT,
-		                   item->name, true, &item_code);
-		if (ret == KNOT_ENOENT) {
-			continue;
-		} else if (ret != KNOT_EOK) {
-			goto export_error;
-		}
-
-		// Export group name.
-		ret = yp_format_key0(item, NULL, 0, buff, buff_len, style,
-		                     true, true);
-		if (ret != KNOT_EOK) {
-			goto export_error;
-		}
-		fprintf(fp, "%s", buff);
-
-		// Export simple group without identifiers.
-		if (item->var.g.id == NULL) {
-			ret = export_group(conf, fp, item, NULL, 0, buff,
-			                   buff_len, style);
-			if (ret != KNOT_EOK) {
-				goto export_error;
-			}
-
-			continue;
-		}
-
-		// Iterate over all identifiers.
-		conf_iter_t iter;
-		ret = conf_db_iter_begin(conf, &conf->read_txn, item->name,
-		                         &iter);
-		if (ret != KNOT_EOK) {
-			goto export_error;
-		}
-
-		while (ret == KNOT_EOK) {
-			uint8_t *id;
-			size_t id_len;
-			ret = conf_db_iter_id(conf, &iter, &id, &id_len);
-			if (ret != KNOT_EOK) {
-				conf_db_iter_finish(conf, &iter);
-				goto export_error;
-			}
-
-			// Export identifier.
-			ret = yp_format_id(item->var.g.id, id, id_len, buff,
-			                   buff_len, style);
-			if (ret != KNOT_EOK) {
-				conf_db_iter_finish(conf, &iter);
-				goto export_error;
-			}
-			fprintf(fp, "%s", buff);
-
-			// Export other items.
-			ret = export_group(conf, fp, item, id, id_len, buff,
-			                   buff_len, style);
-			if (ret != KNOT_EOK) {
-				conf_db_iter_finish(conf, &iter);
-				goto export_error;
-			}
-
-			ret = conf_db_iter_next(conf, &iter);
-		}
-
-		conf_db_iter_finish(conf, &iter);
-	}
-
-	ret = KNOT_EOK;
-export_error:
-	fclose(fp);
-	free(buff);
-
-	return ret;
-}
-
-static conf_val_t raw_id_get(
-	conf_t *conf,
 	const yp_name_t *key0_name,
 	const yp_name_t *key1_name,
 	const uint8_t *id,
@@ -678,124 +74,135 @@ static conf_val_t raw_id_get(
 {
 	conf_val_t val = { NULL };
 
-	val.code = conf_db_get(conf, &conf->read_txn, key0_name, key1_name,
-	                       id, id_len, &val);
+	if (key0_name == NULL || key1_name == NULL || id == NULL) {
+		val.code = KNOT_EINVAL;
+		CONF_LOG(LOG_DEBUG, "conf_rawid_get (%s)", knot_strerror(val.code));
+		return val;
+	}
+
+	val.code = conf_db_get(conf, txn, key0_name, key1_name, id, id_len, &val);
 	switch (val.code) {
 	default:
-		log_error("failed to read configuration '%s/%s' (%s)",
-		          key0_name + 1, key1_name + 1, knot_strerror(val.code));
+		CONF_LOG(LOG_ERR, "failed to read '%s/%s' with identifier (%s)",
+		         key0_name + 1, key1_name + 1, knot_strerror(val.code));
+		// FALLTHROUGH
 	case KNOT_EOK:
 	case KNOT_ENOENT:
 		return val;
 	}
 }
 
-conf_val_t conf_get(
+conf_val_t conf_id_get_txn(
 	conf_t *conf,
-	const yp_name_t *key0_name,
-	const yp_name_t *key1_name)
-{
-	// Check for empty key1.
-	if (key1_name == NULL) {
-		conf_val_t val = { NULL };
-		val.code = KNOT_EINVAL;
-		return val;
-	}
-
-	return raw_id_get(conf, key0_name, key1_name, NULL, 0);
-}
-
-conf_val_t conf_id_get(
-	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key0_name,
 	const yp_name_t *key1_name,
 	conf_val_t *id)
 {
-	// Check for invalid id.
-	if (id != NULL) {
-		if (id->code != KNOT_EOK) {
-			conf_val_t val = { NULL };
-			val.code = id->code;
-			return val;
-		}
-		conf_db_val(id);
-	} else {
-		conf_val_t val = { NULL };
+	conf_val_t val = { NULL };
+
+	if (key0_name == NULL || key1_name == NULL || id == NULL ||
+	    id->code != KNOT_EOK) {
 		val.code = KNOT_EINVAL;
+		CONF_LOG(LOG_DEBUG, "conf_id_get (%s)", knot_strerror(val.code));
 		return val;
 	}
 
-	return raw_id_get(conf, key0_name, key1_name,
-	                  (id == NULL) ? NULL : id->data,
-	                  (id == NULL) ? 0 : id->len);
+	conf_db_val(id);
+
+	val.code = conf_db_get(conf, txn, key0_name, key1_name, id->data,
+	                       id->len, &val);
+	switch (val.code) {
+	default:
+		CONF_LOG(LOG_ERR, "failed to read '%s/%s' with identifier (%s)",
+		         key0_name + 1, key1_name + 1, knot_strerror(val.code));
+		// FALLTHROUGH
+	case KNOT_EOK:
+	case KNOT_ENOENT:
+		return val;
+	}
 }
 
-conf_val_t conf_mod_get(
+conf_val_t conf_mod_get_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key1_name,
 	const conf_mod_id_t *mod_id)
 {
-	// Check for empty input.
+	conf_val_t val = { NULL };
+
 	if (key1_name == NULL || mod_id == NULL) {
-		conf_val_t val = { NULL };
 		val.code = KNOT_EINVAL;
+		CONF_LOG(LOG_DEBUG, "conf_mod_get (%s)", knot_strerror(val.code));
 		return val;
 	}
 
-	return raw_id_get(conf, mod_id->name, key1_name, mod_id->data, mod_id->len);
+	val.code = conf_db_get(conf, txn, mod_id->name, key1_name, mod_id->data,
+	                       mod_id->len, &val);
+	switch (val.code) {
+	default:
+		CONF_LOG(LOG_ERR, "failed to read '%s/%s' (%s)",
+		         mod_id->name + 1, key1_name + 1, knot_strerror(val.code));
+		// FALLTHROUGH
+	case KNOT_EOK:
+	case KNOT_ENOENT:
+		return val;
+	}
 }
 
-conf_val_t conf_zone_get(
+conf_val_t conf_zone_get_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key1_name,
 	const knot_dname_t *dname)
 {
 	conf_val_t val = { NULL };
 
-	if (dname == NULL) {
+	if (key1_name == NULL || dname == NULL) {
 		val.code = KNOT_EINVAL;
+		CONF_LOG(LOG_DEBUG, "conf_zone_get (%s)", knot_strerror(val.code));
 		return val;
 	}
 
 	int dname_size = knot_dname_size(dname);
 
 	// Try to get explicit value.
-	val.code = conf_db_get(conf, &conf->read_txn, C_ZONE, key1_name,
-	                       dname, dname_size, &val);
+	val.code = conf_db_get(conf, txn, C_ZONE, key1_name, dname, dname_size, &val);
 	switch (val.code) {
 	case KNOT_EOK:
 		return val;
 	default:
-		log_zone_error(dname, "failed to read configuration '%s/%s' (%s)",
-		               C_ZONE + 1, key1_name + 1, knot_strerror(val.code));
+		CONF_LOG_ZONE(LOG_ERR, dname, "failed to read '%s/%s' (%s)",
+		              C_ZONE + 1, key1_name + 1, knot_strerror(val.code));
+		// FALLTHROUGH
 	case KNOT_ENOENT:
 		break;
 	}
 
 	// Check if a template is available.
-	val.code = conf_db_get(conf, &conf->read_txn, C_ZONE, C_TPL, dname,
-	                       dname_size, &val);
+	val.code = conf_db_get(conf, txn, C_ZONE, C_TPL, dname, dname_size, &val);
 	switch (val.code) {
 	case KNOT_EOK:
 		// Use the specified template.
 		conf_db_val(&val);
-		val.code = conf_db_get(conf, &conf->read_txn, C_TPL, key1_name,
+		val.code = conf_db_get(conf, txn, C_TPL, key1_name,
 		                       val.data, val.len, &val);
 		break;
 	default:
-		log_zone_error(dname, "failed to read configuration '%s/%s' (%s)",
-		               C_ZONE + 1, C_TPL + 1, knot_strerror(val.code));
+		CONF_LOG_ZONE(LOG_ERR, dname, "failed to read '%s/%s' (%s)",
+		              C_ZONE + 1, C_TPL + 1, knot_strerror(val.code));
+		// FALLTHROUGH
 	case KNOT_ENOENT:
 		// Use the default template.
-		val.code = conf_db_get(conf, &conf->read_txn, C_TPL, key1_name,
-		                       CONF_DEFAULT_ID + 1, CONF_DEFAULT_ID[0],
-		                       &val);
+		val.code = conf_db_get(conf, txn, C_TPL, key1_name,
+		                       CONF_DEFAULT_ID + 1, CONF_DEFAULT_ID[0], &val);
 	}
 
 	switch (val.code) {
 	default:
-		log_zone_error(dname, "failed to read configuration '%s/%s' (%s)",
-		               C_TPL + 1, key1_name + 1, knot_strerror(val.code));
+		CONF_LOG_ZONE(LOG_ERR, dname, "failed to read '%s/%s' (%s)",
+		              C_TPL + 1, key1_name + 1, knot_strerror(val.code));
+		// FALLTHROUGH
 	case KNOT_EOK:
 	case KNOT_ENOENT:
 		break;
@@ -804,18 +211,26 @@ conf_val_t conf_zone_get(
 	return val;
 }
 
-conf_val_t conf_default_get(
+conf_val_t conf_default_get_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key1_name)
 {
 	conf_val_t val = { NULL };
 
-	val.code = conf_db_get(conf, &conf->read_txn, C_TPL, key1_name,
+	if (key1_name == NULL) {
+		val.code = KNOT_EINVAL;
+		CONF_LOG(LOG_DEBUG, "conf_default_get (%s)", knot_strerror(val.code));
+		return val;
+	}
+
+	val.code = conf_db_get(conf, txn, C_TPL, key1_name,
 	                       CONF_DEFAULT_ID + 1, CONF_DEFAULT_ID[0], &val);
 	switch (val.code) {
 	default:
-		log_error("failed to read configuration '%s/%s' (%s)",
-		          C_TPL + 1, key1_name + 1, knot_strerror(val.code));
+		CONF_LOG(LOG_ERR, "failed to read default '%s/%s' (%s)",
+		         C_TPL + 1, key1_name + 1, knot_strerror(val.code));
+		// FALLTHROUGH
 	case KNOT_EOK:
 	case KNOT_ENOENT:
 		break;
@@ -824,20 +239,22 @@ conf_val_t conf_default_get(
 	return val;
 }
 
-size_t conf_id_count(
+size_t conf_id_count_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key0_name)
 {
 	size_t count = 0;
 	conf_iter_t iter = { NULL };
 
-	int ret = conf_db_iter_begin(conf, &conf->read_txn, key0_name, &iter);
+	int ret = conf_db_iter_begin(conf, txn, key0_name, &iter);
 	switch (ret) {
 	case KNOT_EOK:
 		break;
 	default:
-		log_error("failed to iterate through configuration '%s' (%s)",
-		          key0_name + 1, knot_strerror(ret));
+		CONF_LOG(LOG_ERR, "failed to iterate through '%s' (%s)",
+		         key0_name + 1, knot_strerror(ret));
+		// FALLTHROUGH
 	case KNOT_ENOENT:
 		return count;
 	}
@@ -851,17 +268,19 @@ size_t conf_id_count(
 	return count;
 }
 
-conf_iter_t conf_iter(
+conf_iter_t conf_iter_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	const yp_name_t *key0_name)
 {
 	conf_iter_t iter = { NULL };
 
-	iter.code = conf_db_iter_begin(conf, &conf->read_txn, key0_name, &iter);
+	iter.code = conf_db_iter_begin(conf, txn, key0_name, &iter);
 	switch (iter.code) {
 	default:
-		log_error("failed to iterate thgrough configuration '%s' (%s)",
+		CONF_LOG(LOG_ERR, "failed to iterate thgrough '%s' (%s)",
 		          key0_name + 1, knot_strerror(iter.code));
+		// FALLTHROUGH
 	case KNOT_EOK:
 	case KNOT_ENOENT:
 		return iter;
@@ -875,8 +294,9 @@ void conf_iter_next(
 	iter->code = conf_db_iter_next(conf, iter);
 	switch (iter->code) {
 	default:
-		log_error("failed to read next configuration item (%s)",
+		CONF_LOG(LOG_ERR, "failed to read next item (%s)",
 		          knot_strerror(iter->code));
+		// FALLTHROUGH
 	case KNOT_EOK:
 	case KNOT_EOF:
 		return;
@@ -893,8 +313,9 @@ conf_val_t conf_iter_id(
 	                           &val.blob_len);
 	switch (val.code) {
 	default:
-		log_error("failed to read configuration identifier (%s)",
+		CONF_LOG(LOG_ERR, "failed to read identifier (%s)",
 		          knot_strerror(val.code));
+		// FALLTHROUGH
 	case KNOT_EOK:
 		val.item = iter->item;
 		return val;
@@ -944,7 +365,7 @@ void conf_val_next(
 int64_t conf_int(
 	conf_val_t *val)
 {
-	assert(val != NULL);
+	assert(val != NULL && val->item != NULL);
 	assert(val->item->type == YP_TINT ||
 	       (val->item->type == YP_TREF &&
 	        val->item->var.r.ref->var.g.id->type == YP_TINT));
@@ -960,7 +381,7 @@ int64_t conf_int(
 bool conf_bool(
 	conf_val_t *val)
 {
-	assert(val != NULL);
+	assert(val != NULL && val->item != NULL);
 	assert(val->item->type == YP_TBOOL ||
 	       (val->item->type == YP_TREF &&
 	        val->item->var.r.ref->var.g.id->type == YP_TBOOL));
@@ -976,7 +397,7 @@ bool conf_bool(
 unsigned conf_opt(
 	conf_val_t *val)
 {
-	assert(val != NULL);
+	assert(val != NULL && val->item != NULL);
 	assert(val->item->type == YP_TOPT ||
 	       (val->item->type == YP_TREF &&
 	        val->item->var.r.ref->var.g.id->type == YP_TOPT));
@@ -992,7 +413,7 @@ unsigned conf_opt(
 const char* conf_str(
 	conf_val_t *val)
 {
-	assert(val != NULL);
+	assert(val != NULL && val->item != NULL);
 	assert(val->item->type == YP_TSTR ||
 	       (val->item->type == YP_TREF &&
 	        val->item->var.r.ref->var.g.id->type == YP_TSTR));
@@ -1005,15 +426,118 @@ const char* conf_str(
 	}
 }
 
+const knot_dname_t* conf_dname(
+	conf_val_t *val)
+{
+	assert(val != NULL && val->item != NULL);
+	assert(val->item->type == YP_TDNAME ||
+	       (val->item->type == YP_TREF &&
+	        val->item->var.r.ref->var.g.id->type == YP_TDNAME));
+
+	if (val->code == KNOT_EOK) {
+		conf_db_val(val);
+		return yp_dname(val->data);
+	} else {
+		return (const knot_dname_t *)val->item->var.d.dflt;
+	}
+}
+
+void conf_data(
+	conf_val_t *val)
+{
+	assert(val != NULL && val->item != NULL);
+	assert(val->item->type == YP_TB64 || val->item->type == YP_TDATA ||
+	       (val->item->type == YP_TREF &&
+	        (val->item->var.r.ref->var.g.id->type == YP_TB64 ||
+	         val->item->var.r.ref->var.g.id->type == YP_TDATA)));
+
+	if (val->code == KNOT_EOK) {
+		conf_db_val(val);
+	} else {
+		val->data = (const uint8_t *)val->item->var.d.dflt;
+		val->len = val->item->var.d.dflt_len;
+	}
+}
+
+struct sockaddr_storage conf_addr(
+	conf_val_t *val,
+	const char *sock_base_dir)
+{
+	assert(val != NULL && val->item != NULL);
+	assert(val->item->type == YP_TADDR ||
+	       (val->item->type == YP_TREF &&
+	        val->item->var.r.ref->var.g.id->type == YP_TADDR));
+
+	struct sockaddr_storage out = { AF_UNSPEC };
+
+	if (val->code == KNOT_EOK) {
+		int port;
+		conf_db_val(val);
+		out = yp_addr(val->data, val->len, &port);
+
+		if (out.ss_family == AF_UNIX) {
+			// val->data[0] is socket type identifier!
+			if (val->data[1] == '/' || sock_base_dir == NULL) {
+				val->code = sockaddr_set(&out, AF_UNIX,
+				                         (char *)val->data + 1, 0);
+			} else {
+				char *tmp = sprintf_alloc("%s/%s", sock_base_dir,
+				                          val->data + 1);
+				val->code = sockaddr_set(&out, AF_UNIX, tmp, 0);
+				free(tmp);
+			}
+		} else if (port != -1) {
+			sockaddr_port_set(&out, port);
+		} else {
+			sockaddr_port_set(&out, val->item->var.a.dflt_port);
+		}
+	} else {
+		const char *dflt_socket = val->item->var.a.dflt_socket;
+		if (dflt_socket != NULL) {
+			if (dflt_socket[0] == '/' || sock_base_dir == NULL) {
+				val->code = sockaddr_set(&out, AF_UNIX,
+				                         dflt_socket, 0);
+			} else {
+				char *tmp = sprintf_alloc("%s/%s", sock_base_dir,
+				                          dflt_socket);
+				val->code = sockaddr_set(&out, AF_UNIX, tmp, 0);
+				free(tmp);
+			}
+		}
+	}
+
+	return out;
+}
+
+struct sockaddr_storage conf_net(
+	conf_val_t *val,
+	int *prefix_length)
+{
+	assert(val != NULL && val->item != NULL && prefix_length != NULL);
+	assert(val->item->type == YP_TNET ||
+	       (val->item->type == YP_TREF &&
+	        val->item->var.r.ref->var.g.id->type == YP_TNET));
+
+	struct sockaddr_storage out = { AF_UNSPEC };
+
+	if (val->code == KNOT_EOK) {
+		conf_db_val(val);
+		out = yp_addr(val->data, val->len, prefix_length);
+	} else {
+		*prefix_length = 0;
+	}
+
+	return out;
+}
+
 char* conf_abs_path(
 	conf_val_t *val,
 	const char *base_dir)
 {
-	assert(val != NULL);
-
 	const char *path = conf_str(val);
-
-	if (path[0] == '/') {
+	if (path == NULL) {
+		return NULL;
+	} else if (path[0] == '/') {
 		return strdup(path);
 	} else {
 		char *abs_path;
@@ -1028,40 +552,25 @@ char* conf_abs_path(
 	}
 }
 
-const knot_dname_t* conf_dname(
-	conf_val_t *val)
-{
-	assert(val != NULL);
-	assert(val->item->type == YP_TDNAME ||
-	       (val->item->type == YP_TREF &&
-	        val->item->var.r.ref->var.g.id->type == YP_TDNAME));
-
-	if (val->code == KNOT_EOK) {
-		conf_db_val(val);
-		return yp_dname(val->data);
-	} else {
-		return (const knot_dname_t *)val->item->var.d.dflt;
-	}
-}
-
 conf_mod_id_t* conf_mod_id(
 	conf_val_t *val)
 {
-	assert(val != NULL);
-	assert(val->item->type == YP_TDATA);
+	assert(val != NULL && val->item != NULL);
+	assert(val->item->type == YP_TDATA ||
+	       (val->item->type == YP_TREF &&
+	        val->item->var.r.ref->var.g.id->type == YP_TDATA));
 
 	conf_mod_id_t *mod_id = NULL;
 
 	if (val->code == KNOT_EOK) {
 		conf_db_val(val);
 
-		// Make copy of mod_id because pointers are not persisent in db.
 		mod_id = malloc(sizeof(conf_mod_id_t));
 		if (mod_id == NULL) {
 			return NULL;
 		}
 
-		// Copy module name.
+		// Set module name in yp_name_t format + add zero termination.
 		size_t name_len = 1 + val->data[0];
 		mod_id->name = malloc(name_len + 1);
 		if (mod_id->name == NULL) {
@@ -1069,8 +578,9 @@ conf_mod_id_t* conf_mod_id(
 			return NULL;
 		}
 		memcpy(mod_id->name, val->data, name_len);
+		mod_id->name[name_len] = '\0';
 
-		// Copy module identifier.
+		// Set module identifier.
 		mod_id->len = val->len - name_len;
 		mod_id->data = malloc(mod_id->len);
 		if (mod_id->data == NULL) {
@@ -1092,233 +602,180 @@ void conf_free_mod_id(
 	free(mod_id);
 }
 
-struct sockaddr_storage conf_addr(
-	conf_val_t *val,
-	const char *sock_base_dir)
+static char* get_filename(
+	conf_t *conf,
+	namedb_txn_t *txn,
+	const knot_dname_t *zone,
+	const char *name)
 {
-	assert(val != NULL);
-	assert(val->item->type == YP_TADDR ||
-	       (val->item->type == YP_TREF &&
-	        val->item->var.r.ref->var.g.id->type == YP_TADDR));
+	assert(name);
 
-	struct sockaddr_storage out = { AF_UNSPEC };
+	const char *end = name + strlen(name);
+	char out[1024] = "";
 
-	if (val->code == KNOT_EOK) {
-		int port;
-		conf_db_val(val);
-		out = yp_addr(val->data, val->len, &port);
+	do {
+		// Search for a formatter.
+		const char *pos = strchr(name, '%');
 
-		// val->data[0] is socket type identifier.
-		if (out.ss_family == AF_UNIX && val->data[1] != '/' &&
-		    sock_base_dir != NULL) {
-			char *tmp = sprintf_alloc("%s/%.*s", sock_base_dir,
-			                          (int)val->len - 1,
-			                          val->data + 1);
-			val->code = sockaddr_set(&out, AF_UNIX, tmp, 0);
-			free(tmp);
-		} else if (port != -1) {
-			sockaddr_port_set(&out, port);
-		} else {
-			sockaddr_port_set(&out, val->item->var.a.dflt_port);
-		}
-	} else {
-		const char *dflt_socket = val->item->var.a.dflt_socket;
-		if (dflt_socket != NULL) {
-			if (dflt_socket[0] != '/' && sock_base_dir != NULL) {
-				char *tmp = sprintf_alloc("%s/%s", sock_base_dir,
-				                          dflt_socket);
-				val->code = sockaddr_set(&out, AF_UNIX, tmp, 0);
-				free(tmp);
-			} else {
-				val->code = sockaddr_set(&out, AF_UNIX,
-				                         dflt_socket, 0);
+		// If no formatter, copy the rest of the name.
+		if (pos == NULL) {
+			if (strlcat(out, name, sizeof(out)) >= sizeof(out)) {
+				return NULL;
 			}
+			break;
 		}
-	}
 
-	return out;
-}
+		// Copy constant block.
+		char *block = strndup(name, pos - name);
+		if (block == NULL ||
+		    strlcat(out, block, sizeof(out)) >= sizeof(out)) {
+			return NULL;
+		}
+		free(block);
 
-struct sockaddr_storage conf_net(
-	conf_val_t *val,
-	unsigned *prefix_length)
-{
-	assert(val != NULL && prefix_length != NULL);
-	assert(val->item->type == YP_TNET ||
-	       (val->item->type == YP_TREF &&
-	        val->item->var.r.ref->var.g.id->type == YP_TNET));
+		// Move name pointer behind the formatter.
+		name = pos + 2;
 
-	struct sockaddr_storage out = { AF_UNSPEC };
+		char buff[512] = "";
 
-	if (val->code == KNOT_EOK) {
-		int prefix;
-		conf_db_val(val);
-		out = yp_addr(val->data, val->len, &prefix);
-		if (prefix < 0) {
-			if (out.ss_family == AF_INET) {
-				*prefix_length = IPV4_PREFIXLEN;
-			} else if (out.ss_family == AF_INET6) {
-				*prefix_length = IPV6_PREFIXLEN;
+		const char type = *(pos + 1);
+		switch (type) {
+		case '%':
+			strlcat(buff, "%", sizeof(buff));
+			break;
+		case 's':
+			if (knot_dname_to_str(buff, zone, sizeof(buff)) == NULL) {
+				return NULL;
 			}
-		} else {
-			*prefix_length = prefix;
+
+			// Replace possible slashes with underscores.
+			char *ch;
+			for (ch = buff; *ch != '\0'; ch++) {
+				if (*ch == '/') {
+					*ch = '_';
+				}
+			}
+
+			// Remove trailing dot if not root zone.
+			if (ch - buff > 1) {
+				*(--ch) = '\0';
+			}
+
+			break;
+		case '\0':
+			CONF_LOG_ZONE(LOG_WARNING, zone, "ignoring missing "
+			              "trailing zonefile formatter");
+			continue;
+		default:
+			CONF_LOG_ZONE(LOG_WARNING, zone, "ignoring zonefile "
+			              "formatter '%%%c'", type);
+			continue;
 		}
+
+		if (strlcat(out, buff, sizeof(out)) >= sizeof(out)) {
+			return NULL;
+		}
+	} while (name < end);
+
+	// Use storage prefix if not absolute path.
+	if (out[0] == '/') {
+		return strdup(out);
 	} else {
-		*prefix_length = 0;
-	}
-
-	return out;
-}
-
-void conf_data(
-	conf_val_t *val)
-{
-	assert(val != NULL);
-	assert(val->item->type == YP_TB64 || val->item->type == YP_TDATA ||
-	       (val->item->type == YP_TREF &&
-	        (val->item->var.r.ref->var.g.id->type == YP_TB64 ||
-	         val->item->var.r.ref->var.g.id->type == YP_TDATA)));
-
-	if (val->code == KNOT_EOK) {
-		conf_db_val(val);
-	} else {
-		val->data = (const uint8_t *)val->item->var.d.dflt;
-		val->len = val->item->var.d.dflt_len;
+		conf_val_t val = conf_zone_get_txn(conf, txn, C_STORAGE, zone);
+		char *storage = conf_abs_path(&val, NULL);
+		if (storage == NULL) {
+			return NULL;
+		}
+		char *abs = sprintf_alloc("%s/%s", storage, out);
+		free(storage);
+		return abs;
 	}
 }
 
-static char* dname_to_filename(
-	const knot_dname_t *name,
-	const char *suffix)
+char* conf_zonefile_txn(
+	conf_t *conf,
+	namedb_txn_t *txn,
+	const knot_dname_t *zone)
 {
-	char *str = knot_dname_to_str_alloc(name);
-	if (str == NULL) {
+	if (zone == NULL) {
 		return NULL;
 	}
 
-	// Replace possible slashes with underscores.
-	for (char *ch = str; *ch != '\0'; ch++) {
-		if (*ch == '/') {
-			*ch = '_';
-		}
-	}
+	conf_val_t val = conf_zone_get_txn(conf, txn, C_FILE, zone);
+	const char *file = conf_str(&val);
 
-	char *out = sprintf_alloc("%s%s", str, suffix);
-	free(str);
-
-	return out;
-}
-
-char* conf_zonefile(
-	conf_t *conf,
-	const knot_dname_t *zone)
-{
-	assert(conf != NULL && zone != NULL);
-
-	// Item 'file' is not template item (cannot use conf_zone_get)! */
-	const char *file = NULL;
-	conf_val_t file_val = { NULL };
-	file_val.code = conf_db_get(conf, &conf->read_txn, C_ZONE, C_FILE,
-	                            zone, knot_dname_size(zone), &file_val);
-	if (file_val.code == KNOT_EOK) {
-		file = conf_str(&file_val);
-		if (file != NULL && file[0] == '/') {
-			return strdup(file);
-		}
-	}
-
-	char *abs_storage = NULL;
-	conf_val_t storage_val = conf_zone_get(conf, C_STORAGE, zone);
-	if (storage_val.code == KNOT_EOK) {
-		abs_storage = conf_abs_path(&storage_val, NULL);
-		if (abs_storage == NULL) {
-			return NULL;
-		}
-	}
-
-	char *out = NULL;
-
+	// Use default zonefile name pattern if not specified.
 	if (file == NULL) {
-		char *file = dname_to_filename(zone, "zone");
-		out = sprintf_alloc("%s/%s", abs_storage, file);
-		free(file);
-	} else {
-		out = sprintf_alloc("%s/%s", abs_storage, file);
+		file = "%s.zone";
 	}
 
-	free(abs_storage);
-
-	return out;
+	return get_filename(conf, txn, zone, file);
 }
 
-char* conf_journalfile(
+char* conf_journalfile_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	const knot_dname_t *zone)
 {
-	assert(conf != NULL && zone != NULL);
-
-	char *abs_storage = NULL;
-	conf_val_t storage_val = conf_zone_get(conf, C_STORAGE, zone);
-	if (storage_val.code == KNOT_EOK) {
-		abs_storage = conf_abs_path(&storage_val, NULL);
-		if (abs_storage == NULL) {
-			return NULL;
-		}
+	if (zone == NULL) {
+		return NULL;
 	}
 
-	char *name = dname_to_filename(zone, "diff.db");
-	char *out = sprintf_alloc("%s/%s", abs_storage, name);
-	free(name);
-	free(abs_storage);
-
-	return out;
+	return get_filename(conf, txn, zone, "%s.db");
 }
 
-size_t conf_udp_threads(
-	conf_t *conf)
+size_t conf_udp_threads_txn(
+	conf_t *conf,
+	namedb_txn_t *txn)
 {
-	conf_val_t val = conf_get(conf, C_SRV, C_WORKERS);
+	conf_val_t val = conf_get_txn(conf, txn, C_SRV, C_UDP_WORKERS);
 	int64_t workers = conf_int(&val);
-	if (workers < 1) {
+	if (workers == YP_NIL) {
 		return dt_optimal_size();
 	}
 
 	return workers;
 }
 
-size_t conf_tcp_threads(
-	conf_t *conf)
+size_t conf_tcp_threads_txn(
+	conf_t *conf,
+	namedb_txn_t *txn)
 {
-	size_t thrcount = conf_udp_threads(conf);
-	return MAX(thrcount * 2, CONF_XFERS);
+	conf_val_t val = conf_get_txn(conf, txn, C_SRV, C_TCP_WORKERS);
+	int64_t workers = conf_int(&val);
+	if (workers == YP_NIL) {
+		return MAX(conf_udp_threads_txn(conf, txn) * 2, CONF_XFERS);
+	}
+
+	return workers;
 }
 
-int conf_bg_threads(
-	conf_t *conf)
+size_t conf_bg_threads_txn(
+	conf_t *conf,
+	namedb_txn_t *txn)
 {
-	conf_val_t val = conf_get(conf, C_SRV, C_BG_WORKERS);
-	int64_t bg_workers = conf_int(&val);
-	if (bg_workers < 1) {
+	conf_val_t val = conf_get_txn(conf, txn, C_SRV, C_BG_WORKERS);
+	int64_t workers = conf_int(&val);
+	if (workers == YP_NIL) {
 		return MIN(dt_optimal_size(), CONF_XFERS);
 	}
 
-	return bg_workers;
+	return workers;
 }
 
-void conf_user(
+int conf_user_txn(
 	conf_t *conf,
+	namedb_txn_t *txn,
 	int *uid,
 	int *gid)
 {
-	assert(uid);
-	assert(gid);
+	if (uid == NULL || gid == NULL) {
+		return KNOT_EINVAL;
+	}
 
-	int new_uid = getuid();
-	int new_gid = getgid();
-
-	conf_val_t val = conf_get(conf, C_SRV, C_USER);
+	conf_val_t val = conf_get_txn(conf, txn, C_SRV, C_USER);
 	if (val.code == KNOT_EOK) {
-		const char *user = conf_str(&val);
+		char *user = strdup(conf_str(&val));
 
 		// Search for user:group separator.
 		char *sep_pos = strchr(user, ':');
@@ -1326,58 +783,85 @@ void conf_user(
 			// Process group name.
 			struct group *grp = getgrnam(sep_pos + 1);
 			if (grp != NULL) {
-				new_gid = grp->gr_gid;
+				*gid = grp->gr_gid;
 			} else {
-				log_error("invalid group name '%s'", sep_pos + 1);
+				CONF_LOG(LOG_ERR, "invalid group name '%s'",
+				         sep_pos + 1);
+				free(user);
+				return KNOT_EINVAL;
 			}
 
 			// Cut off group part.
 			*sep_pos = '\0';
+		} else {
+			*gid = getgid();
 		}
 
 		// Process user name.
 		struct passwd *pwd = getpwnam(user);
 		if (pwd != NULL) {
-			new_uid = pwd->pw_uid;
+			*uid = pwd->pw_uid;
 		} else {
-			log_error("invalid user name '%s'", user);
+			CONF_LOG(LOG_ERR, "invalid user name '%s'", user);
+			free(user);
+			return KNOT_EINVAL;
 		}
-	}
 
-	*uid = new_uid;
-	*gid = new_gid;
+		free(user);
+		return KNOT_EOK;
+	} else if (val.code == KNOT_ENOENT) {
+		*uid = getuid();
+		*gid = getgid();
+		return KNOT_EOK;
+	} else {
+		return val.code;
+	}
 }
 
-conf_remote_t conf_remote(
+conf_remote_t conf_remote_txn(
 	conf_t *conf,
-	conf_val_t *id)
+	namedb_txn_t *txn,
+	conf_val_t *id,
+	size_t index)
 {
+	assert(id != NULL && id->item != NULL);
+	assert(id->item->type == YP_TSTR ||
+	       (id->item->type == YP_TREF &&
+	        id->item->var.r.ref->var.g.id->type == YP_TSTR));
+
 	conf_remote_t out = { { AF_UNSPEC } };
 
-	conf_val_t rundir_val = conf_get(conf, C_SRV, C_RUNDIR);
+	conf_val_t rundir_val = conf_get_txn(conf, txn, C_SRV, C_RUNDIR);
 	char *rundir = conf_abs_path(&rundir_val, NULL);
 
-	// Get remote address.
-	conf_val_t val = conf_id_get(conf, C_RMT, C_ADDR, id);
-	if (val.code != KNOT_EOK) {
-		log_error("invalid remote in configuration");
-		return out;
+	// Get indexed remote address.
+	conf_val_t val = conf_id_get_txn(conf, txn, C_RMT, C_ADDR, id);
+	for (size_t i = 0; val.code == KNOT_EOK && i < index; i++) {
+		conf_val_next(&val);
 	}
+	// Index overflow causes empty socket.
 	out.addr = conf_addr(&val, rundir);
 
-	// Get outgoing address (optional).
-	val = conf_id_get(conf, C_RMT, C_VIA, id);
-	out.via = conf_addr(&val, rundir);
+	// Get outgoing address if family matches (optional).
+	val = conf_id_get_txn(conf, txn, C_RMT, C_VIA, id);
+	while (val.code == KNOT_EOK) {
+		struct sockaddr_storage via = conf_addr(&val, rundir);
+		if (via.ss_family == out.addr.ss_family) {
+			out.via = conf_addr(&val, rundir);
+			break;
+		}
+		conf_val_next(&val);
+	}
 
 	// Get TSIG key (optional).
-	conf_val_t key_id = conf_id_get(conf, C_RMT, C_KEY, id);
+	conf_val_t key_id = conf_id_get_txn(conf, txn, C_RMT, C_KEY, id);
 	if (key_id.code == KNOT_EOK) {
 		out.key.name = (knot_dname_t *)conf_dname(&key_id);
 
-		val = conf_id_get(conf, C_KEY, C_ALG, &key_id);
+		val = conf_id_get_txn(conf, txn, C_KEY, C_ALG, &key_id);
 		out.key.algorithm = conf_opt(&val);
 
-		val = conf_id_get(conf, C_KEY, C_SECRET, &key_id);
+		val = conf_id_get_txn(conf, txn, C_KEY, C_SECRET, &key_id);
 		conf_data(&val);
 		out.key.secret.data = (uint8_t *)val.data;
 		out.key.secret.size = val.len;

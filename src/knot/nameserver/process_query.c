@@ -239,22 +239,26 @@ static int answer_edns_init(const knot_pkt_t *query, knot_pkt_t *resp,
 
 	/* Append NSID if requested and available. */
 	val = conf_get(conf(), C_SRV, C_NSID);
-	if (knot_edns_has_nsid(query->opt_rr) && val.code == KNOT_EOK) {
+	if (knot_edns_has_nsid(query->opt_rr)) {
 		conf_data(&val);
-		const uint8_t *data = val.data;
-		uint16_t len = val.len;
-
-		/* Empty data means automatic value. */
-		if (val.len == 0) {
-			data = (uint8_t *)conf()->hostname;
-			len = strlen(conf()->hostname);
-		}
-
-		ret = knot_edns_add_option(&qdata->opt_rr,
-		                           KNOT_EDNS_OPTION_NSID, len, data,
-		                           qdata->mm);
-		if (ret != KNOT_EOK) {
-			return ret;
+		if (val.code != KNOT_EOK) {
+			ret = knot_edns_add_option(&qdata->opt_rr,
+			                           KNOT_EDNS_OPTION_NSID,
+			                           strlen(conf()->hostname),
+			                           (uint8_t *)conf()->hostname,
+			                           qdata->mm);
+			if (ret != KNOT_EOK) {
+				return ret;
+			}
+		} else if (val.len > 0) {
+			ret = knot_edns_add_option(&qdata->opt_rr,
+			                           KNOT_EDNS_OPTION_NSID,
+			                           val.len,
+			                           val.data,
+			                           qdata->mm);
+			if (ret != KNOT_EOK) {
+				return ret;
+			}
 		}
 	}
 
@@ -552,7 +556,7 @@ bool process_query_acl_check(const knot_dname_t *zone_name, acl_action_t action,
 {
 	knot_pkt_t *query = qdata->query;
 	const struct sockaddr_storage *query_source = qdata->param->remote;
-	knot_tsig_key_t tsig = { NULL };
+	knot_tsig_key_t tsig = { 0 };
 
 	/* Skip if already checked and valid. */
 	if (qdata->sign.tsig_key.name != NULL) {

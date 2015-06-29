@@ -17,17 +17,15 @@
 #include "knot/modules/synth_record.h"
 #include "knot/nameserver/process_query.h"
 #include "knot/nameserver/internet.h"
-#include "knot/conf/confdb.h"
-#include "knot/conf/tools.h"
 #include "knot/common/log.h"
 #include "libknot/descriptor.h"
 
 /* Module configuration scheme. */
-#define MOD_ADDR	"\x07""address"
+#define MOD_NET		"\x07""network"
+#define MOD_ORIGIN	"\x06""origin"
 #define MOD_PREFIX	"\x06""prefix"
 #define MOD_TTL		"\x03""ttl"
 #define MOD_TYPE	"\x04""type"
-#define MOD_ZONE	"\x04""zone"
 
 /*! \brief Supported answer synthesis template types. */
 enum synth_template_type {
@@ -42,39 +40,40 @@ static const lookup_table_t synthetic_types[] = {
 	{ 0, NULL }
 };
 
-static int check_zone(
-	conf_args_t *args)
+const yp_item_t scheme_mod_synth_record[] = {
+	{ C_ID,       YP_TSTR,   YP_VNONE },
+	{ MOD_TYPE,   YP_TOPT,   YP_VOPT = { synthetic_types, SYNTH_NULL } },
+	{ MOD_PREFIX, YP_TSTR,   YP_VNONE },
+	{ MOD_ORIGIN, YP_TDNAME, YP_VNONE },
+	{ MOD_TTL,    YP_TINT,   YP_VINT = { 0, UINT32_MAX, 3600, YP_STIME } },
+	{ MOD_NET,    YP_TNET,   YP_VNONE },
+	{ C_COMMENT,  YP_TSTR,   YP_VNONE },
+	{ NULL }
+};
+
+int check_mod_synth_record(conf_check_t *args)
 {
-	conf_val_t val = { NULL };
+	const char *err_str = "origin with non-reverse type";
 
-	val.code = conf_db_get(args->conf, args->txn, C_MOD_SYNTH_RECORD,
-	                       MOD_TYPE, args->id, args->id_len, &val);
-	if (val.code != KNOT_EOK) {
-		return val.code;
-	}
+	conf_val_t type = conf_rawid_get_txn(args->conf, args->txn, C_MOD_SYNTH_RECORD,
+	                                    MOD_TYPE, args->previous->id,
+	                                    args->previous->id_len);
+	conf_val_t origin = conf_rawid_get_txn(args->conf, args->txn, C_MOD_SYNTH_RECORD,
+	                                    MOD_ORIGIN, args->previous->id,
+	                                    args->previous->id_len);
 
-	// Only reverse module can have a zone specified.
-	if (conf_opt(&val) != SYNTH_REVERSE) {
+	// Origin is required only with reverse zone.
+	if (conf_opt(&type) != SYNTH_REVERSE && conf_dname(&origin) != NULL) {
+		*args->err_str = err_str;
 		return KNOT_EINVAL;
 	}
 
 	return KNOT_EOK;
 }
 
-const yp_item_t scheme_mod_synth_record[] = {
-	{ C_ID,       YP_TSTR,   YP_VNONE },
-	{ MOD_TYPE,   YP_TOPT,   YP_VOPT = { synthetic_types, SYNTH_NULL } },
-	{ MOD_PREFIX, YP_TSTR,   YP_VNONE },
-	{ MOD_ZONE,   YP_TDNAME, YP_VNONE, YP_FNONE, { check_zone } },
-	{ MOD_TTL,    YP_TINT,   YP_VINT = { 0, UINT32_MAX, 3600, YP_STIME } },
-	{ MOD_ADDR,   YP_TNET,   YP_VNONE },
-	{ C_COMMENT,  YP_TSTR,   YP_VNONE },
-	{ NULL }
-};
-
 /* Defines. */
 #define ARPA_ZONE_LABELS 2
-#define MODULE_ERR(msg...) log_error("module 'synth_record', " msg)
+#define MODULE_ERR(msg, ...) log_error("module 'synth_record', " msg, ##__VA_ARGS__)
 
 /*!
  * \brief Synthetic response template.
@@ -86,7 +85,7 @@ typedef struct synth_template {
 	char *zone;
 	uint32_t ttl;
 	struct sockaddr_storage addr;
-	unsigned mask;
+	int mask;
 } synth_template_t;
 
 /*! \brief Substitute all occurences of given character. */
@@ -413,12 +412,12 @@ int synth_record_load(struct query_plan *plan, struct query_module *self)
 	}
 	tpl->prefix = strdup(prefix);
 
-	/* Set zone if generating reverse record. */
+	/* Set origin if generating reverse record. */
 	if (tpl->type == SYNTH_REVERSE) {
-		val = conf_mod_get(self->config, MOD_ZONE, self->id);
+		val = conf_mod_get(self->config, MOD_ORIGIN, self->id);
 		if (val.code != KNOT_EOK) {
 			if (val.code == KNOT_EINVAL) {
-				MODULE_ERR("no zone for '%s'", self->id->data);
+				MODULE_ERR("no origin for '%s'", self->id->data);
 			}
 			free(tpl->prefix);
 			mm_free(self->mm, tpl);
@@ -448,10 +447,10 @@ int synth_record_load(struct query_plan *plan, struct query_module *self)
 	tpl->ttl = conf_int(&val);
 
 	/* Set address. */
-	val = conf_mod_get(self->config, MOD_ADDR, self->id);
+	val = conf_mod_get(self->config, MOD_NET, self->id);
 	if (val.code != KNOT_EOK) {
 		if (val.code == KNOT_EINVAL) {
-			MODULE_ERR("no address for '%s'", self->id->data);
+			MODULE_ERR("no network for '%s'", self->id->data);
 		}
 		free(tpl->zone);
 		free(tpl->prefix);

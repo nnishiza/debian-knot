@@ -58,8 +58,8 @@ struct ixfr_proc {
 };
 
 /* IXFR-out-specific logging (internal, expects 'qdata' variable set). */
-#define IXFROUT_LOG(severity, msg...) \
-	QUERY_LOG(severity, qdata, "IXFR, outgoing", msg)
+#define IXFROUT_LOG(severity, msg, ...) \
+	QUERY_LOG(severity, qdata, "IXFR, outgoing", msg, ##__VA_ARGS__)
 
 /*! \brief Helper macro for putting RRs into packet. */
 #define IXFR_SAFE_PUT(pkt, rr) \
@@ -158,7 +158,7 @@ static int ixfr_process_changeset(knot_pkt_t *pkt, const void *item,
 	struct query_data *qdata = ixfr->qdata; /*< Required for IXFROUT_LOG() */
 	const uint32_t serial_from = knot_soa_serial(&chgset->soa_from->rrs);
 	const uint32_t serial_to = knot_soa_serial(&chgset->soa_to->rrs);
-	IXFROUT_LOG(LOG_INFO, "serial %u -> %u", serial_from, serial_to);
+	IXFROUT_LOG(LOG_DEBUG, "serial %u -> %u", serial_from, serial_to);
 
 	return ret;
 }
@@ -212,7 +212,7 @@ static int ixfr_query_check(struct query_data *qdata)
 	NS_NEED_QNAME(qdata, their_soa->owner, KNOT_RCODE_FORMERR);
 
 	/* Check transcation security and zone contents. */
-	NS_NEED_AUTH(qdata, qdata->zone->name, ACL_ACTION_XFER);
+	NS_NEED_AUTH(qdata, qdata->zone->name, ACL_ACTION_TRANSFER);
 	NS_NEED_ZONE_CONTENTS(qdata, KNOT_RCODE_SERVFAIL); /* Check expiration. */
 
 	return KNOT_STATE_DONE;
@@ -331,8 +331,8 @@ static int ixfr_answer_soa(knot_pkt_t *pkt, struct query_data *qdata)
 /* ------------------------- IXFR-in processing ----------------------------- */
 
 /* IXFR-in-specific logging (internal, expects 'adata' variable set). */
-#define IXFRIN_LOG(severity, msg...) \
-	ANSWER_LOG(severity, adata, "IXFR, incoming", msg)
+#define IXFRIN_LOG(severity, msg, ...) \
+	ANSWER_LOG(severity, adata, "IXFR, incoming", msg, ##__VA_ARGS__)
 
 /*! \brief Checks whether server responded with AXFR-style IXFR. */
 static bool ixfr_is_axfr(const knot_pkt_t *pkt)

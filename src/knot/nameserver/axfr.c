@@ -110,7 +110,7 @@ static int axfr_query_check(struct query_data *qdata)
 {
 	/* Check valid zone, transaction security and contents. */
 	NS_NEED_ZONE(qdata, KNOT_RCODE_NOTAUTH);
-	NS_NEED_AUTH(qdata, qdata->zone->name, ACL_ACTION_XFER);
+	NS_NEED_AUTH(qdata, qdata->zone->name, ACL_ACTION_TRANSFER);
 	/* Check expiration. */
 	NS_NEED_ZONE_CONTENTS(qdata, KNOT_RCODE_SERVFAIL);
 
@@ -209,8 +209,8 @@ int xfr_process_list(knot_pkt_t *pkt, xfr_put_cb process_item,
 }
 
 /* AXFR-specific logging (internal, expects 'qdata' variable set). */
-#define AXFROUT_LOG(severity, msg...) \
-	QUERY_LOG(severity, qdata, "AXFR, outgoing", msg)
+#define AXFROUT_LOG(severity, msg, ...) \
+	QUERY_LOG(severity, qdata, "AXFR, outgoing", msg, ##__VA_ARGS__)
 
 int axfr_query_process(knot_pkt_t *pkt, struct query_data *qdata)
 {
@@ -307,8 +307,8 @@ static int axfr_answer_init(struct answer_data *data)
 }
 
 /* AXFR-specific logging (internal, expects 'adata' variable set). */
-#define AXFRIN_LOG(severity, msg...) \
-	ANSWER_LOG(severity, adata, "AXFR, incoming", msg)
+#define AXFRIN_LOG(severity, msg, ...) \
+	ANSWER_LOG(severity, adata, "AXFR, incoming", msg, ##__VA_ARGS__)
 
 static int axfr_answer_finalize(struct answer_data *adata)
 {
@@ -385,7 +385,7 @@ int axfr_answer_process(knot_pkt_t *pkt, struct answer_data *adata)
 	if (rcode != KNOT_RCODE_NOERROR) {
 		lookup_table_t *lut = lookup_by_id(knot_rcode_names, rcode);
 		if (lut != NULL) {
-			AXFRIN_LOG(LOG_ERR, "server responded with %s", lut->name);
+			AXFRIN_LOG(LOG_WARNING, "server responded with %s", lut->name);
 		}
 		return KNOT_STATE_FAIL;
 	}
@@ -397,7 +397,7 @@ int axfr_answer_process(knot_pkt_t *pkt, struct answer_data *adata)
 
 		int ret = axfr_answer_init(adata);
 		if (ret != KNOT_EOK) {
-			AXFRIN_LOG(LOG_ERR, "failed (%s)", knot_strerror(ret));
+			AXFRIN_LOG(LOG_WARNING, "failed (%s)", knot_strerror(ret));
 			return KNOT_STATE_FAIL;
 		}
 	} else {

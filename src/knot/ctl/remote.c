@@ -174,10 +174,10 @@ static int remote_zone_refresh(zone_t *zone, remote_cmdargs_t *a)
 	UNUSED(a);
 
 	rcu_read_lock();
-	bool is_master = zone_is_master(zone);
+	bool is_slave = zone_is_slave(zone);
 	rcu_read_unlock();
 
-	if (is_master) {
+	if (!is_slave) {
 		return KNOT_EINVAL;
 	}
 
@@ -200,10 +200,10 @@ static int remote_zone_retransfer(zone_t *zone, remote_cmdargs_t *a)
 	UNUSED(a);
 
 	rcu_read_lock();
-	bool is_master = zone_is_master(zone);
+	bool is_slave = zone_is_slave(zone);
 	rcu_read_unlock();
 
-	if (is_master) {
+	if (!is_slave) {
 		return KNOT_EINVAL;
 	}
 
@@ -217,10 +217,7 @@ static int remote_zone_flush(zone_t *zone, remote_cmdargs_t *a)
 {
 	UNUSED(a);
 
-	if (zone == NULL) {
-		return KNOT_EINVAL;
-	}
-
+	zone->flags |= ZONE_FORCE_FLUSH;
 	zone_events_schedule(zone, ZONE_EVENT_FLUSH, ZONE_EVENT_NOW);
 	return KNOT_EOK;
 }
@@ -231,11 +228,11 @@ static int remote_zone_sign(zone_t *zone, remote_cmdargs_t *a)
 	UNUSED(a);
 
 	rcu_read_lock();
-	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_ENABLE, zone->name);
+	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_SIGNING, zone->name);
 	bool dnssec_enable = conf_bool(&val);
 	rcu_read_unlock();
 
-	if (zone == NULL || !dnssec_enable) {
+	if (!dnssec_enable) {
 		return KNOT_EINVAL;
 	}
 
@@ -358,14 +355,14 @@ static int remote_zonestatus(zone_t *zone, remote_cmdargs_t *a)
 	char dnssec_buf[128] = { '\0' };
 	char *zone_name = knot_dname_to_str_alloc(zone->name);
 
-	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_ENABLE, zone->name);
+	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_SIGNING, zone->name);
 	bool dnssec_enable = conf_bool(&val);
-	bool is_master = zone_is_master(zone);
+	bool is_slave = zone_is_slave(zone);
 
 	int n = snprintf(buf, sizeof(buf),
 	                 "%s\ttype=%s | serial=%u | %s %s | %s %s\n",
 	                 zone_name,
-	                 is_master ? "master" : "slave",
+	                 is_slave ? "slave" : "master",
 	                 serial,
 	                 next_name,
 	                 when,
@@ -400,7 +397,7 @@ static int remote_c_zonestatus(server_t *s, remote_cmdargs_t* a)
 	if (a->argc == 0) {
 		knot_zonedb_foreach(s->zone_db, remote_zonestatus, a);
 	} else {
-		remote_rdata_apply(s, a, &remote_zonestatus);
+		remote_rdata_apply(s, a, remote_zonestatus);
 	}
 	rcu_read_unlock();
 
@@ -424,7 +421,7 @@ static int remote_c_refresh(server_t *s, remote_cmdargs_t* a)
 		knot_zonedb_foreach(s->zone_db, remote_zone_refresh, NULL);
 	} else {
 		/* Refresh specific zones. */
-		remote_rdata_apply(s, a, &remote_zone_refresh);
+		remote_rdata_apply(s, a, remote_zone_refresh);
 	}
 	rcu_read_unlock();
 
@@ -446,7 +443,7 @@ static int remote_c_retransfer(server_t *s, remote_cmdargs_t* a)
 	} else {
 		rcu_read_lock();
 		/* Retransfer specific zones. */
-		remote_rdata_apply(s, a, &remote_zone_retransfer);
+		remote_rdata_apply(s, a, remote_zone_retransfer);
 		rcu_read_unlock();
 	}
 
@@ -472,7 +469,7 @@ static int remote_c_flush(server_t *s, remote_cmdargs_t* a)
 		knot_zonedb_foreach(s->zone_db, remote_zone_flush, NULL);
 	} else {
 		/* Flush specific zones. */
-		remote_rdata_apply(s, a, &remote_zone_flush);
+		remote_rdata_apply(s, a, remote_zone_flush);
 	}
 	rcu_read_unlock();
 
@@ -483,17 +480,17 @@ static int remote_c_flush(server_t *s, remote_cmdargs_t* a)
  * \brief Remote command 'signzone' handler.
  *
  */
-static int remote_c_signzone(server_t *server, remote_cmdargs_t* arguments)
+static int remote_c_signzone(server_t *s, remote_cmdargs_t* a)
 {
 	dbg_server("remote: %s\n", __func__);
 
-	if (arguments->argc == 0) {
+	if (a->argc == 0) {
 		/* Resign all. */
 		return KNOT_CTL_ARG_REQ;
 	} else {
 		rcu_read_lock();
 		/* Resign specific zones. */
-		remote_rdata_apply(server, arguments, remote_zone_sign);
+		remote_rdata_apply(s, a, remote_zone_sign);
 		rcu_read_unlock();
 	}
 
@@ -510,7 +507,7 @@ static int remote_c_signzone(server_t *server, remote_cmdargs_t* arguments)
 static int remote_senderr(int c, uint8_t *qbuf, size_t buflen)
 {
 	rcu_read_lock();
-	conf_val_t val = conf_get(conf(), C_SRV, C_MAX_CONN_REPLY);
+	conf_val_t val = conf_get(conf(), C_SRV, C_TCP_REPLY_TIMEOUT);
 	struct timeval timeout = { conf_int(&val), 0 };
 	rcu_read_unlock();
 
@@ -553,7 +550,7 @@ int remote_bind(struct sockaddr_storage *addr)
 	if (listen(sock, TCP_BACKLOG_SIZE) != 0) {
 		log_error("remote control, failed to listen on '%s'", addr_str);
 		close(sock);
-		return knot_map_errno(EADDRINUSE);
+		return knot_map_errno();
 	}
 
 	return sock;
@@ -656,7 +653,7 @@ static int remote_send_chunk(int c, knot_pkt_t *query, const char* d, uint16_t l
 	}
 
 	rcu_read_lock();
-	conf_val_t val = conf_get(conf(), C_SRV, C_MAX_CONN_REPLY);
+	conf_val_t val = conf_get(conf(), C_SRV, C_TCP_REPLY_TIMEOUT);
 	struct timeval timeout = { conf_int(&val), 0 };
 	rcu_read_unlock();
 
@@ -738,6 +735,7 @@ int remote_answer(int sock, server_t *s, knot_pkt_t *pkt)
 	remote_cmdargs_t args = { 0 };
 	int ret = cmdargs_init(&args);
 	if (ret != KNOT_EOK) {
+		free(cmd);
 		return ret;
 	}
 
@@ -912,7 +910,7 @@ int remote_process(server_t *s, struct sockaddr_storage *ctl_addr, int sock,
 		sockaddr_tostr(addr_str, sizeof(addr_str), &ss);
 
 		/* Prepare tsig parameters. */
-		knot_tsig_key_t tsig = { NULL };
+		knot_tsig_key_t tsig = { 0 };
 		if (pkt->tsig_rr) {
 			tsig.name = pkt->tsig_rr->owner;
 			tsig.algorithm = knot_tsig_rdata_alg(pkt->tsig_rr);
@@ -921,7 +919,7 @@ int remote_process(server_t *s, struct sockaddr_storage *ctl_addr, int sock,
 		/* Check ACL. */
 		rcu_read_lock();
 		conf_val_t acl = conf_get(conf(), C_CTL, C_ACL);
-		bool allowed = acl_allowed(&acl, ACL_ACTION_CNTL, &ss, &tsig);
+		bool allowed = acl_allowed(&acl, ACL_ACTION_CONTROL, &ss, &tsig);
 		rcu_read_unlock();
 
 		if (!allowed) {

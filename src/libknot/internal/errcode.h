@@ -69,6 +69,7 @@ enum knot_error {
 	KNOT_EZONENOENT,
 	KNOT_ENOZONE,
 	KNOT_ENONODE,
+	KNOT_ENOMASTER,
 	KNOT_EDNAMEPTR,
 	KNOT_EPAYLOAD,
 	KNOT_EPREREQ,
@@ -125,7 +126,9 @@ enum knot_error {
 
 	/* Yparser errors. */
 	KNOT_YP_EINVAL_ITEM,
+	KNOT_YP_EINVAL_ID,
 	KNOT_YP_EINVAL_DATA,
+	KNOT_YP_EINVAL_INDENT,
 	KNOT_YP_ENOTSUP_DATA,
 	KNOT_YP_ENOTSUP_ID,
 	KNOT_YP_ENODATA,
@@ -145,13 +148,8 @@ enum knot_error {
 /*!
  * \brief Get a POSIX errno mapped to Knot error code.
  *
- * \internal
- *
- * \param fallback  Falback error code.
- * \param arg0...   Error codes allowed for lookup, list must be terminated by 0.
- *
- * \return Mapped errno or fallback error code.
+ * \return Mapped errno or KNOT_ERROR if unknown.
  */
-int knot_map_errno_internal(int fallback, int arg0, ...);
+int knot_map_errno(void);
 
 /*! @} */

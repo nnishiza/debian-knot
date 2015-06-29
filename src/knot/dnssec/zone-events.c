@@ -47,19 +47,19 @@ static int sign_init(const zone_contents_t *zone, int flags, kdnssec_ctx_t *ctx)
 
 	conf_val_t val = conf_zone_get(conf(), C_STORAGE, zone_name);
 	char *storage = conf_abs_path(&val, NULL);
-	val = conf_zone_get(conf(), C_DNSSEC_KEYDIR, zone_name);
-	char *keydir = conf_abs_path(&val, storage);
+	val = conf_zone_get(conf(), C_KASP_DB, zone_name);
+	char *kasp_db = conf_abs_path(&val, storage);
 	free(storage);
 
 	char *zone_name_str = knot_dname_to_str_alloc(zone_name);
 	if (zone_name_str == NULL) {
-		free(keydir);
+		free(kasp_db);
 		return KNOT_ENOMEM;
 	}
 
-	int r = kdnssec_ctx_init(ctx, keydir, zone_name_str);
+	int r = kdnssec_ctx_init(ctx, kasp_db, zone_name_str);
 	free(zone_name_str);
-	free(keydir);
+	free(kasp_db);
 	if (r != KNOT_EOK) {
 		return r;
 	}
@@ -157,7 +157,7 @@ static uint32_t schedule_next(kdnssec_ctx_t *kctx, const zone_keyset_t *keyset,
 
 	// DNSKEY modification
 
-	uint32_t dnskey_update = knot_get_next_zone_key_event(keyset);
+	uint32_t dnskey_update = MIN(MAX(knot_get_next_zone_key_event(keyset), 0), UINT32_MAX);
 
 	// zone events
 

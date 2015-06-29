@@ -1,20 +1,44 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.99.1], [knot-dns@labs.nic.cz])
-AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
+AC_INIT([knot], [2.0.0], [knot-dns@labs.nic.cz])
+AM_INIT_AUTOMAKE([gnits subdir-objects no-dist-gzip dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
 AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_USE_SYSTEM_EXTENSIONS([_GNU_SOURCE])
 AC_CANONICAL_HOST
-AX_SET_VERSION_INFO
+
+# Here are a set of rules to help you update your library version
+# information:
+#
+# 1. Start with version information of ‘0:0:0’ for each libtool library.
+#
+# 2. Update the version information only immediately before a public
+#    release of your software. More frequent updates are unnecessary,
+#    and only guarantee that the current interface number gets larger
+#    faster.
+#
+# 3. If the library source code has changed at all since the last
+#    update, then increment revision (‘c:r:a’ becomes ‘c:r+1:a’).
+#
+# 4. If any interfaces have been added, removed, or changed since the
+#    last update, increment current, and set revision to 0.
+#
+# 5. If any interfaces have been added since the last public release,
+#    then increment age.
+#
+# 6. If any interfaces have been removed or changed since the last
+#    public release, then set age to 0.
+
+AC_SUBST([libknot_VERSION_INFO],["-version-info 1:0:0"])
+AC_SUBST([libdnssec_VERSION_INFO],["-version-info 0:0:0"])
+AC_SUBST([libzscanner_VERSION_INFO],["-version-info 0:1:0"])
 
 # Automatically update release date based on configure.ac date
-AS_CASE([$host_os],
-    [linux*],[release_date=`date +"%Y-%m-%d" -r configure.ac`],
-    [*],[release_date=$(date -r "$(stat -f %m configure.ac)" +"%Y-%m-%d")])
+AC_PROG_SED
+release_date=$($SED -n 's/^Knot DNS .* (\(.*\))/\1/p;q;' ${srcdir}/NEWS)
 AC_SUBST([RELEASE_DATE], $release_date)
 
 # Set compiler compatibility flags
@@ -33,11 +57,12 @@ AC_PROG_LIBTOOL
 LT_INIT
 
 # Use pkg-config
+PKG_PROG_PKG_CONFIG
 m4_ifdef([PKG_INSTALLDIR], [PKG_INSTALLDIR], [AC_SUBST([pkgconfigdir], ['${libdir}/pkgconfig'])])
 AC_CONFIG_FILES([src/libknot.pc
-		 src/libknot-int.pc
-		 src/libknot-yparser.pc
-		 src/dnssec/libdnssec.pc])
+		 src/dnssec/libdnssec.pc
+		 src/zscanner/libzscanner.pc
+		 ])
 
 # Build Knot DNS daemon
 AC_ARG_ENABLE([daemon],
@@ -60,6 +85,8 @@ AM_CONDITIONAL([HAVE_DOCS], [test "$enable_documentation" = "yes"])
 
 AC_PROG_INSTALL
 
+AX_CC_LLVM
+
 AC_ARG_ENABLE([fastparser],
     AS_HELP_STRING([--disable-fastparser], [Disable use of fastest zone parser]),[],[
     # Set zone parser type - fastest on release build, slowest on dev build
@@ -69,6 +96,14 @@ AC_ARG_ENABLE([fastparser],
     	enable_fastparser=yes
     	])
     ])
+
+AS_IF([test "$enable_fastparser" = "yes"],[
+    AS_IF([test "${CC_LLVM}" = "yes"],[
+        AC_MSG_WARN([LLVM based compiler detected; disabling fastest zone parser, see https://gitlab.labs.nic.cz/labs/knot/issues/351])
+        enable_fastparser=no
+        ])
+    ])
+
 AM_CONDITIONAL([FAST_PARSER], [test "$enable_fastparser" = "yes"])
 
 # GnuTLS crypto backend
@@ -167,8 +202,6 @@ AC_SUBST(config_dir)
 #########################################
 # Dependencies needed for Knot DNS daemon
 #########################################
-AS_IF([test "$enable_daemon" = "yes"],[
-])
 
 # Systemd integration
 AC_ARG_ENABLE([systemd],
@@ -177,7 +210,7 @@ AC_ARG_ENABLE([systemd],
 
 AS_IF([test "$enable_daemon" = "yes"],[
 
-AS_IF([test "$enable_system" != "no"],[
+AS_IF([test "$enable_systemd" != "no"],[
   AS_CASE([$enable_systemd],
     [auto],[PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal], [enable_systemd=yes], [enable_systemd=no])],
     [yes],[PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal])],
@@ -196,8 +229,6 @@ AS_IF([test "$enable_daemon" = "yes"],[
 
 AS_IF([test "$with_urcu" != "no"], [
   PKG_CHECK_MODULES([liburcu], liburcu, [
-    CPPFLAGS="$CPPFLAGS $liburcu_CFLAGS"
-    LIBS="$LIBS $liburcu_LIBS"
     liburcu_PKGCONFIG="liburcu >= 0.4.0"
     AC_SUBST([liburcu_PKGCONFIG])
     with_urcu=yes
@@ -219,6 +250,7 @@ AS_IF([test "$with_urcu" != "no"], [
 
       AC_SEARCH_LIBS([rcu_set_pointer_sym], [urcu], [
         with_urcu=yes
+	liburcu_LIBS="$liburcu_LIBS -lurcu"
 	AC_SUBST([liburcu_CFLAGS])
 	AC_SUBST([liburcu_LIBS])
 	break
@@ -230,6 +262,8 @@ AS_IF([test "$with_urcu" != "no"], [
 	unset ac_cv_search_rcu_set_pointer_sym
       ])
     done
+    CPPFLAGS="$save_CPPFLAGS"
+    LIBS="$save_LIBS"
 
     AS_IF([test "$with_urcu" = "no"],[
       AC_MSG_ERROR([liburcu is required])
@@ -244,9 +278,9 @@ opt_dnstap=no
 AS_IF([test "$enable_daemon" = "yes"],[
 dnl Check for dnstap.
 dt_DNSTAP([
-    LIBS="$LIBS $DNSTAP_LIBS"
-    CPPFLAGS="$CPPFLAGS $DNSTAP_CFLAGS"
     AC_DEFINE([USE_DNSTAP], [1], [Define to 1 to enable dnstap support])
+    AC_SUBST(DNSTAP_CFLAGS)
+    AC_SUBST(DNSTAP_LIBS)
     ])
 ])
 
@@ -267,9 +301,9 @@ AS_IF([test "$with_lmdb" != "no"],[
     save_LIBS=$LIBS
     for try_lmdb in "$with_lmdb" "" "/usr/local"; do
 
-      AS_IF([test -d "$try_openssl"], [
-        lmdb_CFLAGS="-I$with_lmdb/include"
-        lmdb_LIBS=""
+      AS_IF([test -d "$try_lmdb"], [
+        lmdb_CFLAGS="-I$try_lmdb/include"
+        lmdb_LIBS="-L$try_lmdb/lib"
         ],[
         lmdb_CFLAGS=""
         lmdb_LIBS=""
@@ -281,7 +315,7 @@ AS_IF([test "$with_lmdb" != "no"],[
       AC_SEARCH_LIBS([mdb_env_open], [lmdb], [
           AC_CHECK_HEADERS([lmdb.h], [], [
               AC_ERROR([lmdb headers not found in `$try_lmdb', is your installation complete?])])
-	  lmdb_LIBS="-llmdb"
+	  lmdb_LIBS="$lmdb_LIBS -llmdb"
           have_lmdb=yes
           break
           ],[
@@ -293,6 +327,8 @@ AS_IF([test "$with_lmdb" != "no"],[
       CPPFLAGS="$save_CPPFLAGS"
       LIBS="$save_LIBS"
     done
+    CPPFLAGS="$save_CPPFLAGS"
+    LIBS="$save_LIBS"
     ])
 
 AS_IF([test "$have_lmdb" != "no"],[
@@ -336,6 +372,24 @@ AS_IF([test "$with_libidn" != "no"],[
 
 ]) # Knot DNS utilities dependencies
 
+# Bash completions
+AC_ARG_WITH([bash-completions],
+  AC_HELP_STRING([--with-bash-completions=[DIR]], [Bash completions directory [default=auto]]),
+  [with_bash_completions="$withval"],
+  [with_bash_completions=auto]
+)
+AS_CASE([$with_bash_completions],
+  [auto], [PKG_CHECK_VAR([bash_completions_dir], [bash-completion], [completionsdir])],
+  [yes], [PKG_CHECK_VAR([bash_completions_dir], [bash-completion], [completionsdir], [], [AC_MSG_ERROR([bash completions not found])])],
+  [no], [bash_completions_dir=],
+  [bash_completions_dir="$with_bash_completions"]
+)
+AM_CONDITIONAL([HAVE_BASH_COMPLETIONS], [test -n "$bash_completions_dir"])
+AS_IF([test -n "$bash_completions_dir"],
+  [bash_completions_output="${bash_completions_dir}"],
+  [bash_completions_output=no]
+)
+
 AC_SEARCH_LIBS([pow], [m])
 AC_SEARCH_LIBS([pthread_create], [pthread], [], [AC_MSG_ERROR([pthreads not found])])
 AC_SEARCH_LIBS([dlopen], [dl])
@@ -367,9 +421,8 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread_np.h>]], [[cpuset_t set; CPU
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sched.h>]], [[cpuset_t* set = cpuset_create(); cpuset_destroy(set);]])],
 [AC_DEFINE(HAVE_CPUSET_NETBSD, 1, [Define if cpuset_t and cpuset(3) exists.])])
 
-# Hide all exported symbols by default
+# Prepare CFLAG_VISIBILITY to be used where needed
 gl_VISIBILITY()
-CPPFLAGS="$CPPFLAGS $CFLAG_VISIBILITY"
 
 # Add code coverage macro
 AX_CODE_COVERAGE
@@ -395,7 +448,6 @@ AM_CONDITIONAL([HAVE_MAKEINFO], test "$MAKEINFO" != "false")
 
 AC_CONFIG_FILES([Makefile
 		 doc/Makefile
-		 man/Makefile
 		 samples/Makefile
 		 libtap/Makefile
 		 src/Makefile
@@ -404,19 +456,8 @@ AC_CONFIG_FILES([Makefile
 		 src/dnstap/Makefile
 		 src/zscanner/Makefile
 		 src/dnssec/Makefile
-		 src/dnssec/man/Makefile
-		 src/dnssec/man/keymgr.8
-		 src/dnssec/man/knsec3hash.1
 		 src/dnssec/tests/Makefile
 		 src/dnssec/utils/Makefile
-		 doc/conf.py
-		 man/khost.1
-		 man/knotc.8
-		 man/knotd.8
-		 man/kdig.1
-		 man/knsupdate.1
-		 man/knot.conf.5
-		 man/knot1to2.1
 		 ])
 
 AC_OUTPUT
@@ -427,27 +468,28 @@ AC_MSG_RESULT([
     Target:   $host_os $host_cpu
     Compiler: ${CC}
     CFLAGS:   ${CFLAGS} ${CPPFLAGS}
-    LDFLAGS:  ${LDFLAGS}
-    LIBS:     ${LIBS}
+    LIBS:     ${LIBS} ${LDFLAGS}
+    LibURCU:  ${liburcu_LIBS} ${liburcu_CFLAGS}
+    GnuTLS:   ${gnutls_LIBS} ${gnutls_CFLAGS}
+    Jansson:  ${jansson_LIBS} ${jansson_CFLAGS}
+    LMDB:     ${enable_lmdb} ${lmdb_LIBS} ${lmdb_CFLAGS}
 
-    Prefix:      ${prefix}
-    Run dir:     ${run_dir}
-    Storage dir: ${storage_dir}
-    Config dir:  ${config_dir}
+    Prefix:		${prefix}
+    Run dir:		${run_dir}
+    Storage dir:	${storage_dir}
+    Config dir: 	${config_dir}
 
     Knot DNS libraries:     yes
     Knot DNS daemon:        ${enable_daemon}
     Knot DNS utils:         ${enable_utilities}
     Knot DNS documentation: ${enable_documentation}
 
-    Fast zone parser:      ${enable_fastparser}
-    Utilities with IDN:    ${with_libidn}
-    Systemd integration:   ${enable_systemd}
-    GnuTLS:                ${gnutls_CFLAGS} ${gnutls_LIBS}
-    Jansson:               ${jansson_CFLAGS} ${jansson_LIBS}
-    Dnstap support:        ${opt_dnstap}
-    Code coverage:         ${enable_code_coverage}
-    LMDB support:          ${enable_lmdb}
+    Fast zone parser:    ${enable_fastparser}
+    Utilities with IDN:  ${with_libidn}
+    Systemd integration: ${enable_systemd}
+    Dnstap support:      ${opt_dnstap}
+    Code coverage:       ${enable_code_coverage}
+    Bash completions:    ${bash_completions_output}
 
   Continue with 'make' command
 ])

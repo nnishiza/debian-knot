@@ -53,6 +53,59 @@ static void init_signal_started(void)
 #endif
 }
 
+static int make_daemon(int nochdir, int noclose)
+{
+	int fd, ret;
+
+	switch (fork()) {
+	case -1:
+		/* Error */
+		return -1;
+	case 0:
+		/* Forked */
+		break;
+	default:
+		/* Exit the main process */
+		_exit(0);
+	}
+
+	if (setsid() == -1) {
+		return -1;
+	}
+
+	if (!nochdir) {
+		ret = chdir("/");
+		if (ret == -1)
+			return errno;
+	}
+
+	if (!noclose) {
+		ret  = close(STDIN_FILENO);
+		ret += close(STDOUT_FILENO);
+		ret += close(STDERR_FILENO);
+		if (ret < 0) {
+			return errno;
+		}
+
+		fd = open("/dev/null", O_RDWR);
+		if (fd == -1) {
+			return errno;
+		}
+
+		if (dup2(fd, STDIN_FILENO) < 0) {
+			return errno;
+		}
+		if (dup2(fd, STDOUT_FILENO) < 0) {
+			return errno;
+		}
+		if (dup2(fd, STDERR_FILENO) < 0) {
+			return errno;
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief PID file cleanup handler. */
 static void pid_cleanup(char *pidfile)
 {
@@ -86,7 +139,7 @@ static void setup_signals(void)
 	action.sa_handler = interrupt_handle;
 
 	static sigset_t block_mask;
-	sigemptyset(&block_mask);
+	(void)sigemptyset(&block_mask);
 
 	int signals[] = { SIGALRM, SIGHUP, SIGINT, SIGPIPE, SIGTERM };
 	size_t count = sizeof(signals) / sizeof(*signals);
@@ -141,25 +194,21 @@ static void setup_capabilities(void)
 /*! \brief Event loop listening for signals and remote commands. */
 static void event_loop(server_t *server)
 {
-	/* Bind to control interface. */
 	uint8_t buf[KNOT_WIRE_MAX_PKTSIZE];
 	size_t buflen = sizeof(buf);
 
+	/* Read control socket configuration. */
 	conf_val_t listen_val = conf_get(conf(), C_CTL, C_LISTEN);
 	conf_val_t rundir_val = conf_get(conf(), C_SRV, C_RUNDIR);
 	char *rundir = conf_abs_path(&rundir_val, NULL);
 	struct sockaddr_storage addr = conf_addr(&listen_val, rundir);
 	free(rundir);
 
+	/* Bind to control interface (error logging is inside the function. */
 	int remote = remote_bind(&addr);
-	if (remote < 0) {
-		log_fatal("failed to bind control socket (%s)",
-		          knot_strerror(remote));
-		return;
-	}
 
 	sigset_t empty;
-	sigemptyset(&empty);
+	(void)sigemptyset(&empty);
 
 	/* Run event loop. */
 	for (;;) {
@@ -260,7 +309,7 @@ int main(int argc, char **argv)
 
 	/* Now check if we want to daemonize. */
 	if (daemonize) {
-		if (daemon(1, 0) != 0) {
+		if (make_daemon(1, 0) != 0) {
 			fprintf(stderr, "Daemonization failed, shutting down...\n");
 			return EXIT_FAILURE;
 		}
@@ -292,15 +341,17 @@ int main(int argc, char **argv)
 		if (ret != KNOT_EOK) {
 			log_fatal("failed to initialize configuration database "
 			          "(%s)", knot_strerror(ret));
+			log_close();
 			return EXIT_FAILURE;
 		}
 
 		/* Import the configuration file. */
 		ret = conf_import(new_conf, config_fn, true);
 		if (ret != KNOT_EOK) {
-			log_fatal("failed to load configuration file '%s' (%s)",
-			          config_fn, knot_strerror(ret));
+			log_fatal("failed to load configuration file (%s)",
+			          knot_strerror(ret));
 			conf_free(new_conf, false);
+			log_close();
 			return EXIT_FAILURE;
 		}
 
@@ -311,6 +362,7 @@ int main(int argc, char **argv)
 		if (ret != KNOT_EOK) {
 			log_fatal("failed to open configuration database '%s' "
 			          "(%s)", config_db, knot_strerror(ret));
+			log_close();
 			return EXIT_FAILURE;
 		}
 	}
@@ -320,6 +372,7 @@ int main(int argc, char **argv)
 	if (res != KNOT_EOK) {
 		log_fatal("failed to use configuration (%s)", knot_strerror(res));
 		conf_free(new_conf, false);
+		log_close();
 		return EXIT_FAILURE;
 	}
 
@@ -345,9 +398,10 @@ int main(int argc, char **argv)
 
 	/* Alter privileges. */
 	int uid, gid;
-	conf_user(conf(), &uid, &gid);
-	log_update_privileges(uid, gid);
-	if (proc_update_privileges(uid, gid) != KNOT_EOK) {
+	if (conf_user(conf(), &uid, &gid) != KNOT_EOK ||
+	    log_update_privileges(uid, gid) != KNOT_EOK ||
+	    proc_update_privileges(uid, gid) != KNOT_EOK) {
+		log_fatal("failed to drop privileges");
 		server_deinit(&server);
 		conf_free(conf(), false);
 		log_close();

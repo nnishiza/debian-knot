@@ -82,8 +82,8 @@ subdir = libtap
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
-	$(top_srcdir)/m4/ax_set_version_info.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
 	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
@@ -95,23 +95,17 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/src/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-ARFLAGS = cru
-AM_V_AR = $(am__v_AR_@AM_V@)
-am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
-am__v_AR_0 = @echo "  AR      " $@;
-am__v_AR_1 = 
-libtap_a_AR = $(AR) $(ARFLAGS)
-libtap_a_LIBADD =
+libtap_la_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
-am_libtap_a_OBJECTS = tap/basic.$(OBJEXT) tap/float.$(OBJEXT)
-libtap_a_OBJECTS = $(am_libtap_a_OBJECTS)
-runtests_SOURCES = runtests.c
-runtests_OBJECTS = runtests.$(OBJEXT)
-runtests_LDADD = $(LDADD)
+am_libtap_la_OBJECTS = tap/basic.lo tap/float.lo
+libtap_la_OBJECTS = $(am_libtap_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+runtests_SOURCES = runtests.c
+runtests_OBJECTS = runtests.$(OBJEXT)
+runtests_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -146,8 +140,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libtap_a_SOURCES) runtests.c
-DIST_SOURCES = $(libtap_a_SOURCES) runtests.c
+SOURCES = $(libtap_la_SOURCES) runtests.c
+DIST_SOURCES = $(libtap_la_SOURCES) runtests.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -183,6 +177,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
@@ -194,6 +189,8 @@ CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
+DNSTAP_CFLAGS = @DNSTAP_CFLAGS@
+DNSTAP_LIBS = @DNSTAP_LIBS@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -243,14 +240,12 @@ PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PROTOC_C = @PROTOC_C@
 RANLIB = @RANLIB@
 RELEASE_DATE = @RELEASE_DATE@
-RELEASE_INFO = @RELEASE_INFO@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SPHINXBUILD = @SPHINXBUILD@
 STRIP = @STRIP@
 VERSION = @VERSION@
-VERSION_INFO = @VERSION_INFO@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -263,6 +258,7 @@ am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
+bash_completions_dir = @bash_completions_dir@
 bindir = @bindir@
 build = @build@
 build_alias = @build_alias@
@@ -290,16 +286,19 @@ install_sh = @install_sh@
 jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
+libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
 libidn_CFLAGS = @libidn_CFLAGS@
 libidn_LIBS = @libidn_LIBS@
+libknot_VERSION_INFO = @libknot_VERSION_INFO@
 libprotobuf_c_CFLAGS = @libprotobuf_c_CFLAGS@
 libprotobuf_c_LIBS = @libprotobuf_c_LIBS@
 liburcu_CFLAGS = @liburcu_CFLAGS@
 liburcu_LIBS = @liburcu_LIBS@
 liburcu_PKGCONFIG = @liburcu_PKGCONFIG@
+libzscanner_VERSION_INFO = @libzscanner_VERSION_INFO@
 lmdb_CFLAGS = @lmdb_CFLAGS@
 lmdb_LIBS = @lmdb_LIBS@
 localedir = @localedir@
@@ -324,12 +323,12 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-libtap_a_SOURCES = \
+libtap_la_SOURCES = \
 	tap/basic.c tap/basic.h \
 	tap/float.c tap/float.h \
 	tap/macros.h
 
-check_LIBRARIES = libtap.a
+check_LTLIBRARIES = libtap.la
 EXTRA_DIST = \
 	tap/libtap.sh
 
@@ -368,21 +367,27 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
-clean-checkLIBRARIES:
-	-test -z "$(check_LIBRARIES)" || rm -f $(check_LIBRARIES)
+clean-checkLTLIBRARIES:
+	-test -z "$(check_LTLIBRARIES)" || rm -f $(check_LTLIBRARIES)
+	@list='$(check_LTLIBRARIES)'; \
+	locs=`for p in $$list; do echo $$p; done | \
+	      sed 's|^[^/]*$$|.|; s|/[^/]*$$||; s|$$|/so_locations|' | \
+	      sort -u`; \
+	test -z "$$locs" || { \
+	  echo rm -f $${locs}; \
+	  rm -f $${locs}; \
+	}
 tap/$(am__dirstamp):
 	@$(MKDIR_P) tap
 	@: > tap/$(am__dirstamp)
 tap/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) tap/$(DEPDIR)
 	@: > tap/$(DEPDIR)/$(am__dirstamp)
-tap/basic.$(OBJEXT): tap/$(am__dirstamp) tap/$(DEPDIR)/$(am__dirstamp)
-tap/float.$(OBJEXT): tap/$(am__dirstamp) tap/$(DEPDIR)/$(am__dirstamp)
+tap/basic.lo: tap/$(am__dirstamp) tap/$(DEPDIR)/$(am__dirstamp)
+tap/float.lo: tap/$(am__dirstamp) tap/$(DEPDIR)/$(am__dirstamp)
 
-libtap.a: $(libtap_a_OBJECTS) $(libtap_a_DEPENDENCIES) $(EXTRA_libtap_a_DEPENDENCIES) 
-	$(AM_V_at)-rm -f libtap.a
-	$(AM_V_AR)$(libtap_a_AR) libtap.a $(libtap_a_OBJECTS) $(libtap_a_LIBADD)
-	$(AM_V_at)$(RANLIB) libtap.a
+libtap.la: $(libtap_la_OBJECTS) $(libtap_la_DEPENDENCIES) $(EXTRA_libtap_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(LINK)  $(libtap_la_OBJECTS) $(libtap_la_LIBADD) $(LIBS)
 
 clean-checkPROGRAMS:
 	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
@@ -400,13 +405,14 @@ runtests$(EXEEXT): $(runtests_OBJECTS) $(runtests_DEPENDENCIES) $(EXTRA_runtests
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f tap/*.$(OBJEXT)
+	-rm -f tap/*.lo
 
 distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/runtests.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tap/$(DEPDIR)/basic.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@tap/$(DEPDIR)/float.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tap/$(DEPDIR)/basic.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tap/$(DEPDIR)/float.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -437,6 +443,7 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
+	-rm -rf tap/.libs tap/_libs
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -521,7 +528,7 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-	$(MAKE) $(AM_MAKEFLAGS) $(check_LIBRARIES) $(check_PROGRAMS)
+	$(MAKE) $(AM_MAKEFLAGS) $(check_LTLIBRARIES) $(check_PROGRAMS)
 check: check-am
 all-am: Makefile
 installdirs:
@@ -559,7 +566,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
+clean-am: clean-checkLTLIBRARIES clean-checkPROGRAMS clean-generic \
 	clean-libtool mostlyclean-am
 
 distclean: distclean-am
@@ -631,7 +638,7 @@ uninstall-am:
 .MAKE: check-am install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am check check-am clean \
-	clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
+	clean-checkLTLIBRARIES clean-checkPROGRAMS clean-generic \
 	clean-libtool cscopelist-am ctags ctags-am distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \

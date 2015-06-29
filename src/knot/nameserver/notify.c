@@ -43,8 +43,8 @@
 /*----------------------------------------------------------------------------*/
 
 /* NOTIFY-specific logging (internal, expects 'qdata' variable set). */
-#define NOTIFY_QLOG(severity, msg...) \
-	QUERY_LOG(severity, qdata, "NOTIFY, incoming", msg)
+#define NOTIFY_QLOG(severity, msg, ...) \
+	QUERY_LOG(severity, qdata, "NOTIFY, incoming", msg, ##__VA_ARGS__)
 
 static int notify_check_query(struct query_data *qdata)
 {
@@ -54,7 +54,7 @@ static int notify_check_query(struct query_data *qdata)
 	/* Check valid zone, transaction security. */
 	zone_t *zone = (zone_t *)qdata->zone;
 	NS_NEED_ZONE(qdata, KNOT_RCODE_NOTAUTH);
-	NS_NEED_AUTH(qdata, zone->name, ACL_ACTION_NOTF);
+	NS_NEED_AUTH(qdata, zone->name, ACL_ACTION_NOTIFY);
 
 	return KNOT_STATE_DONE;
 }
@@ -98,6 +98,7 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 
 	/* Incoming NOTIFY expires REFRESH timer and renews EXPIRE timer. */
 	zone_t *zone = (zone_t *)qdata->zone;
+	zone_set_preferred_master(zone, qdata->param->remote);
 	zone_events_schedule(zone, ZONE_EVENT_REFRESH, ZONE_EVENT_NOW);
 	int ret = zone_events_write_persistent(zone);
 	if (ret != KNOT_EOK) {
@@ -110,8 +111,8 @@ int notify_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 #undef NOTIFY_QLOG
 
 /* NOTIFY-specific logging (internal, expects 'adata' variable set). */
-#define NOTIFY_RLOG(severity, msg...) \
-	ANSWER_LOG(severity, adata, "NOTIFY, outgoing", msg)
+#define NOTIFY_RLOG(severity, msg, ...) \
+	ANSWER_LOG(severity, adata, "NOTIFY, outgoing", msg, ##__VA_ARGS__)
 
 int notify_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 {

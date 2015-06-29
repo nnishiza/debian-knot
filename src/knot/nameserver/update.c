@@ -38,8 +38,8 @@
 #include "libknot/processing/requestor.h"
 
 /* UPDATE-specific logging (internal, expects 'qdata' variable set). */
-#define UPDATE_LOG(severity, msg...) \
-	QUERY_LOG(severity, qdata, "DDNS", msg)
+#define UPDATE_LOG(severity, msg, ...) \
+	QUERY_LOG(severity, qdata, "DDNS", msg, ##__VA_ARGS__)
 
 static void init_qdata_from_request(struct query_data *qdata,
                                     const zone_t *zone,
@@ -238,7 +238,7 @@ static int process_normal(zone_t *zone, list_t *requests)
 	}
 	assert(new_contents);
 
-	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_ENABLE, zone->name);
+	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_SIGNING, zone->name);
 	bool dnssec_enable = conf_bool(&val);
 
 	// Sign the update.
@@ -341,21 +341,6 @@ static int process_requests(zone_t *zone, list_t *requests)
 
 static int forward_request(zone_t *zone, struct knot_request *request)
 {
-	/* Ignore if DNSSEC enabled. */
-	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_ENABLE, zone->name);
-	if (conf_bool(&val)) {
-		log_zone_notice(zone->name, "ignoring ddns forward due to "
-		                            "enabled automatic DNSSEC signing.");
-		return KNOT_EOK;
-	}
-
-	/* Create requestor instance. */
-	struct knot_requestor re;
-	knot_requestor_init(&re, NULL);
-
-	/* Fetch primary master. */
-	const conf_remote_t master = zone_master(zone);
-
 	/* Copy request and assign new ID. */
 	knot_pkt_t *query = knot_pkt_new(NULL, request->query->max_size, NULL);
 	int ret = knot_pkt_copy(query, request->query);
@@ -367,29 +352,54 @@ static int forward_request(zone_t *zone, struct knot_request *request)
 	knot_wire_set_id(query->wire, dnssec_random_uint16_t());
 	knot_tsig_append(query->wire, &query->size, query->max_size, query->tsig_rr);
 
-	/* Create a request. */
-	const struct sockaddr *dst = (const struct sockaddr *)&master.addr;
-	const struct sockaddr *src = (const struct sockaddr *)&master.via;
-	struct knot_request *req = knot_request_make(re.mm, dst, src, query, 0);
-	if (req == NULL) {
-		knot_pkt_free(&query);
-		return KNOT_ENOMEM;
+	/* Read the ddns master or the first master. */
+	conf_val_t remote = conf_zone_get(conf(), C_DDNS_MASTER, zone->name);
+	if (remote.code != KNOT_EOK) {
+		remote = conf_zone_get(conf(), C_MASTER, zone->name);
 	}
 
-	/* Prepare packet capture layer. */
-	struct capture_param param;
-	param.sink = request->resp;
-	knot_requestor_overlay(&re, LAYER_CAPTURE, &param);
+	/* Get the number of remote addresses. */
+	conf_val_t addr = conf_id_get(conf(), C_RMT, C_ADDR, &remote);
+	size_t addr_count = conf_val_count(&addr);
 
-	/* Enqueue and execute request. */
-	ret = knot_requestor_enqueue(&re, req);
-	if (ret == KNOT_EOK) {
-		conf_val_t val = conf_get(conf(), C_SRV, C_MAX_CONN_REPLY);
+	/* Try all remote addresses to forward the request to. */
+	for (size_t i = 0; i < addr_count; i++) {
+		conf_remote_t master = conf_remote(conf(), &remote, i);
+
+		/* Create requestor instance. */
+		struct knot_requestor re;
+		knot_requestor_init(&re, NULL);
+
+		/* Prepare packet capture layer. */
+		struct capture_param param;
+		param.sink = request->resp;
+		knot_requestor_overlay(&re, LAYER_CAPTURE, &param);
+
+		/* Create a request. */
+		const struct sockaddr *dst = (const struct sockaddr *)&master.addr;
+		const struct sockaddr *src = (const struct sockaddr *)&master.via;
+		struct knot_request *req = knot_request_make(re.mm, dst, src, query, 0);
+		if (req == NULL) {
+			knot_pkt_free(&query);
+			return KNOT_ENOMEM;
+		}
+
+		/* Enqueue the request. */
+		ret = knot_requestor_enqueue(&re, req);
+		if (ret != KNOT_EOK) {
+			knot_requestor_clear(&re);
+			continue;
+		}
+
+		/* Execute the request. */
+		conf_val_t val = conf_get(conf(), C_SRV, C_TCP_REPLY_TIMEOUT);
 		struct timeval tv = { conf_int(&val), 0 };
 		ret = knot_requestor_exec(&re, &tv);
+		knot_requestor_clear(&re);
+		if (ret == KNOT_EOK) {
+			break;
+		}
 	}
-
-	knot_requestor_clear(&re);
 
 	/* Restore message ID and TSIG. */
 	knot_wire_set_id(request->resp->wire, knot_wire_get_id(request->query->wire));
@@ -419,7 +429,7 @@ static void forward_requests(zone_t *zone, list_t *requests)
 static bool update_tsig_check(struct query_data *qdata, struct knot_request *req)
 {
 	// Check that ACL is still valid.
-	if (!process_query_acl_check(qdata->zone->name, ACL_ACTION_DDNS, qdata)) {
+	if (!process_query_acl_check(qdata->zone->name, ACL_ACTION_UPDATE, qdata)) {
 		UPDATE_LOG(LOG_WARNING, "ACL check failed");
 		knot_wire_set_rcode(req->resp->wire, qdata->rcode);
 		return false;
@@ -445,7 +455,7 @@ static bool update_tsig_check(struct query_data *qdata, struct knot_request *req
 static void send_update_response(const zone_t *zone, struct knot_request *req)
 {
 	if (req->resp) {
-		if (zone_is_master(zone)) {
+		if (!zone_is_slave(zone)) {
 			// Sign the response with TSIG where applicable
 			struct query_data qdata;
 			init_qdata_from_request(&qdata, zone, req, NULL);
@@ -454,7 +464,7 @@ static void send_update_response(const zone_t *zone, struct knot_request *req)
 		}
 
 		if (net_is_connected(req->fd)) {
-			conf_val_t val = conf_get(conf(), C_SRV, C_MAX_CONN_REPLY);
+			conf_val_t val = conf_get(conf(), C_SRV, C_TCP_REPLY_TIMEOUT);
 			struct timeval timeout = { conf_int(&val), 0 };
 			tcp_send_msg(req->fd, req->resp->wire, req->resp->size,
 			             &timeout);
@@ -497,7 +507,7 @@ static int init_update_responses(const zone_t *zone, list_t *updates,
 
 		assert(req->query);
 		knot_pkt_init_response(req->resp, req->query);
-		if (!zone_is_master(zone)) {
+		if (zone_is_slave(zone)) {
 			// Don't check TSIG for forwards.
 			continue;
 		}
@@ -529,7 +539,7 @@ int update_query_process(knot_pkt_t *pkt, struct query_data *qdata)
 
 	/* Need valid transaction security. */
 	zone_t *zone = (zone_t *)qdata->zone;
-	NS_NEED_AUTH(qdata, zone->name, ACL_ACTION_DDNS);
+	NS_NEED_AUTH(qdata, zone->name, ACL_ACTION_UPDATE);
 	/* Check expiration. */
 	NS_NEED_ZONE_CONTENTS(qdata, KNOT_RCODE_SERVFAIL);
 
@@ -575,7 +585,7 @@ int updates_execute(zone_t *zone)
 	}
 
 	/* Process update list - forward if zone has master, or execute. */
-	if (!zone_is_master(zone)) {
+	if (zone_is_slave(zone)) {
 		log_zone_info(zone->name,
 		              "DDNS, forwarding %zu updates", update_count);
 		forward_requests(zone, &updates);

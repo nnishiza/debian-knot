@@ -14,15 +14,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #if HAVE_LMDB
 #include <lmdb.h>
 #endif
 
 #include "libknot/errcode.h"
-#include "libknot/internal/errcode.h"
 #include "libknot/internal/macros.h"
 #include "dnssec/error.h"
 
@@ -68,6 +65,7 @@ static const struct error errors[] = {
 	{ KNOT_EZONENOENT,   "zone file not found" },
 	{ KNOT_ENOZONE,      "no such zone found" },
 	{ KNOT_ENONODE,      "no such node in zone found" },
+	{ KNOT_ENOMASTER,    "no active master" },
 	{ KNOT_EDNAMEPTR,    "domain name pointer larger than allowed" },
 	{ KNOT_EPAYLOAD,     "invalid EDNS payload size" },
 	{ KNOT_EPREREQ,      "UPDATE prerequisity not met" },
@@ -123,17 +121,19 @@ static const struct error errors[] = {
 	{ KNOT_DNSSEC_EMISSINGKEYTYPE, "missing active KSK or ZSK" },
 
 	/* Yparser errors. */
-	{ KNOT_YP_EINVAL_ITEM,  "invalid item" },
-	{ KNOT_YP_EINVAL_DATA,  "invalid value" },
-	{ KNOT_YP_ENOTSUP_DATA, "value not supported" },
-	{ KNOT_YP_ENOTSUP_ID,   "identifier not supported" },
-	{ KNOT_YP_ENODATA,      "missing value" },
-	{ KNOT_YP_ENOID,        "missing identifier" },
+	{ KNOT_YP_EINVAL_ITEM,   "invalid item" },
+	{ KNOT_YP_EINVAL_ID,     "invalid identifier" },
+	{ KNOT_YP_EINVAL_DATA,   "invalid value" },
+	{ KNOT_YP_EINVAL_INDENT, "invalid indentation" },
+	{ KNOT_YP_ENOTSUP_DATA,  "value not supported" },
+	{ KNOT_YP_ENOTSUP_ID,    "identifier not supported" },
+	{ KNOT_YP_ENODATA,       "missing value" },
+	{ KNOT_YP_ENOID,         "missing identifier" },
 
 	/* Configuration errors. */
 	{ KNOT_CONF_EMPTY,     "empty configuration database" },
 	{ KNOT_CONF_EVERSION,  "invalid configuration database version" },
-	{ KNOT_CONF_EREDEFINE, "identifier already specified" },
+	{ KNOT_CONF_EREDEFINE, "duplicate identifier" },
 
 	/* Processing errors. */
 	{ KNOT_LAYER_ERROR, "processing layer error" },
@@ -188,16 +188,4 @@ const char *knot_strerror(int code)
 #endif
 
 	return fallback_message(code);
-}
-
-_public_
-int knot_map_errno(int arg0, ...)
-{
-	/* Iterate all variable-length arguments. */
-	va_list ap;
-	va_start(ap, arg0);
-	int ret = knot_map_errno_internal(KNOT_ERROR, arg0, ap);
-	va_end(ap);
-
-	return ret;
 }

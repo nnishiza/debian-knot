@@ -1,8 +1,12 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = libtap src tests tests-fuzz samples doc man
+SUBDIRS = libtap src tests tests-fuzz samples doc
+
+singlehtml install-singlehtml:
+	$(MAKE) -C doc $@
 
 AM_DISTCHECK_CONFIGURE_FLAGS = \
-	--disable-code-coverage
+	--disable-code-coverage \
+	--without-bash-completions
 
 CODE_COVERAGE_INFO = coverage.info
 CODE_COVERAGE_HTML = coverage.html
@@ -84,4 +88,5 @@ code-coverage-clean:
 	-find . -name "*.gcda" -o -name "*.gcov" -delete
 endif
 
-.PHONY: check-code-coverage code-coverage-initial code-coverage-capture code-coverage-html code-coverage-summary code-coverage-clean
+.PHONY: check-code-coverage code-coverage-initial code-coverage-capture code-coverage-html code-coverage-summary code-coverage-clean singlehtml install-singlehtml
+.NOTPARALLEL: clean
