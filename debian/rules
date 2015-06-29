@@ -14,6 +14,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
+DPKG_VENDOR          ?= $(shell dpkg-vendor --query Vendor | tr [A-Z] [a-z])
 DEB_HOST_ARCH        ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
 
 ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),hurd-i386))
@@ -22,8 +23,28 @@ else
   RECVMMSG:=--enable-recvmmsg=yes
 endif
 
+KNOT_DISTRIBUTION = $(shell dpkg-parsechangelog | sed -ne 's/^Distribution: //p')
+
+ENABLE_SYSTEMD = yes
+
+ifeq (ubuntu,$(DPKG_VENDOR))
+  ifeq ($(KNOT_DISTRIBUTION),$(filter $(KNOT_DISTRIBUTION),precise trusty utopic))
+    $(warning Disabling systemd on $(DPKG_VENDOR) $(KNOT_DISTRIBUTION))
+    ENABLE_SYSTEMD = no
+  endif
+endif
+
+ifneq (linux,$(DEB_HOST_ARCH_OS))
+  $(warning Disabling systemd on $(DEB_HOST_ARCH_OS))
+  ENABLE_SYSTEMD = no
+endif
+
+ifeq (yes,$(ENABLE_SYSTEMD))
+  DH_SYSTEMD = --with systemd
+endif
+
 %:
-	dh $@ --with autotools-dev,systemd,autoreconf --parallel
+	dh $@ --with autotools-dev,systemd,autoreconf $(DH_SYSTEMD) --parallel
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
@@ -32,7 +53,7 @@ override_dh_auto_configure:
 	  --libexecdir=/usr/lib/knot \
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
-	  --enable-systemd=auto \
+	  --enable-systemd=$(ENABLE_SYSTEMD) \
 	  $(RECVMMSG) \
 	  --disable-silent-rules
 
