@@ -17,8 +17,8 @@ Build-Depends: autotools-dev,
                libidn11-dev,
                liblmdb-dev,
                libssl-dev,
-               libsystemd-daemon-dev [linux-any] | base-files (<< 7.2ubuntu5~),
-               libsystemd-journal-dev [linux-any] | base-files (<< 7.2ubuntu5~),
+               libsystemd-dev [linux-any] | libsystemd-daemon-dev [linux-any] | base-files (<< 7.2ubuntu5~),
+               libsystemd-dev [linux-any] | libsystemd-journal-dev [linux-any] | base-files (<< 7.2ubuntu5~),
                liburcu-dev (>= 0.4),
                pkg-config
 Standards-Version: 3.9.6
@@ -32,7 +32,6 @@ Depends: adduser,
          knot-libs (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Recommends: systemd
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
  full and open source name server.

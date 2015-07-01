@@ -1,3 +1,4 @@
 0001-loosen-openssl-dependency.patch
 0002-knot-doc-tweaks.patch
 0003-epstopdf.patch
+0004-knot-systemd-fixups.patch
