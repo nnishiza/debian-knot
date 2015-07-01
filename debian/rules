@@ -23,13 +23,13 @@ else
   RECVMMSG:=--enable-recvmmsg=yes
 endif
 
-KNOT_DISTRIBUTION = $(shell dpkg-parsechangelog | sed -ne 's/^Distribution: //p')
+DEB_BUILD_DISTRIBUTION = $(shell dpkg-parsechangelog | sed -ne 's/^Distribution: //p')
 
 ENABLE_SYSTEMD = yes
 
 ifeq (ubuntu,$(DPKG_VENDOR))
-  ifeq ($(KNOT_DISTRIBUTION),$(filter $(KNOT_DISTRIBUTION),precise trusty utopic))
-    $(warning Disabling systemd on $(DPKG_VENDOR) $(KNOT_DISTRIBUTION))
+  ifeq ($(DEB_BUILD_DISTRIBUTION),$(filter $(DEB_BUILD_DISTRIBUTION),precise))
+    $(warning Disabling systemd on $(DPKG_VENDOR) $(DEB_BUILD_DISTRIBUTION))
     ENABLE_SYSTEMD = no
   endif
 endif
