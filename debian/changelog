@@ -1,3 +1,12 @@
+knot (1.6.4-2) unstable; urgency=medium
+
+  * Use pregenerated pdf logo stored in debian/ to workaround old TeXLive in Ubuntu precise
+  * Make systemd journal logging optional even when compiled with systemd (Closes: #790700)
+  * Uses libsystemd as first option before searching for libsystemd-daemon
+    and libsystemd-journal (Closes: #779759)
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 01 Jul 2015 10:39:14 +0200
+
 knot (1.6.4-1) unstable; urgency=medium
 
   * New upstream version 1.6.4
