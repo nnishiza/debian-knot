@@ -9,12 +9,12 @@ if [ ! -r $CONFFILE ]; then
    exit 1;
 fi
 
-KNOT_RUNDIR=$(sed -ne "s/#.*$//;s/.*rundir \"*\([^\";]*\\).*/\\1/p;" $CONFFILE)
+KNOT_RUNDIR=$(sed -ne "s/#.*$//;s/.*rundir: \"*\([^\";]*\\).*/\\1/p;" $CONFFILE)
 [ -z "$KNOT_RUNDIR" ] && KNOT_RUNDIR=/run/knot
 
 mkdir --parents "$KNOT_RUNDIR";
 
-KNOT_USER=$(sed -ne "s/#.*$//;s/.*user \\([^\\.;]*\\).*/\\1/p;" $CONFFILE)
+KNOT_USER=$(sed -ne "s/#.*$//;s/.*user:[ \"]*\\([^\\:\"]*\\)[ \"]*/\\1/p;" $CONFFILE)
 
 if [ -n "$KNOT_USER" ]; then
     if ! getent passwd $KNOT_USER >/dev/null; then
@@ -22,7 +22,7 @@ if [ -n "$KNOT_USER" ]; then
 	exit 1
     fi
 
-    KNOT_GROUP=$(sed -ne "s/#.*$//;s/.*user [^\\.;]*\\.\\([^;]*\\).*/\\1/p;" $CONFFILE)
+    KNOT_GROUP=$(sed -ne "s/#.*$//;s/.*user:[ \"]*[^\\:\"]*\\:\\([^\"]*\\)[ \"]*/\\1/p;" $CONFFILE)
     if [ -z "$KNOT_GROUP" ]; then
 	KNOT_GROUP=$(getent group $(getent passwd "$KNOT_USER" | cut -f 4 -d :) | cut -f 1 -d :)
     fi
