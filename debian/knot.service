@@ -5,7 +5,6 @@ After=network-online.target
 
 [Service]
 Environment=CONFFILE=/etc/knot/knot.conf
-ExecStartPre=/usr/lib/knot/prepare-environment $CONFFILE
 ExecReload=/usr/sbin/knotc reload
 ExecStart=/usr/sbin/knotd -c $CONFFILE
 Restart=on-abort

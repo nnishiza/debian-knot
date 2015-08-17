@@ -1,7 +1,6 @@
 etc/knot/knot.conf
 usr/bin/knsec3hash
 usr/lib/knot/knot1to2
-usr/lib/knot/prepare-environment
 usr/sbin/keymgr
 usr/sbin/knotc
 usr/sbin/knotd

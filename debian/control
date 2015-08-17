@@ -30,7 +30,7 @@ Vcs-Git: git://anonscm.debian.org/users/ondrej/knot.git
 
 Package: knot
 Architecture: any
-Depends: adduser,
+Depends: systemd,
          knot-libs (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
