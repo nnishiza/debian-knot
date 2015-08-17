@@ -18,18 +18,12 @@ NAME=knotd             # Introduce the short server's name here
 DAEMON=/usr/sbin/$NAME # Introduce the server's location here
 DAEMON_CONFFILE=/etc/knot/knot.conf
 DAEMON_ARGS="-d -c $DAEMON_CONFFILE"
+PIDFILE=/run/knot/knot.pid
 SCRIPTNAME=/etc/init.d/knot
-
 KNOTC=/usr/sbin/knotc
 
 # Exit if the package is not installed
 [ -x $DAEMON ] || exit 0
-
-# Read rundir from default configuration
-KNOT_RUNDIR=$(sed -ne "s/#.*$//;s/.*rundir \"*\([^\";]*\\).*/\\1/p;" $DAEMON_CONFFILE)
-[ -z "$KNOT_RUNDIR" ] && KNOT_RUNDIR=/run/knot
-
-PIDFILE=${KNOT_RUNDIR}/knot.pid
 
 # Define LSB log_* functions.
 # Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
@@ -83,9 +77,33 @@ do_reload() {
     return $?
 }
 
+do_tmpfiles() {
+    local type path mode user group
+    if [ -r "$1" ]; then
+	if [ -x /bin/systemd-tmpfiles ]; then
+	    /bin/systemd-tmpfiles --create "$1"
+	else
+	    while read type path mode user group; do
+		case "$type" in
+		    d)
+			mkdir -p "$path";
+			chmod "$mode" "$path";
+			chown "$user:$group" "$path";
+			;;
+		    *)
+			log_warning_msg "tmpfile.d type '$type' is not supported yet"
+			;;
+		esac
+	    done < "$1"
+	fi
+    else
+	log_warning_msg "tmpfiles.d file '$1' doesn't exist or is not readable"
+    fi
+}
+
 case "$1" in
     start)
-	systemd-tmpfiles --create /usr/lib/tmpfiles.d/knot.conf
+	do_tmpfiles /usr/lib/tmpfiles.d/knot.conf
 	log_daemon_msg "Starting $DESC " "$NAME"
 	do_start
 	case "$?" in
