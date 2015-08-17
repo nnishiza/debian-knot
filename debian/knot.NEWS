@@ -1,4 +1,4 @@
-knot (2.0.0-1) experimental; urgency=medium
+knot (2.0.0-1) unstable; urgency=medium
 
   * The configuration file format has changed with Knot DNS 2.0 release.
     The knot1to2 conversion tools has been provided for your convenience
