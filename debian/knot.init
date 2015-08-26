@@ -78,17 +78,19 @@ do_reload() {
 }
 
 do_tmpfiles() {
-    local type path mode user group
+    local type path mode user group age argument
     if [ -r "$1" ]; then
 	if [ -x /bin/systemd-tmpfiles ]; then
 	    /bin/systemd-tmpfiles --create "$1"
 	else
-	    while read type path mode user group; do
+	    while read type path mode user group age argument; do
 		case "$type" in
 		    d)
 			mkdir -p "$path";
 			chmod "$mode" "$path";
 			chown "$user:$group" "$path";
+			;;
+		    \#*)
 			;;
 		    *)
 			log_warning_msg "tmpfile.d type '$type' is not supported yet"
