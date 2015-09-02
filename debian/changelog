@@ -1,7 +1,38 @@
+knot (1.6.5-1) unstable; urgency=medium
+
+  * Imported Upstream version 1.6.5
+   + Bugfixes:
+    - Do not reload expired zones on 'knotc reload' and server startup
+    - Fix rare race-condition in event scheduling causing delayed event
+      execution
+    - Fix skipping of non-authoritative nodes in NSEC proofs
+    - Fix TC flag setting in RRL slipped answers
+    - Disable domain name compression for root label for better
+      compatibility
+    - Log via journald only when running under systemd
+    - Improve lookup of libsystemd build dependencies
+    - Fix compilation warnings in endian conversion functions on OpenBSD
+   + Features:
+    - Update persistent timers only on shutdown for better performance
+    - Add 'request-edns-option' config option to add custom EDNS0 option
+      into server initiated queries
+    - Allow specification of time units in 'max-conn-idle',
+      'max-conn-handshake', 'max-conn-reply', and 'notify-timeout' config
+      options
+  * Update patches for 1.6.5 release
+  * Use embedded lmdb on Debian wheezy and Ubuntu precise
+  * Modify dependencies to better support for Ubuntu Precise in master branch
+  * Move under Debian DNS maintainers group
+  * Update d/gbp.conf to reflect repository changes
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 02 Sep 2015 10:26:07 +0200
+
 knot (1.6.4-2) unstable; urgency=medium
 
-  * Use pregenerated pdf logo stored in debian/ to workaround old TeXLive in Ubuntu precise
-  * Make systemd journal logging optional even when compiled with systemd (Closes: #790700)
+  * Use pregenerated pdf logo stored in debian/ to workaround old TeXLive
+    in Ubuntu precise
+  * Make systemd journal logging optional even when compiled with systemd
+    (Closes: #790700)
   * Uses libsystemd as first option before searching for libsystemd-daemon
     and libsystemd-journal (Closes: #779759)
 
