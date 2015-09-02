@@ -8,10 +8,10 @@ Subject: loosen-openssl-dependency
  2 files changed, 25 deletions(-)
 
 diff --git a/configure b/configure
-index ea45edf..1a00e7d 100755
+index 140de32..dc1cf82 100755
 --- a/configure
 +++ b/configure
-@@ -13619,23 +13619,6 @@ if test "$with_openssl" = "no"; then :
+@@ -13937,23 +13937,6 @@ if test "$with_openssl" = "no"; then :
  
  fi
  
@@ -36,10 +36,10 @@ index ea45edf..1a00e7d 100755
  
  # Check whether --with-libidn was given.
 diff --git a/configure.ac b/configure.ac
-index f6b9f37..2fe7f24 100644
+index 76b50f7..4197930 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -289,14 +289,6 @@ AS_IF([test "$with_openssl" = "no"],[
+@@ -293,14 +293,6 @@ AS_IF([test "$with_openssl" = "no"],[
    AC_MSG_ERROR([OpenSSL library is required.])
  ])
  

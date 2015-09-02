@@ -1,5 +1,15 @@
---- knot.orig/doc/conf.py.in
-+++ knot/doc/conf.py.in
+From: Ondřej Surý <ondrej@sury.org>
+Date: Wed, 2 Sep 2015 10:22:05 +0200
+Subject: epstopdf
+
+---
+ doc/conf.py.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/conf.py.in b/doc/conf.py.in
+index 7eab851..bf47fc5 100644
+--- a/doc/conf.py.in
++++ b/doc/conf.py.in
 @@ -177,7 +177,7 @@ latex_elements = {
  #'pointsize': '10pt',
  
