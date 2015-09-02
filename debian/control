@@ -1,7 +1,8 @@
 Source: knot
 Section: net
 Priority: optional
-Maintainer: Ondřej Surý <ondrej@debian.org>
+Maintainer: Debian DNS Maintainers <pkg-dns-devel@lists.alioth.debian.org>
+Uploaders: Ondřej Surý <ondrej@debian.org>,
 Build-Depends-Indep: ghostscript,
                      python-sphinx,
                      texinfo,
