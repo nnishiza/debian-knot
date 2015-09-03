@@ -11,7 +11,7 @@
 
 # To enable all, uncomment following line
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-export DEB_CFLAGS_MAINT_APPEND  = -Wall
+export DEB_CFLAGS_MAINT_APPEND  = -Wall -DNDEBUG
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
 DEB_HOST_ARCH        ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
