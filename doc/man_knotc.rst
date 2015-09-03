@@ -1,7 +1,7 @@
 .. highlight:: console
 
-knotc -- Knot DNS control utility
-=================================
+knotc – Knot DNS control utility
+================================
 
 Synopsis
 --------
@@ -15,10 +15,10 @@ Parameters
 ..........
 
 **-c**, **--config** *file*
-  Use textual configuration file (default is :file:`@conf_dir@/knot.conf`).
+  Use a textual configuration file (default is :file:`@conf_dir@/knot.conf`).
 
 **-C**, **--confdb** *directory*
-  Use binary configuration database.
+  Use a binary configuration database.
 
 **-s**, **--server** *server*
   Remote UNIX socket/IP address (default is :file:`@run_dir@/knot.sock`).
@@ -27,10 +27,10 @@ Parameters
   Remote server port (only for IP).
 
 **-y**, **--key** [*alg*:]\ *name*:*key*
-  Use TSIG key specified on the command line (default algorithm is hmac-md5).
+  Use the TSIG key specified on the command line (default algorithm is hmac-md5).
 
 **-k**, **--keyfile** *file*
-  Use TSIG key stored in a file *file* to authenticate the request. The
+  Use the TSIG key stored in a file *file* to authenticate the request. The
   file must contain the key in the same format, which is accepted by the
   **-y** option.
 
@@ -41,7 +41,7 @@ Parameters
   Verbose mode. Print additional runtime information.
 
 **-V**, **--version**
-  Print program version.
+  Print the program version.
 
 **-h**, **--help**
   Print help and usage.
@@ -49,14 +49,14 @@ Parameters
 Actions
 .......
 
-If an optional *zone* argument is not specified, the command is applied to all
+If the optional *zone* argument is not specified, the command is applied to all
 zones.
 
 **stop**
   Stop server (no-op if not running).
 
 **reload** [*zone*...]
-  Reload particular zones or reload whole configuration and changed zones.
+  Reload particular zones or reload the whole configuration and changed zones.
 
 **flush** [*zone*...]
   Flush journal and update zone files.
@@ -65,13 +65,13 @@ zones.
   Check if server is running.
 
 **zonestatus** [*zone*...]
-  Show status of configured zones.
+  Show the status of listed zones.
 
 **refresh** [*zone*...]
-  Refresh slave zones. Flag **-f** forces re-transfer (zones must be specified).
+  Refresh slave zones. The **-f** flag forces re-transfer (zones must be specified).
 
 **checkconf**
-  Check current configuration.
+  Check the current configuration.
 
 **checkzone** [*zone*...]
   Check zones.
@@ -80,30 +80,34 @@ zones.
   Estimate memory consumption for zones.
 
 **signzone** *zone*...
-  Resign the zone (drop all existing signatures and create new ones).
+  Re-sign the zone (drop all existing signatures and create new ones).
 
 **import** *file*
-  Import configuration database from file. This is potentially dangerous
-  operation, thus flag **-f** is required.
+  Import a configuration database from file. This is a potentially dangerous
+  operation, thus the **-f** flag is required.
 
 **export** *file*
-  Export configuration database to file.
+  Export the configuration database to a file.
 
 Examples
 --------
 
-Setup a keyfile for remote control
-..................................
+Setup a key file for remote control
+...................................
 
-1. Generate key::
+::
 
-     $ dnssec-keygen -a hmac-md5 -b 256 -n HOST knotc-key
+  $ keymgr tsig generate knotc-key > knotc-key.conf
 
-2. Extract secret in base64 format and create keyfile::
+The generated key file contains a key in the server configuration format and
+thus can be directly included into the server configuration file.
 
-     $ echo "knotc-key hmac-md5 <secret>" > knotc.key
+Knot DNS utilities accept one-line format which is included in the generated
+key file on the first line as a comment. It can be extracted easily::
 
-Make sure the key can be read/written only by the owner for security reasons.
+  $ head -1 knotc-key.conf | sed 's/^#\s*//' > knotc.key
+
+Make sure the key file can be read only by the owner for security reasons.
 
 Reload server remotely
 ......................

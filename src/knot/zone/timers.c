@@ -18,6 +18,7 @@
 #include "libknot/internal/namedb/namedb.h"
 #include "libknot/internal/namedb/namedb_lmdb.h"
 #include "libknot/internal/mem.h"
+#include "libknot/internal/wire_ctx.h"
 #include "knot/zone/timers.h"
 #include "knot/zone/zonedb.h"
 
@@ -63,26 +64,42 @@ static void clear_timers(time_t *timers)
 }
 
 /*! \brief Stores timers for persistent events. */
-static int store_timers(namedb_txn_t *txn, zone_t *zone)
+static int store_timers(zone_t *zone, namedb_txn_t *txn)
 {
 	// Create key
 	namedb_val_t key = { .len = knot_dname_size(zone->name), .data = zone->name };
 
 	// Create value
 	uint8_t packed_timer[EVENT_KEY_PAIR_SIZE * PERSISTENT_EVENT_COUNT];
-	size_t offset = 0;
+
+	wire_ctx_t w = wire_ctx_init(packed_timer, sizeof(packed_timer));
+
 	for (zone_event_type_t event = 0; event < ZONE_EVENT_COUNT; ++event) {
 		if (!event_persistent(event)) {
 			continue;
 		}
 
-		// Write event key and timer to buffer
-		packed_timer[offset] = event_id_to_key[event];
-		offset += 1;
-		wire_write_u64(packed_timer + offset,
-		                    (int64_t)zone_events_get_time(zone, event));
-		offset += sizeof(uint64_t);
+		// Key
+		wire_ctx_write_u8(&w, event_id_to_key[event]);
+
+		// Value
+		time_t value = zone_events_get_time(zone, event);
+		if (event == ZONE_EVENT_EXPIRE && zone->flags & ZONE_EXPIRED) {
+			/*
+			 * WORKAROUND. The current timer database contains
+			 * time stamps for running timers. The expiration
+			 * in past indicates that the zone expired. We need
+			 * to preserve this status across server restarts.
+			 */
+			value = 1;
+		}
+		wire_ctx_write_u64(&w, value);
 	}
+
+	if (w.error != KNOT_EOK) {
+		return w.error;
+	}
+
 	namedb_val_t val = { .len = sizeof(packed_timer), .data = packed_timer };
 
 	// Store
@@ -169,6 +186,10 @@ int read_zone_timers(namedb_t *timer_db, const zone_t *zone, time_t *timers)
 		return KNOT_EOK;
 	}
 
+	if (zone == NULL || timers == NULL) {
+		return KNOT_EINVAL;
+	}
+
 	const namedb_api_t *db_api = namedb_lmdb_api();
 	assert(db_api);
 
@@ -187,26 +208,26 @@ int read_zone_timers(namedb_t *timer_db, const zone_t *zone, time_t *timers)
 	return KNOT_EOK;
 }
 
-int write_zone_timers(namedb_t *timer_db, zone_t *zone)
+int write_timer_db(namedb_t *timer_db, knot_zonedb_t *zone_db)
 {
 	if (timer_db == NULL) {
 		return KNOT_EOK;
+	}
+
+	if (zone_db == NULL) {
+		return KNOT_EINVAL;
 	}
 
 	const namedb_api_t *db_api = namedb_lmdb_api();
 	assert(db_api);
 
 	namedb_txn_t txn;
-	int ret = db_api->txn_begin(timer_db, &txn, 0);
+	int ret = db_api->txn_begin(timer_db, &txn, NAMEDB_SORTED);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
 
-	ret = store_timers(&txn, zone);
-	if (ret != KNOT_EOK) {
-		db_api->txn_abort(&txn);
-		return ret;
-	}
+	knot_zonedb_foreach(zone_db, store_timers, &txn);
 
 	return db_api->txn_commit(&txn);
 }
@@ -215,6 +236,10 @@ int sweep_timer_db(namedb_t *timer_db, knot_zonedb_t *zone_db)
 {
 	if (timer_db == NULL) {
 		return KNOT_EOK;
+	}
+
+	if (zone_db == NULL) {
+		return KNOT_EINVAL;
 	}
 
 	const namedb_api_t *db_api = namedb_lmdb_api();

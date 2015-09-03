@@ -87,11 +87,11 @@ check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
 	query_module$(EXEEXT) rdata$(EXEEXT) rdataset$(EXEEXT) \
 	requestor$(EXEEXT) rrl$(EXEEXT) rrset$(EXEEXT) \
 	rrset_wire$(EXEEXT) server$(EXEEXT) tsig_key$(EXEEXT) \
-	utils$(EXEEXT) wire$(EXEEXT) worker_pool$(EXEEXT) \
-	worker_queue$(EXEEXT) yparser$(EXEEXT) ypscheme$(EXEEXT) \
-	yptrafo$(EXEEXT) zone_events$(EXEEXT) zone_serial$(EXEEXT) \
-	zone_timers$(EXEEXT) zone_update$(EXEEXT) zonedb$(EXEEXT) \
-	ztree$(EXEEXT)
+	utils$(EXEEXT) wire$(EXEEXT) wire_ctx$(EXEEXT) \
+	worker_pool$(EXEEXT) worker_queue$(EXEEXT) yparser$(EXEEXT) \
+	ypscheme$(EXEEXT) yptrafo$(EXEEXT) zone_events$(EXEEXT) \
+	zone_serial$(EXEEXT) zone_timers$(EXEEXT) zone_update$(EXEEXT) \
+	zonedb$(EXEEXT) ztree$(EXEEXT)
 subdir = tests
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp README TODO
@@ -278,6 +278,11 @@ wire_OBJECTS = wire.$(OBJEXT)
 wire_LDADD = $(LDADD)
 wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+wire_ctx_SOURCES = wire_ctx.c
+wire_ctx_OBJECTS = wire_ctx.$(OBJEXT)
+wire_ctx_LDADD = $(LDADD)
+wire_ctx_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 worker_pool_SOURCES = worker_pool.c
 worker_pool_OBJECTS = worker_pool.$(OBJEXT)
 worker_pool_LDADD = $(LDADD)
@@ -373,18 +378,20 @@ SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	namedb.c net_shortwrite.c node.c overlay.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	rrset_wire.c server.c tsig_key.c utils.c wire.c worker_pool.c \
-	worker_queue.c yparser.c ypscheme.c yptrafo.c zone_events.c \
-	zone_serial.c zone_timers.c zone_update.c zonedb.c ztree.c
+	rrset_wire.c server.c tsig_key.c utils.c wire.c wire_ctx.c \
+	worker_pool.c worker_queue.c yparser.c ypscheme.c yptrafo.c \
+	zone_events.c zone_serial.c zone_timers.c zone_update.c \
+	zonedb.c ztree.c
 DIST_SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	$(conf_SOURCES) descriptor.c dname.c dthreads.c edns.c \
 	endian.c fdset.c hattrie.c hhash.c internal_mem.c journal.c \
 	namedb.c net_shortwrite.c node.c overlay.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
 	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	rrset_wire.c server.c tsig_key.c utils.c wire.c worker_pool.c \
-	worker_queue.c yparser.c ypscheme.c yptrafo.c zone_events.c \
-	zone_serial.c zone_timers.c zone_update.c zonedb.c ztree.c
+	rrset_wire.c server.c tsig_key.c utils.c wire.c wire_ctx.c \
+	worker_pool.c worker_queue.c yparser.c ypscheme.c yptrafo.c \
+	zone_events.c zone_serial.c zone_timers.c zone_update.c \
+	zonedb.c ztree.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -759,6 +766,10 @@ wire$(EXEEXT): $(wire_OBJECTS) $(wire_DEPENDENCIES) $(EXTRA_wire_DEPENDENCIES)
 	@rm -f wire$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(wire_OBJECTS) $(wire_LDADD) $(LIBS)
 
+wire_ctx$(EXEEXT): $(wire_ctx_OBJECTS) $(wire_ctx_DEPENDENCIES) $(EXTRA_wire_ctx_DEPENDENCIES) 
+	@rm -f wire_ctx$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(wire_ctx_OBJECTS) $(wire_ctx_LDADD) $(LIBS)
+
 worker_pool$(EXEEXT): $(worker_pool_OBJECTS) $(worker_pool_DEPENDENCIES) $(EXTRA_worker_pool_DEPENDENCIES) 
 	@rm -f worker_pool$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(worker_pool_OBJECTS) $(worker_pool_LDADD) $(LIBS)
@@ -842,6 +853,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsig_key.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wire.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wire_ctx.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_pool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_queue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/yparser.Po@am__quote@

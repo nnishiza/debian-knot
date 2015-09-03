@@ -172,7 +172,7 @@ am_libshared_la_OBJECTS = shared/libshared_la-base32hex.lo \
 	shared/libshared_la-bignum.lo shared/libshared_la-dname.lo \
 	shared/libshared_la-fs.lo shared/libshared_la-hex.lo \
 	shared/libshared_la-hex_gnutls.lo shared/libshared_la-path.lo \
-	shared/libshared_la-pem.lo
+	shared/libshared_la-pem.lo shared/libshared_la-timestamp.lo
 libshared_la_OBJECTS = $(am_libshared_la_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -473,6 +473,8 @@ libshared_la_SOURCES = \
 	shared/pem.h \
 	shared/shared.h \
 	shared/strtonum.h \
+	shared/timestamp.c \
+	shared/timestamp.h \
 	shared/wire.h
 
 libdnssec_la_CPPFLAGS = \
@@ -491,6 +493,7 @@ include_dnssecdir = $(includedir)/dnssec
 include_dnssec_HEADERS = \
 	lib/dnssec/binary.h \
 	lib/dnssec/crypto.h \
+	lib/dnssec/dnssec.h \
 	lib/dnssec/error.h \
 	lib/dnssec/event.h \
 	lib/dnssec/kasp.h \
@@ -807,6 +810,8 @@ shared/libshared_la-path.lo: shared/$(am__dirstamp) \
 	shared/$(DEPDIR)/$(am__dirstamp)
 shared/libshared_la-pem.lo: shared/$(am__dirstamp) \
 	shared/$(DEPDIR)/$(am__dirstamp)
+shared/libshared_la-timestamp.lo: shared/$(am__dirstamp) \
+	shared/$(DEPDIR)/$(am__dirstamp)
 
 libshared.la: $(libshared_la_OBJECTS) $(libshared_la_DEPENDENCIES) $(EXTRA_libshared_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(LINK)  $(libshared_la_OBJECTS) $(libshared_la_LIBADD) $(LIBS)
@@ -884,6 +889,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-hex_gnutls.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-path.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-pem.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-timestamp.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -1223,6 +1229,13 @@ shared/libshared_la-pem.lo: shared/pem.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='shared/pem.c' object='shared/libshared_la-pem.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libshared_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o shared/libshared_la-pem.lo `test -f 'shared/pem.c' || echo '$(srcdir)/'`shared/pem.c
+
+shared/libshared_la-timestamp.lo: shared/timestamp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libshared_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT shared/libshared_la-timestamp.lo -MD -MP -MF shared/$(DEPDIR)/libshared_la-timestamp.Tpo -c -o shared/libshared_la-timestamp.lo `test -f 'shared/timestamp.c' || echo '$(srcdir)/'`shared/timestamp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) shared/$(DEPDIR)/libshared_la-timestamp.Tpo shared/$(DEPDIR)/libshared_la-timestamp.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='shared/timestamp.c' object='shared/libshared_la-timestamp.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libshared_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o shared/libshared_la-timestamp.lo `test -f 'shared/timestamp.c' || echo '$(srcdir)/'`shared/timestamp.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

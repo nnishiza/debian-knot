@@ -72,6 +72,9 @@
 /* Define to 1 if you have the <netinet/in_systm.h> header file. */
 #undef HAVE_NETINET_IN_SYSTM_H
 
+/* Define to 1 if you have the <nettle/version.h> header file. */
+#undef HAVE_NETTLE_VERSION_H
+
 /* Define to 1 if you have the `poll' function. */
 #undef HAVE_POLL
 

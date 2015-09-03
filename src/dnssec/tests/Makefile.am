@@ -28,6 +28,7 @@ check_PROGRAMS = \
 	kasp_store	\
 	key		\
 	key_algorithm	\
+	key_ds		\
 	keyid		\
 	keystore_pkcs8	\
 	keystore_pkcs8_dir \
@@ -42,6 +43,7 @@ check_PROGRAMS = \
 	shared_bignum	\
 	shared_dname	\
 	shared_strtonum	\
+	shared_timestamp \
 	shared_wire	\
 	tsig
 

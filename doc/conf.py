@@ -41,7 +41,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Knot DNS'
-copyright = 'Copyright 2010-%d, CZ.NIC, z.s.p.o.' % time.localtime().tm_year
+copyright = u'Copyright 2010–%d, CZ.NIC, z.s.p.o.' % time.localtime().tm_year
 author = 'CZ.NIC Labs <http://www.knot-dns.cz>'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -129,7 +129,7 @@ html_logo = 'logo.png'
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
-#html_use_smartypants = True
+html_use_smartypants = False
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}

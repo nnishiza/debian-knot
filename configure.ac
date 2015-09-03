@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [2.0.0], [knot-dns@labs.nic.cz])
+AC_INIT([knot], [2.0.1], [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnits subdir-objects no-dist-gzip dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
@@ -107,7 +107,12 @@ AS_IF([test "$enable_fastparser" = "yes"],[
 AM_CONDITIONAL([FAST_PARSER], [test "$enable_fastparser" = "yes"])
 
 # GnuTLS crypto backend
-PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle])
+PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle], [
+    CFLAGS_save=$CFLAGS
+    CFLAGS="$CFLAGS $gnutls_CFLAGS"
+    AC_CHECK_HEADERS([nettle/version.h])
+    CFLAGS=$CFLAGS_save
+])
 
 # JSON for DNSSEC status storage
 PKG_CHECK_MODULES([jansson], [jansson >= 2.3])
@@ -212,8 +217,10 @@ AS_IF([test "$enable_daemon" = "yes"],[
 
 AS_IF([test "$enable_systemd" != "no"],[
   AS_CASE([$enable_systemd],
-    [auto],[PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal], [enable_systemd=yes], [enable_systemd=no])],
-    [yes],[PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal])],
+    [auto],[PKG_CHECK_MODULES([systemd], [libsystemd], [enable_systemd=yes], [
+            PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal], [enable_systemd=yes], [enable_systemd=no])])],
+    [yes],[PKG_CHECK_MODULES([systemd], [libsystemd], [], [
+    	    PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal])])],
     [*],[AC_MSG_ERROR([Invalid value of --enable-systemd.])])
     ])
 
@@ -374,12 +381,11 @@ AS_IF([test "$with_libidn" != "no"],[
 
 # Bash completions
 AC_ARG_WITH([bash-completions],
-  AC_HELP_STRING([--with-bash-completions=[DIR]], [Bash completions directory [default=auto]]),
+  AC_HELP_STRING([--with-bash-completions=[DIR]], [Bash completions directory [default=no]]),
   [with_bash_completions="$withval"],
-  [with_bash_completions=auto]
+  [with_bash_completions=no]
 )
 AS_CASE([$with_bash_completions],
-  [auto], [PKG_CHECK_VAR([bash_completions_dir], [bash-completion], [completionsdir])],
   [yes], [PKG_CHECK_VAR([bash_completions_dir], [bash-completion], [completionsdir], [], [AC_MSG_ERROR([bash completions not found])])],
   [no], [bash_completions_dir=],
   [bash_completions_dir="$with_bash_completions"]

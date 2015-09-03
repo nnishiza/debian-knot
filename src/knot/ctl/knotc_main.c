@@ -445,14 +445,15 @@ int main(int argc, char **argv)
 	}
 
 	/* Run post-open config operations. */
-	int res = conf_post_open(new_conf);
-	if (res != KNOT_EOK) {
-		log_fatal("failed to use configuration (%s)", knot_strerror(res));
+	int ret = conf_post_open(new_conf);
+	if (ret != KNOT_EOK) {
+		log_fatal("failed to use configuration (%s)", knot_strerror(ret));
 		conf_free(new_conf, false);
 		rc = 1;
 		goto exit;
 	}
 
+	/* Update to the new config. */
 	conf_update(new_conf);
 
 	/* Get control address. */
@@ -576,25 +577,21 @@ static int cmd_import(cmd_args_t *args)
 	}
 
 	if (!(args->flags & F_FORCE)) {
-		printf("use force option to import/replace config DB\n");
+		printf("use force option to import/replace configuration DB\n");
 		return KNOT_EINVAL;
 	}
 
 	conf_t *new_conf = NULL;
 	int ret = conf_new(&new_conf, conf_scheme, args->conf_db);
-	if (ret != KNOT_EOK) {
-		printf("failed to open configuration (%s)", args->conf_db);
-		return ret;
+	if (ret == KNOT_EOK) {
+		ret = conf_import(new_conf, args->argv[0], true);
 	}
 
-	ret = conf_import(new_conf, args->argv[0], true);
-	if (ret != KNOT_EOK) {
-		printf("failed to import configuration (%s)", args->argv[0]);
-		conf_free(new_conf, false);
-		return ret;
-	}
+	conf_free(new_conf, false);
 
-	return KNOT_EOK;
+	printf("%s\n", knot_strerror(ret));
+
+	return ret;
 }
 
 static int cmd_export(cmd_args_t *args)
@@ -604,7 +601,11 @@ static int cmd_export(cmd_args_t *args)
 		return KNOT_EINVAL;
 	}
 
-	return conf_export(conf(), args->argv[0], YP_SNONE);
+	int ret = conf_export(conf(), args->argv[0], YP_SNONE);
+
+	printf("%s\n", knot_strerror(ret));
+
+	return ret;
 }
 
 static int cmd_checkconf(cmd_args_t *args)
@@ -648,20 +649,23 @@ static int cmd_checkzone(cmd_args_t *args)
 		conf_val_t id = conf_iter_id(conf(), &iter);
 
 		/* Fetch zone */
-		int zone_match = fetch_zone(args->argc, args->argv, conf_dname(&id));
-		if (!zone_match && args->argc > 0) {
+		bool match = fetch_zone(args->argc, args->argv, conf_dname(&id));
+		if (!match && args->argc > 0) {
+			conf_iter_next(conf(), &iter);
 			continue;
 		}
 
 		/* Create zone loader context. */
-		zone_contents_t *loaded_zone = zone_load_contents(conf(), conf_dname(&id));
-		if (loaded_zone == NULL) {
+		zone_contents_t *contents = zone_load_contents(conf(), conf_dname(&id));
+		if (contents == NULL) {
 			rc = 1;
+			conf_iter_next(conf(), &iter);
 			continue;
 		}
+		zone_contents_deep_free(&contents);
 
 		log_zone_info(conf_dname(&id), "zone is valid");
-		zone_contents_deep_free(&loaded_zone);
+
 		conf_iter_next(conf(), &iter);
 	}
 	conf_iter_finish(conf(), &iter);
@@ -680,8 +684,9 @@ static int cmd_memstats(cmd_args_t *args)
 		conf_val_t id = conf_iter_id(conf(), &iter);
 
 		/* Fetch zone */
-		int zone_match = fetch_zone(args->argc, args->argv, conf_dname(&id));
-		if (!zone_match && args->argc > 0) {
+		bool match = fetch_zone(args->argc, args->argv, conf_dname(&id));
+		if (!match && args->argc > 0) {
+			conf_iter_next(conf(), &iter);
 			continue;
 		}
 
@@ -711,8 +716,7 @@ static int cmd_memstats(cmd_args_t *args)
 		zs_scanner_t *zs = zs_scanner_create(zone_name,
 		                                     KNOT_CLASS_IN, 3600,
 		                                     estimator_rrset_memsize_wrap,
-		                                     process_error,
-		                                     &est);
+		                                     NULL, &est);
 		free(zone_name);
 		if (zs == NULL) {
 			log_zone_error(conf_dname(&id), "failed to load zone");

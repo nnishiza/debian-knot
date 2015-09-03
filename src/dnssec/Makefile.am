@@ -38,6 +38,8 @@ libshared_la_SOURCES = \
 	shared/pem.h \
 	shared/shared.h \
 	shared/strtonum.h \
+	shared/timestamp.c \
+	shared/timestamp.h \
 	shared/wire.h
 
 libdnssec_la_CPPFLAGS = \
@@ -56,6 +58,7 @@ include_dnssecdir=$(includedir)/dnssec
 include_dnssec_HEADERS = \
 	lib/dnssec/binary.h \
 	lib/dnssec/crypto.h \
+	lib/dnssec/dnssec.h \
 	lib/dnssec/error.h \
 	lib/dnssec/event.h \
 	lib/dnssec/kasp.h \

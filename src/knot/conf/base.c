@@ -31,11 +31,7 @@
 #include "libknot/internal/sockaddr.h"
 #include "libknot/yparser/ypformat.h"
 #include "libknot/yparser/yptrafo.h"
-
-/*! Configuration specific logging. */
-#define CONF_LOG(severity, msg, ...) do { \
-	log_msg(severity, "config, " msg, ##__VA_ARGS__); \
-	} while (0)
+#include "libknot/internal/mempool.h"
 
 #define MAX_INCLUDE_DEPTH	5
 
@@ -176,11 +172,15 @@ int conf_new(
 		goto new_error;
 	}
 
+	// Initialize query modules list.
+	init_list(&out->query_modules);
+
 	*conf = out;
 
 	return KNOT_EOK;
 new_error:
 	yp_scheme_free(out->scheme);
+	mp_delete(out->mm->ctx);
 	free(out->mm);
 	free(out);
 
@@ -221,6 +221,9 @@ int conf_clone(
 		return ret;
 	}
 
+	// Initialize query modules list.
+	init_list(&out->query_modules);
+
 	*conf = out;
 
 	return KNOT_EOK;
@@ -235,12 +238,7 @@ int conf_post_open(
 
 	conf->hostname = sockaddr_hostname();
 
-	int ret = conf_activate_modules(conf, NULL, &conf->query_modules,
-	                                &conf->query_plan);
-	if (ret != KNOT_EOK) {
-		free(conf->hostname);
-		return ret;
-	}
+	conf_activate_modules(conf, NULL, &conf->query_modules, &conf->query_plan);
 
 	return KNOT_EOK;
 }
@@ -274,13 +272,11 @@ void conf_free(
 	conf->api->txn_abort(&conf->read_txn);
 	free(conf->hostname);
 
-	if (conf->query_plan != NULL) {
-		conf_deactivate_modules(conf, &conf->query_modules,
-		                        conf->query_plan);
-	}
+	conf_deactivate_modules(conf, &conf->query_modules, &conf->query_plan);
 
 	if (!is_clone) {
 		conf->api->deinit(conf->db);
+		mp_delete(conf->mm->ctx);
 		free(conf->mm);
 		free(conf->filename);
 	}
@@ -288,14 +284,17 @@ void conf_free(
 	free(conf);
 }
 
-int conf_activate_modules(
+void conf_activate_modules(
 	conf_t *conf,
-	knot_dname_t *zone_name,
+	const knot_dname_t *zone_name,
 	list_t *query_modules,
 	struct query_plan **query_plan)
 {
+	int ret = KNOT_EOK;
+
 	if (conf == NULL || query_modules == NULL || query_plan == NULL) {
-		return KNOT_EINVAL;
+		ret = KNOT_EINVAL;
+		goto activate_error;
 	}
 
 	conf_val_t val;
@@ -304,19 +303,22 @@ int conf_activate_modules(
 	if (zone_name != NULL) {
 		val = conf_zone_get(conf, C_MODULE, zone_name);
 	} else {
-		val = conf_default_get(conf, C_MODULE);
+		val = conf_default_get(conf, C_GLOBAL_MODULE);
 	}
 
+	// Check if a module is configured at all.
 	if (val.code == KNOT_ENOENT) {
-		return KNOT_EOK;
+		return;
 	} else if (val.code != KNOT_EOK) {
-		return val.code;
+		ret = val.code;
+		goto activate_error;
 	}
 
 	// Create query plan.
 	*query_plan = query_plan_create(conf->mm);
 	if (*query_plan == NULL) {
-		return KNOT_ENOMEM;
+		ret = KNOT_ENOMEM;
+		goto activate_error;
 	}
 
 	if (zone_name != NULL) {
@@ -331,21 +333,51 @@ int conf_activate_modules(
 	while (val.code == KNOT_EOK) {
 		conf_mod_id_t *mod_id = conf_mod_id(&val);
 		if (mod_id == NULL) {
-			return KNOT_ENOMEM;
+			ret = KNOT_ENOMEM;
+			goto activate_error;
 		}
 
 		// Open the module.
 		struct query_module *mod = query_module_open(conf, mod_id, conf->mm);
 		if (mod == NULL) {
-			conf_free_mod_id(mod_id);
-			return KNOT_ENOMEM;
+			ret = KNOT_ENOMEM;
+			goto activate_error;
+		}
+
+		// Check the module scope.
+		if ((zone_name == NULL && (mod->scope & MOD_SCOPE_GLOBAL) == 0) ||
+		    (zone_name != NULL && (mod->scope & MOD_SCOPE_ZONE) == 0)) {
+			if (zone_name != NULL) {
+				log_zone_warning(zone_name,
+				                 "out of scope module '%s/%.*s'",
+				                 mod_id->name + 1, (int)mod_id->len,
+				                 mod_id->data);
+			} else {
+				log_warning("out of scope module '%s/%.*s'",
+				            mod_id->name + 1, (int)mod_id->len,
+				            mod_id->data);
+			}
+			query_module_close(mod);
+			conf_val_next(&val);
+			continue;
 		}
 
 		// Load the module.
-		int ret = mod->load(*query_plan, mod);
+		ret = mod->load(*query_plan, mod);
 		if (ret != KNOT_EOK) {
+			if (zone_name != NULL) {
+				log_zone_error(zone_name,
+				               "failed to load module '%s/%.*s' (%s)",
+				               mod_id->name + 1, (int)mod_id->len,
+				               mod_id->data, knot_strerror(ret));
+			} else {
+				log_error("failed to load global module '%s/%.*s' (%s)",
+				          mod_id->name + 1, (int)mod_id->len,
+				          mod_id->data, knot_strerror(ret));
+			}
 			query_module_close(mod);
-			return ret;
+			conf_val_next(&val);
+			continue;
 		}
 
 		add_tail(query_modules, &mod->node);
@@ -353,17 +385,23 @@ int conf_activate_modules(
 		conf_val_next(&val);
 	}
 
-	return KNOT_EOK;
+	return;
+activate_error:
+	CONF_LOG(LOG_ERR, "failed to activate modules (%s)", knot_strerror(ret));
 }
 
 void conf_deactivate_modules(
 	conf_t *conf,
 	list_t *query_modules,
-	struct query_plan *query_plan)
+	struct query_plan **query_plan)
 {
 	if (conf == NULL || query_modules == NULL || query_plan == NULL) {
 		return;
 	}
+
+	// Free query plan.
+	query_plan_free(*query_plan);
+	*query_plan = NULL;
 
 	// Free query modules list.
 	struct query_module *mod = NULL, *next = NULL;
@@ -371,9 +409,7 @@ void conf_deactivate_modules(
 		mod->unload(mod);
 		query_module_close(mod);
 	}
-
-	// Free query plan.
-	query_plan_free(query_plan);
+	init_list(query_modules);
 }
 
 static int exec_callbacks(
@@ -617,24 +653,26 @@ int conf_import(
 		return KNOT_EINVAL;
 	}
 
+	int ret;
+
 	namedb_txn_t txn;
-	int ret = conf->api->txn_begin(conf->db, &txn, 0);
+	ret = conf->api->txn_begin(conf->db, &txn, 0);
 	if (ret != KNOT_EOK) {
-		return ret;
+		goto import_error;
 	}
 
 	// Drop the current DB content.
 	ret = conf->api->clear(&txn);
 	if (ret != KNOT_EOK) {
 		conf->api->txn_abort(&txn);
-		return ret;
+		goto import_error;
 	}
 
 	// Initialize new DB.
 	ret = conf_db_init(conf, &txn);
 	if (ret != KNOT_EOK) {
 		conf->api->txn_abort(&txn);
-		return ret;
+		goto import_error;
 	}
 
 	size_t depth = 0;
@@ -644,23 +682,26 @@ int conf_import(
 	ret = conf_parse(conf, &txn, input, is_file, &depth, &prev);
 	if (ret != KNOT_EOK) {
 		conf->api->txn_abort(&txn);
-		return ret;
+		goto import_error;
 	}
 
 	// Commit new configuration.
 	ret = conf->api->txn_commit(&txn);
 	if (ret != KNOT_EOK) {
-		return ret;
+		goto import_error;
 	}
 
 	// Update read-only transaction.
 	conf->api->txn_abort(&conf->read_txn);
 	ret = conf->api->txn_begin(conf->db, &conf->read_txn, NAMEDB_RDONLY);
 	if (ret != KNOT_EOK) {
-		return ret;
+		goto import_error;
 	}
 
-	return KNOT_EOK;
+	ret = KNOT_EOK;
+import_error:
+
+	return ret;
 }
 
 static int export_group(
