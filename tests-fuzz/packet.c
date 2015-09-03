@@ -17,27 +17,25 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <signal.h>
 
-#include "libknot/errcode.h"
-#include "libknot/packet/pkt.h"
-
-#define log(fmt, ...) fprintf(stderr, "# " fmt "\n", ## __VA_ARGS__)
+#include "libknot/libknot.h"
 
 int main(void)
 {
-	log("reading packet data from stdin");
+	for(;;) {
+		uint8_t buffer[UINT16_MAX + 1] = { 0 };
+		size_t len = fread(buffer, 1, sizeof(buffer), stdin);
 
-	uint8_t buffer[UINT16_MAX + 1] = { 0 };
-	size_t len = fread(buffer, 1, sizeof(buffer), stdin);
+		knot_pkt_t *pkt = knot_pkt_new(buffer, len, NULL);
+		assert(pkt);
+		int r = knot_pkt_parse(pkt, 0);
+		knot_pkt_free(&pkt);
 
-	log("parsing packet of size %zu", len);
-
-	knot_pkt_t *pkt = knot_pkt_new(buffer, len, NULL);
-	assert(pkt);
-	int r = knot_pkt_parse(pkt, 0);
-	knot_pkt_free(&pkt);
-
-	log("result %d (%s)", r, r == KNOT_EOK ? "success" : "failure");
-
-	return (r == KNOT_EOK ? 0 : 1);
+		if (getenv("AFL_PERSISTENT")) {
+			raise(SIGSTOP);
+		} else {
+			return (r == KNOT_EOK ? 0 : 1);
+		}
+	}
 }

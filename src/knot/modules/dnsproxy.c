@@ -21,20 +21,33 @@
 #include "knot/nameserver/process_query.h"
 
 /* Module configuration scheme. */
-#define MOD_REMOTE	"\x06""remote"
+#define MOD_REMOTE		"\x06""remote"
+#define MOD_CATCH_NXDOMAIN	"\x0E""catch-nxdomain"
 
 const yp_item_t scheme_mod_dnsproxy[] = {
-	{ C_ID,       YP_TSTR,  YP_VNONE },
-	{ MOD_REMOTE, YP_TADDR, YP_VADDR = { 53 } },
-	{ C_COMMENT,  YP_TSTR,  YP_VNONE },
+	{ C_ID,               YP_TSTR,  YP_VNONE },
+	{ MOD_REMOTE,         YP_TREF,  YP_VREF = { C_RMT }, YP_FNONE, { check_ref } },
+	{ MOD_CATCH_NXDOMAIN, YP_TBOOL, YP_VNONE },
+	{ C_COMMENT,          YP_TSTR,  YP_VNONE },
 	{ NULL }
 };
 
-/* Defines. */
-#define MODULE_ERR(msg, ...) log_error("module 'dnsproxy', " msg, ##__VA_ARGS__)
+int check_mod_dnsproxy(conf_check_t *args)
+{
+	conf_val_t rmt = conf_rawid_get_txn(args->conf, args->txn, C_MOD_DNSPROXY,
+	                                    MOD_REMOTE, args->previous->id,
+	                                    args->previous->id_len);
+	if (rmt.code != KNOT_EOK) {
+		*args->err_str = "no remote server specified";
+		return KNOT_EINVAL;
+	}
+
+	return KNOT_EOK;
+}
 
 struct dnsproxy {
-	struct sockaddr_storage remote;
+	conf_remote_t remote;
+	bool catch_nxdomain;
 };
 
 static int dnsproxy_fwd(int state, knot_pkt_t *pkt, struct query_data *qdata, void *ctx)
@@ -43,12 +56,12 @@ static int dnsproxy_fwd(int state, knot_pkt_t *pkt, struct query_data *qdata, vo
 		return KNOT_STATE_FAIL;
 	}
 
-	/* If not already satisfied. */
-	if (state == KNOT_STATE_DONE) {
+	/* Forward only queries ending with REFUSED (no zone) or NXDOMAIN (if configured) */
+	struct dnsproxy *proxy = ctx;
+	if (!(qdata->rcode == KNOT_RCODE_REFUSED ||
+	     (qdata->rcode == KNOT_RCODE_NXDOMAIN && proxy->catch_nxdomain))) {
 		return state;
 	}
-
-	struct dnsproxy *proxy = ctx;
 
 	/* Create a forwarding request. */
 	struct knot_requestor re;
@@ -62,8 +75,9 @@ static int dnsproxy_fwd(int state, knot_pkt_t *pkt, struct query_data *qdata, vo
 
 	bool is_tcp = net_is_connected(qdata->param->socket);
 	struct knot_request *req;
-	req = knot_request_make(re.mm, (const struct sockaddr *)&proxy->remote,
-	                        NULL, qdata->query, is_tcp ? 0 : KNOT_RQ_UDP);
+	const struct sockaddr *dst = (const struct sockaddr *)&proxy->remote.addr;
+	const struct sockaddr *src = (const struct sockaddr *)&proxy->remote.via;
+	req = knot_request_make(re.mm, dst, src, qdata->query, is_tcp ? 0 : KNOT_RQ_UDP);
 	if (req == NULL) {
 		return state; /* Ignore, not enough memory. */
 	}
@@ -97,25 +111,19 @@ int dnsproxy_load(struct query_plan *plan, struct query_module *self)
 
 	struct dnsproxy *proxy = mm_alloc(self->mm, sizeof(struct dnsproxy));
 	if (proxy == NULL) {
-		MODULE_ERR("not enough memory");
 		return KNOT_ENOMEM;
 	}
 	memset(proxy, 0, sizeof(struct dnsproxy));
 
 	conf_val_t val = conf_mod_get(self->config, MOD_REMOTE, self->id);
-	if (val.code != KNOT_EOK) {
-		if (val.code == KNOT_EINVAL) {
-			MODULE_ERR("no remote proxy address for '%s'",
-			           self->id->data);
-		}
-		mm_free(self->mm, proxy);
-		return val.code;
-	}
-	proxy->remote = conf_addr(&val, NULL);
+	proxy->remote = conf_remote(self->config, &val, 0);
+
+	val = conf_mod_get(self->config, MOD_CATCH_NXDOMAIN, self->id);
+	proxy->catch_nxdomain = conf_bool(&val);
 
 	self->ctx = proxy;
 
-	return query_plan_step(plan, QPLAN_BEGIN, dnsproxy_fwd, self->ctx);
+	return query_plan_step(plan, QPLAN_END, dnsproxy_fwd, self->ctx);
 }
 
 int dnsproxy_unload(struct query_module *self)

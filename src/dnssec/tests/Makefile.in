@@ -80,12 +80,14 @@ host_triplet = @host@
 check_PROGRAMS = binary$(EXEEXT) crypto$(EXEEXT) \
 	event_keystate$(EXEEXT) kasp_dir_escape$(EXEEXT) \
 	kasp_dir_file$(EXEEXT) kasp_store$(EXEEXT) key$(EXEEXT) \
-	key_algorithm$(EXEEXT) keyid$(EXEEXT) keystore_pkcs8$(EXEEXT) \
-	keystore_pkcs8_dir$(EXEEXT) keytag$(EXEEXT) list$(EXEEXT) \
-	nsec_bitmap$(EXEEXT) nsec_hash$(EXEEXT) random$(EXEEXT) \
-	sign$(EXEEXT) sign_der$(EXEEXT) shared_base32hex$(EXEEXT) \
+	key_algorithm$(EXEEXT) key_ds$(EXEEXT) keyid$(EXEEXT) \
+	keystore_pkcs8$(EXEEXT) keystore_pkcs8_dir$(EXEEXT) \
+	keytag$(EXEEXT) list$(EXEEXT) nsec_bitmap$(EXEEXT) \
+	nsec_hash$(EXEEXT) random$(EXEEXT) sign$(EXEEXT) \
+	sign_der$(EXEEXT) shared_base32hex$(EXEEXT) \
 	shared_bignum$(EXEEXT) shared_dname$(EXEEXT) \
-	shared_strtonum$(EXEEXT) shared_wire$(EXEEXT) tsig$(EXEEXT)
+	shared_strtonum$(EXEEXT) shared_timestamp$(EXEEXT) \
+	shared_wire$(EXEEXT) tsig$(EXEEXT)
 subdir = src/dnssec/tests
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
@@ -147,6 +149,11 @@ key_algorithm_OBJECTS = key_algorithm.$(OBJEXT)
 key_algorithm_LDADD = $(LDADD)
 key_algorithm_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
+key_ds_SOURCES = key_ds.c
+key_ds_OBJECTS = key_ds.$(OBJEXT)
+key_ds_LDADD = $(LDADD)
+key_ds_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(builddir)/../libdnssec.la
 keyid_SOURCES = keyid.c
 keyid_OBJECTS = keyid.$(OBJEXT)
 keyid_LDADD = $(LDADD)
@@ -207,6 +214,11 @@ shared_strtonum_OBJECTS = shared_strtonum.$(OBJEXT)
 shared_strtonum_LDADD = $(LDADD)
 shared_strtonum_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
+shared_timestamp_SOURCES = shared_timestamp.c
+shared_timestamp_OBJECTS = shared_timestamp.$(OBJEXT)
+shared_timestamp_LDADD = $(LDADD)
+shared_timestamp_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(builddir)/../libdnssec.la
 shared_wire_SOURCES = shared_wire.c
 shared_wire_OBJECTS = shared_wire.$(OBJEXT)
 shared_wire_LDADD = $(LDADD)
@@ -262,17 +274,17 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = binary.c crypto.c event_keystate.c kasp_dir_escape.c \
-	kasp_dir_file.c kasp_store.c key.c key_algorithm.c keyid.c \
-	keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
+	kasp_dir_file.c kasp_store.c key.c key_algorithm.c key_ds.c \
+	keyid.c keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
 	nsec_bitmap.c nsec_hash.c random.c shared_base32hex.c \
-	shared_bignum.c shared_dname.c shared_strtonum.c shared_wire.c \
-	sign.c sign_der.c tsig.c
+	shared_bignum.c shared_dname.c shared_strtonum.c \
+	shared_timestamp.c shared_wire.c sign.c sign_der.c tsig.c
 DIST_SOURCES = binary.c crypto.c event_keystate.c kasp_dir_escape.c \
-	kasp_dir_file.c kasp_store.c key.c key_algorithm.c keyid.c \
-	keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
+	kasp_dir_file.c kasp_store.c key.c key_algorithm.c key_ds.c \
+	keyid.c keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
 	nsec_bitmap.c nsec_hash.c random.c shared_base32hex.c \
-	shared_bignum.c shared_dname.c shared_strtonum.c shared_wire.c \
-	sign.c sign_der.c tsig.c
+	shared_bignum.c shared_dname.c shared_strtonum.c \
+	shared_timestamp.c shared_wire.c sign.c sign_der.c tsig.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -549,6 +561,10 @@ key_algorithm$(EXEEXT): $(key_algorithm_OBJECTS) $(key_algorithm_DEPENDENCIES) $
 	@rm -f key_algorithm$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(key_algorithm_OBJECTS) $(key_algorithm_LDADD) $(LIBS)
 
+key_ds$(EXEEXT): $(key_ds_OBJECTS) $(key_ds_DEPENDENCIES) $(EXTRA_key_ds_DEPENDENCIES) 
+	@rm -f key_ds$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(key_ds_OBJECTS) $(key_ds_LDADD) $(LIBS)
+
 keyid$(EXEEXT): $(keyid_OBJECTS) $(keyid_DEPENDENCIES) $(EXTRA_keyid_DEPENDENCIES) 
 	@rm -f keyid$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(keyid_OBJECTS) $(keyid_LDADD) $(LIBS)
@@ -597,6 +613,10 @@ shared_strtonum$(EXEEXT): $(shared_strtonum_OBJECTS) $(shared_strtonum_DEPENDENC
 	@rm -f shared_strtonum$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_strtonum_OBJECTS) $(shared_strtonum_LDADD) $(LIBS)
 
+shared_timestamp$(EXEEXT): $(shared_timestamp_OBJECTS) $(shared_timestamp_DEPENDENCIES) $(EXTRA_shared_timestamp_DEPENDENCIES) 
+	@rm -f shared_timestamp$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(shared_timestamp_OBJECTS) $(shared_timestamp_LDADD) $(LIBS)
+
 shared_wire$(EXEEXT): $(shared_wire_OBJECTS) $(shared_wire_DEPENDENCIES) $(EXTRA_shared_wire_DEPENDENCIES) 
 	@rm -f shared_wire$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_wire_OBJECTS) $(shared_wire_LDADD) $(LIBS)
@@ -627,6 +647,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kasp_store.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/key.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/key_algorithm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/key_ds.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/keyid.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/keystore_pkcs8.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/keystore_pkcs8_dir.Po@am__quote@
@@ -639,6 +660,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_bignum.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_dname.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_strtonum.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_timestamp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sign.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sign_der.Po@am__quote@

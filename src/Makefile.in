@@ -121,7 +121,8 @@ subdir = src
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/config.h.in $(srcdir)/libknot.pc.in \
 	$(top_srcdir)/depcomp $(nobase_libknot_internal_la_HEADERS) \
-	$(nobase_libknot_la_HEADERS)
+	$(nobase_libknot_la_HEADERS) \
+	$(nobase_libknot_yparser_la_HEADERS)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -167,7 +168,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(pkgconfigdir)" \
 	"$(DESTDIR)$(libknot_internal_ladir)" \
-	"$(DESTDIR)$(libknot_ladir)"
+	"$(DESTDIR)$(libknot_ladir)" \
+	"$(DESTDIR)$(libknot_yparser_ladir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libknot_internal_la_LIBADD =
 am__libknot_internal_la_SOURCES_DIST = libknot/internal/base32hex.c \
@@ -196,8 +198,9 @@ am__libknot_internal_la_SOURCES_DIST = libknot/internal/base32hex.c \
 	libknot/internal/strlcat.h libknot/internal/strlcpy.h \
 	libknot/internal/tolower.h libknot/internal/trie/hat-trie.h \
 	libknot/internal/trie/murmurhash3.h libknot/internal/utils.h \
-	libknot/internal/namedb/mdb.c libknot/internal/namedb/midl.c \
-	libknot/internal/namedb/lmdb.h libknot/internal/namedb/midl.h
+	libknot/internal/wire_ctx.h libknot/internal/namedb/mdb.c \
+	libknot/internal/namedb/midl.c libknot/internal/namedb/lmdb.h \
+	libknot/internal/namedb/midl.h
 am__dirstamp = $(am__leading_dot)dirstamp
 am__objects_1 =
 @HAVE_LMDB_FALSE@am__objects_2 = libknot/internal/namedb/libknot_internal_la-mdb.lo \
@@ -237,7 +240,8 @@ libknot_internal_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 libknot_yparser_la_LIBADD =
 am_libknot_yparser_la_OBJECTS = libknot/yparser/yparser.lo \
 	libknot/yparser/ypbody.lo libknot/yparser/ypformat.lo \
-	libknot/yparser/ypscheme.lo libknot/yparser/yptrafo.lo
+	libknot/yparser/ypscheme.lo libknot/yparser/yptrafo.lo \
+	$(am__objects_1)
 libknot_yparser_la_OBJECTS = $(am_libknot_yparser_la_OBJECTS)
 libknot_la_DEPENDENCIES = dnssec/libdnssec.la libknot-internal.la
 am_libknot_la_OBJECTS = libknot/libknot_la-binary.lo \
@@ -553,7 +557,8 @@ am__can_run_installinfo = \
   esac
 DATA = $(pkgconfig_DATA)
 HEADERS = $(nobase_libknot_internal_la_HEADERS) \
-	$(nobase_libknot_la_HEADERS)
+	$(nobase_libknot_la_HEADERS) \
+	$(nobase_libknot_yparser_la_HEADERS)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 am__recursive_targets = \
@@ -817,6 +822,7 @@ nobase_libknot_la_HEADERS = \
 	libknot/rrtype/rrsig.h			\
 	libknot/rrtype/soa.h			\
 	libknot/rrtype/tsig.h			\
+	libknot/rrtype/txt.h			\
 	libknot/tsig-op.h			\
 	libknot/tsig.h
 
@@ -848,7 +854,15 @@ nobase_libknot_internal_la_HEADERS = \
 	libknot/internal/tolower.h		\
 	libknot/internal/trie/hat-trie.h	\
 	libknot/internal/trie/murmurhash3.h	\
-	libknot/internal/utils.h
+	libknot/internal/utils.h		\
+	libknot/internal/wire_ctx.h
+
+libknot_yparser_ladir = $(includedir)
+nobase_libknot_yparser_la_HEADERS = \
+	libknot/yparser/yparser.h		\
+	libknot/yparser/ypformat.h		\
+	libknot/yparser/ypscheme.h		\
+	libknot/yparser/yptrafo.h
 
 
 # dynamic: libknot sources
@@ -882,10 +896,7 @@ libknot_yparser_la_SOURCES = \
 	libknot/yparser/ypformat.c		\
 	libknot/yparser/ypscheme.c		\
 	libknot/yparser/yptrafo.c		\
-	libknot/yparser/yparser.h		\
-	libknot/yparser/ypformat.h		\
-	libknot/yparser/ypscheme.h		\
-	libknot/yparser/yptrafo.h
+	$(nobase_libknot_yparser_la_HEADERS)
 
 libknot_internal_la_SOURCES = libknot/internal/base32hex.c \
 	libknot/internal/base64.c libknot/internal/errcode.c \
@@ -3063,6 +3074,30 @@ uninstall-nobase_libknot_laHEADERS:
 	@list='$(nobase_libknot_la_HEADERS)'; test -n "$(libknot_ladir)" || list=; \
 	$(am__nobase_strip_setup); files=`$(am__nobase_strip)`; \
 	dir='$(DESTDIR)$(libknot_ladir)'; $(am__uninstall_files_from_dir)
+install-nobase_libknot_yparser_laHEADERS: $(nobase_libknot_yparser_la_HEADERS)
+	@$(NORMAL_INSTALL)
+	@list='$(nobase_libknot_yparser_la_HEADERS)'; test -n "$(libknot_yparser_ladir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libknot_yparser_ladir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libknot_yparser_ladir)" || exit 1; \
+	fi; \
+	$(am__nobase_list) | while read dir files; do \
+	  xfiles=; for file in $$files; do \
+	    if test -f "$$file"; then xfiles="$$xfiles $$file"; \
+	    else xfiles="$$xfiles $(srcdir)/$$file"; fi; done; \
+	  test -z "$$xfiles" || { \
+	    test "x$$dir" = x. || { \
+	      echo " $(MKDIR_P) '$(DESTDIR)$(libknot_yparser_ladir)/$$dir'"; \
+	      $(MKDIR_P) "$(DESTDIR)$(libknot_yparser_ladir)/$$dir"; }; \
+	    echo " $(INSTALL_HEADER) $$xfiles '$(DESTDIR)$(libknot_yparser_ladir)/$$dir'"; \
+	    $(INSTALL_HEADER) $$xfiles "$(DESTDIR)$(libknot_yparser_ladir)/$$dir" || exit $$?; }; \
+	done
+
+uninstall-nobase_libknot_yparser_laHEADERS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(nobase_libknot_yparser_la_HEADERS)'; test -n "$(libknot_yparser_ladir)" || list=; \
+	$(am__nobase_strip_setup); files=`$(am__nobase_strip)`; \
+	dir='$(DESTDIR)$(libknot_yparser_ladir)'; $(am__uninstall_files_from_dir)
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run 'make' without going through this Makefile.
@@ -3226,7 +3261,7 @@ install-binPROGRAMS: install-libLTLIBRARIES
 
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(libknot_internal_ladir)" "$(DESTDIR)$(libknot_ladir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(libknot_internal_ladir)" "$(DESTDIR)$(libknot_ladir)" "$(DESTDIR)$(libknot_yparser_ladir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-recursive
@@ -3335,7 +3370,8 @@ info: info-recursive
 info-am:
 
 install-data-am: install-nobase_libknot_internal_laHEADERS \
-	install-nobase_libknot_laHEADERS install-pkgconfigDATA
+	install-nobase_libknot_laHEADERS \
+	install-nobase_libknot_yparser_laHEADERS install-pkgconfigDATA
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
 install-dvi: install-dvi-recursive
@@ -3387,8 +3423,9 @@ ps-am:
 uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	uninstall-libexecPROGRAMS \
 	uninstall-nobase_libknot_internal_laHEADERS \
-	uninstall-nobase_libknot_laHEADERS uninstall-pkgconfigDATA \
-	uninstall-sbinPROGRAMS
+	uninstall-nobase_libknot_laHEADERS \
+	uninstall-nobase_libknot_yparser_laHEADERS \
+	uninstall-pkgconfigDATA uninstall-sbinPROGRAMS
 
 .MAKE: $(am__recursive_targets) all install-am install-data-am \
 	install-strip
@@ -3405,8 +3442,9 @@ uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	install-exec-am install-html install-html-am install-info \
 	install-info-am install-libLTLIBRARIES install-libexecPROGRAMS \
 	install-man install-nobase_libknot_internal_laHEADERS \
-	install-nobase_libknot_laHEADERS install-pdf install-pdf-am \
-	install-pkgconfigDATA install-ps install-ps-am \
+	install-nobase_libknot_laHEADERS \
+	install-nobase_libknot_yparser_laHEADERS install-pdf \
+	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
 	install-sbinPROGRAMS install-strip installcheck \
 	installcheck-am installcheck-binPROGRAMS \
 	installcheck-libexecPROGRAMS installcheck-sbinPROGRAMS \
@@ -3416,8 +3454,9 @@ uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS \
 	uninstall-libLTLIBRARIES uninstall-libexecPROGRAMS \
 	uninstall-nobase_libknot_internal_laHEADERS \
-	uninstall-nobase_libknot_laHEADERS uninstall-pkgconfigDATA \
-	uninstall-sbinPROGRAMS
+	uninstall-nobase_libknot_laHEADERS \
+	uninstall-nobase_libknot_yparser_laHEADERS \
+	uninstall-pkgconfigDATA uninstall-sbinPROGRAMS
 
 
 # Create storage and run-time directories

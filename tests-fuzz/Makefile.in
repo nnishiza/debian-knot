@@ -13,7 +13,6 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
-
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
@@ -78,7 +77,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = packet$(EXEEXT)
+check_PROGRAMS = knotd_stdio$(EXEEXT) packet$(EXEEXT)
 subdir = tests-fuzz
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
@@ -96,15 +95,22 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/src/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-PROGRAMS = $(noinst_PROGRAMS)
-packet_SOURCES = packet.c
-packet_OBJECTS = packet.$(OBJEXT)
-packet_LDADD = $(LDADD)
-packet_DEPENDENCIES = $(top_builddir)/src/libknot.la
+am__dirstamp = $(am__leading_dot)dirstamp
+am_knotd_stdio_OBJECTS = wrap/knotd_stdio-server.$(OBJEXT) \
+	wrap/knotd_stdio-tcp-handler.$(OBJEXT) \
+	wrap/knotd_stdio-udp-handler.$(OBJEXT)
+knotd_stdio_OBJECTS = $(am_knotd_stdio_OBJECTS)
+am__DEPENDENCIES_1 =
+knotd_stdio_DEPENDENCIES = $(top_builddir)/src/knot/knotd-main.o \
+	$(top_builddir)/src/libknotd.la $(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+packet_SOURCES = packet.c
+packet_OBJECTS = packet.$(OBJEXT)
+packet_LDADD = $(LDADD)
+packet_DEPENDENCIES = $(top_builddir)/src/libknot.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -139,8 +145,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = packet.c
-DIST_SOURCES = packet.c
+SOURCES = $(knotd_stdio_SOURCES) packet.c
+DIST_SOURCES = $(knotd_stdio_SOURCES) packet.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -324,11 +330,17 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CPPFLAGS = \
 	-include $(top_builddir)/src/config.h \
-	-I$(top_srcdir)/src
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/dnssec/lib 
 
-#	-I$(top_srcdir)/src/dnssec/lib
 LDADD = \
 	$(top_builddir)/src/libknot.la
+
+knotd_stdio_SOURCES = wrap/server.c wrap/tcp-handler.c wrap/udp-handler.c
+knotd_stdio_CPPFLAGS = $(AM_CPPFLAGS) $(liburcu_CFLAGS)
+knotd_stdio_LDADD = \
+	$(top_builddir)/src/knot/knotd-main.o \
+	$(top_builddir)/src/libknotd.la $(liburcu_LIBS)
 
 all: all-am
 
@@ -365,14 +377,30 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
-clean-noinstPROGRAMS:
-	@list='$(noinst_PROGRAMS)'; test -n "$$list" || exit 0; \
+clean-checkPROGRAMS:
+	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
 	echo " rm -f" $$list; \
 	rm -f $$list || exit $$?; \
 	test -n "$(EXEEXT)" || exit 0; \
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
+wrap/$(am__dirstamp):
+	@$(MKDIR_P) wrap
+	@: > wrap/$(am__dirstamp)
+wrap/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) wrap/$(DEPDIR)
+	@: > wrap/$(DEPDIR)/$(am__dirstamp)
+wrap/knotd_stdio-server.$(OBJEXT): wrap/$(am__dirstamp) \
+	wrap/$(DEPDIR)/$(am__dirstamp)
+wrap/knotd_stdio-tcp-handler.$(OBJEXT): wrap/$(am__dirstamp) \
+	wrap/$(DEPDIR)/$(am__dirstamp)
+wrap/knotd_stdio-udp-handler.$(OBJEXT): wrap/$(am__dirstamp) \
+	wrap/$(DEPDIR)/$(am__dirstamp)
+
+knotd_stdio$(EXEEXT): $(knotd_stdio_OBJECTS) $(knotd_stdio_DEPENDENCIES) $(EXTRA_knotd_stdio_DEPENDENCIES) 
+	@rm -f knotd_stdio$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(knotd_stdio_OBJECTS) $(knotd_stdio_LDADD) $(LIBS)
 
 packet$(EXEEXT): $(packet_OBJECTS) $(packet_DEPENDENCIES) $(EXTRA_packet_DEPENDENCIES) 
 	@rm -f packet$(EXEEXT)
@@ -380,11 +408,15 @@ packet$(EXEEXT): $(packet_OBJECTS) $(packet_DEPENDENCIES) $(EXTRA_packet_DEPENDE
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f wrap/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/packet.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@wrap/$(DEPDIR)/knotd_stdio-server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@wrap/$(DEPDIR)/knotd_stdio-tcp-handler.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@wrap/$(DEPDIR)/knotd_stdio-udp-handler.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -409,6 +441,48 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+wrap/knotd_stdio-server.o: wrap/server.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wrap/knotd_stdio-server.o -MD -MP -MF wrap/$(DEPDIR)/knotd_stdio-server.Tpo -c -o wrap/knotd_stdio-server.o `test -f 'wrap/server.c' || echo '$(srcdir)/'`wrap/server.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) wrap/$(DEPDIR)/knotd_stdio-server.Tpo wrap/$(DEPDIR)/knotd_stdio-server.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wrap/server.c' object='wrap/knotd_stdio-server.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wrap/knotd_stdio-server.o `test -f 'wrap/server.c' || echo '$(srcdir)/'`wrap/server.c
+
+wrap/knotd_stdio-server.obj: wrap/server.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wrap/knotd_stdio-server.obj -MD -MP -MF wrap/$(DEPDIR)/knotd_stdio-server.Tpo -c -o wrap/knotd_stdio-server.obj `if test -f 'wrap/server.c'; then $(CYGPATH_W) 'wrap/server.c'; else $(CYGPATH_W) '$(srcdir)/wrap/server.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) wrap/$(DEPDIR)/knotd_stdio-server.Tpo wrap/$(DEPDIR)/knotd_stdio-server.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wrap/server.c' object='wrap/knotd_stdio-server.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wrap/knotd_stdio-server.obj `if test -f 'wrap/server.c'; then $(CYGPATH_W) 'wrap/server.c'; else $(CYGPATH_W) '$(srcdir)/wrap/server.c'; fi`
+
+wrap/knotd_stdio-tcp-handler.o: wrap/tcp-handler.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wrap/knotd_stdio-tcp-handler.o -MD -MP -MF wrap/$(DEPDIR)/knotd_stdio-tcp-handler.Tpo -c -o wrap/knotd_stdio-tcp-handler.o `test -f 'wrap/tcp-handler.c' || echo '$(srcdir)/'`wrap/tcp-handler.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) wrap/$(DEPDIR)/knotd_stdio-tcp-handler.Tpo wrap/$(DEPDIR)/knotd_stdio-tcp-handler.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wrap/tcp-handler.c' object='wrap/knotd_stdio-tcp-handler.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wrap/knotd_stdio-tcp-handler.o `test -f 'wrap/tcp-handler.c' || echo '$(srcdir)/'`wrap/tcp-handler.c
+
+wrap/knotd_stdio-tcp-handler.obj: wrap/tcp-handler.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wrap/knotd_stdio-tcp-handler.obj -MD -MP -MF wrap/$(DEPDIR)/knotd_stdio-tcp-handler.Tpo -c -o wrap/knotd_stdio-tcp-handler.obj `if test -f 'wrap/tcp-handler.c'; then $(CYGPATH_W) 'wrap/tcp-handler.c'; else $(CYGPATH_W) '$(srcdir)/wrap/tcp-handler.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) wrap/$(DEPDIR)/knotd_stdio-tcp-handler.Tpo wrap/$(DEPDIR)/knotd_stdio-tcp-handler.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wrap/tcp-handler.c' object='wrap/knotd_stdio-tcp-handler.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wrap/knotd_stdio-tcp-handler.obj `if test -f 'wrap/tcp-handler.c'; then $(CYGPATH_W) 'wrap/tcp-handler.c'; else $(CYGPATH_W) '$(srcdir)/wrap/tcp-handler.c'; fi`
+
+wrap/knotd_stdio-udp-handler.o: wrap/udp-handler.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wrap/knotd_stdio-udp-handler.o -MD -MP -MF wrap/$(DEPDIR)/knotd_stdio-udp-handler.Tpo -c -o wrap/knotd_stdio-udp-handler.o `test -f 'wrap/udp-handler.c' || echo '$(srcdir)/'`wrap/udp-handler.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) wrap/$(DEPDIR)/knotd_stdio-udp-handler.Tpo wrap/$(DEPDIR)/knotd_stdio-udp-handler.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wrap/udp-handler.c' object='wrap/knotd_stdio-udp-handler.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wrap/knotd_stdio-udp-handler.o `test -f 'wrap/udp-handler.c' || echo '$(srcdir)/'`wrap/udp-handler.c
+
+wrap/knotd_stdio-udp-handler.obj: wrap/udp-handler.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wrap/knotd_stdio-udp-handler.obj -MD -MP -MF wrap/$(DEPDIR)/knotd_stdio-udp-handler.Tpo -c -o wrap/knotd_stdio-udp-handler.obj `if test -f 'wrap/udp-handler.c'; then $(CYGPATH_W) 'wrap/udp-handler.c'; else $(CYGPATH_W) '$(srcdir)/wrap/udp-handler.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) wrap/$(DEPDIR)/knotd_stdio-udp-handler.Tpo wrap/$(DEPDIR)/knotd_stdio-udp-handler.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wrap/udp-handler.c' object='wrap/knotd_stdio-udp-handler.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_stdio_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wrap/knotd_stdio-udp-handler.obj `if test -f 'wrap/udp-handler.c'; then $(CYGPATH_W) 'wrap/udp-handler.c'; else $(CYGPATH_W) '$(srcdir)/wrap/udp-handler.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -499,8 +573,9 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 check: check-am
-all-am: Makefile $(PROGRAMS)
+all-am: Makefile
 installdirs:
 install: install-am
 install-exec: install-exec-am
@@ -528,17 +603,19 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f wrap/$(DEPDIR)/$(am__dirstamp)
+	-rm -f wrap/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-noinstPROGRAMS \
+clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR) wrap/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -584,7 +661,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR) wrap/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -603,11 +680,11 @@ ps-am:
 
 uninstall-am:
 
-.MAKE: install-am install-strip
+.MAKE: check-am install-am install-strip
 
-.PHONY: CTAGS GTAGS TAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-noinstPROGRAMS cscopelist-am ctags \
-	ctags-am distclean distclean-compile distclean-generic \
+.PHONY: CTAGS GTAGS TAGS all all-am check check-am clean \
+	clean-checkPROGRAMS clean-generic clean-libtool cscopelist-am \
+	ctags ctags-am distclean distclean-compile distclean-generic \
 	distclean-libtool distclean-tags distdir dvi dvi-am html \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \

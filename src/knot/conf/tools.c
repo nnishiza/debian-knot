@@ -15,7 +15,7 @@
 */
 
 #include <ctype.h>
-#include <dirent.h>
+#include <glob.h>
 #include <inttypes.h>
 #include <libgen.h>
 #include <stdbool.h>
@@ -25,12 +25,18 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <limits.h>
+#ifndef PATH_MAX
+  #define PATH_MAX 4096
+#endif
 
 #include "knot/conf/tools.h"
 #include "knot/conf/conf.h"
 #include "knot/conf/confdb.h"
 #include "knot/conf/scheme.h"
+#include "knot/common/log.h"
 #include "libknot/errcode.h"
+#include "libknot/internal/utils.h"
 #include "libknot/yparser/yptrafo.h"
 
 static int hex_to_num(char hex) {
@@ -179,6 +185,74 @@ int mod_id_to_txt(
 	return KNOT_EOK;
 }
 
+int edns_opt_to_bin(
+	char const *txt,
+	size_t txt_len,
+	uint8_t *bin,
+	size_t *bin_len)
+{
+	char *suffix = NULL;
+	unsigned long number = strtoul(txt, &suffix, 10);
+
+	// Check for "code:[value]" format.
+	if (suffix <= txt || *suffix != ':' || number > UINT16_MAX) {
+		return KNOT_EINVAL;
+	}
+
+	// Store the option code.
+	uint16_t code = number;
+	if (*bin_len < sizeof(code)) {
+		return KNOT_ESPACE;
+	}
+	wire_write_u16(bin, code);
+	bin += sizeof(code);
+
+	// Prepare suffix input (behind colon character).
+	size_t txt_suffix_len = txt_len - (suffix - txt) - 1;
+	size_t bin_suffix_len = *bin_len - sizeof(code);
+	suffix++;
+
+	// Convert suffix data.
+	int ret = hex_text_to_bin(suffix, txt_suffix_len, bin, &bin_suffix_len);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	// Set output data length.
+	*bin_len = sizeof(code) + bin_suffix_len;
+
+	return KNOT_EOK;
+}
+
+int edns_opt_to_txt(
+	uint8_t const *bin,
+	size_t bin_len,
+	char *txt,
+	size_t *txt_len)
+{
+	uint16_t code = wire_read_u16(bin);
+
+	// Write option code part.
+	int code_len = snprintf(txt, *txt_len, "%u:", code);
+	if (code_len <= 0 || code_len >= *txt_len) {
+		return KNOT_ESPACE;
+	}
+
+	size_t data_len = *txt_len - code_len;
+
+	// Write possible option data part.
+	int ret = hex_text_to_txt(bin + sizeof(code), bin_len - sizeof(code),
+	                          txt + code_len, &data_len);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	// Set output text length.
+	*txt_len = code_len + data_len;
+
+	return KNOT_EOK;
+}
+
 int check_ref(
 	conf_check_t *args)
 {
@@ -252,113 +326,87 @@ int check_zone(
 	return KNOT_EOK;
 }
 
+static int glob_error(
+	const char *epath,
+	int eerrno)
+{
+	CONF_LOG(LOG_WARNING, "failed to access '%s' (%s)", epath,
+	         knot_strerror(knot_map_errno_code(eerrno)));
+
+	return 0;
+}
+
 int include_file(
 	conf_check_t *args)
 {
-	size_t max_path = 4096;
-	char *path = malloc(max_path);
+	glob_t glob_buf = { 0 };
+	int ret;
+
+	char *path = malloc(PATH_MAX);
 	if (path == NULL) {
 		return KNOT_ENOMEM;
 	}
 
 	// Prepare absolute include path.
-	int ret;
 	if (args->check->data[0] == '/') {
-		ret = snprintf(path, max_path, "%.*s",
+		ret = snprintf(path, PATH_MAX, "%.*s",
 		               (int)args->check->data_len, args->check->data);
 	} else {
 		const char *file_name = args->parser->file.name != NULL ?
 		                        args->parser->file.name : "./";
 		char *full_current_name = realpath(file_name, NULL);
 		if (full_current_name == NULL) {
-			free(path);
-			return KNOT_ENOMEM;
+			ret = KNOT_ENOMEM;
+			goto include_error;
 		}
 
-		ret = snprintf(path, max_path, "%s/%.*s",
+		ret = snprintf(path, PATH_MAX, "%s/%.*s",
 		               dirname(full_current_name),
 		               (int)args->check->data_len, args->check->data);
 		free(full_current_name);
 	}
-	if (ret <= 0 || ret >= max_path) {
-		free(path);
-		return KNOT_ESPACE;
-	}
-	size_t path_len = ret;
-
-	// Get file status.
-	struct stat file_stat;
-	if (stat(path, &file_stat) != 0) {
-		free(path);
-		return KNOT_EFILE;
+	if (ret <= 0 || ret >= PATH_MAX) {
+		ret = KNOT_ESPACE;
+		goto include_error;
 	}
 
-	// Process regular file.
-	if (S_ISREG(file_stat.st_mode)) {
-		ret = conf_parse(args->conf, args->txn, path, true,
-		                 args->include_depth, args->previous);
-		free(path);
-		return ret;
-	} else if (!S_ISDIR(file_stat.st_mode)) {
-		free(path);
-		return KNOT_EFILE;
+	// Evaluate include pattern.
+	ret = glob(path, 0, glob_error, &glob_buf);
+	if (ret != 0) {
+		ret = KNOT_EFILE;
+		goto include_error;
 	}
 
-	// Process directory.
-	DIR *dir = opendir(path);
-	if (dir == NULL) {
-		free(path);
-		return KNOT_EFILE;
-	}
+	// Process glob result.
+	for (size_t i = 0; i < glob_buf.gl_pathc; i++) {
+		// Get file status.
+		struct stat file_stat;
+		if (stat(glob_buf.gl_pathv[i], &file_stat) != 0) {
+			CONF_LOG(LOG_WARNING, "failed to get file status for '%s'",
+			         glob_buf.gl_pathv[i]);
+			continue;
+		}
 
-	// Prepare own dirent structure (see NOTES in man readdir_r).
-	size_t len = offsetof(struct dirent, d_name) +
-	             fpathconf(dirfd(dir), _PC_NAME_MAX) + 1;
-	struct dirent *entry = malloc(len);
-	if (entry == NULL) {
-		free(path);
-		return KNOT_ENOMEM;
+		// Ignore directory or non-regular file.
+		if (S_ISDIR(file_stat.st_mode)) {
+			continue;
+		} else if (!S_ISREG(file_stat.st_mode)) {
+			CONF_LOG(LOG_WARNING, "invalid include file '%s'",
+			         glob_buf.gl_pathv[i]);
+			continue;
+		}
+
+		// Include regular file.
+		ret = conf_parse(args->conf, args->txn, glob_buf.gl_pathv[i],
+		                 true, args->include_depth, args->previous);
+		if (ret != KNOT_EOK) {
+			goto include_error;
+		}
 	}
-	memset(entry, 0, len);
 
 	ret = KNOT_EOK;
-
-	int error;
-	struct dirent *result = NULL;
-	while ((error = readdir_r(dir, entry, &result)) == 0 && result != NULL) {
-		// Skip names with leading dot.
-		if (entry->d_name[0] == '.') {
-			continue;
-		}
-
-		// Prepare included file absolute path.
-		ret = snprintf(path + path_len, max_path - path_len, "/%s",
-		               entry->d_name);
-		if (ret <= 0 || ret >= max_path - path_len) {
-			ret = KNOT_ESPACE;
-			break;
-		} else {
-			ret = KNOT_EOK;
-		}
-
-		// Ignore directories inside the current directory.
-		if (stat(path, &file_stat) == 0 && !S_ISREG(file_stat.st_mode)) {
-			continue;
-		}
-
-		ret = conf_parse(args->conf, args->txn, path, true,
-		                 args->include_depth, args->previous);
-		if (ret != KNOT_EOK) {
-			break;
-		}
-	}
-
-	if (error != 0) {
-		ret = knot_map_errno();
-	}
-
-	free(entry);
-	closedir(dir);
+include_error:
+	globfree(&glob_buf);
 	free(path);
 
 	return ret;
