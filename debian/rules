@@ -33,6 +33,7 @@ override_dh_auto_configure:
 	  --with-rundir=/run/knot \
 	  --with-storage=/var/lib/knot \
 	  --enable-systemd=auto \
+	  --with-bash-completions \
 	  $(RECVMMSG) \
 	  --disable-silent-rules
 
