@@ -1,7 +1,8 @@
 Source: knot
 Section: net
 Priority: optional
-Maintainer: Ondřej Surý <ondrej@debian.org>
+Maintainer: Debian DNS Packaging <pkg-dns-devel@lists.alioth.debian.org>
+Uploaders: Ondřej Surý <ondrej@debian.org>
 Build-Depends-Indep: ghostscript,
                      python-sphinx,
                      texinfo,
@@ -25,13 +26,15 @@ Build-Depends: autotools-dev,
                pkg-config
 Standards-Version: 3.9.6
 Homepage: http://www.knot-dns.cz/
-Vcs-Browser: http://anonscm.debian.org/?p=users/ondrej/knot.git
-Vcs-Git: git://anonscm.debian.org/users/ondrej/knot.git
+Vcs-Browser: https://anonscm.debian.org/git/pkg-dns/knot.git
+Vcs-Git: git://anonscm.debian.org/pkg-dns/knot.git
 
 Package: knot
 Architecture: any
 Depends: adduser,
-         knot-libs (= ${binary:Version}),
+         libdnssec0 (= ${binary:Version}),
+         libknot1 (= ${binary:Version}),
+         libzscanner0 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: systemd
@@ -43,11 +46,12 @@ Description: authoritative domain name server
  registry and hence is well suited to run anything from the root
  zone, the top-level domain, to many smaller standard domain names.
 
-Package: knot-libs
+Package: libknot1
 Architecture: any
-Depends: ${misc:Depends},
-         ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Section: libs
+Replaces: knot-libs (<< 2.0.1-4)
+Breaks: knot-libs (<< 2.0.1-4)
 Description: authoritative domain name server
  Knot DNS is a fast, authoritative only, high performance, feature
  full and open source name server.
@@ -56,12 +60,70 @@ Description: authoritative domain name server
  registry and hence is well suited to run anything from the root
  zone, the top-level domain, to many smaller standard domain names.
  .
- This package provides various internal common shared libraries.
+ This package provides libknot shared library used by Knot DNS and
+ Knot Resolver.
+
+Package: libzscanner0
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Section: libs
+Replaces: knot-libs (<< 2.0.1-4)
+Breaks: knot-libs (<< 2.0.1-4)
+Description: authoritative domain name server
+ Knot DNS is a fast, authoritative only, high performance, feature
+ full and open source name server.
+ .
+ Knot DNS is developed by CZ.NIC Labs, the R&D department of .CZ
+ registry and hence is well suited to run anything from the root
+ zone, the top-level domain, to many smaller standard domain names.
+ .
+ This package provides a fast zone parser shared library used by Knot
+ DNS and Knot Resolver.
+
+Package: libdnssec0
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Section: libs
+Replaces: knot-libs (<< 2.0.1-4)
+Breaks: knot-libs (<< 2.0.1-4)
+Description: authoritative domain name server
+ Knot DNS is a fast, authoritative only, high performance, feature
+ full and open source name server.
+ .
+ Knot DNS is developed by CZ.NIC Labs, the R&D department of .CZ
+ registry and hence is well suited to run anything from the root
+ zone, the top-level domain, to many smaller standard domain names.
+ .
+ This package provides common DNSSEC shared library used by Knot DNS
+ and Knot Resolver.
+
+Package: libknot-dev
+Architecture: any
+Depends: libdnssec0 (= ${binary:Version}),
+         libknot1 (= ${binary:Version}),
+         libzscanner0 (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Section: libdevel
+Replaces: knot-libs (<< 2.0.1-4)
+Breaks: knot-libs (<< 2.0.1-4)
+Description: authoritative domain name server
+ Knot DNS is a fast, authoritative only, high performance, feature
+ full and open source name server.
+ .
+ Knot DNS is developed by CZ.NIC Labs, the R&D department of .CZ
+ registry and hence is well suited to run anything from the root
+ zone, the top-level domain, to many smaller standard domain names.
+ .
+ This package provides development files for internal common shared
+ libraries.
 
 Package: knot-dbg
 Architecture: any
 Depends: knot (= ${binary:Version}),
-         knot-libs (= ${binary:Version}),
+         libdnssec0 (= ${binary:Version}),
+         libknot1 (= ${binary:Version}),
+         libzscanner0 (= ${binary:Version}),
          ${misc:Depends}
 Recommends: gdb
 Section: debug
@@ -79,7 +141,9 @@ Description: Debug symbols for Knot DNS
 
 Package: knot-dnsutils
 Architecture: any
-Depends: knot-libs (= ${binary:Version}),
+Depends: libdnssec0 (= ${binary:Version}),
+         libknot1 (= ${binary:Version}),
+         libzscanner0 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Section: net
@@ -108,7 +172,9 @@ Description: Clients provided with Knot DNS (kdig, knslookup, knsupdate)
 
 Package: knot-host
 Architecture: any
-Depends: knot-libs (= ${binary:Version}),
+Depends: libdnssec0 (= ${binary:Version}),
+         libknot1 (= ${binary:Version}),
+         libzscanner0 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Section: net

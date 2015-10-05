@@ -62,7 +62,7 @@ override_dh_install-arch:
 	rm $(CURDIR)/debian/tmp/etc/knot/example.com.zone
 
 	# Remove .la and .so
-	rm $(CURDIR)/debian/tmp/usr/lib/*/*.la $(CURDIR)/debian/tmp/usr/lib/*/*.so
+	rm $(CURDIR)/debian/tmp/usr/lib/*/*.la
 
 	dh_install -Nknot-doc --list-missing
 
