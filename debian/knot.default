@@ -1,0 +1,5 @@
+KNOTD_CONFFILE/etc/knot/knot.conf
+KNOTD_ARGS="-c $KNOTD_CONFFILE"
+
+# or for configuration database
+# KNOTD_ARGS=-C /etc/knot/confdb/

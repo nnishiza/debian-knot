@@ -16,14 +16,20 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Knot DNS server" # Introduce a short description here
 NAME=knotd             # Introduce the short server's name here
 DAEMON=/usr/sbin/$NAME # Introduce the server's location here
-DAEMON_CONFFILE=/etc/knot/knot.conf
-DAEMON_ARGS="-d -c $DAEMON_CONFFILE"
 PIDFILE=/run/knot/knot.pid
 SCRIPTNAME=/etc/init.d/knot
 KNOTC=/usr/sbin/knotc
 
 # Exit if the package is not installed
 [ -x $DAEMON ] || exit 0
+
+KNOTD_CONFFILE=/etc/knot/knot.conf
+KNOTD_ARGS="-c $KNOTD_CONFFILE"
+
+# Read configuration variable file if it is present
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+DAEMON_ARGS="-d $KNOTD_ARGS"
 
 # Define LSB log_* functions.
 # Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
