@@ -23,8 +23,7 @@ KNOTC=/usr/sbin/knotc
 # Exit if the package is not installed
 [ -x $DAEMON ] || exit 0
 
-KNOTD_CONFFILE=/etc/knot/knot.conf
-KNOTD_ARGS="-c $KNOTD_CONFFILE"
+KNOTD_ARGS="-c /etc/knot/knot.conf"
 
 # Read configuration variable file if it is present
 [ -r /etc/default/$NAME ] && . /etc/default/$NAME
