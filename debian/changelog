@@ -1,3 +1,10 @@
+knot (2.0.2-1) unstable; urgency=medium
+
+  * Imported Upstream version 2.0.2
+  * Delete d/p/series as we carry no patches
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 24 Nov 2015 19:59:56 +0100
+
 knot (2.0.1-4) unstable; urgency=medium
 
   * Split knot-libs into individual library packages
