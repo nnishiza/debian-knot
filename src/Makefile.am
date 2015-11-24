@@ -178,6 +178,7 @@ libknot_la_SOURCES =				\
 	libknot/processing/process.c		\
 	libknot/processing/process.h		\
 	libknot/rrtype/dnskey.h			\
+	libknot/rrtype/naptr.c			\
 	libknot/rrtype/naptr.h			\
 	libknot/rrtype/nsec.h			\
 	libknot/rrtype/nsec.h			\
@@ -358,6 +359,15 @@ kdig_LDADD         += dnstap/libdnstap.la
 khost_LDADD        += dnstap/libdnstap.la
 libknotd_la_LIBADD += dnstap/libdnstap.la
 endif
+
+if HAVE_ROSEDB
+libknotd_la_SOURCES +=				\
+	knot/modules/rosedb.c			\
+	knot/modules/rosedb.h
+bin_PROGRAMS += rosedb_tool
+rosedb_tool_SOURCES = knot/modules/rosedb_tool.c
+rosedb_tool_LDADD = libknot.la libknotd.la
+endif # HAVE_ROSEDB
 
 # Create storage and run-time directories
 install-data-hook:

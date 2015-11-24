@@ -1,3 +1,19 @@
+/*!
+ * \file rosedb.h
+ *
+ * \author Marek Vavrusa <marek.vavrusa@nic.cz>
+ *
+ * \brief Static resource records
+ *
+ * Accepted configurations:
+ *  * "<path_to_database>"
+ *
+ * The module provides a mean to override responses for certain queries before
+ * the record is searched in the available zones.
+ *
+ * \addtogroup query_processing
+ * @{
+ */
 /*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
@@ -16,17 +32,10 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "knot/nameserver/query_module.h"
 
-/*!
- * \brief Counts the size of the NAPTR RDATA before the Replacement domain name.
- *
- * See RFC 2915.
- *
- * \param naptr  Wire format of NAPTR record.
- * \param maxp   Limit of the wire format.
- *
- * \retval KNOT_EMALF if the record is malformed.
- * \retval Size of the RDATA before the Replacement domain name.
- */
-int knot_naptr_header_size(const uint8_t *naptr, const uint8_t *maxp);
+/*! \brief Module interface. */
+int rosedb_load(struct query_plan *plan, struct query_module *self);
+int rosedb_unload(struct query_module *self);
+
+/*! @} */
