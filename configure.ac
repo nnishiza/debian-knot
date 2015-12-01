@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.6.5-rosedb], [knot-dns@labs.nic.cz])
-AM_INIT_AUTOMAKE([gnu subdir-objects dist-xz -Wall -Werror])
+AC_INIT([knot], [1.6.6], [knot-dns@labs.nic.cz])
+AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
 AC_CONFIG_HEADERS([src/config.h])
@@ -94,20 +94,17 @@ AC_ARG_ENABLE([systemd],
     AS_HELP_STRING([--enable-systemd=auto|yes|no], [enable systemd integration [default=auto]]),
     [enable_systemd="$enableval"], [enable_systemd=auto])
 
-AS_IF([test "$enable_daemon" = "yes"],[
-
 AS_IF([test "$enable_systemd" != "no"],[
   AS_CASE([$enable_systemd],
     [auto],[PKG_CHECK_MODULES([systemd], [libsystemd], [enable_systemd=yes], [
             PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal], [enable_systemd=yes], [enable_systemd=no])])],
     [yes],[PKG_CHECK_MODULES([systemd], [libsystemd], [], [
-    →       PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal])])],
+            PKG_CHECK_MODULES([systemd], [libsystemd-daemon libsystemd-journal])])],
     [*],[AC_MSG_ERROR([Invalid value of --enable-systemd.])])
     ])
 
 AS_IF([test "$enable_systemd" = "yes"],[
   AC_DEFINE([ENABLE_SYSTEMD], [1], [Use systemd integration.])])
-])
 
 dnl Check for rosedb module
 AC_ARG_ENABLE([rosedb],
