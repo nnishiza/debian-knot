@@ -1,7 +1,14 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [2.0.2], [knot-dns@labs.nic.cz])
+
+m4_define([knot_VERSION_MAJOR],2)dnl
+m4_define([knot_VERSION_MINOR],1)dnl
+m4_define([knot_VERSION_PATCH],0)dnl
+m4_define([knot_VERSION_EXTRA],-rc1)dnl
+m4_define([knot_PKG_VERSION],[knot_VERSION_MAJOR.knot_VERSION_MINOR.knot_VERSION_PATCH]knot_VERSION_EXTRA)dnl
+
+AC_INIT([knot], knot_PKG_VERSION, [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnits subdir-objects no-dist-gzip dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
@@ -9,6 +16,15 @@ AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_USE_SYSTEM_EXTENSIONS([_GNU_SOURCE])
 AC_CANONICAL_HOST
+
+AC_SUBST([KNOT_VERSION_MAJOR], knot_VERSION_MAJOR)
+AC_SUBST([KNOT_VERSION_MINOR], knot_VERSION_MINOR)
+AC_SUBST([KNOT_VERSION_PATCH], knot_VERSION_PATCH)
+AC_SUBST([KNOT_VERSION_EXTRA], knot_VERSION_EXTRA)
+
+AC_CONFIG_FILES([src/libknot/version.h
+		 src/zscanner/version.h
+		 src/dnssec/lib/dnssec/version.h])
 
 # Here are a set of rules to help you update your library version
 # information:
@@ -32,9 +48,9 @@ AC_CANONICAL_HOST
 # 6. If any interfaces have been removed or changed since the last
 #    public release, then set age to 0.
 
-AC_SUBST([libknot_VERSION_INFO],["-version-info 1:0:0"])
-AC_SUBST([libdnssec_VERSION_INFO],["-version-info 0:0:0"])
-AC_SUBST([libzscanner_VERSION_INFO],["-version-info 0:1:0"])
+AC_SUBST([libknot_VERSION_INFO],["-version-info 2:0:0"])
+AC_SUBST([libdnssec_VERSION_INFO],["-version-info 1:0:0"])
+AC_SUBST([libzscanner_VERSION_INFO],["-version-info 1:0:0"])
 
 # Automatically update release date based on configure.ac date
 AC_PROG_SED
@@ -112,45 +128,18 @@ PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle], [
     CFLAGS="$CFLAGS $gnutls_CFLAGS"
     AC_CHECK_HEADERS([nettle/version.h])
     CFLAGS=$CFLAGS_save
+
+    LDFLAGS_save=$LDFLAGS
+    LDFLAGS="$LDFLAGS $gnutls_LIBS"
+    AC_CHECK_FUNC([gnutls_pkcs11_privkey_generate3], [enable_pkcs11=yes], [enable_pkcs11=no])
+    AS_IF([test "$enable_pkcs11" = yes],
+        [AC_DEFINE([ENABLE_PKCS11], [1], [PKCS 11 support available])])
+
+    LDFLAGS=$LDFLAGS_save
 ])
 
 # JSON for DNSSEC status storage
 PKG_CHECK_MODULES([jansson], [jansson >= 2.3])
-
-# Debug modules
-AC_ARG_ENABLE([debug],
-    AS_HELP_STRING([--enable-debug=server,zones,ns,loader,dnssec],
-    [compile selected debug modules [default=none]]),
-    [
-    echo ${enableval}|tr "," "\n"|while read val; do
-        case "${val}" in
-            server) AC_DEFINE([KNOTD_SERVER_DEBUG], [1], [Server debug.]) ;;
-            zones) AC_DEFINE([KNOT_ZONES_DEBUG], [1], [Zones debug.]) ;;
-            ns) AC_DEFINE([KNOT_NS_DEBUG], [1], [Nameserver debug.]) ;;
-            loader) AC_DEFINE([KNOT_LOADER_DEBUG], [1], [Zone loading debug.]) ;;
-            dnssec) AC_DEFINE([KNOT_DNSSEC_DEBUG], [1], [DNSSEC debug.]) ;;
-        esac
-    done
-    ], [])
-
-# Debug level
-AC_ARG_ENABLE([debuglevel],
-    AS_HELP_STRING([--enable-debuglevel=brief|verbose|details], [enable given debug level [default=disabled]]),
-    # Not all shells support fall-through with ;& so I have to duplicate
-    [case "x${enableval}" in
-      xdetails)
-        AC_DEFINE([DEBUG_ENABLE_DETAILS], [1], [Enable details debugging messages.])
-        AC_DEFINE([DEBUG_ENABLE_VERBOSE], [1], [Enable verbose debugging messages.])
-        AC_DEFINE([DEBUG_ENABLE_BRIEF], [1], [Enable brief debugging messages.])
-        ;;
-      xverbose)
-        AC_DEFINE([DEBUG_ENABLE_VERBOSE], [1], [Enable verbose debugging messages.])
-        AC_DEFINE([DEBUG_ENABLE_BRIEF], [1], [Enable brief debugging messages.])
-        ;;
-      xbrief)
-        AC_DEFINE([DEBUG_ENABLE_BRIEF], [1], [Enable brief debugging messages.])
-        ;;
-    esac], [])
 
 # recvmmsg() (valgrind doesn't support it, so disable for debugging)
 # The check for struct mmsghdr is required when libc doesn't have an API but the function links
@@ -173,6 +162,38 @@ AC_ARG_ENABLE([recvmmsg],
       AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sys/socket.h>]], [[struct mmsghdr v; recvmmsg(0,0,0,0,0);]])],
       [AC_DEFINE(HAVE_RECVMMSG, 1, [Define if struct mmsghdr and recvmmsg() exists.])])
     ])
+
+AC_ARG_ENABLE([reuseport],
+    AS_HELP_STRING([--enable-reuseport=auto|yes|no], [enable Linux SO_REUSEPORT support [default=auto]]),
+    [enable_reuseport="$enableval"], [enable_reuseport=auto])
+
+AC_DEFUN([CHECK_REUSEPORT], [
+  AC_CHECK_DECL(
+    [SO_REUSEPORT],
+    [$1],
+    [$2],
+    [
+    #include <sys/socket.h>
+    ]
+  )])
+
+AS_IF([test "$enable_reuseport" != no], [
+  AS_CASE([$enable_reuseport],
+    [auto],[
+      AS_CASE([$host_os],
+        [linux*], [CHECK_REUSEPORT([enable_reuseport=yes], [enable_reuseport=no])],
+        [*], [enable_reuseport=no]
+      )],
+    [yes],[
+      AS_CASE([$host_os],
+        [linux*], [CHECK_REUSEPORT([enable_reuseport=yes], [AC_MSG_ERROR([SO_REUSEPORT support not detected.])])],
+        [*], [AC_MSG_ERROR(["SO_REUSEPORT not supported on $host_os."])]
+      )],
+    [*], [AC_MSG_ERROR([Invalid value of --enable-reuseport.])]
+  )])
+
+AS_IF([test "$enable_reuseport" = yes],[
+   AC_DEFINE([ENABLE_REUSEPORT], [1], [Use SO_REUSEPORT.])])
 
 # Check for link time optimizations support and predictive commoning
 AC_ARG_ENABLE([lto],
@@ -226,7 +247,9 @@ AS_IF([test "$enable_systemd" != "no"],[
 
 AS_IF([test "$enable_systemd" = "yes"],[
   AC_DEFINE([ENABLE_SYSTEMD], [1], [Use systemd integration.])])
-])
+
+]) dnl enable_daemon
+
 
 dnl Check for userspace-rcu library
 AC_ARG_WITH(urcu,
@@ -294,11 +317,16 @@ dt_DNSTAP([
 AM_CONDITIONAL([HAVE_DNSTAP], test "$opt_dnstap" != "no")
 
 dnl Check for LMDB
+lmdb_MIN_VERSION_MAJOR=0
+lmdb_MIN_VERSION_MINOR=9
+lmdb_MIN_VERSION_PATCH=15
+lmdb_MIN_VERSION_STRING="$lmdb_MIN_VERSION_MAJOR.$lmdb_MIN_VERSION_MINOR.$lmdb_MIN_VERSION_PATCH"
+lmdb_MIN_VERSION_FULL="$((($lmdb_MIN_VERSION_MAJOR << 24) | ($lmdb_MIN_VERSION_MINOR << 16) | $lmdb_MIN_VERSION_PATCH))"
 AC_ARG_WITH([lmdb],
-    AC_HELP_STRING([--with-lmdb=[DIR]], [Link with external LMDB]),[
+    AC_HELP_STRING([--with-lmdb=[DIR]], [Link with external LMDB (>= $lmdb_MIN_VERSION_STRING)]),[
     with_lmdb=$withval
     ],[
-    with_lmdb=yes
+    with_lmdb=auto
     ])
 
 have_lmdb=no
@@ -306,6 +334,8 @@ have_lmdb=no
 AS_IF([test "$with_lmdb" != "no"],[
     save_CPPFLAGS=$CPPFLAGS
     save_LIBS=$LIBS
+
+    # Look for lmdb in given path and common locations
     for try_lmdb in "$with_lmdb" "" "/usr/local"; do
 
       AS_IF([test -d "$try_lmdb"], [
@@ -316,33 +346,46 @@ AS_IF([test "$with_lmdb" != "no"],[
         lmdb_LIBS=""
 	])
 
-      CPPFLAGS="$CPPFLAGS $lmdb_CFLAGS"
-      LIBS="$LIBS $lmdb_LIBS"
+      CPPFLAGS="$save_CPPFLAGS $lmdb_CFLAGS"
+      LIBS="$save_LIBS $lmdb_LIBS"
 
       AC_SEARCH_LIBS([mdb_env_open], [lmdb], [
           AC_CHECK_HEADERS([lmdb.h], [], [
-              AC_ERROR([lmdb headers not found in `$try_lmdb', is your installation complete?])])
-	  lmdb_LIBS="$lmdb_LIBS -llmdb"
-          have_lmdb=yes
-          break
-          ],[
-	  have_lmdb=no
-	  # do not cache result of AC_SEARCH_LIBS test
-	  unset ac_cv_search_mdb_env_open
-	  ])
+              AC_MSG_ERROR([lmdb headers not found in `$try_lmdb', is your installation complete?])])
+          AC_COMPUTE_INT(lmdb_VERSION_FULL, MDB_VERSION_FULL, [#include <lmdb.h>],
+	      AC_MSG_ERROR([Unable to determine lmdb version from MDB_VERSION_FULL]))
+	  AS_IF([test "$lmdb_VERSION_FULL" -ge "$lmdb_MIN_VERSION_FULL"],[
+              lmdb_LIBS="$lmdb_LIBS -llmdb"
+              have_lmdb=yes],[
+	      unset lmdb_CFLAGS
+	      unset lmdb_LIBS
+	      AC_MSG_WARN([lmdb version 0.9.15 and higher not found, using embedded version])
+	      ])
+          break 
+          ])
 
-      CPPFLAGS="$save_CPPFLAGS"
-      LIBS="$save_LIBS"
+      unset lmdb_CFLAGS
+      unset lmdb_LIBS
+      # do not cache result of AC_SEARCH_LIBS test
+      unset ac_cv_search_mdb_env_open
     done
+
     CPPFLAGS="$save_CPPFLAGS"
     LIBS="$save_LIBS"
+
+    # fail the configure if we haven't found lmdb library in the system
+    AS_IF([test "$with_lmdb" != "auto" -a "$have_lmdb" = "no"],[
+        AC_MSG_ERROR([shared lmdb library not found])
+	])
     ])
 
 AS_IF([test "$have_lmdb" != "no"],[
     AC_SUBST([lmdb_CFLAGS])
     AC_SUBST([lmdb_LIBS])
     enable_lmdb=shared
-    ],[enable_lmdb=embedded])
+    ],[
+    enable_lmdb=embedded
+    ])
 AM_CONDITIONAL([HAVE_LMDB], test "$have_lmdb" != "no")
 
 AS_IF([test "$enable_daemon" = "yes"],[
@@ -413,7 +456,7 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 
 # Checks for library functions.
-AC_CHECK_FUNCS([clock_gettime gettimeofday fgetln getline madvise malloc_trim poll posix_memalign pthread_setaffinity_np regcomp select setgroups strlcat strlcpy initgroups])
+AC_CHECK_FUNCS([clock_gettime gettimeofday fgetln getline madvise malloc_trim poll posix_memalign pthread_setaffinity_np regcomp select setgroups strlcat strlcpy initgroups accept4])
 
 # Check for be64toh function
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <endian.h>]], [[return be64toh(0);]])],
@@ -432,6 +475,20 @@ gl_VISIBILITY()
 
 # Add code coverage macro
 AX_CODE_COVERAGE
+
+AX_SANITIZER
+AS_IF([test -n "$sanitize_CFLAGS"], [CFLAGS="$CFLAGS $sanitize_CFLAGS"])
+
+# LibFuzzer
+AC_ARG_WITH([libfuzzer],
+  AC_HELP_STRING([--with-libfuzzer=path], [Path to LibFuzzer static library]),
+  [libfuzzer_LIBS="$withval"], [libfuzzer_LIBS=no]
+)
+AS_IF([test "$libfuzzer_LIBS" != no -a "$sanitize_coverage_enabled" != yes], [
+  AC_MSG_ERROR([Sanitizer coverage required for LibFuzzer.])
+])
+AM_CONDITIONAL([HAVE_LIBFUZZER], [test "$libfuzzer_LIBS" != "no"])
+AC_SUBST([libfuzzer_LIBS])
 
 AS_IF([test "$enable_documentation" = "yes"],[
 
@@ -459,7 +516,7 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile
 		 tests/Makefile
 		 tests-fuzz/Makefile
-		 src/dnstap/Makefile
+		 src/contrib/dnstap/Makefile
 		 src/zscanner/Makefile
 		 src/dnssec/Makefile
 		 src/dnssec/tests/Makefile
@@ -480,6 +537,9 @@ AC_MSG_RESULT([
     Jansson:  ${jansson_LIBS} ${jansson_CFLAGS}
     LMDB:     ${enable_lmdb} ${lmdb_LIBS} ${lmdb_CFLAGS}
 
+    Sanitizer: ${sanitize_CFLAGS}
+    LibFuzzer: ${libfuzzer_LIBS}
+
     Prefix:		${prefix}
     Run dir:		${run_dir}
     Storage dir:	${storage_dir}
@@ -490,12 +550,14 @@ AC_MSG_RESULT([
     Knot DNS utils:         ${enable_utilities}
     Knot DNS documentation: ${enable_documentation}
 
+    Use SO_REUSEPORT:    ${enable_reuseport}
     Fast zone parser:    ${enable_fastparser}
     Utilities with IDN:  ${with_libidn}
     Systemd integration: ${enable_systemd}
     Dnstap support:      ${opt_dnstap}
     Code coverage:       ${enable_code_coverage}
     Bash completions:    ${bash_completions_output}
+    PKCS 11 support:     ${enable_pkcs11}
 
   Continue with 'make' command
 ])

@@ -22,12 +22,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/poll.h>
 #include <sys/syscall.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
-#include <limits.h>
 #include <sys/param.h>
 #include <urcu.h>
 #ifdef HAVE_SYS_UIO_H /* 'struct iovec' for OpenBSD */
@@ -39,12 +36,12 @@
 
 #include "knot/server/udp-handler.h"
 #include "knot/server/server.h"
-#include "libknot/internal/sockaddr.h"
-#include "libknot/internal/mempattern.h"
-#include "libknot/internal/mempool.h"
-#include "libknot/internal/macros.h"
 #include "libknot/libknot.h"
 #include "libknot/processing/overlay.h"
+#include "contrib/macros.h"
+#include "contrib/mempattern.h"
+#include "contrib/sockaddr.h"
+#include "contrib/ucw/mempool.h"
 
 /* Buffer identifiers. */
 enum {
@@ -106,8 +103,8 @@ static inline void udp_pps_begin() {}
 static inline void udp_pps_sample(unsigned n, unsigned thr_id) {}
 #endif
 
-void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
-                struct iovec *rx, struct iovec *tx)
+static void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
+                       struct iovec *rx, struct iovec *tx)
 {
 	/* Create query processing parameter. */
 	struct process_query_param param = {0};
@@ -124,14 +121,15 @@ void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
 		param.proc_flags |= NS_QUERY_LIMIT_RATE;
 	}
 
-	/* Create packets. */
-	mm_ctx_t *mm = udp->overlay.mm;
-	knot_pkt_t *query = knot_pkt_new(rx->iov_base, rx->iov_len, mm);
-	knot_pkt_t *ans = knot_pkt_new(tx->iov_base, tx->iov_len, mm);
+	knot_mm_t *mm = udp->overlay.mm;
 
 	/* Create query processing context. */
 	knot_overlay_init(&udp->overlay, mm);
 	knot_overlay_add(&udp->overlay, NS_PROC_QUERY, &param);
+
+	/* Create packets. */
+	knot_pkt_t *query = knot_pkt_new(rx->iov_base, rx->iov_len, mm);
+	knot_pkt_t *ans = knot_pkt_new(tx->iov_base, tx->iov_len, mm);
 
 	/* Input packet. */
 	(void) knot_pkt_parse(query, 0);
@@ -268,7 +266,7 @@ static int (*_send_mmsg)(int, struct sockaddr *, struct mmsghdr *, size_t) = 0;
  *
  * Basic, sendmsg() based implementation.
  */
-int udp_sendmsg(int sock, struct sockaddr *addrs, struct mmsghdr *msgs, size_t count)
+static int udp_sendmsg(int sock, struct sockaddr *addrs, struct mmsghdr *msgs, size_t count)
 {
 	int sent = 0;
 	for (unsigned i = 0; i < count; ++i) {
@@ -295,7 +293,7 @@ static inline int sendmmsg(int fd, struct mmsghdr *mmsg, unsigned vlen,
  *
  * sendmmsg() implementation.
  */
-int udp_sendmmsg(int sock, struct sockaddr *_, struct mmsghdr *msgs, size_t count)
+static int udp_sendmmsg(int sock, struct sockaddr *_, struct mmsghdr *msgs, size_t count)
 {
 	UNUSED(_);
 	return sendmmsg(sock, msgs, count, 0);
@@ -310,16 +308,16 @@ struct udp_recvmmsg {
 	struct iovec *iov[NBUFS];
 	struct mmsghdr *msgs[NBUFS];
 	unsigned rcvd;
-	mm_ctx_t mm;
+	knot_mm_t mm;
 };
 
 static void *udp_recvmmsg_init(void)
 {
-	mm_ctx_t mm;
+	knot_mm_t mm;
 	mm_ctx_mempool(&mm, sizeof(struct udp_recvmmsg));
 
 	struct udp_recvmmsg *rq = mm.alloc(mm.ctx, sizeof(struct udp_recvmmsg));
-	memcpy(&rq->mm, &mm, sizeof(mm_ctx_t));
+	memcpy(&rq->mm, &mm, sizeof(knot_mm_t));
 
 	/* Initialize addresses. */
 	rq->addrs = mm.alloc(mm.ctx, sizeof(struct sockaddr_storage) * RECVMMSG_BATCHLEN);
@@ -441,33 +439,57 @@ void __attribute__ ((constructor)) udp_master_init()
 #endif /* HAVE_RECVMMSG */
 }
 
-/*! \brief Release the reference on the interface list and clear watched fdset. */
-static void forget_ifaces(ifacelist_t *ifaces, fd_set *set, int maxfd)
+/*! \brief Get interface UDP descriptor for a given thread. */
+static int iface_udp_fd(const iface_t *iface, int thread_id)
 {
-	ref_release((ref_t *)ifaces);
-	FD_ZERO(set);
+#ifdef ENABLE_REUSEPORT
+		return iface->fd_udp[thread_id % iface->fd_udp_count];
+#else
+		return iface->fd_udp[0];
+#endif
 }
 
-/*! \brief Add interface sockets to the watched fdset. */
-static int track_ifaces(ifacelist_t *ifaces, fd_set *set, int *maxfd, int *minfd)
+/*! \brief Release the interface list reference and free watched descriptor set. */
+static void forget_ifaces(ifacelist_t *ifaces, struct pollfd **fds_ptr)
 {
-	FD_ZERO(set);
-	*maxfd = -1;
-	*minfd = 0;
+	ref_release((ref_t *)ifaces);
+	free(*fds_ptr);
+	*fds_ptr = NULL;
+}
 
-	if (ifaces == NULL) {
-		return KNOT_EINVAL;
+/*!
+ * \brief Make a set of watched descriptors based on the interface list.
+ *
+ * \param[in]   ifaces  New interface list.
+ * \param[in]   thrid   Thread ID.
+ * \param[out]  fds_ptr Allocated set of descriptors.
+ *
+ * \return Number of watched descriptors, zero on error.
+ */
+static nfds_t track_ifaces(const ifacelist_t *ifaces, int thrid,
+                           struct pollfd **fds_ptr)
+{
+	assert(ifaces && fds_ptr);
+
+	nfds_t nfds = list_size(&ifaces->l);
+	struct pollfd *fds = malloc(nfds * sizeof(*fds));
+	if (!fds) {
+		*fds_ptr = NULL;
+		return 0;
 	}
 
 	iface_t *iface = NULL;
+	int i = 0;
 	WALK_LIST(iface, ifaces->l) {
-		int fd = iface->fd[IO_UDP];
-		*maxfd = MAX(fd, *maxfd);
-		*minfd = MIN(fd, *minfd);
-		FD_SET(fd, set);
+		fds[i].fd = iface_udp_fd(iface, thrid);
+		fds[i].events = POLLIN;
+		fds[i].revents = 0;
+		i += 1;
 	}
+	assert(i == nfds);
 
-	return KNOT_EOK;
+	*fds_ptr = fds;
+	return nfds;
 }
 
 int udp_master(dthread_t *thread)
@@ -500,16 +522,13 @@ int udp_master(dthread_t *thread)
 	udp.thread_id = handler->thread_id[thr_id];
 
 	/* Create big enough memory cushion. */
-	mm_ctx_t mm;
+	knot_mm_t mm;
 	mm_ctx_mempool(&mm, 16 * MM_DEFAULT_BLKSIZE);
 	udp.overlay.mm = &mm;
 
-	/* Chose select as epoll/kqueue has larger overhead for a
-	 * single or handful of sockets. */
-	fd_set fds;
-	FD_ZERO(&fds);
-	int minfd = 0, maxfd = 0;
-	int rcvd = 0;
+	/* Event source. */
+	struct pollfd *fds = NULL;
+	nfds_t nfds = 0;
 
 	udp_pps_begin();
 
@@ -522,10 +541,13 @@ int udp_master(dthread_t *thread)
 			udp.thread_id = handler->thread_id[thr_id];
 
 			rcu_read_lock();
-			forget_ifaces(ref, &fds, maxfd);
+			forget_ifaces(ref, &fds);
 			ref = handler->server->ifaces;
-			track_ifaces(ref, &fds, &maxfd, &minfd);
+			nfds = track_ifaces(ref, udp.thread_id, &fds);
 			rcu_read_unlock();
+			if (nfds == 0) {
+				break;
+			}
 		}
 
 		/* Cancellation point. */
@@ -534,29 +556,31 @@ int udp_master(dthread_t *thread)
 		}
 
 		/* Wait for events. */
-		fd_set rfds;
-		FD_COPY(&fds, &rfds);
-		int nfds = select(maxfd + 1, &rfds, NULL, NULL, NULL);
-		if (nfds <= 0) {
+		int events = poll(fds, nfds, -1);
+		if (events <= 0) {
 			if (errno == EINTR) continue;
 			break;
 		}
-		/* Bound sockets will be usually closely coupled. */
-		for (unsigned fd = minfd; fd <= maxfd; ++fd) {
-			if (FD_ISSET(fd, &rfds)) {
-				if ((rcvd = _udp_recv(fd, rq)) > 0) {
-					_udp_handle(&udp, rq);
-					/* Flush allocated memory. */
-					mp_flush(mm.ctx);
-					_udp_send(rq);
-					udp_pps_sample(rcvd, thr_id);
-				}
+
+		/* Process the events. */
+		for (nfds_t i = 0; i < nfds && events > 0; i++) {
+			if (fds[i].revents == 0) {
+				continue;
+			}
+			events -= 1;
+			int rcvd = 0;
+			if ((rcvd = _udp_recv(fds[i].fd, rq)) > 0) {
+				_udp_handle(&udp, rq);
+				/* Flush allocated memory. */
+				mp_flush(mm.ctx);
+				_udp_send(rq);
+				udp_pps_sample(rcvd, thr_id);
 			}
 		}
 	}
 
 	_udp_deinit(rq);
-	forget_ifaces(ref, &fds, maxfd);
+	forget_ifaces(ref, &fds);
 	mp_delete(mm.ctx);
 	return KNOT_EOK;
 }

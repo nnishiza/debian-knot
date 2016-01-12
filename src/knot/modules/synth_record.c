@@ -19,6 +19,8 @@
 #include "knot/nameserver/internet.h"
 #include "knot/common/log.h"
 #include "libknot/descriptor.h"
+#include "contrib/net.h"
+#include "contrib/sockaddr.h"
 
 /* Module configuration scheme. */
 #define MOD_NET		"\x07""network"
@@ -34,7 +36,7 @@ enum synth_template_type {
 	SYNTH_REVERSE = 2
 };
 
-static const lookup_table_t synthetic_types[] = {
+static const knot_lookup_t synthetic_types[] = {
 	{ SYNTH_FORWARD, "forward" },
 	{ SYNTH_REVERSE, "reverse" },
 	{ 0, NULL }
@@ -42,8 +44,8 @@ static const lookup_table_t synthetic_types[] = {
 
 int check_prefix(conf_check_t *args)
 {
-	if (strchr((const char *)args->check->data, '.') != NULL) {
-		*args->err_str = "dot '.' is not allowed";
+	if (strchr((const char *)args->data, '.') != NULL) {
+		args->err_str = "dot '.' is not allowed";
 		return KNOT_EINVAL;
 	}
 
@@ -53,10 +55,11 @@ int check_prefix(conf_check_t *args)
 const yp_item_t scheme_mod_synth_record[] = {
 	{ C_ID,       YP_TSTR,   YP_VNONE },
 	{ MOD_TYPE,   YP_TOPT,   YP_VOPT = { synthetic_types, SYNTH_NULL } },
-	{ MOD_PREFIX, YP_TSTR,   YP_VNONE, YP_FNONE, { check_prefix } },
+	{ MOD_PREFIX, YP_TSTR,   YP_VSTR = { "" }, YP_FNONE, { check_prefix } },
 	{ MOD_ORIGIN, YP_TDNAME, YP_VNONE },
 	{ MOD_TTL,    YP_TINT,   YP_VINT = { 0, UINT32_MAX, 3600, YP_STIME } },
-	{ MOD_NET,    YP_TNET,   YP_VNONE },
+	{ MOD_NET,    YP_TDATA,  YP_VDATA = { 0, NULL, addr_range_to_bin,
+	                                      addr_range_to_txt }, YP_FMULTI },
 	{ C_COMMENT,  YP_TSTR,   YP_VNONE },
 	{ NULL }
 };
@@ -65,50 +68,29 @@ int check_mod_synth_record(conf_check_t *args)
 {
 	// Check type.
 	conf_val_t type = conf_rawid_get_txn(args->conf, args->txn, C_MOD_SYNTH_RECORD,
-	                                     MOD_TYPE, args->previous->id,
-	                                     args->previous->id_len);
+	                                     MOD_TYPE, args->id, args->id_len);
 	if (type.code != KNOT_EOK) {
-		*args->err_str = "no synthesis type specified";
-		return KNOT_EINVAL;
-	}
-
-	// Check prefix.
-	conf_val_t prefix = conf_rawid_get_txn(args->conf, args->txn, C_MOD_SYNTH_RECORD,
-	                                       MOD_PREFIX, args->previous->id,
-	                                       args->previous->id_len);
-	if (prefix.code != KNOT_EOK) {
-		*args->err_str = "no owner prefix specified";
+		args->err_str = "no synthesis type specified";
 		return KNOT_EINVAL;
 	}
 
 	// Check origin.
 	conf_val_t origin = conf_rawid_get_txn(args->conf, args->txn, C_MOD_SYNTH_RECORD,
-	                                       MOD_ORIGIN, args->previous->id,
-	                                       args->previous->id_len);
+	                                       MOD_ORIGIN, args->id, args->id_len);
 	if (origin.code != KNOT_EOK && conf_opt(&type) == SYNTH_REVERSE) {
-		*args->err_str = "no origin specified";
+		args->err_str = "no origin specified";
 		return KNOT_EINVAL;
 	}
 	if (origin.code == KNOT_EOK && conf_opt(&type) == SYNTH_FORWARD) {
-		*args->err_str = "origin not allowed with forward type";
+		args->err_str = "origin not allowed with forward type";
 		return KNOT_EINVAL;
 	}
 
-	// Check ttl.
-	conf_val_t ttl = conf_rawid_get_txn(args->conf, args->txn, C_MOD_SYNTH_RECORD,
-	                                    MOD_TTL, args->previous->id,
-	                                    args->previous->id_len);
-	if (ttl.code != KNOT_EOK) {
-		*args->err_str = "no ttl specified";
-		return KNOT_EINVAL;
-	}
-
-	// Check network prefix.
+	// Check network subnet.
 	conf_val_t net = conf_rawid_get_txn(args->conf, args->txn, C_MOD_SYNTH_RECORD,
-	                                    MOD_NET, args->previous->id,
-	                                    args->previous->id_len);
+	                                    MOD_NET, args->id, args->id_len);
 	if (net.code != KNOT_EOK) {
-		*args->err_str = "no network subnet specified";
+		args->err_str = "no network subnet specified";
 		return KNOT_EINVAL;
 	}
 
@@ -128,6 +110,7 @@ typedef struct synth_template {
 	char *zone;
 	uint32_t ttl;
 	struct sockaddr_storage addr;
+	struct sockaddr_storage addr_max;
 	int mask;
 } synth_template_t;
 
@@ -354,8 +337,14 @@ static int template_match(int state, synth_template_t *tpl, knot_pkt_t *pkt, str
 	if (ret != KNOT_EOK) {
 		return state;
 	}
-	if (!netblock_match(&tpl->addr, &query_addr, tpl->mask)) {
-		return state; /* Out of our netblock, not applicable. */
+	if (tpl->addr_max.ss_family == AF_UNSPEC) {
+		if (!netblock_match(&query_addr, &tpl->addr, tpl->mask)) {
+			return state; /* Out of our netblock, not applicable. */
+		}
+	} else {
+		if (!netrange_match(&query_addr, &tpl->addr, &tpl->addr_max)) {
+			return state; /* Out of our netblock, not applicable. */
+		}
 	}
 
 	/* Check if the request is for an available query type. */
@@ -410,7 +399,8 @@ static int solve_synth_record(int state, knot_pkt_t *pkt, struct query_data *qda
 	return template_match(state, (synth_template_t *)ctx, pkt, qdata);
 }
 
-int synth_record_load(struct query_plan *plan, struct query_module *self)
+int synth_record_load(struct query_plan *plan, struct query_module *self,
+                      const knot_dname_t *zone)
 {
 	if (plan == NULL || self == NULL) {
 		return KNOT_EINVAL;
@@ -449,7 +439,7 @@ int synth_record_load(struct query_plan *plan, struct query_module *self)
 
 	/* Set address. */
 	val = conf_mod_get(self->config, MOD_NET, self->id);
-	tpl->addr = conf_net(&val, &tpl->mask);
+	tpl->addr = conf_addr_range(&val, &tpl->addr_max, &tpl->mask);
 
 	self->ctx = tpl;
 

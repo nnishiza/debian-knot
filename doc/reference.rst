@@ -95,8 +95,8 @@ General options related to the server.
      tcp-workers: INT
      background-workers: INT
      async-start: BOOL
-     tcp-idle-timeout: TIME
      tcp-handshake-timeout: TIME
+     tcp-idle-timeout: TIME
      tcp-reply-timeout: TIME
      max-tcp-clients: INT
      max-udp-payload: SIZE
@@ -114,7 +114,7 @@ An identity of the server returned in the response to the query for TXT
 record ``id.server.`` or ``hostname.bind.`` in the CHAOS class (see RFC 4892).
 Set empty value to disable.
 
-Default: FQDN hostname
+*Default:* FQDN hostname
 
 .. _server_version:
 
@@ -125,7 +125,7 @@ A version of the server software returned in the response to the query
 for TXT record ``version.server.`` or ``version.bind.`` in the CHAOS
 class (see RFC 4892). Set empty value to disable.
 
-Default: server version
+*Default:* server version
 
 .. _server_nsid:
 
@@ -134,7 +134,7 @@ nsid
 
 A DNS name server identifier (see RFC 5001). Set empty value to disable.
 
-Default: FQDN hostname
+*Default:* FQDN hostname
 
 .. _server_rundir:
 
@@ -143,7 +143,7 @@ rundir
 
 A path for storing run-time data (PID file, unix sockets, etc.).
 
-Default: ``${localstatedir}/run/knot`` (configured with ``--with-rundir=path``)
+*Default:* ``${localstatedir}/run/knot`` (configured with ``--with-rundir=path``)
 
 .. _server_user:
 
@@ -154,7 +154,7 @@ A system user with an optional system group (*user*:*group*) under which the
 server is run after starting and binding to interfaces. Linux capabilities
 are employed if supported.
 
-Default: root:root
+*Default:* root:root
 
 .. _server_pidfile:
 
@@ -163,7 +163,7 @@ pidfile
 
 A PID file location.
 
-Default: :ref:`rundir<server_rundir>`/knot.pid
+*Default:* :ref:`rundir<server_rundir>`/knot.pid
 
 .. _server_udp-workers:
 
@@ -172,7 +172,7 @@ udp-workers
 
 A number of quering UDP workers (threads).
 
-Default: auto-estimated optimal value based on the number of online CPUs
+*Default:* auto-estimated optimal value based on the number of online CPUs
 
 .. _server_tcp-workers:
 
@@ -181,7 +181,7 @@ tcp-workers
 
 A number of quering TCP workers (threads).
 
-Default: auto-estimated optimal value based on the number of online CPUs
+*Default:* auto-estimated optimal value based on the number of online CPUs
 
 .. _server_background-workers:
 
@@ -191,7 +191,7 @@ background-workers
 A number of workers (threads) used to execute background operations (zone
 loading, zone updates, etc.).
 
-Default: auto-estimated optimal value based on the number of online CPUs
+*Default:* auto-estimated optimal value based on the number of online CPUs
 
 .. _server_async-start:
 
@@ -201,17 +201,7 @@ async-start
 If enabled, server doesn't wait for the zones to be loaded and starts
 responding immediately with SERVFAIL answers until the zone loads.
 
-Default: off
-
-.. _server_tcp-idle-timeout:
-
-tcp-idle-timeout
-----------------
-
-Maximum idle time between requests on a TCP connection. This also limits
-receiving of a single query, each query must be received in this time limit.
-
-Default: 20
+*Default:* off
 
 .. _server_tcp-handshake-timeout:
 
@@ -222,16 +212,28 @@ Maximum time between newly accepted TCP connection and the first query.
 This is useful to disconnect inactive connections faster than connections
 that already made at least 1 meaningful query.
 
-Default: 5
+*Default:* 5
+
+.. _server_tcp-idle-timeout:
+
+tcp-idle-timeout
+----------------
+
+Maximum idle time between requests on a TCP connection. This also limits
+receiving of a single query, each query must be received in this time limit.
+
+*Default:* 20
 
 .. _server_tcp-reply-timeout:
 
 tcp-reply-timeout
 -----------------
 
-Maximum time to wait for a reply to an issued SOA query.
+Maximum time to wait for an outgoing connection or for a reply to an issued
+request (SOA, NOTIFY, AXFR...). This limit also applies to knotc remote
+operation over an internet socket.
 
-Default: 10
+*Default:* 10
 
 .. _server_max-tcp-clients:
 
@@ -241,7 +243,7 @@ max-tcp-clients
 A maximum number of TCP clients connected in parallel, set this below the file
 descriptor limit to avoid resource exhaustion.
 
-Default: 100
+*Default:* 100
 
 .. _server_rate-limit:
 
@@ -251,28 +253,27 @@ rate-limit
 Rate limiting is based on the token bucket scheme. A rate basically
 represents a number of tokens available each second. Each response is
 processed and classified (based on several discriminators, e.g.
-source netblock, qtype, name, rcode, etc.). Classified responses are
+source netblock, query type, zone name, rcode, etc.). Classified responses are
 then hashed and assigned to a bucket containing number of available
 tokens, timestamp and metadata. When available tokens are exhausted,
-response is rejected or enters :ref:`SLIP<server_rate-limit-slip>`
-(server responds with a truncated response). Number of available tokens
-is recalculated each second.
+response is dropped or sent as truncated (see :ref:`server_rate-limit-slip`).
+Number of available tokens is recalculated each second.
 
-Default: 0 (disabled)
+*Default:* 0 (disabled)
 
 .. _server_rate-limit-table-size:
 
 rate-limit-table-size
 ---------------------
 
-Size of the hashtable in a number of buckets. The larger the hashtable, the lesser
+Size of the hash table in a number of buckets. The larger the hash table, the lesser
 the probability of a hash collision, but at the expense of additional memory costs.
 Each bucket is estimated roughly to 32 bytes. The size should be selected as
 a reasonably large prime due to better hash function distribution properties.
 Hash table is internally chained and works well up to a fill rate of 90 %, general
 rule of thumb is to select a prime near 1.2 * maximum_qps.
 
-Default: 393241
+*Default:* 393241
 
 .. _server_rate-limit-slip:
 
@@ -280,19 +281,35 @@ rate-limit-slip
 ---------------
 
 As attacks using DNS/UDP are usually based on a forged source address,
-an attacker could deny services to the victim netblock if all
+an attacker could deny services to the victim's netblock if all
 responses would be completely blocked. The idea behind SLIP mechanism
-is to send each Nth response as truncated, thus allowing client to
+is to send each N\ :sup:`th` response as truncated, thus allowing client to
 reconnect via TCP for at least some degree of service. It is worth
 noting, that some responses can't be truncated (e.g. SERVFAIL).
 
-It is advisable not to set the slip interval to a value larger than 2,
-as too large slip value means more denial of service for legitimate
-requestors, and introduces excessive timeouts during resolution.
-On the other hand, slipping truncated answer gives the legitimate
-requestors a chance to reconnect over TCP.
+- Setting the value to **0** will cause that all rate-limited responses will
+  be dropped. The outbound bandwidth and packet rate will be strictly capped
+  by the :ref:`server_rate-limit` option. All legitimate requestors affected
+  by the limit will face denial of service and will observe excessive timeouts.
+  Therefore this setting is not recommended.
 
-Default: 1
+- Setting the value to **1** will cause that all rate-limited responses will
+  be sent as truncated. The amplification factor of the attack will be reduced,
+  but the outbound data bandwidth won't be lower than the incoming bandwidth.
+  Also the outbound packet rate will be the same as without RRL.
+
+- Setting the value to **2** will cause that half of the rate-limited responses
+  will be dropped, the other half will be sent as truncated. With this
+  configuration, both outbound bandwidth and packet rate will be lower than the
+  inbound. On the other hand, the dropped responses enlarge the time window
+  for possible cache poisoning attack on the resolver.
+
+- Setting the value to anything **larger than 2** will keep on decreasing
+  the outgoing rate-limited bandwidth, packet rate, and chances to notify
+  legitimate requestors to reconnect using TCP. These attributes are inversely
+  proportional to the configured value. Setting the value high is not advisable.
+
+*Default:* 1
 
 .. _server_max-udp-payload:
 
@@ -301,7 +318,7 @@ max-udp-payload
 
 Maximum EDNS0 UDP payload size.
 
-Default: 4096
+*Default:* 4096
 
 .. _server_listen:
 
@@ -313,7 +330,7 @@ Optional port specification (default is 53) can be appended to each address
 using ``@`` separator. Use ``0.0.0.0`` for all configured IPv4 addresses or
 ``::`` for all configured IPv6 addresses.
 
-Default: empty
+*Default:* not set
 
 .. _Key section:
 
@@ -343,7 +360,7 @@ algorithm
 
 A key algorithm.
 
-Default: empty
+*Default:* not set
 
 .. _key_secret:
 
@@ -352,22 +369,24 @@ secret
 
 Shared key secret.
 
-Default: empty
+*Default:* not set
 
 .. _ACL section:
 
 ACL section
 ===========
 
-Access control list rule definition.
+Access control list rule definitions. The ACLs are used to match incoming
+connections to allow or deny requested operation (zone transfer request, DDNS
+update, etc.).
 
 ::
 
  acl:
    - id: STR
-     address: ADDR[/INT] ...
+     address: ADDR[/INT] | ADDR-ADDR ...
      key: key_id ...
-     action: transfer | notify | update | control ...
+     action: notify | transfer | update ...
      deny: BOOL
 
 .. _acl_id:
@@ -382,10 +401,10 @@ An ACL rule identifier.
 address
 -------
 
-An ordered list of IP addresses or network subnets. The query must match
-one of them. Empty value means that address match is not required.
+An ordered list of IP addresses, network subnets, or network ranges. The query
+must match one of them. Empty value means that address match is not required.
 
-Default: empty
+*Default:* not set
 
 .. _acl_key:
 
@@ -395,23 +414,23 @@ key
 An ordered list of :ref:`reference<key_id>`\ s to TSIG keys. The query must
 match one of them. Empty value means that TSIG key is not required.
 
-Default: empty
+*Default:* not set
 
 .. _acl_action:
 
 action
 ------
 
-An ordered list of allowed actions.
+An ordered list of allowed actions. Empty action list is only allowed if
+:ref:`deny<acl_deny>` is set.
 
 Possible values:
 
 - ``transfer`` – Allow zone transfer
 - ``notify`` – Allow incoming notify
 - ``update`` – Allow zone updates
-- ``control`` – Allow remote control
 
-Default: empty
+*Default:* not set
 
 .. _acl_deny:
 
@@ -421,54 +440,36 @@ deny
 Deny if :ref:`address<acl_address>`, :ref:`key<acl_key>` and
 :ref:`action<acl_action>` match.
 
-Default: off
+*Default:* off
 
 .. _Control section:
 
 Control section
 ===============
 
-Configuration of the server remote control.
-
-*Caution:* The control protocol is not encrypted and is susceptible to replay
-attacks in a short timeframe until message digest expires. For that reason,
-it is recommended to use default UNIX socket.
+Configuration of the server control interface.
 
 ::
 
  control:
-     listen: ADDR[@INT]
-     acl: acl_id ...
+     listen: STR
 
 .. _control_listen:
 
 listen
 ------
 
-A UNIX socket path or IP address where the server listens for remote control
-commands. Optional port specification (default is 5533) can be appended to the
-address using ``@`` separator.
+A UNIX socket path where the server listens for remote control commands.
 
-Default: :ref:`rundir<server_rundir>`/knot.sock
-
-.. _control_acl:
-
-acl
----
-
-An ordered list of :ref:`references<acl_id>` to ACL rules allowing the remote
-control.
-
-*Caution:* This option has no effect with UNIX socket.
-
-Default: empty
+*Default:* :ref:`rundir<server_rundir>`/knot.sock
 
 .. _Remote section:
 
 Remote section
 ==============
 
-Definition of remote servers for zone transfers or notifications.
+Definitions of remote servers for outgoing connections (source of a zone
+transfer, target for a notification, etc.).
 
 ::
 
@@ -495,7 +496,7 @@ with the remote server. The addresses are tried in sequence unless the
 operation is successful. Optional destination port (default is 53)
 can be appended to the address using ``@`` separator.
 
-Default: empty
+*Default:* not set
 
 .. _remote_via:
 
@@ -506,7 +507,7 @@ An ordered list of source IP addresses. The first address with the same family
 as the destination address is used. Optional source port (default is random)
 can be appended to the address using ``@`` separator.
 
-Default: empty
+*Default:* not set
 
 .. _remote_key:
 
@@ -516,7 +517,7 @@ key
 A :ref:`reference<key_id>` to the TSIG key which ise used to autenticate
 the communication with the remote server.
 
-Default: empty
+*Default:* not set
 
 .. _Template section:
 
@@ -532,6 +533,7 @@ if a zone doesn't have another template specified.
 
  template:
    - id: STR
+     timer-db: STR
      global-module: STR/STR ...
      # All zone options (excluding 'template' item)
 
@@ -542,6 +544,18 @@ id
 
 A template identifier.
 
+.. _template_timer-db:
+
+timer-db
+--------
+
+Specifies a path of the persistent timer database. The path can be specified
+as a relative path to the *default* template :ref:`storage<zone_storage>`.
+
+*Caution:* This option is only available in the *default* template.
+
+*Default:* :ref:`storage<zone_storage>`/timers
+
 .. _template_global-module:
 
 global-module
@@ -550,9 +564,9 @@ global-module
 An ordered list of references to query modules in the form
 *module_name/module_id*. These modules apply to all queries.
 
-*Caution:* This option is available only for the *default* template.
+*Caution:* This option is only available in the *default* template.
 
-Default: empty
+*Default:* not set
 
 .. _Zone section:
 
@@ -595,10 +609,9 @@ A zone name identifier.
 template
 --------
 
-A :ref:`reference<template_id>` to a configuration template. If not specified
-and the *default* template exists, the default template is used.
+A :ref:`reference<template_id>` to a configuration template.
 
-Default: empty
+*Default:* not set or *default* (if the template exists)
 
 .. _zone_file:
 
@@ -608,13 +621,21 @@ file
 A path to the zone file. Non absolute path is relative to
 :ref:`storage<zone_storage>`. It is also possible to use the following formatters:
 
+- ``%c[``\ *N*\ ``]`` or ``%c[``\ *N*\ ``-``\ *M*\ ``]`` – means the *N*\ th
+  character or a sequence of characters beginning from the *N*\ th and ending
+  with the *M*\ th character of the textual zone name (see ``%s``). The
+  indexes are counted from 0 from the left. If the character is not available,
+  the formatter has no effect.
+- ``%l[``\ *N*\ ``]`` – means the *N*\ th label of the textual zone name
+  (see ``%s``). The index is counted from 0 from the right (0 ~ TLD).
+  If the label is not available, the formatter has no effect.
 - ``%s`` – means the current zone name in the textual representation (beware
   of special characters which are escaped or encoded in the \\DDD form where
   DDD is corresponding decimal ASCII code). The zone name doesn't include the
-  terminating dot, except for the root zone.
+  terminating dot (the result for the root zone is the empty string!).
 - ``%%`` – means the ``%`` character
 
-Default: :ref:`storage<zone_storage>`/``%s``\ .zone
+*Default:* :ref:`storage<zone_storage>`/``%s``\ .zone
 
 .. _zone_storage:
 
@@ -623,7 +644,7 @@ storage
 
 A data directory for storing zone files, journal files and timers database.
 
-Default: ``${localstatedir}/lib/knot`` (configured with ``--with-storage=path``)
+*Default:* ``${localstatedir}/lib/knot`` (configured with ``--with-storage=path``)
 
 .. _zone_master:
 
@@ -632,7 +653,7 @@ master
 
 An ordered list of :ref:`references<remote_id>` to zone master servers.
 
-Default: empty
+*Default:* not set
 
 .. _zone_ddns-master:
 
@@ -642,7 +663,7 @@ ddns-master
 A :ref:`reference<remote_id>` to zone primary master server.
 If not specified, the first :ref:`master<zone_master>` server is used.
 
-Default: empty
+*Default:* not set
 
 .. _zone_notify:
 
@@ -652,7 +673,7 @@ notify
 An ordered list of :ref:`references<remote_id>` to remotes to which notify
 message is sent if the zone changes.
 
-Default: empty
+*Default:* not set
 
 .. _zone_acl:
 
@@ -662,7 +683,7 @@ acl
 An ordered list of :ref:`references<acl_id>` to ACL rules which can allow
 or disallow zone transfers, updates or incoming notifies.
 
-Default: empty
+*Default:* not set
 
 .. _zone_semantic-checks:
 
@@ -702,7 +723,7 @@ Extra checks:
 - Not all RRs in the node are signed
 - Wrong key flags or wrong key in RRSIG record (not the same as ZSK)
 
-Default: off
+*Default:* off
 
 .. _zone_disable-any:
 
@@ -713,7 +734,7 @@ If enabled, all authoritative ANY queries sent over UDP will be answered
 with an empty response and with the TC bit set. Use this option to minimize
 the risk of DNS reflection attack.
 
-Default: off
+*Default:* off
 
 .. _zone_zonefile-sync:
 
@@ -731,7 +752,7 @@ can be used (manual zone flush is still possible).
 *Caution:* If you are serving large zones with frequent updates where
 the immediate sync with a zone file is not desirable, increase the value.
 
-Default: 0 (immediate)
+*Default:* 0 (immediate)
 
 .. _zone_ixfr-from-differences:
 
@@ -745,7 +766,7 @@ is a master server for the zone.
 *Caution:* This option has no effect with enabled
 :ref:`dnssec-signing<zone_dnssec-signing>`.
 
-Default: off
+*Default:* off
 
 .. _zone_max_journal_size:
 
@@ -754,7 +775,7 @@ max-journal-size
 
 Maximum size of the zone journal file.
 
-Default: unlimited
+*Default:* 2^64
 
 .. _zone_dnssec-signing:
 
@@ -765,7 +786,7 @@ If enabled, automatic DNSSEC signing for the zone is turned on.
 
 *Caution:* Cannot be enabled on a slave zone.
 
-Default: off
+*Default:* off
 
 .. _zone_kasp_db:
 
@@ -775,7 +796,7 @@ kasp-db
 A KASP database path. Non absolute path is relative to
 :ref:`storage<zone_storage>`.
 
-Default: :ref:`storage<zone_storage>`/keys
+*Default:* :ref:`storage<zone_storage>`/keys
 
 .. _zone_request_edns_option:
 
@@ -785,7 +806,7 @@ request-edns-option
 An arbitrary EDNS0 option which is included into a server request (AXFR, IXFR,
 SOA, or NOTIFY). The value is in the option_code:option_data format.
 
-Default: empty
+*Default:* not set
 
 .. _zone_serial-policy:
 
@@ -806,7 +827,7 @@ with the transition to unix time.  It may happen that the new serial will
 be \'lower\' than the old one. If this is the case, the transition should be
 done by hand (see RFC 1982).
 
-Default: increment
+*Default:* increment
 
 .. _zone_module:
 
@@ -816,7 +837,7 @@ module
 An ordered list of references to query modules in the form
 *module_name/module_id*. These modules apply only to the current zone queries.
 
-Default: empty
+*Default:* not set
 
 .. _Logging section:
 
@@ -875,7 +896,7 @@ server
 Minimum severity level for messages related to general operation of the server
 that are logged.
 
-Default: empty
+*Default:* not set
 
 .. _log_zone:
 
@@ -884,7 +905,7 @@ zone
 
 Minimum severity level for messages related to zones that are logged.
 
-Default: empty
+*Default:* not set
 
 .. _log_any:
 
@@ -893,7 +914,7 @@ any
 
 Minimum severity level for all message types that are logged.
 
-Default: empty
+*Default:* not set
 
 .. _Module dnstap:
 
@@ -926,7 +947,7 @@ sink
 A sink path, which can be either a file or a UNIX socket when prefixed with
 ``unix:``.
 
-Default: empty
+*Required*
 
 .. _Module synth-record:
 
@@ -944,7 +965,7 @@ given prefix and subnet.
      prefix: STR
      origin: DNAME
      ttl: INT
-     network: ADDR[/INT]
+     network: ADDR[/INT] | ADDR-ADDR
 
 .. _mod-synth-record_id:
 
@@ -965,7 +986,7 @@ Possible values:
 - ``forward`` – Forward records
 - ``reverse`` – Reverse records
 
-Default: empty
+*Required*
 
 .. _mod-synth-record_prefix:
 
@@ -977,7 +998,7 @@ A record owner prefix.
 *Caution:* *prefix* doesn’t allow dots, address parts in the synthetic names are
 separated with a dash.
 
-Default: empty
+*Default:* empty
 
 .. _mod-synth-record_origin:
 
@@ -986,7 +1007,7 @@ origin
 
 A zone origin (only valid for the :ref:`reverse type<mod-synth-record_type>`).
 
-Default: empty
+*Required*
 
 .. _mod-synth-record_ttl:
 
@@ -995,16 +1016,16 @@ ttl
 
 Time to live of the generated records.
 
-Default: 3600
+*Default:* 3600
 
 .. _mod-synth-record_network:
 
 network
 -------
 
-A network subnet in the form of *address/prefix*.
+An IP address, a network subnet, or a network range the query must match.
 
-Default: empty
+*Required*
 
 .. _Module dnsproxy:
 
@@ -1036,7 +1057,7 @@ remote
 A :ref:`reference<remote_id>` to a remote server where the queries are
 forwarded to.
 
-Default: empty
+*Required*
 
 .. _mod-dnsproxy_catch-nxdomain:
 
@@ -1046,7 +1067,7 @@ catch-nxdomain
 If enabled, all unsatisfied queries (also applies to local zone lookups)
 are forwarded.
 
-Default: off
+*Default:* off
 
 .. _Module rosedb:
 
@@ -1076,4 +1097,23 @@ dbdir
 
 A path to the directory where the database is stored.
 
-Default: empty
+*Required*
+
+.. _mod-online-sign:
+
+Module online-sign
+==================
+
+The module provides online DNSSEC signing.
+
+::
+
+ mod-online-sign:
+   - id: STR
+
+.. _mod-online-sign_id:
+
+id
+--
+
+A module identifier.

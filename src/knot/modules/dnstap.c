@@ -19,10 +19,10 @@
 #include "knot/common/log.h"
 #include "knot/modules/dnstap.h"
 #include "knot/nameserver/process_query.h"
-#include "dnstap/dnstap.pb-c.h"
-#include "dnstap/writer.h"
-#include "dnstap/message.h"
-#include "dnstap/dnstap.h"
+#include "contrib/dnstap/dnstap.pb-c.h"
+#include "contrib/dnstap/writer.h"
+#include "contrib/dnstap/message.h"
+#include "contrib/dnstap/dnstap.h"
 #include "libknot/libknot.h"
 
 /* Module configuration scheme. */
@@ -38,10 +38,9 @@ const yp_item_t scheme_mod_dnstap[] = {
 int check_mod_dnstap(conf_check_t *args)
 {
 	conf_val_t sink = conf_rawid_get_txn(args->conf, args->txn, C_MOD_DNSTAP,
-	                                     MOD_SINK, args->previous->id,
-	                                     args->previous->id_len);
+	                                     MOD_SINK, args->id, args->id_len);
 	if (sink.code != KNOT_EOK) {
-		*args->err_str = "no sink specified";
+		args->err_str = "no sink specified";
 		return KNOT_EINVAL;
 	}
 
@@ -188,7 +187,8 @@ static struct fstrm_writer* dnstap_writer(const char *path)
 	return dnstap_file_writer(path);
 }
 
-int dnstap_load(struct query_plan *plan, struct query_module *self)
+int dnstap_load(struct query_plan *plan, struct query_module *self,
+                const knot_dname_t *zone)
 {
 	if (plan == NULL || self == NULL) {
 		return KNOT_EINVAL;

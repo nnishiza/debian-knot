@@ -16,6 +16,10 @@ check_PROGRAMS = \
 	base64				\
 	changeset			\
 	conf				\
+	conf_tools			\
+	confdb				\
+	confio				\
+	db				\
 	descriptor			\
 	dname				\
 	dthreads			\
@@ -26,7 +30,8 @@ check_PROGRAMS = \
 	hhash				\
 	internal_mem			\
 	journal				\
-	namedb				\
+	lookup				\
+	net				\
 	net_shortwrite			\
 	node				\
 	overlay				\
@@ -42,7 +47,6 @@ check_PROGRAMS = \
 	rrset_wire			\
 	server				\
 	tsig_key			\
-	utils				\
 	wire				\
 	wire_ctx			\
 	worker_pool			\
@@ -57,6 +61,9 @@ check_PROGRAMS = \
 	zonedb				\
 	ztree
 
+check_PROGRAMS += \
+	modules/online_sign
+
 check-compile-only: $(check_PROGRAMS)
 
 check-local: $(check_PROGRAMS)
@@ -67,6 +74,8 @@ check-local: $(check_PROGRAMS)
 
 acl_SOURCES = acl.c test_conf.h
 conf_SOURCES = conf.c test_conf.h
+confdb_SOURCES = confdb.c test_conf.h
+confio_SOURCES = confio.c test_conf.h
 process_query_SOURCES = process_query.c fake_server.h test_conf.h
 process_answer_SOURCES = process_answer.c fake_server.h test_conf.h
 CLEANFILES = runtests.log

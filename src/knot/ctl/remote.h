@@ -26,36 +26,27 @@
 
 #pragma once
 
-#include "libknot/packet/pkt.h"
-#include "libknot/rrset.h"
+#include "libknot/libknot.h"
 #include "knot/server/server.h"
-
-/*! \brief Default connection control parameters. */
-#define REMOTE_PORT	5533
-#define REMOTE_SOCKET	"knot.sock"
 
 /*!
  * \brief Bind RC interface.
  *
- * \param addr Interface descriptor (address, port).
+ * \param path  Control UNIX socket path.
  *
  * \retval socket if passed.
  * \retval knot_error else.
  */
-int remote_bind(struct sockaddr_storage *addr);
+int remote_bind(const char *path);
 
 /*!
  * \brief Unbind from RC interface and close socket.
  *
  * \note Breaks all pending connections.
  *
- * \param addr Interface descriptor (address, port).
- * \param socket Interface socket
- *
- * \retval KNOT_EOK on success.
- * \retval knot_error else.
+ * \param socket  Interface socket.
  */
-int remote_unbind(struct sockaddr_storage *addr, int sock);
+void remote_unbind(int sock);
 
 /*!
  * \brief Poll new events on RC socket.
@@ -71,15 +62,13 @@ int remote_poll(int sock, const sigset_t *sigmask);
  * \brief Start a RC connection with remote.
  *
  * \param r RC interface socket.
- * \param a Destination for remote party address (or NULL if not interested).
  * \param buf Buffer for RC command.
  * \param buflen Maximum buffer size.
  *
  * \return client TCP socket if success.
  * \return KNOT_ECONNREFUSED if fails to receive command.
  */
-int remote_recv(int sock, struct sockaddr_storage *addr, uint8_t *buf,
-                size_t *buflen);
+int remote_recv(int sock, uint8_t *buf, size_t *buflen);
 
 /*!
  * \brief Parse a RC command.
@@ -110,8 +99,7 @@ int remote_answer(int sock, server_t *s, knot_pkt_t *pkt);
  *
  * \note This should be used as a high-level API for workers.
  *
- * \param s Server instance.
- * \param ctl_addr Control interface address.
+ * \param server Server instance.
  * \param sock RC interface socket.
  * \param buf Buffer for commands/responses.
  * \param buflen Maximum buffer size.
@@ -119,70 +107,73 @@ int remote_answer(int sock, server_t *s, knot_pkt_t *pkt);
  * \retval KNOT_EOK on success.
  * \retval knot_error else.
  */
-int remote_process(server_t *s, struct sockaddr_storage *ctl_addr, int sock,
-                   uint8_t *buf, size_t buflen);
+int remote_process(server_t *server, int sock, uint8_t *buf, size_t buflen);
 
 /* Functions for creating RC packets. */
 
 /*!
- * \brief Build a RC command packet, TSIG key is optional.
- *
- * \note This doesn't sign packet, see remote_query_sign().
+ * \brief Build a RC command packet.
  *
  * \param query Command name, f.e. 'reload'.
- * \param key TSIG key for space reservation (or NULL).
  *
  * \retval KNOT_EOK on success.
  * \retval knot_error else.
  */
-knot_pkt_t* remote_query(const char *query, const knot_tsig_key_t *key);
+knot_pkt_t* remote_query(const char *query);
 
 /*!
- * \brief Sign a RC command packet using TSIG key.
+ * \brief Initialize a rrset with the given name and type.
  *
- * \param wire RC packet in wire format.
- * \param size RC packet size.
- * \param maxlen Maximum buffer size.
- * \param key TSIG key.
+ * \param rr Output rrset.
+ * \param owner RRset owner.
+ * \param type RRset type.
  *
- * \retval KNOT_EOK on success.
- * \retval knot_error else.
+ * \return KNOT_E*.
  */
-int remote_query_sign(uint8_t *wire, size_t *size, size_t maxlen,
-                      const knot_tsig_key_t *key);
-
-/*! \todo #1291 RR building should be a part of DNS library. */
-
-/*!
- * \brief Create a RR of a given name and type.
- *
- * \param k RR set name.
- * \param t RR set type.
- *
- * \return created RR set or NULL.
- */
-int remote_build_rr(knot_rrset_t *rr, const char *k, uint16_t t);
+int remote_build_rr(knot_rrset_t *rr, const char *owner, uint16_t type);
 
 /*!
  * \brief Create a TXT rdata.
- * \param v Text as a string.
- * \param v_len Text length.
- * \return Created rdata or NULL.
+ *
+ * \param rr Output rrset.
+ * \param str Text string.
+ * \param str_len Text string length.
+ * \param index Rdata index (ensures correct argument position).
+ *
+ * \return KNOT_E*.
  */
-int remote_create_txt(knot_rrset_t *rr, const char *v, size_t v_len);
+int remote_create_txt(knot_rrset_t *rr, const char *str, size_t str_len,
+                      uint16_t index);
 
 /*!
- * \brief Create a CNAME rdata.
- * \param d Domain name as a string.
- * \return Created rdata or NULL.
+ * \brief Create a NS rdata.
+ *
+ * \param rr Output rrset.
+ * \param name Domain name as a string.
+ *
+ * \return KNOT_E*
  */
-int remote_create_ns(knot_rrset_t *rr, const char *d);
+int remote_create_ns(knot_rrset_t *rr, const char *name);
 
 /*!
  * \brief Print TXT rdata to stdout.
- * \param rd TXT rdata.
- * \return KNOT_EOK
+ *
+ * \param rrset TXT rrset.
+ * \param pos Rdata position in the rrset.
+ *
+ * \return KNOT_E*
  */
-int remote_print_txt(const knot_rrset_t *rrset, uint16_t i);
+int remote_print_txt(const knot_rrset_t *rrset, uint16_t pos);
+
+/*!
+ * \brief Extracts TXT rdata into buffer.
+ *
+ * \param rrset TXT rrset.
+ * \param pos Rdata position in the rrset.
+ * \param out_len Output rdata blob length (optional).
+ *
+ * \return Rdata blob or NULL.
+ */
+uint8_t *remote_get_txt(const knot_rrset_t *rr, uint16_t pos, size_t *out_len);
 
 /*! @} */

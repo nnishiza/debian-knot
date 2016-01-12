@@ -29,15 +29,16 @@
 
 #pragma once
 
+#include "sys/socket.h"
+
+#include "libknot/libknot.h"
 #include "knot/common/evsched.h"
-#include "libknot/internal/lists.h"
 #include "knot/common/fdset.h"
-#include "libknot/internal/net.h"
-#include "libknot/internal/namedb/namedb.h"
 #include "knot/server/dthreads.h"
 #include "knot/server/rrl.h"
 #include "knot/worker/pool.h"
 #include "knot/zone/zonedb.h"
+#include "contrib/ucw/lists.h"
 
 /* Forwad declarations. */
 struct iface;
@@ -67,15 +68,17 @@ typedef enum {
  */
 typedef struct iface {
 	struct node n;
-	int fd[2];
+	int *fd_udp;
+	int fd_udp_count;
+	int fd_tcp;
 	struct sockaddr_storage addr;
 } iface_t;
 
 /* Handler types. */
-#define IO_COUNT 2
 enum {
-	IO_UDP    = 0,
-	IO_TCP    = 1
+	IO_UDP = 0,
+	IO_TCP,
+	IO_COUNT
 };
 
 typedef struct ifacelist {
@@ -96,7 +99,7 @@ typedef struct server {
 
 	/*! \brief Zone database. */
 	knot_zonedb_t *zone_db;
-	namedb_t *timers_db;
+	knot_db_t *timers_db;
 
 	/*! \brief I/O handlers. */
 	unsigned tu_size;
@@ -106,7 +109,6 @@ typedef struct server {
 	worker_pool_t *workers;
 
 	/*! \brief Event scheduler. */
-	dt_unit_t *iosched;
 	evsched_t sched;
 
 	/*! \brief List of interfaces. */
@@ -196,6 +198,6 @@ int server_update_zones(conf_t *conf, void *data);
  * \param type I/O type (UDP/TCP).
  * \return new interface list
  */
-ref_t *server_set_ifaces(server_t *s, fdset_t *fds, int type);
+ref_t *server_set_ifaces(server_t *s, fdset_t *fds, int type, int thread_id);
 
 /*! @} */

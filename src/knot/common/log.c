@@ -31,9 +31,9 @@
 
 #include "knot/common/log.h"
 #include "libknot/libknot.h"
-#include "libknot/internal/lists.h"
-#include "libknot/internal/macros.h"
-#include "libknot/internal/strlcpy.h"
+#include "contrib/macros.h"
+#include "contrib/openbsd/strlcpy.h"
+#include "contrib/ucw/lists.h"
 
 /* Single log message buffer length (one line). */
 #define LOG_BUFLEN 512
@@ -45,8 +45,9 @@ struct log_sink
 {
 	uint8_t *facility;     /* Log sinks. */
 	size_t facility_count; /* Sink count. */
-	FILE** file;           /* Open files. */
+	FILE **file;           /* Open files. */
 	ssize_t file_count;    /* Nr of open files. */
+	logflag_t flags;       /* Formatting flags. */
 };
 
 /*! Log sink singleton. */
@@ -208,6 +209,11 @@ bool log_isopen()
 	return s_log != NULL;
 }
 
+void log_flag_set(logflag_t flag)
+{
+	s_log->flags |= flag;
+}
+
 /*! \brief Open file as a logging facility. */
 static int log_open_file(struct log_sink *log, const char* filename)
 {
@@ -246,10 +252,8 @@ int log_levels_add(int facility, logsrc_t src, uint8_t levels)
 
 static int emit_log_msg(int level, const char *zone, size_t zone_len, const char *msg)
 {
-	rcu_read_lock();
 	struct log_sink *log = s_log;
 	if(!log_isopen()) {
-		rcu_read_unlock();
 		return KNOT_ERROR;
 	}
 
@@ -278,13 +282,15 @@ static int emit_log_msg(int level, const char *zone, size_t zone_len, const char
 	level = LOG_MASK(level);
 
 	/* Prefix date and time. */
-	char tstr[LOG_BUFLEN] = {0};
-	struct tm lt;
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	time_t sec = tv.tv_sec;
-	if (localtime_r(&sec, &lt) != NULL) {
-		strftime(tstr, sizeof(tstr), KNOT_LOG_TIME_FORMAT " ", &lt);
+	char tstr[LOG_BUFLEN] = { 0 };
+	if (!(s_log->flags & LOG_FNO_TIMESTAMP)) {
+		struct tm lt;
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		time_t sec = tv.tv_sec;
+		if (localtime_r(&sec, &lt) != NULL) {
+			strftime(tstr, sizeof(tstr), KNOT_LOG_TIME_FORMAT " ", &lt);
+		}
 	}
 
 	// Log streams
@@ -309,8 +315,6 @@ static int emit_log_msg(int level, const char *zone, size_t zone_len, const char
 			}
 		}
 	}
-
-	rcu_read_unlock();
 
 	if (ret < 0) {
 		return KNOT_EINVAL;
@@ -363,11 +367,16 @@ static int log_msg_text(int level, const char *zone, const char *fmt, va_list ar
 	char *write = sbuf;
 	size_t capacity = sizeof(sbuf) - 1;
 
+	rcu_read_lock();
+
 	/* Prefix error level. */
-	const char *prefix = level_prefix(level);
-	ret = log_msg_add(&write, &capacity, "%s: ", prefix);
-	if (ret != KNOT_EOK) {
-		return ret;
+	if (level != LOG_INFO || !log_isopen() || !(s_log->flags & LOG_FNO_INFO)) {
+		const char *prefix = level_prefix(level);
+		ret = log_msg_add(&write, &capacity, "%s: ", prefix);
+		if (ret != KNOT_EOK) {
+			rcu_read_unlock();
+			return ret;
+		}
 	}
 
 	/* Prefix zone name. */
@@ -381,6 +390,7 @@ static int log_msg_text(int level, const char *zone, const char *fmt, va_list ar
 
 		ret = log_msg_add(&write, &capacity, "[%.*s] ", zone_len, zone);
 		if (ret != KNOT_EOK) {
+			rcu_read_unlock();
 			return ret;
 		}
 	}
@@ -392,6 +402,8 @@ static int log_msg_text(int level, const char *zone, const char *fmt, va_list ar
 	if (ret >= 0) {
 		ret = emit_log_msg(level, zone, zone_len, sbuf);
 	}
+
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -476,16 +488,13 @@ int log_reconfigure(conf_t *conf, void *data)
 
 	// Find maximum log facility id
 	unsigned files = 0;
-	conf_iter_t iter = conf_iter(conf, C_LOG);
-	while (iter.code == KNOT_EOK) {
+	for (conf_iter_t iter = conf_iter(conf, C_LOG); iter.code == KNOT_EOK;
+	     conf_iter_next(conf, &iter)) {
 		conf_val_t id = conf_iter_id(conf, &iter);
 		if (get_logtype(conf_str(&id)) == LOGT_FILE) {
 			++files;
 		}
-
-		conf_iter_next(conf, &iter);
 	}
-	conf_iter_finish(conf, &iter);
 
 	// Initialize logsystem
 	struct log_sink *log = sink_setup(files);
@@ -494,8 +503,8 @@ int log_reconfigure(conf_t *conf, void *data)
 	}
 
 	// Setup logs
-	iter = conf_iter(conf, C_LOG);
-	while (iter.code == KNOT_EOK) {
+	for (conf_iter_t iter = conf_iter(conf, C_LOG); iter.code == KNOT_EOK;
+	     conf_iter_next(conf, &iter)) {
 		conf_val_t id = conf_iter_id(conf, &iter);
 		const char *logname = conf_str(&id);
 
@@ -506,7 +515,6 @@ int log_reconfigure(conf_t *conf, void *data)
 			if (facility < 0) {
 				log_error("failed to open log, file '%s'",
 				          logname);
-				conf_iter_next(conf, &iter);
 				continue;
 			}
 		}
@@ -528,10 +536,7 @@ int log_reconfigure(conf_t *conf, void *data)
 		level_val = conf_id_get(conf, C_LOG, C_ANY, &id);
 		level = conf_opt(&level_val);
 		sink_levels_add(log, facility, LOG_ANY, level);
-
-		conf_iter_next(conf, &iter);
 	}
-	conf_iter_finish(conf, &iter);
 
 	sink_publish(log);
 

@@ -14,7 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <ctype.h>
 #include <glob.h>
 #include <inttypes.h>
 #include <libgen.h>
@@ -36,236 +35,275 @@
 #include "knot/conf/scheme.h"
 #include "knot/common/log.h"
 #include "libknot/errcode.h"
-#include "libknot/internal/utils.h"
 #include "libknot/yparser/yptrafo.h"
+#include "contrib/wire_ctx.h"
 
-static int hex_to_num(char hex) {
-	if (hex >= '0' && hex <= '9') return hex - '0';
-	if (hex >= 'a' && hex <= 'f') return hex - 'a' + 10;
-	if (hex >= 'A' && hex <= 'F') return hex - 'A' + 10;
-	return -1;
-}
+#define MAX_INCLUDE_DEPTH	5
 
-int hex_text_to_bin(
-	char const *txt,
-	size_t txt_len,
-	uint8_t *bin,
-	size_t *bin_len)
+int conf_exec_callbacks(
+	const yp_item_t *item,
+	conf_check_t *args)
 {
-	// Check for hex notation (leading "0x").
-	if (txt_len >= 2 && txt[0] == '0' && txt[1] == 'x') {
-		txt += 2;
-		txt_len -= 2;
-
-		if (txt_len % 2 != 0) {
-			return KNOT_EINVAL;
-		} else if (*bin_len <= txt_len / 2) {
-			return KNOT_ESPACE;
-		}
-
-		// Decode hex string.
-		for (size_t i = 0; i < txt_len; i++) {
-			if (isxdigit((int)txt[i]) == 0) {
-				return KNOT_EINVAL;
-			}
-
-			bin[i] = 16 * hex_to_num(txt[2 * i]) +
-			              hex_to_num(txt[2 * i + 1]);
-		}
-
-		*bin_len = txt_len / 2;
-	} else {
-		if (*bin_len <= txt_len) {
-			return KNOT_ESPACE;
-		}
-
-		memcpy(bin, txt, txt_len);
-		*bin_len = txt_len;
+	if (item == NULL || args == NULL) {
+		return KNOT_EINVAL;
 	}
 
-	return KNOT_EOK;
-}
-
-int hex_text_to_txt(
-	uint8_t const *bin,
-	size_t bin_len,
-	char *txt,
-	size_t *txt_len)
-{
-	bool printable = true;
-
-	// Check for printable string.
-	for (size_t i = 0; i < bin_len; i++) {
-		if (isprint(bin[i]) == 0) {
-			printable = false;
+	for (size_t i = 0; i < YP_MAX_MISC_COUNT; i++) {
+		int (*fcn)(conf_check_t *) = item->misc[i];
+		if (fcn == NULL) {
 			break;
 		}
-	}
 
-	if (printable) {
-		if (*txt_len <= bin_len) {
-			return KNOT_ESPACE;
+		int ret = fcn(args);
+		if (ret != KNOT_EOK) {
+			return ret;
 		}
-
-		memcpy(txt, bin, bin_len);
-		*txt_len = bin_len;
-		txt[*txt_len] = '\0';
-	} else {
-		static const char *hex = "0123456789ABCDEF";
-
-		if (*txt_len <= 2 + 2 * bin_len) {
-			return KNOT_ESPACE;
-		}
-
-		// Write hex prefix.
-		txt[0] = '0';
-		txt[1] = 'x';
-		txt += 2;
-
-		// Encode data to hex.
-		for (size_t i = 0; i < bin_len; i++) {
-			txt[2 * i]     = hex[bin[i] / 16];
-			txt[2 * i + 1] = hex[bin[i] % 16];
-		}
-
-		*txt_len = 2 + 2 * bin_len;
-		txt[*txt_len] = '\0';
 	}
 
 	return KNOT_EOK;
 }
 
 int mod_id_to_bin(
-	char const *txt,
-	size_t txt_len,
-	uint8_t *bin,
-	size_t *bin_len)
+	YP_TXT_BIN_PARAMS)
 {
+	YP_CHECK_PARAMS_BIN;
+
 	// Check for "mod_name/mod_id" format.
-	char *pos = index(txt, '/');
-	if (pos == NULL) {
+	const uint8_t *pos = (uint8_t *)strchr((char *)in->position, '/');
+	if (pos == NULL || pos >= stop) {
 		return KNOT_EINVAL;
 	}
 
-	uint8_t name_len = pos - txt;
-	char *id = pos + 1;
-	size_t id_len = txt_len - name_len - 1;
-	// Output is mod_name in yp_name_t format and zero terminated id string.
-	size_t total_out_len = 1 + name_len + id_len + 1;
-
-	// Check for enough output room.
-	if (*bin_len < total_out_len) {
-		return KNOT_ESPACE;
+	// Check for missing module name.
+	if (pos == in->position) {
+		return KNOT_EINVAL;
 	}
 
-	// Write mod_name in yp_name_t format.
-	bin[0] = name_len;
-	memcpy(bin + 1, txt, name_len);
-	// Write mod_id as zero terminated string.
-	memcpy(bin + 1 + name_len, id, id_len + 1);
-	// Set output length.
-	*bin_len = total_out_len;
+	// Write mod_name in the yp_name_t format.
+	uint8_t name_len = pos - in->position;
+	wire_ctx_write_u8(out, name_len);
+	wire_ctx_write(out, in->position, name_len);
+	wire_ctx_skip(in, name_len);
 
-	return KNOT_EOK;
+	// Skip the separator.
+	wire_ctx_skip(in, sizeof(uint8_t));
+
+	// Check for missing id.
+	if (wire_ctx_available(in) == 0) {
+		return KNOT_EINVAL;
+	}
+
+	// Write mod_id as a zero terminated string.
+	int ret = yp_str_to_bin(in, out, stop);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	YP_CHECK_RET;
 }
 
 int mod_id_to_txt(
-	uint8_t const *bin,
-	size_t bin_len,
-	char *txt,
-	size_t *txt_len)
+	YP_BIN_TXT_PARAMS)
 {
-	int ret = snprintf(txt, *txt_len, "%.*s/%s", (int)bin[0], bin + 1,
-	                   bin + 1 + bin[0]);
-	if (ret <= 0 || ret >= *txt_len) {
-		return KNOT_ESPACE;
-	}
-	*txt_len = ret;
+	YP_CHECK_PARAMS_TXT;
 
-	return KNOT_EOK;
+	// Write mod_name.
+	uint8_t name_len = wire_ctx_read_u8(in);
+	wire_ctx_write(out, in->position, name_len);
+	wire_ctx_skip(in, name_len);
+
+	// Write the separator.
+	wire_ctx_write_u8(out, '/');
+
+	// Write mod_id.
+	int ret = yp_str_to_txt(in, out);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	YP_CHECK_RET;
 }
 
 int edns_opt_to_bin(
-	char const *txt,
-	size_t txt_len,
-	uint8_t *bin,
-	size_t *bin_len)
+	YP_TXT_BIN_PARAMS)
 {
-	char *suffix = NULL;
-	unsigned long number = strtoul(txt, &suffix, 10);
+	YP_CHECK_PARAMS_BIN;
 
 	// Check for "code:[value]" format.
-	if (suffix <= txt || *suffix != ':' || number > UINT16_MAX) {
+	const uint8_t *pos = (uint8_t *)strchr((char *)in->position, ':');
+	if (pos == NULL || pos >= stop) {
 		return KNOT_EINVAL;
 	}
 
-	// Store the option code.
-	uint16_t code = number;
-	if (*bin_len < sizeof(code)) {
-		return KNOT_ESPACE;
-	}
-	wire_write_u16(bin, code);
-	bin += sizeof(code);
-
-	// Prepare suffix input (behind colon character).
-	size_t txt_suffix_len = txt_len - (suffix - txt) - 1;
-	size_t bin_suffix_len = *bin_len - sizeof(code);
-	suffix++;
-
-	// Convert suffix data.
-	int ret = hex_text_to_bin(suffix, txt_suffix_len, bin, &bin_suffix_len);
+	// Write option code.
+	int ret = yp_int_to_bin(in, out, pos, 0, UINT16_MAX, YP_SNONE);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
 
-	// Set output data length.
-	*bin_len = sizeof(code) + bin_suffix_len;
+	// Skip the separator.
+	wire_ctx_skip(in, sizeof(uint8_t));
 
-	return KNOT_EOK;
+	// Write option data.
+	ret = yp_hex_to_bin(in, out, stop);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	YP_CHECK_RET;
 }
 
 int edns_opt_to_txt(
-	uint8_t const *bin,
-	size_t bin_len,
-	char *txt,
-	size_t *txt_len)
+	YP_BIN_TXT_PARAMS)
 {
-	uint16_t code = wire_read_u16(bin);
+	YP_CHECK_PARAMS_TXT;
 
-	// Write option code part.
-	int code_len = snprintf(txt, *txt_len, "%u:", code);
-	if (code_len <= 0 || code_len >= *txt_len) {
-		return KNOT_ESPACE;
-	}
-
-	size_t data_len = *txt_len - code_len;
-
-	// Write possible option data part.
-	int ret = hex_text_to_txt(bin + sizeof(code), bin_len - sizeof(code),
-	                          txt + code_len, &data_len);
+	// Write option code.
+	int ret = yp_int_to_txt(in, out, YP_SNONE);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
 
-	// Set output text length.
-	*txt_len = code_len + data_len;
+	// Write the separator.
+	wire_ctx_write_u8(out, ':');
 
-	return KNOT_EOK;
+	// Write option data.
+	ret = yp_hex_to_txt(in, out);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	YP_CHECK_RET;
+}
+
+int addr_range_to_bin(
+	YP_TXT_BIN_PARAMS)
+{
+	YP_CHECK_PARAMS_BIN;
+
+	// Format: 0 - single address, 1 - address prefix, 2 - address range.
+	uint8_t format = 0;
+
+	// Check for the "addr/mask" format.
+	const uint8_t *pos = (uint8_t *)strchr((char *)in->position, '/');
+	if (pos >= stop) {
+		pos = NULL;
+	}
+
+	if (pos != NULL) {
+		format = 1;
+	} else {
+		// Check for the "addr1-addr2" format.
+		pos = (uint8_t *)strchr((char *)in->position, '-');
+		if (pos >= stop) {
+			pos = NULL;
+		}
+		if (pos != NULL) {
+			format = 2;
+		}
+	}
+
+	// Store address1 type position.
+	uint8_t *type1 = out->position;
+
+	// Write the first address.
+	int ret = yp_addr_noport_to_bin(in, out, pos, false);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	wire_ctx_write_u8(out, format);
+
+	switch (format) {
+	case 1:
+		// Skip the separator.
+		wire_ctx_skip(in, sizeof(uint8_t));
+
+		// Write the prefix length.
+		ret = yp_int_to_bin(in, out, stop, 0, (*type1 == 4) ? 32 : 128,
+		                    YP_SNONE);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		break;
+	case 2:
+		// Skip the separator.
+		wire_ctx_skip(in, sizeof(uint8_t));
+
+		// Store address2 type position.
+		uint8_t *type2 = out->position;
+
+		// Write the second address.
+		ret = yp_addr_noport_to_bin(in, out, stop, false);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+
+		// Check for address mismatch.
+		if (*type1 != *type2) {
+			return KNOT_EINVAL;
+		}
+		break;
+	default:
+		break;
+	}
+
+	YP_CHECK_RET;
+}
+
+int addr_range_to_txt(
+	YP_BIN_TXT_PARAMS)
+{
+	YP_CHECK_PARAMS_TXT;
+
+	// Write the first address.
+	int ret = yp_addr_noport_to_txt(in, out);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	uint8_t format = wire_ctx_read_u8(in);
+
+	switch (format) {
+	case 1:
+		// Write the separator.
+		wire_ctx_write_u8(out, '/');
+
+		// Write the prefix length.
+		ret = yp_int_to_txt(in, out, YP_SNONE);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		break;
+	case 2:
+		// Write the separator.
+		wire_ctx_write_u8(out, '-');
+
+		// Write the second address.
+		ret = yp_addr_noport_to_txt(in, out);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		break;
+	default:
+		break;
+	}
+
+	YP_CHECK_RET;
 }
 
 int check_ref(
 	conf_check_t *args)
 {
-	const char *err_str = "invalid reference";
+	const yp_item_t *ref = args->item->var.r.ref;
 
-	const yp_item_t *parent = args->check->key1->var.r.ref;
-
-	// Try to find the id in the referenced category.
+	// Try to find a referenced block with the id.
 	// Cannot use conf_raw_get as id is not stored in confdb directly!
-	int ret = conf_db_get(args->conf, args->txn, parent->name, NULL,
-	                      args->check->data, args->check->data_len, NULL);
+	int ret = conf_db_get(args->conf, args->txn, ref->name, NULL,
+	                      args->data, args->data_len, NULL);
 	if (ret != KNOT_EOK) {
-		*args->err_str = err_str;
+		args->err_str = "invalid reference";
+
 	}
 
 	return ret;
@@ -274,33 +312,104 @@ int check_ref(
 int check_modref(
 	conf_check_t *args)
 {
-	const char *err_str = "invalid module reference";
+	const yp_name_t *mod_name = (const yp_name_t *)args->data;
+	const uint8_t *id = args->data + 1 + args->data[0];
+	size_t id_len = args->data_len - 1 - args->data[0];
 
-	const yp_name_t *mod_name = (const yp_name_t *)args->check->data;
-	const uint8_t *id = args->check->data + 1 + args->check->data[0];
-	size_t id_len = args->check->data_len - 1 - args->check->data[0];
-
-	// Try to find the module with id.
+	// Try to find a module with the id.
 	// Cannot use conf_raw_get as id is not stored in confdb directly!
 	int ret = conf_db_get(args->conf, args->txn, mod_name, NULL, id, id_len,
 	                      NULL);
 	if (ret != KNOT_EOK) {
-		*args->err_str = err_str;
+		args->err_str = "invalid module reference";
+
 	}
 
 	return ret;
 }
 
+int check_key(
+	conf_check_t *args)
+{
+	conf_val_t alg = conf_rawid_get_txn(args->conf, args->txn, C_KEY,
+	                                    C_ALG, args->id, args->id_len);
+	if (conf_val_count(&alg) == 0) {
+		args->err_str = "no key algorithm defined";
+		return KNOT_EINVAL;
+	}
+
+	conf_val_t secret = conf_rawid_get_txn(args->conf, args->txn, C_KEY,
+	                                       C_SECRET, args->id, args->id_len);
+	if (conf_val_count(&secret) == 0) {
+		args->err_str = "no key secret defined";
+		return KNOT_EINVAL;
+	}
+
+	return KNOT_EOK;
+}
+
+int check_acl(
+	conf_check_t *args)
+{
+	conf_val_t addr = conf_rawid_get_txn(args->conf, args->txn, C_ACL,
+	                                     C_ADDR, args->id, args->id_len);
+	conf_val_t key = conf_rawid_get_txn(args->conf, args->txn, C_ACL,
+	                                    C_KEY, args->id, args->id_len);
+	if (conf_val_count(&addr) == 0 && conf_val_count(&key) == 0) {
+		args->err_str = "both ACL address and ACL key not defined";
+		return KNOT_EINVAL;
+	}
+
+	conf_val_t action = conf_rawid_get_txn(args->conf, args->txn, C_ACL,
+	                                       C_ACTION, args->id, args->id_len);
+	conf_val_t deny = conf_rawid_get_txn(args->conf, args->txn, C_ACL,
+	                                     C_DENY, args->id, args->id_len);
+	if (conf_val_count(&action) == 0 && conf_val_count(&deny) == 0) {
+		args->err_str = "no ACL action defined";
+		return KNOT_EINVAL;
+	}
+
+	return KNOT_EOK;
+}
+
 int check_remote(
 	conf_check_t *args)
 {
-	const char *err_str = "no remote address defined";
-
 	conf_val_t addr = conf_rawid_get_txn(args->conf, args->txn, C_RMT,
-	                                     C_ADDR, args->previous->id,
-	                                     args->previous->id_len);
+	                                     C_ADDR, args->id, args->id_len);
 	if (conf_val_count(&addr) == 0) {
-		*args->err_str = err_str;
+		args->err_str = "no remote address defined";
+		return KNOT_EINVAL;
+	}
+
+	return KNOT_EOK;
+}
+
+int check_template(
+	conf_check_t *args)
+{
+	// Ignore the default template.
+	if (args->id_len == CONF_DEFAULT_ID[0] &&
+	    memcmp(args->id, CONF_DEFAULT_ID + 1, args->id_len) == 0) {
+		return KNOT_EOK;
+	}
+
+	// Check global-module.
+	conf_val_t g_module = conf_rawid_get_txn(args->conf, args->txn, C_TPL,
+	                                         C_GLOBAL_MODULE, args->id,
+	                                         args->id_len);
+
+	if (g_module.code == KNOT_EOK) {
+		args->err_str = "global module in non-default template";
+		return KNOT_EINVAL;
+	}
+
+	// Check timer-db.
+	conf_val_t timer_db = conf_rawid_get_txn(args->conf, args->txn, C_TPL,
+	                                         C_TIMER_DB, args->id, args->id_len);
+
+	if (timer_db.code == KNOT_EOK) {
+		args->err_str = "timer database location in non-default template";
 		return KNOT_EINVAL;
 	}
 
@@ -310,16 +419,14 @@ int check_remote(
 int check_zone(
 	conf_check_t *args)
 {
-	const char *err_str = "slave zone with DNSSEC signing";
-
 	conf_val_t master = conf_zone_get_txn(args->conf, args->txn,
-	                                      C_MASTER, args->previous->id);
+	                                      C_MASTER, args->id);
 	conf_val_t dnssec = conf_zone_get_txn(args->conf, args->txn,
-	                                      C_DNSSEC_SIGNING, args->previous->id);
+	                                      C_DNSSEC_SIGNING, args->id);
 
 	// DNSSEC signing is not possible with slave zone.
 	if (conf_val_count(&master) > 0 && conf_bool(&dnssec)) {
-		*args->err_str = err_str;
+		args->err_str = "slave zone with DNSSEC signing";
 		return KNOT_EINVAL;
 	}
 
@@ -339,6 +446,8 @@ static int glob_error(
 int include_file(
 	conf_check_t *args)
 {
+	// This function should not be called in more threads.
+	static int depth = 0;
 	glob_t glob_buf = { 0 };
 	int ret;
 
@@ -347,13 +456,20 @@ int include_file(
 		return KNOT_ENOMEM;
 	}
 
+	// Check for include loop.
+	if (depth++ > MAX_INCLUDE_DEPTH) {
+		CONF_LOG(LOG_ERR, "include loop detected");
+		ret = KNOT_EPARSEFAIL;
+		goto include_error;
+	}
+
 	// Prepare absolute include path.
-	if (args->check->data[0] == '/') {
+	if (args->data[0] == '/') {
 		ret = snprintf(path, PATH_MAX, "%.*s",
-		               (int)args->check->data_len, args->check->data);
+		               (int)args->data_len, args->data);
 	} else {
-		const char *file_name = args->parser->file.name != NULL ?
-		                        args->parser->file.name : "./";
+		const char *file_name = args->file_name != NULL ?
+		                        args->file_name : "./";
 		char *full_current_name = realpath(file_name, NULL);
 		if (full_current_name == NULL) {
 			ret = KNOT_ENOMEM;
@@ -362,7 +478,7 @@ int include_file(
 
 		ret = snprintf(path, PATH_MAX, "%s/%.*s",
 		               dirname(full_current_name),
-		               (int)args->check->data_len, args->check->data);
+		               (int)args->data_len, args->data);
 		free(full_current_name);
 	}
 	if (ret <= 0 || ret >= PATH_MAX) {
@@ -398,7 +514,7 @@ int include_file(
 
 		// Include regular file.
 		ret = conf_parse(args->conf, args->txn, glob_buf.gl_pathv[i],
-		                 true, args->include_depth, args->previous);
+		                 true, args);
 		if (ret != KNOT_EOK) {
 			goto include_error;
 		}
@@ -408,6 +524,7 @@ int include_file(
 include_error:
 	globfree(&glob_buf);
 	free(path);
+	depth--;
 
 	return ret;
 }

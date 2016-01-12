@@ -25,14 +25,14 @@
 #include "utils/common/netio.h"
 #include "utils/common/sign.h"
 #include "libknot/libknot.h"
-#include "libknot/internal/lists.h"
-#include "libknot/internal/print.h"
-#include "libknot/internal/sockaddr.h"
+#include "contrib/sockaddr.h"
+#include "contrib/print.h"
+#include "contrib/ucw/lists.h"
 
 #if USE_DNSTAP
-# include "dnstap/convert.h"
-# include "dnstap/message.h"
-# include "dnstap/writer.h"
+# include "contrib/dnstap/convert.h"
+# include "contrib/dnstap/message.h"
+# include "contrib/dnstap/writer.h"
 
 static int write_dnstap(dt_writer_t          *writer,
                         const bool           is_response,
@@ -563,8 +563,9 @@ static int process_query_packet(const knot_pkt_t      *query,
 		// Create reply packet structure to fill up.
 		reply = knot_pkt_new(in, in_len, NULL);
 		if (reply == NULL) {
+			ERR("internal error (%s)\n", knot_strerror(KNOT_ENOMEM));
 			net_close(net);
-			return -1;
+			return 0;
 		}
 
 		// Parse reply to the packet structure.
@@ -572,7 +573,7 @@ static int process_query_packet(const knot_pkt_t      *query,
 			ERR("malformed reply packet from %s\n", net->remote_str);
 			knot_pkt_free(&reply);
 			net_close(net);
-			return -1;
+			return 0;
 		}
 
 		// Compare reply header id.
@@ -605,29 +606,21 @@ static int process_query_packet(const knot_pkt_t      *query,
 	// Check for question sections equality.
 	check_reply_question(reply, query);
 
-	// Verify signature if a key was specified.
-	if (sign_ctx->digest != NULL) {
-		ret = verify_packet(reply, sign_ctx);
-		if (ret != KNOT_EOK) {
-			ERR("reply verification for %s (%s)\n",
-			    net->remote_str, knot_strerror(ret));
-			knot_pkt_free(&reply);
-			net_close(net);
-			return -1;
-		}
-	}
-
 	// Print reply packet.
 	print_packet(reply, net, in_len, time_diff(&t_query, &t_end), 0,
 	             true, style);
 
+	// Verify signature if a key was specified.
+	if (sign_ctx->digest != NULL) {
+		ret = verify_packet(reply, sign_ctx);
+		if (ret != KNOT_EOK) {
+			WARN("reply verification for %s (%s)\n",
+			     net->remote_str, knot_strerror(ret));
+		}
+	}
+
 	knot_pkt_free(&reply);
 	net_close(net);
-
-	// Check for SERVFAIL.
-	if (knot_wire_get_rcode(in) == KNOT_RCODE_SERVFAIL) {
-		return 1;
-	}
 
 	return 0;
 }
@@ -703,15 +696,6 @@ static void process_query(const query_t *query)
 
 			// Success.
 			if (ret == 0) {
-				net_clean(&net);
-				sign_context_deinit(&sign_ctx);
-				knot_pkt_free(&out_packet);
-				return;
-			// SERVFAIL.
-			} else if (ret == 1 && query->servfail_stop == true) {
-				WARN("failed to query server %s@%s(%s)\n",
-				     remote->name, remote->service,
-				     get_sockname(socktype));
 				net_clean(&net);
 				sign_context_deinit(&sign_ctx);
 				knot_pkt_free(&out_packet);
@@ -802,9 +786,6 @@ static int process_xfr_packet(const knot_pkt_t      *query,
 		printf("\n");
 	}
 
-	// Print leading transfer information.
-	print_header_xfr(query, style);
-
 	// Loop over reply messages unless first and last SOA serials differ.
 	while (true) {
 		// Receive a reply message.
@@ -826,8 +807,9 @@ static int process_xfr_packet(const knot_pkt_t      *query,
 		// Create reply packet structure to fill up.
 		reply = knot_pkt_new(in, in_len, NULL);
 		if (reply == NULL) {
+			ERR("internal error (%s)\n", knot_strerror(KNOT_ENOMEM));
 			net_close(net);
-			return -1;
+			return 0;
 		}
 
 		// Parse reply to the packet structure.
@@ -835,45 +817,38 @@ static int process_xfr_packet(const knot_pkt_t      *query,
 			ERR("malformed reply packet from %s\n", net->remote_str);
 			knot_pkt_free(&reply);
 			net_close(net);
-			return -1;
+			return 0;
 		}
 
 		// Compare reply header id.
 		if (check_reply_id(reply, query) == false) {
+			ERR("reply ID mismatch from %s\n", net->remote_str);
 			knot_pkt_free(&reply);
 			net_close(net);
-			return -1;
-		}
-
-		// Check for reply error.
-		uint8_t rcode_id = knot_wire_get_rcode(in);
-		if (rcode_id != KNOT_RCODE_NOERROR) {
-			lookup_table_t *rcode =
-				lookup_by_id(knot_rcode_names, rcode_id);
-			if (rcode != NULL) {
-				ERR("server %s responded %s\n",
-				    net->remote_str, rcode->name);
-			} else {
-				ERR("server %s responded %i\n",
-				    net->remote_str, rcode_id);
-			}
-
-			knot_pkt_free(&reply);
-			net_close(net);
-			return -1;
+			return 0;
 		}
 
 		// The first message has a special treatment.
 		if (msg_count == 0) {
+			// Print leading transfer information.
+			print_header_xfr(query, style);
+
 			// Verify 1. signature if a key was specified.
 			if (sign_ctx->digest != NULL) {
 				ret = verify_packet(reply, sign_ctx);
 				if (ret != KNOT_EOK) {
+					style_t tsig_style = {
+						.format = style->format,
+						.style = style->style,
+						.show_tsig = true
+					};
+					print_data_xfr(reply, &tsig_style);
+
 					ERR("reply verification for %s (%s)\n",
 					    net->remote_str, knot_strerror(ret));
 					knot_pkt_free(&reply);
 					net_close(net);
-					return -1;
+					return 0;
 				}
 			}
 
@@ -881,10 +856,11 @@ static int process_xfr_packet(const knot_pkt_t      *query,
 			serial = first_serial_check(reply);
 
 			if (serial < 0) {
-				ERR("first answer record isn't SOA\n");
+				ERR("first answer record from %s isn't SOA\n",
+				    net->remote_str);
 				knot_pkt_free(&reply);
 				net_close(net);
-				return -1;
+				return 0;
 			}
 
 			// Check for question sections equality.

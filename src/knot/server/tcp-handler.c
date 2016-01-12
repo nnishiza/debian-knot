@@ -34,15 +34,15 @@
 
 #include "dnssec/random.h"
 #include "knot/server/tcp-handler.h"
-#include "knot/common/debug.h"
 #include "knot/common/fdset.h"
-#include "knot/common/time.h"
+#include "knot/common/log.h"
 #include "knot/nameserver/process_query.h"
-#include "libknot/internal/mempool.h"
-#include "libknot/internal/macros.h"
-#include "libknot/internal/net.h"
-#include "libknot/internal/sockaddr.h"
 #include "libknot/processing/overlay.h"
+#include "contrib/macros.h"
+#include "contrib/net.h"
+#include "contrib/sockaddr.h"
+#include "contrib/time.h"
+#include "contrib/ucw/mempool.h"
 
 /*! \brief TCP context data. */
 typedef struct tcp_context {
@@ -113,16 +113,14 @@ static int tcp_handle(tcp_context_t *tcp, int fd,
 
 	/* Timeout. */
 	rcu_read_lock();
-	conf_val_t val = conf_get(conf(), C_SRV, C_TCP_REPLY_TIMEOUT);
-	int64_t max_conn_reply = conf_int(&val);
+	conf_val_t *val = &conf()->cache.srv_tcp_reply_timeout;
+	struct timeval tmout = { conf_int(val), 0 };
 	rcu_read_unlock();
-	struct timeval tmout = { max_conn_reply, 0 };
 
 	/* Receive data. */
 	struct timeval recv_tmout = tmout;
-	int ret = tcp_recv_msg(fd, rx->iov_base, rx->iov_len, &recv_tmout);
+	int ret = net_dns_tcp_recv(fd, rx->iov_base, rx->iov_len, &recv_tmout);
 	if (ret <= 0) {
-		dbg_net("tcp: client on fd=%d disconnected\n", fd);
 		if (ret == KNOT_EAGAIN) {
 			char addr_str[SOCKADDR_STRLEN] = {0};
 			sockaddr_tostr(addr_str, sizeof(addr_str), &ss);
@@ -134,14 +132,21 @@ static int tcp_handle(tcp_context_t *tcp, int fd,
 		rx->iov_len = ret;
 	}
 
-	/* Create packets. */
-	mm_ctx_t *mm = tcp->overlay.mm;
-	knot_pkt_t *ans = knot_pkt_new(tx->iov_base, tx->iov_len, mm);
-	knot_pkt_t *query = knot_pkt_new(rx->iov_base, rx->iov_len, mm);
+	knot_mm_t *mm = tcp->overlay.mm;
 
 	/* Initialize processing overlay. */
-	knot_overlay_init(&tcp->overlay, mm);
-	knot_overlay_add(&tcp->overlay, NS_PROC_QUERY, &param);
+	ret = knot_overlay_init(&tcp->overlay, mm);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+	ret = knot_overlay_add(&tcp->overlay, NS_PROC_QUERY, &param);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	/* Create packets. */
+	knot_pkt_t *ans = knot_pkt_new(tx->iov_base, tx->iov_len, mm);
+	knot_pkt_t *query = knot_pkt_new(rx->iov_base, rx->iov_len, mm);
 
 	/* Input packet. */
 	(void) knot_pkt_parse(query, 0);
@@ -155,7 +160,7 @@ static int tcp_handle(tcp_context_t *tcp, int fd,
 		/* Send, if response generation passed and wasn't ignored. */
 		if (ans->size > 0 && !(state & (KNOT_STATE_FAIL|KNOT_STATE_NOOP))) {
 			struct timeval send_tmout = tmout;
-			if (tcp_send_msg(fd, ans->wire, ans->size, &send_tmout) != ans->size) {
+			if (net_dns_tcp_send(fd, ans->wire, ans->size, &send_tmout) != ans->size) {
 				ret = KNOT_ECONNREFUSED;
 				break;
 			}
@@ -176,23 +181,15 @@ static int tcp_handle(tcp_context_t *tcp, int fd,
 int tcp_accept(int fd)
 {
 	/* Accept incoming connection. */
-	int incoming = accept(fd, 0, 0);
+	int incoming = net_accept(fd, NULL);
 
 	/* Evaluate connection. */
-	if (incoming < 0) {
-		int en = errno;
-		if (en != EINTR && en != EAGAIN) {
-			return KNOT_EBUSY;
-		}
-		return KNOT_ERROR;
-	} else {
-		dbg_net("tcp: accepted connection fd=%d\n", incoming);
-		/* Set recv() timeout. */
+	if (incoming >= 0) {
 #ifdef SO_RCVTIMEO
 		struct timeval tv;
 		rcu_read_lock();
-		conf_val_t val = conf_get(conf(), C_SRV, C_TCP_IDLE_TIMEOUT);
-		tv.tv_sec = conf_int(&val);
+		conf_val_t *val = &conf()->cache.srv_tcp_idle_timeout;
+		tv.tv_sec = conf_int(val);
 		rcu_read_unlock();
 		tv.tv_usec = 0;
 		if (setsockopt(incoming, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
@@ -220,8 +217,8 @@ static int tcp_event_accept(tcp_context_t *tcp, unsigned i)
 
 		/* Update watchdog timer. */
 		rcu_read_lock();
-		conf_val_t val = conf_get(conf(), C_SRV, C_TCP_HSHAKE_TIMEOUT);
-		fdset_set_watchdog(&tcp->set, next_id, conf_int(&val));
+		conf_val_t *val = &conf()->cache.srv_tcp_hshake_timeout;
+		fdset_set_watchdog(&tcp->set, next_id, conf_int(val));
 		rcu_read_unlock();
 
 		return KNOT_EOK;
@@ -241,8 +238,8 @@ static int tcp_event_serve(tcp_context_t *tcp, unsigned i)
 	if (ret == KNOT_EOK) {
 		/* Update socket activity timer. */
 		rcu_read_lock();
-		conf_val_t val = conf_get(conf(), C_SRV, C_TCP_IDLE_TIMEOUT);
-		fdset_set_watchdog(&tcp->set, i, conf_int(&val));
+		conf_val_t *val = &conf()->cache.srv_tcp_idle_timeout;
+		fdset_set_watchdog(&tcp->set, i, conf_int(val));
 		rcu_read_unlock();
 	}
 
@@ -261,8 +258,8 @@ static int tcp_wait_for_events(tcp_context_t *tcp)
 	if (!is_throttled) {
 		/* Configuration limit, infer maximal pool size. */
 		rcu_read_lock();
-		conf_val_t val = conf_get(conf(), C_SRV, C_MAX_TCP_CLIENTS);
-		unsigned max_per_set = MAX(conf_int(&val) / conf_tcp_threads(conf()), 1);
+		conf_val_t *val = &conf()->cache.srv_max_tcp_clients;
+		unsigned max_per_set = MAX(conf_int(val) / conf_tcp_threads(conf()), 1);
 		rcu_read_unlock();
 		/* Subtract master sockets check limits. */
 		is_throttled = (set->n - tcp->client_threshold) >= max_per_set;
@@ -319,7 +316,7 @@ int tcp_master(dthread_t *thread)
 	memset(&tcp, 0, sizeof(tcp_context_t));
 
 	/* Create big enough memory cushion. */
-	mm_ctx_t mm;
+	knot_mm_t mm;
 	mm_ctx_mempool(&mm, 16 * MM_DEFAULT_BLKSIZE);
 
 	/* Create TCP answering context. */
@@ -358,7 +355,7 @@ int tcp_master(dthread_t *thread)
 			}
 
 			ref_release(ref);
-			ref = server_set_ifaces(handler->server, &tcp.set, IO_TCP);
+			ref = server_set_ifaces(handler->server, &tcp.set, IO_TCP, tcp.thread_id);
 			if (tcp.set.n == 0) {
 				break; /* Terminate on zero interfaces. */
 			}

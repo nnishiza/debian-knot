@@ -18,8 +18,15 @@
 #include <time.h>
 #include <tap/basic.h>
 
-#include "libknot/internal/trie/hat-trie.h"
-#include "libknot/internal/mem.h"
+#include "contrib/hat-trie/hat-trie.h"
+#include "contrib/macros.h"
+#include "contrib/string.h"
+
+/* UCW array sorting defines. */
+#define ASORT_PREFIX(X) str_key_##X
+#define ASORT_KEY_TYPE char*
+#define ASORT_LT(x, y) (strcmp((x), (y)) < 0)
+#include "contrib/ucw/array-sort.h"
 
 /* Constants. */
 #define KEY_MAXLEN 64
@@ -28,7 +35,7 @@
 static const char *alphabet = "abcdefghijklmn0123456789";
 static char *str_key_rand(size_t len)
 {
-	char *s = xmalloc(len);
+	char *s = malloc(len);
 	memset(s, 0, len);
 	for (unsigned i = 0; i < len - 1; ++i) {
 		s[i] = alphabet[rand() % strlen(alphabet)];
@@ -93,20 +100,14 @@ static bool str_key_find_leq(hattrie_t *trie, char **keys, size_t i, size_t size
 
 }
 
-/* UCW array sorting defines. */
-#define ASORT_PREFIX(X) str_key_##X
-#define ASORT_KEY_TYPE char*
-#define ASORT_LT(x, y) (strcmp((x), (y)) < 0)
-#include "libknot/internal/array-sort.h"
-
 int main(int argc, char *argv[])
 {
-	plan(8);
+	plan_lazy();
 
 	/* Random keys. */
 	srand(time(NULL));
 	unsigned key_count = 100000;
-	char **keys = xmalloc(sizeof(char*) * key_count);
+	char **keys = malloc(sizeof(char*) * key_count);
 	for (unsigned i = 0; i < key_count; ++i) {
 		keys[i] = str_key_rand(KEY_MAXLEN);
 	}

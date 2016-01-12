@@ -2,7 +2,7 @@
 
 #include "test_conf.h"
 #include "knot/server/server.h"
-#include "libknot/internal/mempattern.h"
+#include "contrib/mempattern.h"
 
 /* Some domain names. */
 #define ROOT_DNAME ((const uint8_t *)"")
@@ -10,7 +10,7 @@
 #define IDSERVER_DNAME ((const uint8_t *)"\2""id""\6""server")
 
 /* Create fake root zone. */
-static inline void create_root_zone(server_t *server, mm_ctx_t *mm)
+static inline void create_root_zone(server_t *server, knot_mm_t *mm)
 {
 	/* SOA RDATA. */
 	#define SOA_RDLEN 30
@@ -45,7 +45,7 @@ static inline void create_root_zone(server_t *server, mm_ctx_t *mm)
 }
 
 /* Create fake server. */
-static inline int create_fake_server(server_t *server, mm_ctx_t *mm)
+static inline int create_fake_server(server_t *server, knot_mm_t *mm)
 {
 	/* Create name server. */
 	int ret = server_init(server, 1);
@@ -54,7 +54,8 @@ static inline int create_fake_server(server_t *server, mm_ctx_t *mm)
 	}
 
 	/* Load test configuration. */
-	const char *conf_str = 	"server:\n identity: bogus.ns\n version: 0.11\n";
+	const char *conf_str = "server:\n identity: bogus.ns\n version: 0.11\n"
+	                       "zone:\n - domain: .\n   zonefile-sync: -1\n";
 	ret = test_conf(conf_str, NULL);
 	if (ret != KNOT_EOK) {
 		return ret;

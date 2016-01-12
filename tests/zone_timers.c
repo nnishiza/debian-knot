@@ -14,14 +14,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <dirent.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include <tap/basic.h>
 
-#include "libknot/internal/namedb/namedb.h"
-#include "libknot/internal/namedb/namedb_lmdb.h"
-#include "libknot/internal/mem.h"
+#include "contrib/string.h"
 #include "libknot/libknot.h"
 #include "knot/zone/timers.h"
 #include "knot/zone/zone.h"
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 {
 	plan_lazy();
 
-	if (namedb_lmdb_api() == NULL) {
+	if (knot_db_lmdb_api() == NULL) {
 		skip("LMDB API not compiled");
 		return EXIT_SUCCESS;
 	}
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 
 	knot_zonedb_build_index(zone_db);
 
-	namedb_t *db = NULL;
+	knot_db_t *db = NULL;
 	ret = open_timers_db(dbid, &db);
 	ok(ret == KNOT_EOK && db != NULL, "zone timers: create");
 
@@ -125,20 +125,17 @@ int main(int argc, char *argv[])
 	close_timers_db(db);
 
 	// Cleanup temporary DB.
-	char *timers_dir = sprintf_alloc("%s/timers", dbid);
-	DIR *dir = opendir(timers_dir);
+	DIR *dir = opendir(dbid);
 	struct dirent *dp;
 	while ((dp = readdir(dir)) != NULL) {
 		if (dp->d_name[0] == '.') {
 			continue;
 		}
-		char *file = sprintf_alloc("%s/%s", timers_dir, dp->d_name);
+		char *file = sprintf_alloc("%s/%s", dbid, dp->d_name);
 		remove(file);
 		free(file);
 	}
 	closedir(dir);
-	remove(timers_dir);
-	free(timers_dir);
 	remove(dbid);
 
 	return EXIT_SUCCESS;

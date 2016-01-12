@@ -19,6 +19,7 @@
 #include "knot/modules/dnsproxy.h"
 #include "knot/nameserver/capture.h"
 #include "knot/nameserver/process_query.h"
+#include "contrib/net.h"
 
 /* Module configuration scheme. */
 #define MOD_REMOTE		"\x06""remote"
@@ -35,10 +36,9 @@ const yp_item_t scheme_mod_dnsproxy[] = {
 int check_mod_dnsproxy(conf_check_t *args)
 {
 	conf_val_t rmt = conf_rawid_get_txn(args->conf, args->txn, C_MOD_DNSPROXY,
-	                                    MOD_REMOTE, args->previous->id,
-	                                    args->previous->id_len);
+	                                    MOD_REMOTE, args->id, args->id_len);
 	if (rmt.code != KNOT_EOK) {
-		*args->err_str = "no remote server specified";
+		args->err_str = "no remote server specified";
 		return KNOT_EINVAL;
 	}
 
@@ -65,31 +65,39 @@ static int dnsproxy_fwd(int state, knot_pkt_t *pkt, struct query_data *qdata, vo
 
 	/* Create a forwarding request. */
 	struct knot_requestor re;
-	knot_requestor_init(&re, qdata->mm);
-	struct capture_param param;
-	param.sink = pkt;
-	int ret = knot_requestor_overlay(&re, LAYER_CAPTURE, &param);
+	int ret = knot_requestor_init(&re, qdata->mm);
 	if (ret != KNOT_EOK) {
-		return KNOT_STATE_FAIL;
+		return state; /* Ignore, not enough memory. */
 	}
 
-	bool is_tcp = net_is_connected(qdata->param->socket);
-	struct knot_request *req;
+	struct capture_param param = {
+		.sink = pkt
+	};
+
+	ret = knot_requestor_overlay(&re, LAYER_CAPTURE, &param);
+	if (ret != KNOT_EOK) {
+		knot_requestor_clear(&re);
+		return state; /* Ignore, not enough memory. */
+	}
+
+	bool is_tcp = net_is_stream(qdata->param->socket);
 	const struct sockaddr *dst = (const struct sockaddr *)&proxy->remote.addr;
 	const struct sockaddr *src = (const struct sockaddr *)&proxy->remote.via;
-	req = knot_request_make(re.mm, dst, src, qdata->query, is_tcp ? 0 : KNOT_RQ_UDP);
+	struct knot_request *req = knot_request_make(re.mm, dst, src, qdata->query,
+	                                             is_tcp ? 0 : KNOT_RQ_UDP);
 	if (req == NULL) {
+		knot_requestor_clear(&re);
 		return state; /* Ignore, not enough memory. */
 	}
 
 	/* Forward request. */
 	ret = knot_requestor_enqueue(&re, req);
 	if (ret == KNOT_EOK) {
-		conf_val_t val = conf_get(conf(), C_SRV, C_TCP_HSHAKE_TIMEOUT);
-		struct timeval tv = { conf_int(&val), 0 };
+		conf_val_t *val = &conf()->cache.srv_tcp_reply_timeout;
+		struct timeval tv = { conf_int(val), 0 };
 		ret = knot_requestor_exec(&re, &tv);
 	} else {
-		knot_request_free(re.mm, req);
+		knot_request_free(req, re.mm);
 	}
 
 	knot_requestor_clear(&re);
@@ -103,7 +111,8 @@ static int dnsproxy_fwd(int state, knot_pkt_t *pkt, struct query_data *qdata, vo
 	return KNOT_STATE_DONE;
 }
 
-int dnsproxy_load(struct query_plan *plan, struct query_module *self)
+int dnsproxy_load(struct query_plan *plan, struct query_module *self,
+                  const knot_dname_t *zone)
 {
 	if (plan == NULL || self == NULL) {
 		return KNOT_EINVAL;
