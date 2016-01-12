@@ -24,10 +24,12 @@
 #include "knot/updates/apply.h"
 #include "libknot/libknot.h"
 
-zone_contents_t *zone_load_contents(conf_t *conf, const knot_dname_t *zone_name)
+int zone_load_contents(conf_t *conf, const knot_dname_t *zone_name,
+                       zone_contents_t **contents)
 {
 	assert(conf);
 	assert(zone_name);
+	assert(contents);
 
 	zloader_t zl;
 	char *zonefile = conf_zonefile(conf, zone_name);
@@ -35,7 +37,7 @@ zone_contents_t *zone_load_contents(conf_t *conf, const knot_dname_t *zone_name)
 	int ret = zonefile_open(&zl, zonefile, zone_name, conf_bool(&val));
 	free(zonefile);
 	if (ret != KNOT_EOK) {
-		return NULL;
+		return ret;
 	}
 
 	/* Set the zone type (master/slave). If zone has no master set, we
@@ -43,13 +45,13 @@ zone_contents_t *zone_load_contents(conf_t *conf, const knot_dname_t *zone_name)
 	 */
 	zl.creator->master = !zone_load_can_bootstrap(conf, zone_name);
 
-	zone_contents_t *zone_contents = zonefile_load(&zl);
+	*contents = zonefile_load(&zl);
 	zonefile_close(&zl);
-	if (zone_contents == NULL) {
-		return NULL;
+	if (*contents == NULL) {
+		return KNOT_ERROR;
 	}
 
-	return zone_contents;
+	return KNOT_EOK;
 }
 
 /*! \brief Check zone configuration constraints. */
@@ -64,8 +66,8 @@ int zone_load_check(conf_t *conf, zone_contents_t *contents)
 
 	/* Check minimum EDNS0 payload if signed. (RFC4035/sec. 3) */
 	if (zone_contents_is_signed(contents)) {
-		conf_val_t val = conf_get(conf, C_SRV, C_MAX_UDP_PAYLOAD);
-		if (conf_int(&val) < KNOT_EDNS_MIN_DNSSEC_PAYLOAD) {
+		conf_val_t *max_payload = &conf->cache.srv_max_udp_payload;
+		if (conf_int(max_payload) < KNOT_EDNS_MIN_DNSSEC_PAYLOAD) {
 			log_zone_error(zone_name, "EDNS payload size is "
 			               "lower than %u bytes for DNSSEC zone",
 			               KNOT_EDNS_MIN_DNSSEC_PAYLOAD);

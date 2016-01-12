@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "libknot/lookup.h"
 #include "libknot/yparser/ypscheme.h"
 
 #define C_ACL			"\x03""acl"
@@ -76,6 +77,7 @@
 #define C_TCP_IDLE_TIMEOUT	"\x10""tcp-idle-timeout"
 #define C_TCP_REPLY_TIMEOUT	"\x11""tcp-reply-timeout"
 #define C_TCP_WORKERS		"\x0B""tcp-workers"
+#define C_TIMER_DB		"\x08""timer-db"
 #define C_TPL			"\x08""template"
 #define C_UDP_WORKERS		"\x0B""udp-workers"
 #define C_USER			"\x04""user"
@@ -89,4 +91,8 @@ enum {
 	SERIAL_POLICY_UNIXTIME  = 2
 };
 
+extern const knot_lookup_t acl_actions[];
+
 extern const yp_item_t conf_scheme[];
+
+/*! @} */

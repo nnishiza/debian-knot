@@ -16,19 +16,21 @@
 /*!
  * \file
  *
- * Scheme layer for Yparser.
+ * \brief Scheme layer for Yparser.
  *
  * \addtogroup yparser
- *
  * @{
  */
 
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
-#include "libknot/internal/utils.h"
 #include "libknot/yparser/yparser.h"
+
+struct wire_ctx;
+struct knot_lookup;
 
 /*! Maximal length of item name. */
 #define YP_MAX_ITEM_NAME_LEN	64
@@ -40,6 +42,11 @@
 #define YP_NIL			INT64_MIN
 /*! Maximal number of miscellaneous callbacks/pointers. */
 #define YP_MAX_MISC_COUNT	4
+/*! Maximal node stack depth. */
+#define YP_MAX_NODE_DEPTH	2
+
+#define YP_TXT_BIN_PARAMS 	struct wire_ctx *in, struct wire_ctx *out, const uint8_t *stop
+#define YP_BIN_TXT_PARAMS	struct wire_ctx *in, struct wire_ctx *out
 
 /*! Helper macros for item variables definition. */
 #define YP_VNONE	.var.i = { 0 }
@@ -49,6 +56,7 @@
 #define YP_VSTR		.var.s
 #define YP_VADDR	.var.a
 #define YP_VDNAME	.var.d
+#define YP_VHEX		.var.d
 #define YP_VB64		.var.d
 #define YP_VDATA	.var.d
 #define YP_VREF		.var.r
@@ -64,8 +72,8 @@ typedef enum {
 	YP_TBOOL,     /*!< Boolean. */
 	YP_TOPT,      /*!< Option from the list. */
 	YP_TSTR,      /*!< String. */
-	YP_TADDR,     /*!< Address (address[@port]). */
-	YP_TNET,      /*!< Network (address[/mask]). */
+	YP_THEX,      /*!< String or hexadecimal string if "0x" prefix. */
+	YP_TADDR,     /*!< Address (address[@port] or UNIX socket path). */
 	YP_TDNAME,    /*!< Domain name. */
 	YP_TB64,      /*!< Base64 encoded string. */
 	YP_TDATA,     /*!< Customized data. */
@@ -111,7 +119,7 @@ typedef union {
 	/*! Option variables. */
 	struct {
 		/*! List of options (maximal value is 255). */
-		lookup_table_t const *opts;
+		struct knot_lookup const *opts;
 		/*! Default value. */
 		unsigned dflt;
 	} o;
@@ -134,9 +142,9 @@ typedef union {
 		/*! Default data. */
 		uint8_t const *dflt;
 		/*! Text to binary transformation function. */
-		int (*to_bin)(char const *, size_t, uint8_t *, size_t *);
+		int (*to_bin)(YP_TXT_BIN_PARAMS);
 		/*! Binary to text transformatio function. */
-		int (*to_txt)(uint8_t const *, size_t, char *, size_t *);
+		int (*to_txt)(YP_BIN_TXT_PARAMS);
 	} d;
 	/*! Reference variables. */
 	struct {
@@ -166,20 +174,18 @@ struct yp_item {
 	yp_flag_t flags;
 	/*! Arbitrary data/callbacks. */
 	const void *misc[YP_MAX_MISC_COUNT];
+	/*! Parent item. */
+	yp_item_t *parent;
 	/*! Item group subitems (name=NULL terminated array). */
 	yp_item_t *sub_items;
 };
 
-/*! Context parameters for check operations. */
-typedef struct {
-	/*! Used scheme. */
-	const yp_item_t *scheme;
-	/*! Current key0 item. */
-	const yp_item_t *key0;
-	/*! Current key1 item. */
-	const yp_item_t *key1;
-	/*! Current parser event. */
-	yp_event_t event;
+typedef struct yp_node yp_node_t;
+struct yp_node {
+	/*! Parent node. */
+	yp_node_t *parent;
+	/*! Node item descriptor. */
+	const yp_item_t *item;
 	/*! Current binary id length. */
 	size_t id_len;
 	/*! Current binary id. */
@@ -188,6 +194,16 @@ typedef struct {
 	size_t data_len;
 	/*! Current item data. */
 	uint8_t data[YP_MAX_DATA_LEN];
+};
+
+/*! Context parameters for check operations. */
+typedef struct {
+	/*! Used scheme. */
+	const yp_item_t *scheme;
+	/*! Index of the current node. */
+	size_t current;
+	/*! Node stack. */
+	yp_node_t nodes[YP_MAX_NODE_DEPTH];
 } yp_check_ctx_t;
 
 /*!
@@ -243,7 +259,7 @@ yp_check_ctx_t* yp_scheme_check_init(
  *
  * If the item is correct, context also contains binary value of the item.
  *
- * \param[in,out] ctx New copy of the scheme.
+ * \param[in,out] ctx Check context.
  * \param[in] parser Parser context.
  *
  * \return Error code, KNOT_EOK if success.
@@ -254,15 +270,37 @@ int yp_scheme_check_parser(
 );
 
 /*!
+ * Checks the string data against the scheme.
+ *
+ * Description: key0[id].key1 data
+ *
+ * If the item is correct, context also contains binary value of the item.
+ *
+ * \param[in,out] ctx Check context.
+ * \param[in] key0 Key0 item name.
+ * \param[in] key1 Key1 item name.
+ * \param[in] id Item identifier.
+ * \param[in] data Item data (NULL means no data provided).
+ *
+ * \return Error code, KNOT_EOK if success.
+ */
+int yp_scheme_check_str(
+	yp_check_ctx_t *ctx,
+	const char *key0,
+	const char *key1,
+	const char *id,
+	const char *data
+);
+
+/*!
  * Deallocates the context.
  *
- * \param[in] ctx Context returned by #yp_scheme_check_init().
+ * \param[in,out] ctx Check context.
  */
 void yp_scheme_check_deinit(
 	yp_check_ctx_t *ctx
 );
 
-// TODO: check from string.
 // TODO: scheme add/remove item.
 
 /*! @} */

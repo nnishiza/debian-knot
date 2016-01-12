@@ -31,66 +31,46 @@
 #include "knot/conf/conf.h"
 #include "libknot/yparser/ypscheme.h"
 
-typedef struct conf_previous {
-	const yp_item_t *key0;
-	size_t id_len;
-	uint8_t id[YP_MAX_ID_LEN];
-	const char *file;
-	size_t line;
-} conf_previous_t;
-
 typedef struct {
 	conf_t *conf;
-	namedb_txn_t *txn;
-	const yp_parser_t *parser;
-	const yp_check_ctx_t *check;
-	size_t *include_depth;
-	conf_previous_t *previous;
-	const char **err_str;
+	knot_db_txn_t *txn;
+	const yp_item_t *item;
+	const uint8_t *id;
+	size_t id_len;
+	const uint8_t *data;
+	size_t data_len;
+	const char *file_name;
+	size_t line;
+	const char *err_str;
 } conf_check_t;
 
-typedef int conf_check_f(conf_check_t *);
-
-int hex_text_to_bin(
-	char const *txt,
-	size_t txt_len,
-	uint8_t *bin,
-	size_t *bin_len
-);
-
-int hex_text_to_txt(
-	uint8_t const *bin,
-	size_t bin_len,
-	char *txt,
-	size_t *txt_len
+int conf_exec_callbacks(
+	const yp_item_t *item,
+	conf_check_t *args
 );
 
 int mod_id_to_bin(
-	char const *txt,
-	size_t txt_len,
-	uint8_t *bin,
-	size_t *bin_len
+	YP_TXT_BIN_PARAMS
 );
 
 int mod_id_to_txt(
-	uint8_t const *bin,
-	size_t bin_len,
-	char *txt,
-	size_t *txt_len
+	YP_BIN_TXT_PARAMS
 );
 
 int edns_opt_to_bin(
-	char const *txt,
-	size_t txt_len,
-	uint8_t *bin,
-	size_t *bin_len
+	YP_TXT_BIN_PARAMS
 );
 
 int edns_opt_to_txt(
-	uint8_t const *bin,
-	size_t bin_len,
-	char *txt,
-	size_t *txt_len
+	YP_BIN_TXT_PARAMS
+);
+
+int addr_range_to_bin(
+	YP_TXT_BIN_PARAMS
+);
+
+int addr_range_to_txt(
+	YP_BIN_TXT_PARAMS
 );
 
 int check_ref(
@@ -101,7 +81,19 @@ int check_modref(
 	conf_check_t *args
 );
 
+int check_key(
+	conf_check_t *args
+);
+
+int check_acl(
+	conf_check_t *args
+);
+
 int check_remote(
+	conf_check_t *args
+);
+
+int check_template(
 	conf_check_t *args
 );
 
@@ -112,3 +104,5 @@ int check_zone(
 int include_file(
 	conf_check_t *args
 );
+
+/*! @} */

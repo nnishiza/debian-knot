@@ -22,12 +22,13 @@
 #include "knot/nameserver/process_query.h"
 #include "knot/nameserver/process_answer.h"
 #include "knot/updates/apply.h"
-#include "knot/common/debug.h"
+#include "knot/common/log.h"
 #include "knot/zone/serial.h"
 #include "libknot/libknot.h"
 #include "libknot/descriptor.h"
-#include "libknot/internal/utils.h"
 #include "libknot/rrtype/soa.h"
+#include "contrib/print.h"
+#include "contrib/sockaddr.h"
 
 /* ------------------------ IXFR-out processing ----------------------------- */
 
@@ -51,7 +52,7 @@ struct ixfr_proc {
 	list_t changesets;             /* Processed changesets. */
 	size_t change_count;           /* Count of changesets received. */
 	zone_t *zone;                  /* Modified zone - for journal access. */
-	mm_ctx_t *mm;                  /* Memory context for RR allocations. */
+	knot_mm_t *mm;                 /* Memory context for RR allocations. */
 	struct query_data *qdata;
 	const knot_rrset_t *soa_from;
 	const knot_rrset_t *soa_to;
@@ -111,7 +112,6 @@ static int ixfr_process_changeset(knot_pkt_t *pkt, const void *item,
 	/* Put former SOA. */
 	if (ixfr->state == IXFR_SOA_DEL) {
 		IXFR_SAFE_PUT(pkt, chgset->soa_from);
-		dbg_ns("%s: put 'REMOVE' SOA\n", __func__);
 		ixfr->state = IXFR_DEL;
 	}
 
@@ -134,7 +134,6 @@ static int ixfr_process_changeset(knot_pkt_t *pkt, const void *item,
 	/* Put next SOA. */
 	if (ixfr->state == IXFR_SOA_ADD) {
 		IXFR_SAFE_PUT(pkt, chgset->soa_to);
-		dbg_ns("%s: put 'IXFR_ADD' SOA\n", __func__);
 		ixfr->state = IXFR_ADD;
 	}
 
@@ -222,7 +221,7 @@ static int ixfr_query_check(struct query_data *qdata)
 static void ixfr_answer_cleanup(struct query_data *qdata)
 {
 	struct ixfr_proc *ixfr = (struct ixfr_proc *)qdata->ext;
-	mm_ctx_t *mm = qdata->mm;
+	knot_mm_t *mm = qdata->mm;
 
 	ptrlist_free(&ixfr->proc.nodes, mm);
 	changeset_iter_clear(&ixfr->cur);
@@ -253,12 +252,11 @@ static int ixfr_answer_init(struct query_data *qdata)
 	init_list(&chgsets);
 	int ret = ixfr_load_chsets(&chgsets, (zone_t *)qdata->zone, their_soa);
 	if (ret != KNOT_EOK) {
-		dbg_ns("%s: failed to load changesets => %d\n", __func__, ret);
 		return ret;
 	}
 
 	/* Initialize transfer processing. */
-	mm_ctx_t *mm = qdata->mm;
+	knot_mm_t *mm = qdata->mm;
 	struct ixfr_proc *xfer = mm_alloc(mm, sizeof(struct ixfr_proc));
 	if (xfer == NULL) {
 		changesets_free(&chgsets);
@@ -299,7 +297,6 @@ static int ixfr_answer_init(struct query_data *qdata)
 /*! \brief Sends response to SOA query. */
 static int ixfr_answer_soa(knot_pkt_t *pkt, struct query_data *qdata)
 {
-	dbg_ns("%s: answering IXFR/SOA\n", __func__);
 	if (pkt == NULL || qdata == NULL) {
 		return KNOT_STATE_FAIL;
 	}
@@ -464,7 +461,7 @@ static int solve_soa_del(const knot_rrset_t *rr, struct ixfr_proc *proc)
 }
 
 /*! \brief Stores ending SOA into changeset. */
-static int solve_soa_add(const knot_rrset_t *rr, changeset_t *change, mm_ctx_t *mm)
+static int solve_soa_add(const knot_rrset_t *rr, changeset_t *change, knot_mm_t *mm)
 {
 	assert(rr->type == KNOT_RRTYPE_SOA);
 	change->soa_to = knot_rrset_copy(rr, NULL);
@@ -476,13 +473,13 @@ static int solve_soa_add(const knot_rrset_t *rr, changeset_t *change, mm_ctx_t *
 }
 
 /*! \brief Adds single RR into remove section of changeset. */
-static int solve_del(const knot_rrset_t *rr, changeset_t *change, mm_ctx_t *mm)
+static int solve_del(const knot_rrset_t *rr, changeset_t *change, knot_mm_t *mm)
 {
 	return changeset_rem_rrset(change, rr);
 }
 
 /*! \brief Adds single RR into add section of changeset. */
-static int solve_add(const knot_rrset_t *rr, changeset_t *change, mm_ctx_t *mm)
+static int solve_add(const knot_rrset_t *rr, changeset_t *change, knot_mm_t *mm)
 {
 	return changeset_add_rrset(change, rr);
 }
@@ -698,7 +695,7 @@ int ixfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 	/* Check RCODE. */
 	uint8_t rcode = knot_wire_get_rcode(pkt->wire);
 	if (rcode != KNOT_RCODE_NOERROR) {
-		lookup_table_t *lut = lookup_by_id(knot_rcode_names, rcode);
+		const knot_lookup_t *lut = knot_lookup_by_id(knot_rcode_names, rcode);
 		if (lut != NULL) {
 			IXFRIN_LOG(LOG_WARNING, "server responded with %s", lut->name);
 		}

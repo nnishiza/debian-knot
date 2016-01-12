@@ -18,12 +18,13 @@
 
 #include "dnssec/random.h"
 #include "libknot/libknot.h"
-#include "libknot/internal/mempool.h"
-#include "libknot/internal/macros.h"
 #include "libknot/processing/requestor.h"
+#include "libknot/yparser/yptrafo.h"
+#include "contrib/trim.h"
+#include "contrib/ucw/mempool.h"
+#include "contrib/wire.h"
 
 #include "knot/common/log.h"
-#include "knot/common/trim.h"
 #include "knot/server/udp-handler.h"
 #include "knot/server/tcp-handler.h"
 #include "knot/updates/changesets.h"
@@ -50,7 +51,7 @@
 	NS_PROC_LOG(severity, &(remote)->addr, zone->name, operation, msg, ##__VA_ARGS__)
 
 /*! \brief Create zone query packet. */
-static knot_pkt_t *zone_query(const zone_t *zone, uint16_t pkt_type, mm_ctx_t *mm)
+static knot_pkt_t *zone_query(const zone_t *zone, uint16_t pkt_type, knot_mm_t *mm)
 {
 	/* Determine query type and opcode. */
 	uint16_t query_type = KNOT_RRTYPE_SOA;
@@ -92,25 +93,26 @@ static knot_pkt_t *zone_query(const zone_t *zone, uint16_t pkt_type, mm_ctx_t *m
 /*! \brief Set EDNS section. */
 static int prepare_edns(zone_t *zone, knot_pkt_t *pkt)
 {
-	conf_val_t opt = conf_zone_get(conf(), C_REQUEST_EDNS_OPTION, zone->name);
+	conf_val_t val = conf_zone_get(conf(), C_REQUEST_EDNS_OPTION, zone->name);
 
 	/* Check if an extra EDNS option is configured. */
-	conf_data(&opt);
-	if (opt.data == NULL) {
+	size_t opt_len;
+	const uint8_t *opt_data = conf_data(&val, &opt_len);
+	if (opt_data == NULL) {
 		return KNOT_EOK;
 	}
 
 	knot_rrset_t opt_rr;
-	conf_val_t udp_max = conf_get(conf(), C_SRV, C_MAX_UDP_PAYLOAD);
-	int ret = knot_edns_init(&opt_rr, conf_int(&udp_max), 0,
+	conf_val_t *max_payload = &conf()->cache.srv_max_udp_payload;
+	int ret = knot_edns_init(&opt_rr, conf_int(max_payload), 0,
 	                         KNOT_EDNS_VERSION, &pkt->mm);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
 
-	ret = knot_edns_add_option(&opt_rr, wire_read_u16(opt.data),
-	                           opt.len - sizeof(uint16_t),
-	                           opt.data + sizeof(uint16_t), &pkt->mm);
+	ret = knot_edns_add_option(&opt_rr, wire_read_u64(opt_data),
+	                           yp_bin_len(opt_data + sizeof(uint64_t)),
+	                           yp_bin(opt_data + sizeof(uint64_t)), &pkt->mm);
 	if (ret != KNOT_EOK) {
 		knot_rrset_clear(&opt_rr, &pkt->mm);
 		return ret;
@@ -127,6 +129,47 @@ static int prepare_edns(zone_t *zone, knot_pkt_t *pkt)
 	return KNOT_EOK;
 }
 
+/*! \brief Process query using requestor. */
+static int zone_query_request(knot_pkt_t *query, const conf_remote_t *remote,
+                              struct process_answer_param *param, knot_mm_t *mm)
+{
+	/* Create requestor instance. */
+	struct knot_requestor re;
+	int ret = knot_requestor_init(&re, mm);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+	ret = knot_requestor_overlay(&re, KNOT_STATE_ANSWER, param);
+	if (ret != KNOT_EOK) {
+		knot_requestor_clear(&re);
+		return ret;
+	}
+
+	/* Create a request. */
+	const struct sockaddr *dst = (const struct sockaddr *)&remote->addr;
+	const struct sockaddr *src = (const struct sockaddr *)&remote->via;
+	struct knot_request *req = knot_request_make(re.mm, dst, src, query, 0);
+	if (req == NULL) {
+		knot_requestor_clear(&re);
+		return KNOT_ENOMEM;
+	}
+
+	/* Send the queries and process responses. */
+	ret = knot_requestor_enqueue(&re, req);
+	if (ret == KNOT_EOK) {
+		conf_val_t *val = &conf()->cache.srv_tcp_reply_timeout;
+		struct timeval tv = { conf_int(val), 0 };
+		ret = knot_requestor_exec(&re, &tv);
+	} else {
+		knot_request_free(req, re.mm);
+	}
+
+	/* Cleanup. */
+	knot_requestor_clear(&re);
+
+	return ret;
+}
+
 /*!
  * \brief Create a zone event query, send it, wait for the response and process it.
  *
@@ -136,32 +179,30 @@ static int prepare_edns(zone_t *zone, knot_pkt_t *pkt)
 static int zone_query_execute(zone_t *zone, uint16_t pkt_type, const conf_remote_t *remote)
 {
 	/* Create a memory pool for this task. */
-	int ret = KNOT_EOK;
-	mm_ctx_t mm;
+	knot_mm_t mm;
 	mm_ctx_mempool(&mm, MM_DEFAULT_BLKSIZE);
 
 	/* Create a query message. */
 	knot_pkt_t *query = zone_query(zone, pkt_type, &mm);
 	if (query == NULL) {
+		mp_delete(mm.ctx);
 		return KNOT_ENOMEM;
 	}
 
-	/* Answer processing parameters. */
-	struct process_answer_param param = { 0 };
-	param.zone = zone;
-	param.query = query;
-	param.remote = &remote->addr;
-
-	/* Create requestor instance. */
-	struct knot_requestor re;
-	knot_requestor_init(&re, &mm);
-	knot_requestor_overlay(&re, KNOT_STATE_ANSWER, &param);
-
 	/* Set EDNS section. */
-	ret = prepare_edns(zone, query);
+	int ret = prepare_edns(zone, query);
 	if (ret != KNOT_EOK) {
-		goto fail;
+		knot_pkt_free(&query);
+		mp_delete(mm.ctx);
+		return ret;
 	}
+
+	/* Answer processing parameters. */
+	struct process_answer_param param = {
+		.zone = zone,
+		.query = query,
+		.remote = &remote->addr
+	};
 
 	const knot_tsig_key_t *key = remote->key.name != NULL ?
 	                             &remote->key : NULL;
@@ -169,30 +210,18 @@ static int zone_query_execute(zone_t *zone, uint16_t pkt_type, const conf_remote
 
 	ret = tsig_sign_packet(&param.tsig_ctx, query);
 	if (ret != KNOT_EOK) {
-		goto fail;
+		tsig_cleanup(&param.tsig_ctx);
+		knot_pkt_free(&query);
+		mp_delete(mm.ctx);
+		return ret;
 	}
 
-	/* Create a request. */
-	const struct sockaddr *dst = (const struct sockaddr *)&remote->addr;
-	const struct sockaddr *src = (const struct sockaddr *)&remote->via;
-	struct knot_request *req = knot_request_make(re.mm, dst, src, query, 0);
-	if (req == NULL) {
-		ret = KNOT_ENOMEM;
-		goto fail;
-	}
+	/* Process the query. */
+	ret = zone_query_request(query, remote, &param, &mm);
 
-	/* Send the queries and process responses. */
-	ret = knot_requestor_enqueue(&re, req);
-	if (ret == KNOT_EOK) {
-		conf_val_t val = conf_get(conf(), C_SRV, C_TCP_REPLY_TIMEOUT);
-		struct timeval tv = { conf_int(&val), 0 };
-		ret = knot_requestor_exec(&re, &tv);
-	}
-
-fail:
 	/* Cleanup. */
 	tsig_cleanup(&param.tsig_ctx);
-	knot_requestor_clear(&re);
+	knot_pkt_free(&query);
 	mp_delete(mm.ctx);
 
 	return ret;
@@ -266,8 +295,8 @@ static uint32_t soa_graceful_expire(const knot_rdataset_t *soa)
 {
 	// Allow for timeouts.  Otherwise zones with very short
 	// expiry may expire before the timeout is reached.
-	conf_val_t val = conf_get(conf(), C_SRV, C_TCP_IDLE_TIMEOUT);
-	return knot_soa_expire(soa) + 2 * conf_int(&val);
+	conf_val_t *val = &conf()->cache.srv_tcp_reply_timeout;
+	return knot_soa_expire(soa) + 2 * conf_int(val);
 }
 
 /*! \brief Schedule expire event, unless it is already scheduled. */
@@ -282,7 +311,7 @@ static void start_expire_timer(zone_t *zone, const knot_rdataset_t *soa)
 
 /* -- zone events handling callbacks --------------------------------------- */
 
-int event_reload(zone_t *zone)
+int event_load(zone_t *zone)
 {
 	assert(zone);
 
@@ -291,35 +320,37 @@ int event_reload(zone_t *zone)
 	time_t mtime = zonefile_mtime(filename);
 	free(filename);
 	uint32_t dnssec_refresh = time(NULL);
-	zone_contents_t *contents = zone_load_contents(conf(), zone->name);
-	if (!contents) {
-		return KNOT_ERROR;
+
+	zone_contents_t *contents;
+	int ret = zone_load_contents(conf(), zone->name, &contents);
+	if (ret != KNOT_EOK) {
+		return ret;
 	}
 
 	/* Store zonefile serial and apply changes from the journal. */
 	zone->zonefile_serial = zone_contents_serial(contents);
-	int result = zone_load_journal(conf(), zone, contents);
-	if (result != KNOT_EOK) {
+	ret = zone_load_journal(conf(), zone, contents);
+	if (ret != KNOT_EOK) {
 		goto fail;
 	}
 
 	/* Post load actions - calculate delta, sign with DNSSEC... */
 	/*! \todo issue #242 dnssec signing should occur in the special event */
-	result = zone_load_post(conf(), contents, zone, &dnssec_refresh);
-	if (result != KNOT_EOK) {
-		if (result == KNOT_ESPACE) {
+	ret = zone_load_post(conf(), contents, zone, &dnssec_refresh);
+	if (ret != KNOT_EOK) {
+		if (ret == KNOT_ESPACE) {
 			log_zone_error(zone->name, "journal size is too small "
 			               "to fit the changes");
 		} else {
 			log_zone_error(zone->name, "failed to store changes into "
-			               "journal (%s)", knot_strerror(result));
+			               "journal (%s)", knot_strerror(ret));
 		}
 		goto fail;
 	}
 
 	/* Check zone contents consistency. */
-	result = zone_load_check(conf(), contents);
-	if (result != KNOT_EOK) {
+	ret = zone_load_check(conf(), contents);
+	if (ret != KNOT_EOK) {
 		goto fail;
 	}
 
@@ -363,7 +394,7 @@ int event_reload(zone_t *zone)
 
 fail:
 	zone_contents_deep_free(&contents);
-	return result;
+	return ret;
 }
 
 static int try_refresh(zone_t *zone, const conf_remote_t *master, void *ctx)
@@ -499,8 +530,7 @@ int event_update(zone_t *zone)
 	assert(zone);
 
 	/* Process update list - forward if zone has master, or execute. */
-	int ret = updates_execute(zone);
-	UNUSED(ret); /* Don't care about the Knot code, RCODEs are set. */
+	updates_execute(zone);
 
 	/* Trim extra heap. */
 	mem_trim();

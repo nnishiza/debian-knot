@@ -29,12 +29,13 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "libknot/consts.h"
 #include "libknot/dname.h"
+#include "libknot/mm_ctx.h"
 #include "libknot/rrset.h"
 #include "libknot/rrtype/opt.h"
 #include "libknot/packet/wire.h"
 #include "libknot/packet/compr.h"
-#include "libknot/internal/mempattern.h"
 
 /* Number of packet sections (ANSWER, AUTHORITY, ADDITIONAL). */
 #define KNOT_PKT_SECTIONS 3
@@ -102,6 +103,12 @@ typedef struct knot_pkt {
 	knot_rrset_t *opt_rr;   /*!< OPT RR included in the packet. */
 	knot_rrset_t *tsig_rr;  /*!< TSIG RR stored in the packet. */
 
+	/* TSIG RR position in the wire (if parsed from wire). */
+	struct {
+		uint8_t *pos;
+		size_t len;
+	} tsig_wire;
+
 	/* Packet sections. */
 	knot_section_t current;
 	knot_pktsection_t sections[KNOT_PKT_SECTIONS];
@@ -111,7 +118,7 @@ typedef struct knot_pkt {
 	knot_rrinfo_t *rr_info;
 	knot_rrset_t *rr;
 
-	mm_ctx_t mm; /*!< Memory allocation context. */
+	knot_mm_t mm; /*!< Memory allocation context. */
 } knot_pkt_t;
 
 /*!
@@ -125,7 +132,7 @@ typedef struct knot_pkt {
  * \param mm Memory context (NULL for default).
  * \return New packet or NULL.
  */
-knot_pkt_t *knot_pkt_new(void *wire, uint16_t len, mm_ctx_t *mm);
+knot_pkt_t *knot_pkt_new(void *wire, uint16_t len, knot_mm_t *mm);
 
 /*!
  * \brief Copy packet.
@@ -245,6 +252,10 @@ const knot_pktsection_t *knot_pkt_section(const knot_pkt_t *pkt,
 
 /*! \brief Get RRSet from the packet section. */
 const knot_rrset_t *knot_pkt_rr(const knot_pktsection_t *section, uint16_t i);
+
+/*! \brief Get RRSet offset in the packet wire. */
+uint16_t knot_pkt_rr_offset(const knot_pktsection_t *section, uint16_t i);
+
 /*
  * Packet parsing API.
  */

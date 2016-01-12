@@ -16,26 +16,26 @@
 
 #pragma once
 
-#include "libknot/internal/namedb/namedb.h"
+#include "libknot/libknot.h"
 #include "knot/zone/zone.h"
 #include "knot/zone/zonedb.h"
 
 /*!
- * \brief Opens zone timers db. No-op without LMDB support.
+ * \brief Opens zone timers db.
  *
- * \param[in]  storage   Path to storage directory.
+ * \param[in]  path      Path to a directory with the database.
  * \param[out] timer_db  Created database.
  *
  * \return KNOT_E*
  */
-int open_timers_db(const char *storage, namedb_t **timer_db);
+int open_timers_db(const char *path, knot_db_t **timer_db);
 
 /*!
  * \brief Closes zone timers db.
  *
  * \param timer_db  Timer database.
  */
-void close_timers_db(namedb_t *timer_db);
+void close_timers_db(knot_db_t *timer_db);
 
 /*!
  * \brief Reads zone timers from timers db.
@@ -50,7 +50,7 @@ void close_timers_db(namedb_t *timer_db);
  *
  * \return KNOT_E*
  */
-int read_zone_timers(namedb_t *timer_db, const zone_t *zone, time_t *timers);
+int read_zone_timers(knot_db_t *timer_db, const zone_t *zone, time_t *timers);
 
 /*!
  * \brief Writes all zone timers to timers db.
@@ -60,7 +60,7 @@ int read_zone_timers(namedb_t *timer_db, const zone_t *zone, time_t *timers);
  *
  * \return KNOT_E*
  */
-int write_timer_db(namedb_t *timer_db, knot_zonedb_t *zone_db);
+int write_timer_db(knot_db_t *timer_db, knot_zonedb_t *zone_db);
 
 /*!
  * \brief Removes stale zones info from timers db.
@@ -69,4 +69,4 @@ int write_timer_db(namedb_t *timer_db, knot_zonedb_t *zone_db);
  * \param zone_db   Current zone database.
  * \return KNOT_EOK or an error
  */
-int sweep_timer_db(namedb_t *timer_db, knot_zonedb_t *zone_db);
+int sweep_timer_db(knot_db_t *timer_db, knot_zonedb_t *zone_db);

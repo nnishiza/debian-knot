@@ -121,7 +121,7 @@ If the zone file doesn't exist it will be bootstrapped over AXFR::
         address: 192.168.1.1@53
 
     acl:
-      - id: master_acl
+      - id: notify_from_master
         address: 192.168.1.1
         action: notify
 
@@ -130,17 +130,18 @@ If the zone file doesn't exist it will be bootstrapped over AXFR::
         storage: /var/lib/knot/zones/
         # file: example.com.zone   # Default value
         master: master
-        acl: master_acl
+        acl: notify_from_master
 
 Note that the :ref:`zone_master` option accepts a list of multiple remotes.
-The first remote in the list is used as the primary master, and the rest is used
-for failover if the connection with the primary master fails.
-The list is rotated in this case, and a new primary is elected.
-The preference list is reset on the configuration reload.
+The remotes should be listed according to their preference. The first remote
+has the highest preference, the other remotes are used for failover. When the
+server receives a zone update notification from a listed remote, that remote
+will be the most preferred one for the subsequent transfer.
 
-To use TSIG for transfer authentication, configure a TSIG key and assign the
-key to the remote. If the notifications are used, the same key should be
-configured in a proper ACL rule::
+To use TSIG for transfers and notification messages authentication, configure
+a TSIG key and assign the key both to the remote and the ACL rule. Notice that
+the :ref:`remote <Remote section>` and :ref:`ACL <ACL section>` definitions are
+independent::
 
     key:
       - id: slave1_key
@@ -153,7 +154,7 @@ configured in a proper ACL rule::
         key: slave1_key
 
     acl:
-      - id: master_acl
+      - id: notify_from_master
         address: 192.168.1.1
         key: slave1_key
         action: notify
@@ -230,24 +231,27 @@ processed::
 Response rate limiting
 ======================
 
-Response rate limiting (RRL) is a method to combat recent DNS
-reflection amplification attacks. These attacks rely on the fact
-that source address of a UDP query could be forged, and without a
-worldwide deployment of BCP38, such a forgery could not be detected.
-Attacker could then exploit DNS server responding to every query,
-potentially flooding the victim with a large unsolicited DNS
-responses.
+Response rate limiting (RRL) is a method to combat DNS reflection amplification
+attacks. These attacks rely on the fact that source address of a UDP query
+can be forged, and without a worldwide deployment of `BCP38
+<https://tools.ietf.org/html/bcp38>`_, such a forgery cannot be prevented.
+An attacker can use a DNS server (or multiple servers) as an amplification
+source and can flood a victim with a large number of unsolicited DNS responses.
 
-You can enable RRL with the :ref:`server_rate-limit` option in the
-:ref:`server section<Server section>`. Setting to a value greater than ``0``
-means that every flow is allowed N responses per second, (i.e. ``rate-limit
-50;`` means ``50`` responses per second). It is also possible to
-configure :ref:`server_rate-limit-slip` interval, which causes every N\ :sup:`th`
-blocked response to be slipped as a truncated response::
+The RRL lowers the amplification factor of these attacks by sending some of
+the responses as truncated or by dropping them altogether.
+
+You can enable RRL by setting the :ref:`server_rate-limit` option in the
+:ref:`server section<Server section>`. The option controls how many responses
+per second are permitted for each flow. Responses exceeding this rate are
+limited. The option :ref:`server_rate-limit-slip` then configures how many
+limited responses are sent as truncated (slip) instead of being dropped.
+
+::
 
     server:
-        rate-limit: 200     # Each flow is allowed to 200 resp. per second
-        rate-limit-slip: 1  # Every response is slipped
+        rate-limit: 200     # Allow 200 resp/s for each flow
+        rate-limit-slip: 2  # Every other response slips
 
 .. _dnssec:
 
@@ -300,13 +304,13 @@ default template, but the signing is explicitly disabled for zone
 DNSSEC KASP database
 --------------------
 
-The configuration for DNSSEC is stored in a :abbr:`KASP (Key And Signature
+The configuration for DNSSEC is stored in the :abbr:`KASP (Key And Signature
 Policy)` database. The database is simply a directory in the file-system
 containing files in the JSON format. The database contains
 
 - definitions of signing policies;
-- zones configuration; and
-- private key material.
+- private key stores configuration; and
+- zones configuration and signing metadata.
 
 The :doc:`keymgr <man_keymgr>` utility serves for the database maintenance.
 To initialize the database, run:
@@ -317,10 +321,15 @@ To initialize the database, run:
   $ cd /var/lib/knot/kasp
   $ keymgr init
 
+The *init* command initializes the database, defines a default signing policy
+named *default* with default signing parameters, and defines a default key
+store named *default* with file-backed key store within the KASP database
+directory.
+
 .. ATTENTION::
   Make sure to set the KASP database permissions correctly. For manual key
-  management, the database must be **readable** by the server process. For
-  automatic key management, it must be **writeable**. The database also
+  management, the database must be *readable* by the server process. For
+  automatic key management, it must be *writeable*. The database also
   contains private key material – don't set the permissions too loose.
 
 .. _dnssec-automatic-key-management:
@@ -332,12 +341,12 @@ For automatic key management, a signing policy has to be defined in the
 first place. This policy specifies how a zone is signed (i.e. signing
 algorithm, key size, signature lifetime, key lifetime, etc.).
 
-To create a new policy named *default_rsa* using *RSA-SHA-256* algorithm for
+To create a new policy named *rsa* using *RSA-SHA-256* algorithm for
 signing keys, 1024-bit long ZSK, and 2048-bit long KSK, run:
 
 .. code-block:: console
 
-  $ keymgr policy add default_rsa algorithm RSASHA256 zsk-size 1024 ksk-size 2048
+  $ keymgr policy add rsa algorithm RSASHA256 zsk-size 1024 ksk-size 2048
 
 The unspecified policy parameters are set to defaults. The complete definition
 of the policy will be printed after executing the command.
@@ -347,13 +356,13 @@ created policy:
 
 .. code-block:: console
 
-  $ keymgr zone add myzone.test policy default_rsa
+  $ keymgr zone add myzone.test policy rsa
 
 Make sure everything is set correctly:
 
 .. code-block:: console
 
-  $ keymgr policy show default_rsa
+  $ keymgr policy show rsa
   $ keymgr zone show myzone.test
 
 Add the zone into the server configuration and enable DNSSEC for that zone.
@@ -390,17 +399,23 @@ Manual key management
 ---------------------
 
 For automatic DNSSEC signing with manual key management, a signing policy
-need not be defined.
+with manual key management flag has to be set.
 
-Create a zone entry for the zone *myzone.test* without a policy:
+Define a signing policy named *man* with disabled automatic key management:
 
 .. code-block:: console
 
-  $ keymgr zone add myzone.test
+  $ keymgr policy add man manual true
+
+Create a zone entry for the zone *myzone.test* with the created policy:
+
+.. code-block:: console
+
+  $ keymgr zone add myzone.test policy man
 
 Generate signing keys for the zone. Let's use the Single-Type Signing scheme
-with two algorithms (this scheme is not supported in automatic key management).
-Run:
+with two algorithms, which is a scheme currently not supported by the automatic
+key management. Run:
 
 .. code-block:: console
 
@@ -448,14 +463,14 @@ of the following parameters:
 
 Signing algorithm
   An algorithm of signing keys and issued signatures. The default value is
-  *RSA-SHA-256*.
+  *ECDSA-P256-SHA256*.
 
 :abbr:`KSK (Key Signing Key)` size
-  Desired length of the newly generated ZSK keys. The default value is 2048
-  bits.
+  Desired length of the newly generated ZSK keys. The default value is 256
+  bits (the only feasible value for the default signing algorithm).
 
 :abbr:`ZSK (Zone Signing Key)` size
-  Desired length of the newly generated ZSK keys. The default value is 1024
+  Desired length of the newly generated ZSK keys. The default value is 256
   bits.
 
 DNSKEY TTL
@@ -464,11 +479,11 @@ DNSKEY TTL
   has no default value.
 
 ZSK lifetime
-  Interval after which the ZSK rollover will be initiated. The default value
-  is 30 days.
+  Period between ZSK publication and the next rollover initiation. The default
+  value is 30 days.
 
 RRSIG lifetime
-  Lifetime of newly issued signatures. The default value is 14 days.
+  Validity period of newly issued signatures. The default value is 14 days.
 
 RRSIG refresh
   Specifies how long before a signature expiration the signature will be
@@ -492,6 +507,14 @@ Propagation delay
   An extra delay added for each key rollover step. This value should be high
   enough to cover propagation of data from the master server to all slaves.
   The default value is 1 hour.
+
+Key store name
+  A name of a key store holding private key material for zones which use the
+  policy. The default value is *default*.
+
+Manual key management
+  An option to disable key management for all zones which use the policy. The
+  option is disabled by default.
 
 .. _dnssec-signing:
 
@@ -695,14 +718,6 @@ Result:
    1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1.6.b.0.0.0.0.0.0.2.6.2.ip6.arpa. 400 IN PTR
                                   dynamic-2620-0000-0b61-0000-0000-0000-0000-0001.test.
 
-Limitations
-^^^^^^^^^^^
-
-* As of now, there is no authenticated denial of nonexistence (neither
-  NSEC or NSEC3 is supported) nor DNSSEC signed records. However,
-  since the module is hooked in the query processing plan, it will be
-  possible to do online signing in the future.
-
 ``dnsproxy`` – Tiny DNS proxy
 -----------------------------
 
@@ -849,3 +864,119 @@ Here is an example on how to use the module:
   .. code-block:: console
 
    $ kdig @127.0.0.1#6667 A myrecord.com
+
+``online-sign`` — Online DNSSEC signing
+---------------------------------------
+
+The module provides online DNSSEC signing. Instead of pre-computing the zone
+signatures when the zone is loaded into the server or instead of loading an
+externally signed zone, the signatures are computed on-the-fly during
+answering.
+
+The main purpose of the module is to enable authenticated responses with
+zones which use other dynamic module (e.g., automatic reverse record
+synthesis) because these zones cannot be pre-signed. However, it can be also
+used as a simple signing solution for zones with low traffic and also as
+a protection against zone content enumeration (zone walking).
+
+In order to minimize the number of computed signatures per query, the module
+produces a bit different responses from the responses that would be sent if
+the zone was pre-signed. Still, the responses should be perfectly valid for
+a DNSSEC validating resolver.
+
+Differences from statically signed zones:
+
+* The NSEC records are constructed as Minimally Covering NSEC Records
+  (see Appendix A in :rfc:`7129`). Therefore the generated domain names cover
+  the complete domain name space in the zone's authority.
+
+* NXDOMAIN responses are promoted to NODATA responses. The module proves
+  that the query type does not exist rather than that the domain name does not
+  exist.
+
+* Domain names matching a wildcard are expanded. The module pretends and proves
+  that the domain name exists rather than proving a presence of the wildcard.
+
+Records synthesized by the module:
+
+* DNSKEY record is synthesized in the zone apex and includes public key
+  material for the active signing key.
+
+* NSEC records are synthesized as needed.
+
+* RRSIG records are synthesized for authoritative content of the zone.
+
+How to use the online signing module:
+
+* First add the zone into the server's KASP database and generate a key to be
+  used for signing:
+
+  .. code-block:: console
+
+   $ cd /path/to/kasp
+   $ keymgr zone add example.com
+   $ keymgr zone key generate example.com algorithm ecdsap256sha256 size 256
+
+* Enable the module in server configuration and hook it to the zone::
+
+   mod-online-sign:
+     - id: default
+
+   zone:
+     - domain: example.com
+       module: mod-online-sign/default
+       dnssec-signing: false
+
+* Make sure the zone is not signed and also that the automatic signing is
+  disabled. All is set, you are good to go. Reload (or start) the server:
+
+  .. code-block:: console
+
+   $ knotc reload
+
+The following example stacks the online signing with reverse record synthesis
+module::
+
+ mod-online-sign:
+   - id: default
+
+ mod-synth-record:
+   - id: lan-forward
+     type: forward
+     prefix: ip-
+     ttl: 1200
+     network: 192.168.100.0/24
+
+ template:
+   - id: default
+     dnssec-signing: false
+
+ zone:
+   - domain: corp.example.net
+     module: mod-synth-record/lan-forward
+     module: mod-online-sign/default
+
+Known issues:
+
+* The delegations are not signed correctly.
+
+* Some CNAME records are not signed correctly.
+
+Limitations:
+
+* Only a Single-Type Signing scheme is supported.
+
+* Only one active signing key can be used.
+
+* Key rollover is not possible.
+
+* The NSEC records may differ for one domain name if queried for different
+  types. This is an implementation shortcoming as the dynamic modules
+  cooperate loosely. Possible synthesis of a type by other module cannot
+  be predicted. This dissimilarity should not affect response validation,
+  even with validators performing `aggressive negative caching
+  <https://datatracker.ietf.org/doc/draft-fujiwara-dnsop-nsec-aggressiveuse/>`_.
+
+* The NSEC proofs will work well with other dynamic modules only if the
+  modules synthesize only A and AAAA records. If synthesis of other type
+  is required, please, report this information to Knot DNS developers.

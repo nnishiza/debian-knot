@@ -26,46 +26,93 @@
 #pragma once
 
 #include "libknot/libknot.h"
-#include "libknot/internal/lists.h"
-#include "libknot/internal/namedb/namedb.h"
 #include "libknot/yparser/ypscheme.h"
+#include "contrib/ucw/lists.h"
 
-#define CONF_XFERS		10
 /*! Default template identifier. */
 #define CONF_DEFAULT_ID		((uint8_t *)"\x08""default\0")
 /*! Default configuration file. */
 #define CONF_DEFAULT_FILE	(CONFIG_DIR "/knot.conf")
 /*! Default configuration database. */
 #define CONF_DEFAULT_DBDIR	(STORAGE_DIR "/confdb")
+/*! Maximum depth of nested transactions. */
+#define CONF_MAX_TXN_DEPTH	5
 
 /*! Configuration specific logging. */
 #define CONF_LOG(severity, msg, ...) do { \
 	log_msg(severity, "config, " msg, ##__VA_ARGS__); \
 	} while (0)
 
+/*! Configuration getter output. */
+typedef struct {
+	/*! Item description. */
+	const yp_item_t *item;
+	/*! Whole data (can be array). */
+	const uint8_t *blob;
+	/*! Whole data length. */
+	size_t blob_len;
+	// Public items.
+	/*! Current single data. */
+	const uint8_t *data;
+	/*! Current single data length. */
+	size_t len;
+	/*! Value getter return code. */
+	int code;
+} conf_val_t;
+
 /*! Configuration context. */
 typedef struct {
+	/*! Cloned configuration indicator. */
+	bool is_clone;
 	/*! Currently used namedb api. */
-	const struct namedb_api *api;
+	const struct knot_db_api *api;
 	/*! Configuration scheme. */
 	yp_item_t *scheme;
 	/*! Memory context. */
-	mm_ctx_t *mm;
+	knot_mm_t *mm;
 	/*! Configuration database. */
-	namedb_t *db;
+	knot_db_t *db;
+
 	/*! Read-only transaction for config access. */
-	namedb_txn_t read_txn;
-	/*! Prearranged hostname string (for automatic NSID or CH ident value). */
-	char *hostname;
+	knot_db_txn_t read_txn;
+
+	struct {
+		/*! The current writing transaction. */
+		knot_db_txn_t *txn;
+		/*! Stack of nested writing transactions. */
+		knot_db_txn_t txn_stack[CONF_MAX_TXN_DEPTH];
+	} io;
+
 	/*! Current config file (for reload if started with config file). */
 	char *filename;
+
+	/*! Prearranged hostname string (for automatic NSID or CH ident value). */
+	char *hostname;
+
+	/*! Cached critical confdb items. */
+	struct {
+		conf_val_t srv_nsid;
+		conf_val_t srv_max_udp_payload;
+		conf_val_t srv_max_tcp_clients;
+		conf_val_t srv_tcp_hshake_timeout;
+		conf_val_t srv_tcp_idle_timeout;
+		conf_val_t srv_tcp_reply_timeout;
+	} cache;
+
 	/*! List of active query modules. */
 	list_t query_modules;
 	/*! Default query modules plan. */
 	struct query_plan *query_plan;
 } conf_t;
 
-struct conf_previous;
+/*!
+ * Configuration access flags.
+ */
+typedef enum {
+	CONF_FNONE     = 0,      /*!< Empty flag. */
+	CONF_FREADONLY = 1 << 0, /*!< Read only access. */
+	CONF_FNOCHECK  = 1 << 1  /*!< Disabled confdb check. */
+} conf_flag_t;
 
 /*!
  * Returns the active configuration.
@@ -75,16 +122,18 @@ conf_t* conf(void);
 /*!
  * Creates new or opens old configuration database.
  *
- * \param[out] conf Configuration.
- * \param[in] scheme Configuration scheme.
- * \param[in] db_dir Database path or NULL.
+ * \param[out] conf   Configuration.
+ * \param[in] scheme  Configuration scheme.
+ * \param[in] db_dir  Database path or NULL.
+ * \param[in] flags   Access flags.
  *
  * \return Error code, KNOT_EOK if success.
  */
 int conf_new(
 	conf_t **conf,
 	const yp_item_t *scheme,
-	const char *db_dir
+	const char *db_dir,
+	conf_flag_t flags
 );
 
 /*!
@@ -92,7 +141,7 @@ int conf_new(
  *
  * Shared objects: api, mm, db, filename.
  *
- * \param[out] conf Configuration.
+ * \param[out] conf  Configuration.
  *
  * \return Error code, KNOT_EOK if success.
  */
@@ -103,7 +152,7 @@ int conf_clone(
 /*!
  * Processes some additional operations and checks after configuration loading.
  *
- * \param[in] conf Configuration.
+ * \param[in] conf  Configuration.
  *
  * \return Error code, KNOT_EOK if success.
  */
@@ -114,7 +163,7 @@ int conf_post_open(
 /*!
  * Replaces the active configuration with the specified one.
  *
- * \param[in] conf New configuration.
+ * \param[in] conf  New configuration.
  */
 void conf_update(
 	conf_t *conf
@@ -123,21 +172,19 @@ void conf_update(
 /*!
  * Removes the specified configuration.
  *
- * \param[in] conf Configuration.
- * \param[in] is_clone Specifies if the configuration is a clone.
+ * \param[in] conf  Configuration.
  */
 void conf_free(
-	conf_t *conf,
-	bool is_clone
+	conf_t *conf
 );
 
 /*!
  * Activates configured query modules for the specified zone or for all zones.
  *
- * \param[in] conf Configuration.
- * \param[in] zone_name Zone name, NULL for all zones.
- * \param[in] query_modules Destination query modules list.
- * \param[in] query_plan Destination query plan.
+ * \param[in] conf           Configuration.
+ * \param[in] zone_name      Zone name, NULL for all zones.
+ * \param[in] query_modules  Destination query modules list.
+ * \param[in] query_plan     Destination query plan.
  */
 void conf_activate_modules(
 	conf_t *conf,
@@ -149,9 +196,9 @@ void conf_activate_modules(
 /*!
  * Deactivates query modules list.
  *
- * \param[in] conf Configuration.
- * \param[in] query_modules Destination query modules list.
- * \param[in] query_plan Destination query plan.
+ * \param[in] conf           Configuration.
+ * \param[in] query_modules  Destination query modules list.
+ * \param[in] query_plan     Destination query plan.
  */
 void conf_deactivate_modules(
 	conf_t *conf,
@@ -164,30 +211,28 @@ void conf_deactivate_modules(
  *
  * This function is not for direct using, just for includes processing!
  *
- * \param[in] conf Configuration.
- * \param[in] txn Transaction.
- * \param[in] input Configuration string or filename.
- * \param[in] is_file Specifies if the input is string or input filename.
- * \param[in] incl_depth The current include depth counter.
- * \param[in] prev Previous context.
+ * \param[in] conf     Configuration.
+ * \param[in] txn      Transaction.
+ * \param[in] input    Configuration string or filename.
+ * \param[in] is_file  Specifies if the input is string or input filename.
+ * \param[in] data     Internal data.
  *
  * \return Error code, KNOT_EOK if success.
  */
 int conf_parse(
 	conf_t *conf,
-	namedb_txn_t *txn,
+	knot_db_txn_t *txn,
 	const char *input,
 	bool is_file,
-	size_t *incl_depth,
-	struct conf_previous *prev
+	void *data
 );
 
 /*!
  * Imports textual configuration.
  *
- * \param[in] conf Configuration.
- * \param[in] input Configuration string or input filename.
- * \param[in] is_file Specifies if the input is string or filename.
+ * \param[in] conf     Configuration.
+ * \param[in] input    Configuration string or input filename.
+ * \param[in] is_file  Specifies if the input is string or filename.
  *
  * \return Error code, KNOT_EOK if success.
  */
@@ -200,9 +245,9 @@ int conf_import(
 /*!
  * Exports configuration to textual file.
  *
- * \param[in] conf Configuration.
- * \param[in] input Output filename.
- * \param[in] style Formatting style.
+ * \param[in] conf   Configuration.
+ * \param[in] input  Output filename.
+ * \param[in] style  Formatting style.
  *
  * \return Error code, KNOT_EOK if success.
  */

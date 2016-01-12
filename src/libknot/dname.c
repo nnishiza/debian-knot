@@ -21,14 +21,13 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "libknot/dname.h"
+#include "libknot/attribute.h"
 #include "libknot/consts.h"
+#include "libknot/dname.h"
 #include "libknot/errcode.h"
 #include "libknot/packet/wire.h"
-#include "libknot/internal/macros.h"
-#include "libknot/internal/mempattern.h"
-#include "libknot/internal/tolower.h"
-#include "libknot/internal/utils.h"
+#include "contrib/mempattern.h"
+#include "contrib/tolower.h"
 
 /*----------------------------------------------------------------------------*/
 
@@ -102,7 +101,7 @@ int knot_dname_wire_check(const uint8_t *name, const uint8_t *endp,
 /*----------------------------------------------------------------------------*/
 _public_
 knot_dname_t *knot_dname_parse(const uint8_t *pkt, size_t *pos, size_t maxpos,
-                               mm_ctx_t *mm)
+                               knot_mm_t *mm)
 {
 	if (pkt == NULL || pos == NULL)
 		return NULL;
@@ -137,7 +136,7 @@ knot_dname_t *knot_dname_parse(const uint8_t *pkt, size_t *pos, size_t maxpos,
 
 /*----------------------------------------------------------------------------*/
 _public_
-knot_dname_t *knot_dname_copy(const knot_dname_t *name, mm_ctx_t *mm)
+knot_dname_t *knot_dname_copy(const knot_dname_t *name, knot_mm_t *mm)
 {
 	if (name == NULL)
 		return NULL;
@@ -148,7 +147,7 @@ knot_dname_t *knot_dname_copy(const knot_dname_t *name, mm_ctx_t *mm)
 /*----------------------------------------------------------------------------*/
 _public_
 knot_dname_t *knot_dname_copy_part(const knot_dname_t *name, unsigned len,
-                                   mm_ctx_t *mm)
+                                   knot_mm_t *mm)
 {
 	if (name == NULL || len == 0)
 		return NULL;
@@ -181,7 +180,7 @@ int knot_dname_to_wire(uint8_t *dst, const knot_dname_t *src, size_t maxlen)
 
 /*----------------------------------------------------------------------------*/
 _public_
-int knot_dname_unpack(uint8_t* dst, const knot_dname_t *src,
+int knot_dname_unpack(uint8_t *dst, const knot_dname_t *src,
                       size_t maxlen, const uint8_t *pkt)
 {
 	if (dst == NULL || src == NULL)
@@ -503,7 +502,8 @@ int knot_dname_size(const knot_dname_t *name)
 _public_
 int knot_dname_realsize(const knot_dname_t *name, const uint8_t *pkt)
 {
-	return knot_dname_prefixlen(name, KNOT_DNAME_MAXLABELS, pkt);
+	/* Add zero label size for FQDN. */
+	return knot_dname_prefixlen(name, KNOT_DNAME_MAXLABELS, pkt) + 1;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -599,7 +599,7 @@ int knot_dname_matched_labels(const knot_dname_t *d1, const knot_dname_t *d2)
 /*----------------------------------------------------------------------------*/
 _public_
 knot_dname_t *knot_dname_replace_suffix(const knot_dname_t *name, unsigned labels,
-					const knot_dname_t *suffix)
+                                        const knot_dname_t *suffix)
 {
 	if (name == NULL)
 		return NULL;
@@ -609,8 +609,7 @@ knot_dname_t *knot_dname_replace_suffix(const knot_dname_t *name, unsigned label
 	assert(dname_lbs >= labels);
 	unsigned prefix_lbs = dname_lbs - labels;
 
-	/* Trim 1 octet from prefix, as it is measured as FQDN. */
-	int prefix_len = knot_dname_prefixlen(name, prefix_lbs, NULL) - 1;
+	int prefix_len = knot_dname_prefixlen(name, prefix_lbs, NULL);
 	int suffix_len = knot_dname_size(suffix);
 	if (prefix_len < 0 || suffix_len < 0)
 		return NULL;
@@ -642,7 +641,7 @@ knot_dname_t *knot_dname_replace_suffix(const knot_dname_t *name, unsigned label
 
 /*----------------------------------------------------------------------------*/
 _public_
-void knot_dname_free(knot_dname_t **name, mm_ctx_t *mm)
+void knot_dname_free(knot_dname_t **name, knot_mm_t *mm)
 {
 	if (name == NULL || *name == NULL)
 		return;
@@ -729,14 +728,14 @@ int knot_dname_prefixlen(const uint8_t *name, unsigned nlabels, const uint8_t *p
 	if (name == NULL)
 		return KNOT_EINVAL;
 
-	/* Zero labels means 1 octet \x00 */
+	/* Zero labels means no prefix. */
 	if (nlabels == 0)
-		return 1;
+		return 0;
 
 	/* Seek first real label occurence. */
 	name = knot_wire_seek_label(name, pkt);
 
-	int len = 1; /* Terminal label */
+	int len = 0;
 	while (*name != '\0') {
 		len += *name + 1;
 		name = knot_wire_next_label(name, pkt);

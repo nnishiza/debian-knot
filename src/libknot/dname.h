@@ -1,13 +1,3 @@
-/*!
- * \file dname.h
- *
- * \author Lubos Slovak <lubos.slovak@nic.cz>
- *
- * \brief Domain name structure and API for manipulating it.
- *
- * \addtogroup libknot
- * @{
- */
 /*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
@@ -23,6 +13,14 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+/*!
+ * \file
+ *
+ * \brief Domain name structure and API for manipulating it.
+ *
+ * \addtogroup libknot
+ * @{
+ */
 
 #pragma once
 
@@ -31,8 +29,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "libknot/consts.h"
-#include "libknot/internal/mempattern.h"
+#include "libknot/attribute.h"
+#include "libknot/mm_ctx.h"
 
 /*! \brief Type representing a domain name in wire format. */
 typedef uint8_t knot_dname_t;
@@ -50,6 +48,7 @@ typedef uint8_t knot_dname_t;
  * \retval KNOT_EMALF
  * \retval KNOT_ESPACE
  */
+_pure_ _mustcheck_
 int knot_dname_wire_check(const uint8_t *name, const uint8_t *endp,
                           const uint8_t *pkt);
 
@@ -63,8 +62,9 @@ int knot_dname_wire_check(const uint8_t *name, const uint8_t *endp,
  *
  * \return parsed domain name or NULL.
  */
+_mustcheck_
 knot_dname_t *knot_dname_parse(const uint8_t *pkt, size_t *pos, size_t maxpos,
-                               mm_ctx_t *mm);
+                               knot_mm_t *mm);
 
 /*!
  * \brief Duplicates the given domain name.
@@ -73,7 +73,8 @@ knot_dname_t *knot_dname_parse(const uint8_t *pkt, size_t *pos, size_t maxpos,
  *
  * \return New domain name which is an exact copy of \a dname.
  */
-knot_dname_t *knot_dname_copy(const knot_dname_t *name, mm_ctx_t *mm);
+_mustcheck_
+knot_dname_t *knot_dname_copy(const knot_dname_t *name, knot_mm_t *mm);
 
 /*!
  * \brief Duplicates part of the given domain name.
@@ -83,8 +84,9 @@ knot_dname_t *knot_dname_copy(const knot_dname_t *name, mm_ctx_t *mm);
  *
  * \return New domain name which is an partial copy of \a dname.
  */
+_mustcheck_
 knot_dname_t *knot_dname_copy_part(const knot_dname_t *name, unsigned len,
-				   mm_ctx_t *mm);
+                                   knot_mm_t *mm);
 
 /*!
  * \brief Copy name to wire as is, no compression pointer expansion will be done.
@@ -133,6 +135,7 @@ char *knot_dname_to_str(char *dst, const knot_dname_t *name, size_t maxlen);
  * \brief This function is a shortcut for \ref knot_dname_to_str with
  *        no output buffer parameters.
  */
+_mustcheck_
 static inline char *knot_dname_to_str_alloc(const knot_dname_t *name)
 {
 	return knot_dname_to_str(NULL, name, 0);
@@ -158,6 +161,7 @@ knot_dname_t *knot_dname_from_str(uint8_t *dst, const char *name, size_t maxlen)
  * \brief This function is a shortcut for \ref knot_dname_from_str with
  *        no output buffer parameters.
  */
+_mustcheck_
 static inline knot_dname_t *knot_dname_from_str_alloc(const char *name)
 {
 	return knot_dname_from_str(NULL, name, 0);
@@ -186,6 +190,7 @@ int knot_dname_to_lower(knot_dname_t *name);
  * \retval size of the domain name.
  * \retval KNOT_EINVAL
  */
+_pure_
 int knot_dname_size(const knot_dname_t *name);
 
 /*!
@@ -197,6 +202,7 @@ int knot_dname_size(const knot_dname_t *name);
  * \retval size of the domain name.
  * \retval KNOT_EINVAL
  */
+_pure_
 int knot_dname_realsize(const knot_dname_t *name, const uint8_t *pkt);
 
 /*!
@@ -208,6 +214,7 @@ int knot_dname_realsize(const knot_dname_t *name, const uint8_t *pkt);
  * \retval true \a sub is a subdomain of \a domain.
  * \retval false otherwise.
  */
+_pure_
 bool knot_dname_is_sub(const knot_dname_t *sub, const knot_dname_t *domain);
 
 /*!
@@ -219,6 +226,7 @@ bool knot_dname_is_sub(const knot_dname_t *sub, const knot_dname_t *domain);
  * \retval true \a sub us a subdomain or equal to \a domain.
  * \retval false otherwise.
  */
+_pure_
 bool knot_dname_in(const knot_dname_t *domain, const knot_dname_t *sub);
 
 /*!
@@ -229,6 +237,7 @@ bool knot_dname_in(const knot_dname_t *domain, const knot_dname_t *sub);
  * \retval true if \a dname is a wildcard domain name.
  * \retval false otherwise.
  */
+_pure_
 bool knot_dname_is_wildcard(const knot_dname_t *name);
 
 /*!
@@ -240,6 +249,7 @@ bool knot_dname_is_wildcard(const knot_dname_t *name);
  *
  * \return Number of labels common for the two domain names.
  */
+_pure_
 int knot_dname_matched_labels(const knot_dname_t *d1, const knot_dname_t *d2);
 
 /*!
@@ -253,6 +263,7 @@ int knot_dname_matched_labels(const knot_dname_t *d1, const knot_dname_t *d2);
  * \return New domain name created by replacing suffix of \a dname of size
  *         \a size with \a suffix.
  */
+_mustcheck_
 knot_dname_t *knot_dname_replace_suffix(const knot_dname_t *name, unsigned labels,
                                         const knot_dname_t *suffix);
 
@@ -267,7 +278,7 @@ knot_dname_t *knot_dname_replace_suffix(const knot_dname_t *name, unsigned label
  *
  * \param name Domain name to be destroyed.
  */
-void knot_dname_free(knot_dname_t **name, mm_ctx_t *mm);
+void knot_dname_free(knot_dname_t **name, knot_mm_t *mm);
 
 /*!
  * \brief Compares two domain names (case sensitive).
@@ -279,6 +290,7 @@ void knot_dname_free(knot_dname_t **name, mm_ctx_t *mm);
  * \retval > 0 if \a d1 goes after \a d2 in canonical order.
  * \retval 0 if the domain names are identical.
  */
+_pure_
 int knot_dname_cmp(const knot_dname_t *d1, const knot_dname_t *d2);
 
 /*!
@@ -298,6 +310,7 @@ int knot_dname_cmp(const knot_dname_t *d1, const knot_dname_t *d2);
  * \retval 1 if d1 > d2
  * \retval -1 if d1 < d2
  */
+_pure_
 int knot_dname_cmp_wire(const knot_dname_t *d1, const knot_dname_t *d2,
                         const uint8_t *pkt);
 
@@ -310,6 +323,7 @@ int knot_dname_cmp_wire(const knot_dname_t *d1, const knot_dname_t *d2,
  * \retval true if the domain names are identical
  * \retval false if the domain names are NOT identical
  */
+_pure_
 bool knot_dname_is_equal(const knot_dname_t *d1, const knot_dname_t *d2);
 
 /*!
@@ -331,6 +345,7 @@ knot_dname_t *knot_dname_cat(knot_dname_t *d1, const knot_dname_t *d2);
  *
  * \retval length of the prefix
  */
+_pure_
 int knot_dname_prefixlen(const uint8_t *name, unsigned nlabels, const uint8_t *pkt);
 
 /*!
@@ -341,6 +356,7 @@ int knot_dname_prefixlen(const uint8_t *name, unsigned nlabels, const uint8_t *p
  * \param name Domain name.
  * \param pkt Related packet (or NULL if not compressed).
  */
+_pure_
 int knot_dname_labels(const uint8_t *name, const uint8_t *pkt);
 
 /*!

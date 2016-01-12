@@ -24,9 +24,10 @@
 
 #pragma once
 
-#include "libknot/internal/lists.h"
-#include "libknot/internal/sockaddr.h"
-#include "libknot/internal/mempattern.h"
+#include <sys/socket.h>
+
+#include "contrib/mempattern.h"
+#include "contrib/ucw/lists.h"
 #include "libknot/rrtype/tsig.h"
 #include "knot/conf/conf.h"
 
@@ -35,20 +36,35 @@ typedef enum {
 	ACL_ACTION_NONE     = 0,
 	ACL_ACTION_NOTIFY   = 1,
 	ACL_ACTION_TRANSFER = 2,
-	ACL_ACTION_UPDATE   = 3,
-	ACL_ACTION_CONTROL  = 4
+	ACL_ACTION_UPDATE   = 3
 } acl_action_t;
 
 /*!
  * \brief Checks if two netblocks match.
  *
- * \param ss1     First address storage.
- * \param ss2     Second address storage.
+ * \param ss1     First address.
+ * \param ss2     Second address.
  * \param prefix  Netblock length (negative value for maximum prefix length).
+ *
+ * \retval bool if match.
  */
 bool netblock_match(const struct sockaddr_storage *ss1,
                     const struct sockaddr_storage *ss2,
                     int prefix);
+
+/*!
+ * \brief Checks if the address is within the network range.
+ *
+ * \param ss     Address to check.
+ * \param ss_min Minimum address.
+ * \param ss_max Maximum address.
+ *
+ * \retval bool if match.
+ */
+bool netrange_match(const struct sockaddr_storage *ss,
+                    const struct sockaddr_storage *ss_min,
+                    const struct sockaddr_storage *ss_max
+);
 
 /*!
  * \brief Checks if the address and/or tsig key matches given ACL list.
@@ -61,8 +77,7 @@ bool netblock_match(const struct sockaddr_storage *ss1,
  * \param addr     IP address.
  * \param tsig     TSIG parameters.
  *
- * \retval true  if authenticated.
- * \retval false if not authenticated.
+ * \retval bool  if authenticated.
  */
 bool acl_allowed(conf_val_t *acl, acl_action_t action,
                  const struct sockaddr_storage *addr,

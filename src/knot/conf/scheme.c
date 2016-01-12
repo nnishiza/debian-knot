@@ -22,7 +22,6 @@
 #include "knot/conf/scheme.h"
 #include "knot/conf/tools.h"
 #include "knot/common/log.h"
-#include "knot/ctl/remote.h"
 #include "knot/server/rrl.h"
 #include "knot/updates/acl.h"
 #include "libknot/rrtype/opt.h"
@@ -30,6 +29,7 @@
 
 #include "knot/modules/synth_record.h"
 #include "knot/modules/dnsproxy.h"
+#include "knot/modules/online_sign/module.h"
 #ifdef HAVE_ROSEDB
 #include "knot/modules/rosedb.h"
 #endif
@@ -37,7 +37,7 @@
 #include "knot/modules/dnstap.h"
 #endif
 
-static const lookup_table_t key_algs[] = {
+static const knot_lookup_t key_algs[] = {
 	{ DNSSEC_TSIG_HMAC_MD5,    "hmac-md5" },
 	{ DNSSEC_TSIG_HMAC_SHA1,   "hmac-sha1" },
 	{ DNSSEC_TSIG_HMAC_SHA224, "hmac-sha224" },
@@ -47,21 +47,20 @@ static const lookup_table_t key_algs[] = {
 	{ 0, NULL }
 };
 
-static const lookup_table_t acl_actions[] = {
+const knot_lookup_t acl_actions[] = {
 	{ ACL_ACTION_NOTIFY,   "notify" },
 	{ ACL_ACTION_TRANSFER, "transfer" },
 	{ ACL_ACTION_UPDATE,   "update" },
-	{ ACL_ACTION_CONTROL,  "control" },
 	{ 0, NULL }
 };
 
-static const lookup_table_t serial_policies[] = {
+static const knot_lookup_t serial_policies[] = {
 	{ SERIAL_POLICY_INCREMENT, "increment" },
 	{ SERIAL_POLICY_UNIXTIME,  "unixtime" },
 	{ 0, NULL }
 };
 
-static const lookup_table_t log_severities[] = {
+static const knot_lookup_t log_severities[] = {
 	{ LOG_UPTO(LOG_CRIT),    "critical" },
 	{ LOG_UPTO(LOG_ERR),     "error" },
 	{ LOG_UPTO(LOG_WARNING), "warning" },
@@ -74,8 +73,7 @@ static const lookup_table_t log_severities[] = {
 static const yp_item_t desc_server[] = {
 	{ C_IDENT,               YP_TSTR,  YP_VNONE },
 	{ C_VERSION,             YP_TSTR,  YP_VNONE },
-	{ C_NSID,                YP_TDATA, YP_VDATA = { 0, NULL, hex_text_to_bin,
-	                                                hex_text_to_txt } },
+	{ C_NSID,                YP_THEX,  YP_VNONE },
 	{ C_RUNDIR,              YP_TSTR,  YP_VSTR = { RUN_DIR } },
 	{ C_USER,                YP_TSTR,  YP_VNONE },
 	{ C_PIDFILE,             YP_TSTR,  YP_VSTR = { "knot.pid" } },
@@ -84,17 +82,32 @@ static const yp_item_t desc_server[] = {
 	{ C_BG_WORKERS,          YP_TINT,  YP_VINT = { 1, 255, YP_NIL } },
 	{ C_ASYNC_START,         YP_TBOOL, YP_VNONE },
 	{ C_TCP_HSHAKE_TIMEOUT,  YP_TINT,  YP_VINT = { 0, INT32_MAX, 5, YP_STIME } },
-	{ C_TCP_REPLY_TIMEOUT,   YP_TINT,  YP_VINT = { 0, INT32_MAX, 10, YP_STIME } },
 	{ C_TCP_IDLE_TIMEOUT,    YP_TINT,  YP_VINT = { 0, INT32_MAX, 20, YP_STIME } },
+	{ C_TCP_REPLY_TIMEOUT,   YP_TINT,  YP_VINT = { 0, INT32_MAX, 10, YP_STIME } },
 	{ C_MAX_TCP_CLIENTS,     YP_TINT,  YP_VINT = { 0, INT32_MAX, 100 } },
 	{ C_MAX_UDP_PAYLOAD,     YP_TINT,  YP_VINT = { KNOT_EDNS_MIN_UDP_PAYLOAD,
 	                                               KNOT_EDNS_MAX_UDP_PAYLOAD,
 	                                               4096, YP_SSIZE } },
 	{ C_RATE_LIMIT,          YP_TINT,  YP_VINT = { 0, INT32_MAX, 0 } },
-	{ C_RATE_LIMIT_SLIP,     YP_TINT,  YP_VINT = { 1, RRL_SLIP_MAX, 1 } },
+	{ C_RATE_LIMIT_SLIP,     YP_TINT,  YP_VINT = { 0, RRL_SLIP_MAX, 1 } },
 	{ C_RATE_LIMIT_TBL_SIZE, YP_TINT,  YP_VINT = { 1, INT32_MAX, 393241 } },
 	{ C_LISTEN,              YP_TADDR, YP_VADDR = { 53 }, YP_FMULTI },
 	{ C_COMMENT,             YP_TSTR,  YP_VNONE },
+	{ NULL }
+};
+
+static const yp_item_t desc_control[] = {
+	{ C_LISTEN,  YP_TSTR, YP_VSTR = { "knot.sock" } },
+	{ C_COMMENT, YP_TSTR, YP_VNONE },
+	{ NULL }
+};
+
+static const yp_item_t desc_log[] = {
+	{ C_TARGET,  YP_TSTR, YP_VNONE },
+	{ C_SERVER,  YP_TOPT, YP_VOPT = { log_severities, 0 } },
+	{ C_ZONE,    YP_TOPT, YP_VOPT = { log_severities, 0 } },
+	{ C_ANY,     YP_TOPT, YP_VOPT = { log_severities, 0 } },
+	{ C_COMMENT, YP_TSTR, YP_VNONE },
 	{ NULL }
 };
 
@@ -108,17 +121,11 @@ static const yp_item_t desc_key[] = {
 
 static const yp_item_t desc_acl[] = {
 	{ C_ID,      YP_TSTR,  YP_VNONE },
-	{ C_ADDR,    YP_TNET,  YP_VNONE, YP_FMULTI },
+	{ C_ADDR,    YP_TDATA, YP_VDATA = { 0, NULL, addr_range_to_bin,
+	                                    addr_range_to_txt }, YP_FMULTI },
 	{ C_KEY,     YP_TREF,  YP_VREF = { C_KEY }, YP_FMULTI, { check_ref } },
 	{ C_ACTION,  YP_TOPT,  YP_VOPT = { acl_actions, ACL_ACTION_NONE }, YP_FMULTI },
 	{ C_DENY,    YP_TBOOL, YP_VNONE },
-	{ C_COMMENT, YP_TSTR,  YP_VNONE },
-	{ NULL }
-};
-
-static const yp_item_t desc_control[] = {
-	{ C_LISTEN,  YP_TADDR, YP_VADDR = { REMOTE_PORT, REMOTE_SOCKET } },
-	{ C_ACL,     YP_TREF,  YP_VREF = { C_ACL }, YP_FMULTI, { check_ref } },
 	{ C_COMMENT, YP_TSTR,  YP_VNONE },
 	{ NULL }
 };
@@ -155,6 +162,7 @@ static const yp_item_t desc_remote[] = {
 static const yp_item_t desc_template[] = {
 	{ C_ID, YP_TSTR, YP_VNONE },
 	ZONE_ITEMS
+	{ C_TIMER_DB,            YP_TSTR,  YP_VSTR = { "timers" } }, \
 	{ C_GLOBAL_MODULE,       YP_TDATA, YP_VDATA = { 0, NULL, mod_id_to_bin, mod_id_to_txt }, \
 	                                   YP_FMULTI, { check_modref } }, \
 	{ NULL }
@@ -167,21 +175,12 @@ static const yp_item_t desc_zone[] = {
 	{ NULL }
 };
 
-static const yp_item_t desc_log[] = {
-	{ C_TARGET,  YP_TSTR, YP_VNONE },
-	{ C_SERVER,  YP_TOPT, YP_VOPT = { log_severities, 0 } },
-	{ C_ZONE,    YP_TOPT, YP_VOPT = { log_severities, 0 } },
-	{ C_ANY,     YP_TOPT, YP_VOPT = { log_severities, 0 } },
-	{ C_COMMENT, YP_TSTR, YP_VNONE },
-	{ NULL }
-};
-
 const yp_item_t conf_scheme[] = {
 	{ C_SRV,  YP_TGRP, YP_VGRP = { desc_server } },
-	{ C_LOG,  YP_TGRP, YP_VGRP = { desc_log }, YP_FMULTI },
-	{ C_KEY,  YP_TGRP, YP_VGRP = { desc_key }, YP_FMULTI },
-	{ C_ACL,  YP_TGRP, YP_VGRP = { desc_acl }, YP_FMULTI },
 	{ C_CTL,  YP_TGRP, YP_VGRP = { desc_control } },
+	{ C_LOG,  YP_TGRP, YP_VGRP = { desc_log }, YP_FMULTI },
+	{ C_KEY,  YP_TGRP, YP_VGRP = { desc_key }, YP_FMULTI, { check_key } },
+	{ C_ACL,  YP_TGRP, YP_VGRP = { desc_acl }, YP_FMULTI, { check_acl } },
 	{ C_RMT,  YP_TGRP, YP_VGRP = { desc_remote }, YP_FMULTI, { check_remote } },
 /* MODULES */
 	{ C_MOD_SYNTH_RECORD, YP_TGRP, YP_VGRP = { scheme_mod_synth_record }, YP_FMULTI,
@@ -196,8 +195,9 @@ const yp_item_t conf_scheme[] = {
 	{ C_MOD_DNSTAP,       YP_TGRP, YP_VGRP = { scheme_mod_dnstap }, YP_FMULTI,
 	                                         { check_mod_dnstap } },
 #endif
+	{ C_MOD_ONLINE_SIGN,  YP_TGRP, YP_VGRP = { scheme_mod_online_sign }, YP_FMULTI },
 /***********/
-	{ C_TPL,  YP_TGRP, YP_VGRP = { desc_template }, YP_FMULTI },
+	{ C_TPL,  YP_TGRP, YP_VGRP = { desc_template }, YP_FMULTI, { check_template } },
 	{ C_ZONE, YP_TGRP, YP_VGRP = { desc_zone }, YP_FMULTI, { check_zone } },
 	{ C_INCL, YP_TSTR, YP_VNONE, YP_FNONE, { include_file } },
 	{ NULL }

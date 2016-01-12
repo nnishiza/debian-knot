@@ -27,8 +27,10 @@
 #include "utils/common/resolv.h"
 #include "libknot/descriptor.h"
 #include "libknot/libknot.h"
-#include "libknot/internal/lists.h"
-#include "libknot/internal/sockaddr.h"
+#include "contrib/sockaddr.h"
+#include "contrib/ucw/lists.h"
+
+#define PROGRAM_NAME "kdig"
 
 #define DEFAULT_RETRIES_DIG	2
 #define DEFAULT_TIMEOUT_DIG	5
@@ -508,24 +510,6 @@ static int opt_notcp(const char *arg, void *query)
 	return KNOT_EOK;
 }
 
-static int opt_fail(const char *arg, void *query)
-{
-	query_t *q = query;
-
-	q->servfail_stop = true;
-
-	return KNOT_EOK;
-}
-
-static int opt_nofail(const char *arg, void *query)
-{
-	query_t *q = query;
-
-	q->servfail_stop = false;
-
-	return KNOT_EOK;
-}
-
 static int opt_ignore(const char *arg, void *query)
 {
 	query_t *q = query;
@@ -802,9 +786,6 @@ static const param_t kdig_opts2[] = {
 	{ "tcp",          ARG_NONE,     opt_tcp },
 	{ "notcp",        ARG_NONE,     opt_notcp },
 
-	{ "fail",         ARG_NONE,     opt_fail },
-	{ "nofail",       ARG_NONE,     opt_nofail },
-
 	{ "ignore",       ARG_NONE,     opt_ignore },
 	{ "noignore",     ARG_NONE,     opt_noignore },
 
@@ -863,7 +844,6 @@ query_t* query_create(const char *owner, const query_t *conf)
 		query->retries = DEFAULT_RETRIES_DIG;
 		query->wait = DEFAULT_TIMEOUT_DIG;
 		query->ignore_tc = false;
-		query->servfail_stop = true;
 		query->class_num = -1;
 		query->type_num = -1;
 		query->serial = -1;
@@ -899,7 +879,6 @@ query_t* query_create(const char *owner, const query_t *conf)
 		query->retries = conf->retries;
 		query->wait = conf->wait;
 		query->ignore_tc = conf->ignore_tc;
-		query->servfail_stop = conf->servfail_stop;
 		query->class_num = conf->class_num;
 		query->type_num = conf->type_num;
 		query->serial = conf->serial;
@@ -1350,9 +1329,9 @@ void complete_queries(list_t *queries, const query_t *conf)
 	}
 }
 
-static void kdig_help(void)
+static void print_help(void)
 {
-	printf("Usage: kdig [-4] [-6] [-dh] [-b address] [-c class] [-p port]\n"
+	printf("Usage: %s [-4] [-6] [-dh] [-b address] [-c class] [-p port]\n"
 	       "            [-q name] [-t type] [-x address] [-k keyfile]\n"
 	       "            [-y [algo:]keyname:key] [-E tapfile] [-G tapfile]\n"
 	       "            name [type] [class] [@server]\n"
@@ -1381,7 +1360,6 @@ static void kdig_help(void)
 	       "       +[no]class      Show DNS class.\n"
 	       "       +[no]ttl        Show TTL value.\n"
 	       "       +[no]tcp        Use TCP protocol.\n"
-	       "       +[no]fail       Stop if SERVFAIL.\n"
 	       "       +[no]ignore     Don't use TCP automatically if truncated.\n"
 	       "       +[no]nsid       Request NSID.\n"
 	       "       +[no]edns=N     Use EDNS (=version).\n"
@@ -1392,8 +1370,9 @@ static void kdig_help(void)
 	       "       +retry=N        Set number of retries.\n"
 	       "       +bufsize=B      Set EDNS buffer size.\n"
 	       "\n"
-	       "       -h, --help      Print help.\n"
-	       "       -v, --version   Print program version.\n");
+	       "       -h, --help      Print the program help.\n"
+	       "       -V, --version   Print the program version.\n",
+	       PROGRAM_NAME);
 }
 
 static int parse_opt1(const char *opt, const char *value, kdig_params_t *params,
@@ -1455,7 +1434,7 @@ static int parse_opt1(const char *opt, const char *value, kdig_params_t *params,
 			return KNOT_ENOTSUP;
 		}
 
-		kdig_help();
+		print_help();
 		params->stop = true;
 		break;
 	case 'c':
@@ -1519,13 +1498,13 @@ static int parse_opt1(const char *opt, const char *value, kdig_params_t *params,
 		}
 		*index += add;
 		break;
-	case 'v':
+	case 'V':
 		if (len > 1) {
 			ERR("invalid option -%s\n", opt);
 			return KNOT_ENOTSUP;
 		}
 
-		printf(KDIG_VERSION);
+		print_version(PROGRAM_NAME);
 		params->stop = true;
 		break;
 	case 'x':
@@ -1598,10 +1577,10 @@ static int parse_opt1(const char *opt, const char *value, kdig_params_t *params,
 		break;
 	case '-':
 		if (strcmp(opt, "-help") == 0) {
-			kdig_help();
+			print_help();
 			params->stop = true;
 		} else if (strcmp(opt, "-version") == 0) {
-			printf(KDIG_VERSION);
+			print_version(PROGRAM_NAME);
 			params->stop = true;
 		} else {
 			ERR("invalid option: -%s\n", opt);
@@ -1752,7 +1731,7 @@ int kdig_parse(kdig_params_t *params, int argc, char *argv[])
 			}
 			break;
 		case KNOT_ENOTSUP:
-			kdig_help();
+			print_help();
 		default: // Fall through.
 			return ret;
 		}

@@ -1,16 +1,16 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Enable brief debugging messages. */
-#undef DEBUG_ENABLE_BRIEF
+/* PKCS 11 support available */
+#undef ENABLE_PKCS11
 
-/* Enable details debugging messages. */
-#undef DEBUG_ENABLE_DETAILS
-
-/* Enable verbose debugging messages. */
-#undef DEBUG_ENABLE_VERBOSE
+/* Use SO_REUSEPORT. */
+#undef ENABLE_REUSEPORT
 
 /* Use systemd integration. */
 #undef ENABLE_SYSTEMD
+
+/* Define to 1 if you have the `accept4' function. */
+#undef HAVE_ACCEPT4
 
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
@@ -153,21 +153,6 @@
 /* Define to 1 or 0, depending whether the compiler supports simple visibility
    declarations. */
 #undef HAVE_VISIBILITY
-
-/* Server debug. */
-#undef KNOTD_SERVER_DEBUG
-
-/* DNSSEC debug. */
-#undef KNOT_DNSSEC_DEBUG
-
-/* Zone loading debug. */
-#undef KNOT_LOADER_DEBUG
-
-/* Nameserver debug. */
-#undef KNOT_NS_DEBUG
-
-/* Zones debug. */
-#undef KNOT_ZONES_DEBUG
 
 /* Define to 1 to enable IDN support */
 #undef LIBIDN

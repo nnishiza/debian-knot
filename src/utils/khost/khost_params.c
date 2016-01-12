@@ -26,7 +26,9 @@
 #include "utils/common/params.h"
 #include "utils/common/resolv.h"
 #include "libknot/libknot.h"
-#include "libknot/internal/lists.h"
+#include "contrib/ucw/lists.h"
+
+#define PROGRAM_NAME "khost"
 
 #define DEFAULT_RETRIES_HOST	1
 #define DEFAULT_TIMEOUT_HOST	2
@@ -69,7 +71,6 @@ static int khost_init(kdig_params_t *params)
 	params->config->port = strdup(DEFAULT_DNS_PORT);
 	params->config->retries = DEFAULT_RETRIES_HOST;
 	params->config->wait = DEFAULT_TIMEOUT_HOST;
-	params->config->servfail_stop = false;
 	params->config->class_num = KNOT_CLASS_IN;
 	params->config->style = DEFAULT_STYLE_HOST;
 	params->config->idn = true;
@@ -192,32 +193,29 @@ static int parse_name(const char *value, list_t *queries, const query_t *conf)
 	return KNOT_EOK;
 }
 
-static void khost_help(void)
+static void print_help(void)
 {
-	printf("Usage: khost [-4] [-6] [-adhrsTvVw] [-c class] [-t type]\n"
+	printf("Usage: %s [-4] [-6] [-adhrsTvVw] [-c class] [-t type]\n"
 	       "             [-R retries] [-W time] name [server]\n\n"
 	       "       -4             Use IPv4 protocol only.\n"
 	       "       -6             Use IPv6 procotol only.\n"
 	       "       -a             Same as -t ANY -v.\n"
 	       "       -d             Allow debug messages.\n"
-	       "       -h, --help     Print help.\n"
+	       "       -h, --help     Print the program help.\n"
 	       "       -r             Disable recursion.\n"
-	       "       -s             Stop if SERVFAIL.\n"
 	       "       -T             Use TCP procotol.\n"
 	       "       -v             Verbose output.\n"
-	       "       -V, --version  Print program version.\n"
+	       "       -V, --version  Print the program version.\n"
 	       "       -w             Wait forever.\n"
 	       "       -c             Set query class.\n"
 	       "       -t             Set query type.\n"
 	       "       -R             Set number of UDP retries.\n"
-	       "       -W             Set wait interval.\n"
-	      );
+	       "       -W             Set wait interval.\n",
+	       PROGRAM_NAME);
 }
 
 int khost_parse(kdig_params_t *params, int argc, char *argv[])
 {
-	int opt = 0, li = 0;
-
 	if (params == NULL || argv == NULL) {
 		DBG_NULL;
 		return KNOT_EINVAL;
@@ -241,12 +239,13 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 
 	// Long options.
 	struct option opts[] = {
-		{ "version", no_argument, 0, 'V' },
-		{ "help",    no_argument, 0, 'h' },
-		{ 0,         0,           0, 0 }
+		{ "help",    no_argument, NULL, 'h' },
+		{ "version", no_argument, NULL, 'V' },
+		{ NULL }
 	};
 
 	// Command line options processing.
+	int opt = 0, li = 0;
 	while ((opt = getopt_long(argc, argv, "46adhrsTvVwc:t:R:W:", opts, &li))
 	       != -1) {
 		switch (opt) {
@@ -267,14 +266,11 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 			msg_enable_debug(1);
 			break;
 		case 'h':
-			khost_help();
+			print_help();
 			params->stop = false;
 			return KNOT_EOK;
 		case 'r':
 			conf->flags.rd_flag = false;
-			break;
-		case 's':
-			conf->servfail_stop = true;
 			break;
 		case 'T':
 			conf->protocol = PROTO_TCP;
@@ -286,7 +282,7 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 			conf->style.show_footer = true;
 			break;
 		case 'V':
-			printf(KHOST_VERSION);
+			print_version(PROGRAM_NAME);
 			params->stop = false;
 			return KNOT_EOK;
 		case 'w':
@@ -328,7 +324,7 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 			}
 			break;
 		default:
-			khost_help();
+			print_help();
 			return KNOT_ENOTSUP;
 		}
 	}
@@ -348,7 +344,7 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 		}
 		break;
 	default:
-		khost_help();
+		print_help();
 		return KNOT_ENOTSUP;
 	}
 

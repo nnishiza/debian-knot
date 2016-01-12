@@ -22,13 +22,11 @@
 
 #include "binary.h"
 #include "error.h"
-#include "hex_gnutls.h"
 #include "key.h"
 #include "key/algorithm.h"
 #include "key/convert.h"
 #include "key/dnskey.h"
 #include "key/internal.h"
-#include "keyid.h"
 #include "keystore.h"
 #include "keytag.h"
 #include "pem.h"
@@ -125,63 +123,24 @@ void dnssec_key_free(dnssec_key_t *key)
 	free(key);
 }
 
-/* -- key identifiers ------------------------------------------------------ */
-
-/*!
- * Update key tag, should be called when anything in RDATA changes.
- */
-static void update_keytag(dnssec_key_t *key)
-{
-	assert(key);
-	dnssec_keytag(&key->rdata, &key->keytag);
-}
-
-/*!
- * Update key ID (X.509 CKA_ID), should be called when public key changes.
- */
-static void update_key_id(dnssec_key_t *key)
-{
-	assert(key);
-	assert(key->public_key);
-
-	_cleanup_free_ char *new_id = gnutls_pubkey_hex_key_id(key->public_key);
-	assert(new_id);
-	memcpy(key->id, new_id, sizeof(key->id));
-}
-
-void key_update_identifiers(dnssec_key_t *key)
-{
-	assert(key);
-
-	update_keytag(key);
-	update_key_id(key);
-}
-
-static bool has_valid_id(const dnssec_key_t *key)
-{
-	assert(key);
-
-	return (key->id[0] != '\0');
-}
-
 _public_
-uint16_t dnssec_key_get_keytag(const dnssec_key_t *key)
+dnssec_key_t *dnssec_key_dup(const dnssec_key_t *key)
 {
-	if (!key || !has_valid_id(key)) {
-		return 0;
-	}
-
-	return key->keytag;
-}
-
-_public_
-const char *dnssec_key_get_id(const dnssec_key_t *key)
-{
-	if (!key || !has_valid_id(key)) {
+	if (!key) {
 		return NULL;
 	}
 
-	return key->id;
+	dnssec_key_t *dup = NULL;
+
+	if (dnssec_key_new(&dup) != DNSSEC_EOK ||
+	    dnssec_key_set_dname(dup, key->dname) != DNSSEC_EOK ||
+	    dnssec_key_set_rdata(dup, &key->rdata) != DNSSEC_EOK
+	) {
+		dnssec_key_free(dup);
+		return NULL;
+	}
+
+	return dup;
 }
 
 /* -- freely modifiable attributes ----------------------------------------- */
@@ -242,8 +201,6 @@ int dnssec_key_set_flags(dnssec_key_t *key, uint16_t flags)
 	wire_seek(&wire, DNSKEY_RDATA_OFFSET_FLAGS);
 	wire_write_u16(&wire, flags);
 
-	update_keytag(key);
-
 	return DNSSEC_EOK;
 }
 
@@ -270,12 +227,21 @@ int dnssec_key_set_protocol(dnssec_key_t *key, uint8_t protocol)
 	wire_seek(&wire, DNSKEY_RDATA_OFFSET_PROTOCOL);
 	wire_write_u8(&wire, protocol);
 
-	update_keytag(key);
-
 	return DNSSEC_EOK;
 }
 
 /* -- restricted attributes ------------------------------------------------ */
+
+_public_
+uint16_t dnssec_key_get_keytag(const dnssec_key_t *key)
+{
+	uint16_t keytag = 0;
+	if (dnssec_key_can_verify(key)) {
+		dnssec_keytag(&key->rdata, &keytag);
+	}
+
+	return keytag;
+}
 
 /*!
  * Check if current public key algorithm matches with the new algorithm.
@@ -326,8 +292,6 @@ int dnssec_key_set_algorithm(dnssec_key_t *key, uint8_t algorithm)
 	wire_seek(&wire, DNSKEY_RDATA_OFFSET_ALGORITHM);
 	wire_write_u8(&wire, algorithm);
 
-	update_keytag(key);
-
 	return DNSSEC_EOK;
 }
 
@@ -370,8 +334,6 @@ int dnssec_key_set_pubkey(dnssec_key_t *key, const dnssec_binary_t *pubkey)
 		key->rdata.size = DNSKEY_RDATA_OFFSET_PUBKEY; // downsize
 		return result;
 	}
-
-	key_update_identifiers(key);
 
 	return DNSSEC_EOK;
 }
@@ -416,26 +378,21 @@ int dnssec_key_set_rdata(dnssec_key_t *key, const dnssec_binary_t *rdata)
 		return DNSSEC_KEY_ALREADY_PRESENT;
 	}
 
-	dnssec_binary_t new_rdata = key->rdata;
-	int result = dnssec_binary_resize(&new_rdata, rdata->size);
-	if (result != DNSSEC_EOK) {
-		return result;
-	}
-
 	gnutls_pubkey_t new_pubkey = NULL;
-	result = dnskey_rdata_to_crypto_key(rdata, &new_pubkey);
+	int result = dnskey_rdata_to_crypto_key(rdata, &new_pubkey);
 	if (result != DNSSEC_EOK) {
 		return result;
 	}
 
-	memmove(new_rdata.data, rdata->data, rdata->size);
+	result = dnssec_binary_resize(&key->rdata, rdata->size);
+	if (result != DNSSEC_EOK) {
+		gnutls_pubkey_deinit(new_pubkey);
+		return result;
+	}
 
 	// commit result
-
-	key->rdata = new_rdata;
+	memmove(key->rdata.data, rdata->data, rdata->size);
 	key->public_key = new_pubkey;
-
-	key_update_identifiers(key);
 
 	return DNSSEC_EOK;
 }

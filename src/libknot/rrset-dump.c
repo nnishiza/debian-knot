@@ -27,15 +27,17 @@
 
 #include "dnssec/binary.h"
 #include "dnssec/keytag.h"
+#include "libknot/attribute.h"
 #include "libknot/rrset-dump.h"
+#include "libknot/codes.h"
 #include "libknot/consts.h"
 #include "libknot/descriptor.h"
 #include "libknot/errcode.h"
-#include "libknot/internal/base64.h"
-#include "libknot/internal/base32hex.h"
-#include "libknot/internal/macros.h"
-#include "libknot/internal/utils.h"
-#include "libknot/internal/wire_ctx.h"
+#include "libknot/lookup.h"
+#include "contrib/base32hex.h"
+#include "contrib/base64.h"
+#include "contrib/wire.h"
+#include "contrib/wire_ctx.h"
 
 #define TAB_WIDTH		8
 #define BLOCK_WIDTH		40
@@ -1173,7 +1175,7 @@ static void wire_eui_to_str(rrset_dump_params_t *p)
 	p->ret = 0;
 }
 
-static void wire_rcode_to_str(rrset_dump_params_t *p)
+static void wire_tsig_rcode_to_str(rrset_dump_params_t *p)
 {
 	uint16_t data;
 	size_t   in_len = sizeof(data);
@@ -1188,7 +1190,10 @@ static void wire_rcode_to_str(rrset_dump_params_t *p)
 	data = wire_read_u16(p->in);
 
 	// Find RCODE name.
-	lookup_table_t *rcode = lookup_by_id(knot_rcode_names, data);
+	const knot_lookup_t *rcode = NULL;
+	rcode = knot_lookup_by_id((data >= ((knot_lookup_t *)knot_tsig_err_names)->id) ?
+	                          knot_tsig_err_names : knot_rcode_names,
+	                          data);
 	if (rcode != NULL) {
 		rcode_str = rcode->name;
 	}
@@ -1308,8 +1313,8 @@ static void dnskey_info(const uint8_t *rdata,
 	                                    .size = rdata_len };
 	dnssec_keytag(&rdata_bin, &key_tag);
 
-	lookup_table_t *alg = NULL;
-	alg = lookup_by_id(knot_dnssec_alg_names, alg_id);
+	const knot_lookup_t *alg = NULL;
+	alg = knot_lookup_by_id(knot_dnssec_alg_names, alg_id);
 
 	int ret = snprintf(out, out_len, "%s, %s (%zub), id = %u",
 	                   sep ? "KSK" : "ZSK",
@@ -1365,7 +1370,7 @@ static void dnskey_info(const uint8_t *rdata,
 #define DUMP_GATEWAY	wire_gateway_to_str(p); CHECK_RET(p);
 #define DUMP_L64	wire_l64_to_str(p); CHECK_RET(p);
 #define DUMP_EUI	wire_eui_to_str(p); CHECK_RET(p);
-#define DUMP_RCODE	wire_rcode_to_str(p); CHECK_RET(p);
+#define DUMP_TSIG_RCODE	wire_tsig_rcode_to_str(p); CHECK_RET(p);
 #define DUMP_UNKNOWN	wire_unknown_to_str(p); CHECK_RET(p);
 
 static int dump_a(DUMP_PARAMS)
@@ -1708,7 +1713,7 @@ static int dump_tsig(DUMP_PARAMS)
 		DUMP_NUM16; DUMP_SPACE; WRAP_INIT;
 		DUMP_TSIG_DGST; DUMP_SPACE; WRAP_LINE;
 		DUMP_NUM16; DUMP_SPACE;
-		DUMP_RCODE; DUMP_SPACE;
+		DUMP_TSIG_RCODE; DUMP_SPACE;
 		DUMP_TSIG_DATA;
 		WRAP_END;
 	} else {
@@ -1717,7 +1722,7 @@ static int dump_tsig(DUMP_PARAMS)
 		DUMP_NUM16; DUMP_SPACE;
 		DUMP_TSIG_DGST; DUMP_SPACE;
 		DUMP_NUM16; DUMP_SPACE;
-		DUMP_RCODE; DUMP_SPACE;
+		DUMP_TSIG_RCODE; DUMP_SPACE;
 		DUMP_TSIG_DATA;
 	}
 

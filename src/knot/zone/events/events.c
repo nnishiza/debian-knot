@@ -17,10 +17,9 @@
 #include <assert.h>
 #include <time.h>
 
+#include "libknot/libknot.h"
 #include "knot/common/evsched.h"
 #include "knot/common/log.h"
-#include "libknot/libknot.h"
-#include "libknot/internal/namedb/namedb.h"
 #include "knot/server/server.h"
 #include "knot/worker/pool.h"
 #include "knot/zone/zone.h"
@@ -44,7 +43,7 @@ typedef struct event_info {
 } event_info_t;
 
 static const event_info_t EVENT_INFO[] = {
-        { ZONE_EVENT_RELOAD,  event_reload,  "reload" },
+        { ZONE_EVENT_LOAD,    event_load,    "load" },
         { ZONE_EVENT_REFRESH, event_refresh, "refresh" },
         { ZONE_EVENT_XFER,    event_xfer,    "transfer" },
         { ZONE_EVENT_UPDATE,  event_update,  "update" },
@@ -237,7 +236,7 @@ int zone_events_init(zone_t *zone)
 }
 
 int zone_events_setup(struct zone *zone, worker_pool_t *workers,
-                      evsched_t *scheduler, namedb_t *timers_db)
+                      evsched_t *scheduler, knot_db_t *timers_db)
 {
 	if (!zone || !workers || !scheduler) {
 		return KNOT_EINVAL;
