@@ -83,8 +83,8 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog THANKS \
 	$(top_srcdir)/configure $(am__configure_deps) \
 	$(top_srcdir)/src/libknot/version.h.in \
 	$(top_srcdir)/src/dnssec/lib/dnssec/version.h.in COPYING \
-	ar-lib compile config.guess config.sub install-sh missing \
-	ltmain.sh
+	ar-lib compile config.guess config.sub depcomp install-sh \
+	missing ylwrap ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
