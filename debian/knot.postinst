@@ -5,7 +5,7 @@ dpkg-maintscript-helper rm_conffile /etc/default/knot 1.3.0~rc3-2~ -- "$@"
 
 if [ "$1" = "configure" ]; then
     if ! getent passwd knot > /dev/null; then
-        adduser --quiet --system --group --no-create-home knot
+        adduser --quiet --system --group --no-create-home --home /var/lib/knot knot
     fi
 
     dpkg-statoverride --list /var/lib/knot > /dev/null || dpkg-statoverride --update --add knot knot 0755 /var/lib/knot
