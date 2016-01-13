@@ -102,6 +102,8 @@ Architecture: any
 Depends: libdnssec0 (= ${binary:Version}),
          libknot1 (= ${binary:Version}),
          libzscanner0 (= ${binary:Version}),
+	 libgnutls28-dev,
+	 libjansson-dev,
          ${misc:Depends},
          ${shlibs:Depends}
 Section: libdevel
