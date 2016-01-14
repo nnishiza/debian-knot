@@ -31,12 +31,23 @@ fi
 # (re-)initialize KASP-DB after the server has been started
 # since we need to read the runtime configuration when upgrading
 # from 2.0.x to 2.1.x
-if [ "$1" = "configure" -a -n "$2" ] && dpkg --compare-versions "$2" lt "2.1.0~"; then
-    /usr/sbin/knotc conf-read | \
-	sed -n 's/.*kasp-db = "\(.*\)"/\1/p' | \
-	while read KASPDB; do
-	    su --shell /bin/bash --command "/usr/sbin/keymgr --dir '$KASPDB' init" knot;
-	done
+if [ "$1" = "configure" -a -n "$2" ] && dpkg --compare-versions "$2" lt "2.1.0-2~"; then
+    KNOT_USER=$(/usr/sbin/knotc conf-read server.user | sed -n 's/server.user = "\(.*\)"/\1/p' | cut -f 1 -d :)
+    if [ -z "$KNOT_USER" ]; then
+	KNOT_USER=knot
+    fi
+    
+    /usr/sbin/knotc conf-read template.id | sed -n 's/template.id = "\(.*\)"/\1/p' | \
+    while read TEMPLATE; do
+	KASPDB_CONF=$(/usr/sbin/knotc conf-read "template[$TEMPLATE].kasp-db" | sed -n "s/template\[$TEMPLATE\].kasp-db = \"\(.*\)\"/\1/p");
+	if [ "$(echo "$KASPDB_CONF" | cut -b 1)" = "/" ]; then
+	    KASPDB="$KASPDB_CONF"
+	else
+	    STORAGE=$(/usr/sbin/knotc conf-read "template[$TEMPLATE].storage" | sed -n "s/template\[$TEMPLATE\].storage = \"\(.*\)\"/\1/p");
+	    KASPDB="$STORAGE/$KASPDB_CONF"
+	fi
+	su --shell /bin/bash --command "/usr/sbin/keymgr --dir '$KASPDB' init" $KNOT_USER;
+    done
     # restart after (re-)initializing KASP-DB
     if [ -x "/etc/init.d/knot" ]; then
 	invoke-rc.d knot restart || exit $?
