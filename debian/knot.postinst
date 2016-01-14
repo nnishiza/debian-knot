@@ -31,16 +31,14 @@ fi
 # (re-)initialize KASP-DB after the server has been started
 # since we need to read the runtime configuration when upgrading
 # from 2.0.x to 2.1.x
-if [ "$1" = "configure" -a -n "$2" ] && dpkg --compare-versions "$2" lt "2.1.0~"; then
-    /usr/sbin/knotc conf-read | \
-	sed -n 's/.*kasp-db = "\(.*\)"/\1/p' | \
-	while read KASPDB; do
-	    su --shell /bin/bash --command "/usr/sbin/keymgr --dir '$KASPDB' init" knot;
-	done
-    # restart after (re-)initializing KASP-DB
-    if [ -x "/etc/init.d/knot" ]; then
-	invoke-rc.d knot restart || exit $?
-    fi
+/usr/sbin/knotc conf-read | \
+    sed -n 's/.*kasp-db = "\(.*\)"/\1/p' | \
+    while read KASPDB; do
+	su --shell /bin/bash --command "/usr/sbin/keymgr --dir '$KASPDB' init" knot;
+    done
+# restart after (re-)initializing KASP-DB
+if [ -x "/etc/init.d/knot" ]; then
+    invoke-rc.d knot restart || exit $?
 fi
 
 exit 0
