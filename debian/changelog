@@ -1,3 +1,10 @@
+knot (2.1.0-2) unstable; urgency=medium
+
+  * Revert "Run keymgr init on every upgrade (just to be sure it happens)"
+  * Add support for relative directories in kasp-db
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 14 Jan 2016 11:46:35 +0100
+
 knot (2.1.0-1) unstable; urgency=medium
 
   * Set knot user home directory to /var/lib/knot
