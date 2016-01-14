@@ -1,3 +1,11 @@
+knot (2.1.0-1) unstable; urgency=medium
+
+  * Set knot user home directory to /var/lib/knot
+  * Imported Upstream version 2.1.0
+  * Run keymgr init on every upgrade (just to be sure it happens)
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 14 Jan 2016 10:55:26 +0100
+
 knot (2.1.0~rc1-55-gf227348-1) unstable; urgency=medium
 
   * Add libgnutls28-dev and libjansson-dev as dependencies to libknot-dev
