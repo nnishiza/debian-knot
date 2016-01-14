@@ -19,7 +19,7 @@
 #define DNSSEC_VERSION_MAJOR 2
 #define DNSSEC_VERSION_MINOR 1
 #define DNSSEC_VERSION_PATCH 0
-#define DNSSEC_VERSION_EXTRA "-rc1"
+#define DNSSEC_VERSION_EXTRA ""
 
 #define DNSSEC_VERSION_HEX ((DNSSEC_VERSION_MAJOR << 16) | \
                             (DNSSEC_VERSION_MINOR <<  8) | \

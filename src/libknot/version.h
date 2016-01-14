@@ -19,7 +19,7 @@
 #define KNOT_VERSION_MAJOR 2
 #define KNOT_VERSION_MINOR 1
 #define KNOT_VERSION_PATCH 0
-#define KNOT_VERSION_EXTRA "-rc1"
+#define KNOT_VERSION_EXTRA ""
 
 #define KNOT_VERSION_HEX ((KNOT_VERSION_MAJOR << 16) | \
                           (KNOT_VERSION_MINOR <<  8) | \
