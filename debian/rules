@@ -64,6 +64,9 @@ override_dh_install-arch:
 	# Remove .la and .so
 	rm $(CURDIR)/debian/tmp/usr/lib/*/*.la
 
+	install -m 755 debian/get_user   $(CURDIR)/debian/tmp/usr/lib/knot/
+	install -m 755 debian/get_kaspdb $(CURDIR)/debian/tmp/usr/lib/knot/
+
 	dh_install -Nknot-doc --list-missing
 
 	install -m 755 -d $(CURDIR)/debian/knot/etc/ufw/applications.d/

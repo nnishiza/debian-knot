@@ -1,0 +1,39 @@
+#!/usr/bin/python
+
+import yaml, os.path
+
+conf = yaml.load(open("/etc/knot/knot.conf", "r"))
+
+dirs = set()
+
+if conf.has_key("template"):
+
+    for template in conf["template"]:
+        if template.has_key("kasp-db"):
+            kasp_db = template["kasp-db"]
+        else:
+            continue
+
+        if not os.path.isabs(kasp_db):
+            if template.has_key("storage"):
+                kasp_db = os.path.join(template["storage"], kasp_db)
+            else:
+                continue
+        dirs.add(kasp_db)
+
+if conf.has_key("zone"):
+    for domain in conf["zone"]:
+        if domain.has_key("kasp-db"):
+            kasp_db = domain["kasp-db"]
+        else:
+            continue
+
+        if not os.path.isabs(kasp_db):
+            if domain.has_key("storage"):
+                kasp_db = os.path.join(domain["storage"], kasp_db)
+            else:
+                continue
+        dirs.add(kasp_db)
+        
+for dir in dirs:
+    print dir

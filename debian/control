@@ -32,6 +32,7 @@ Vcs-Git: git://anonscm.debian.org/pkg-dns/knot.git
 Package: knot
 Architecture: any
 Depends: adduser,
+	 python-yaml,
          libdnssec0 (= ${binary:Version}),
          libknot1 (= ${binary:Version}),
          libzscanner0 (= ${binary:Version}),

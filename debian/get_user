@@ -1,0 +1,9 @@
+#!/usr/bin/python
+
+import yaml
+
+conf = yaml.load(open("/etc/knot/knot.conf", "r"))
+
+if conf.has_key("server"):
+    if conf["server"].has_key("user"):
+        print conf["server"]["user"].split(":")[0].split(".")[0]
