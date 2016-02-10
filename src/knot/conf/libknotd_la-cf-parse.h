@@ -94,25 +94,26 @@ extern int cf_debug;
     RATE_LIMIT_SLIP = 304,
     TRANSFERS = 305,
     STORAGE = 306,
-    DNSSEC_ENABLE = 307,
-    DNSSEC_KEYDIR = 308,
-    SIGNATURE_LIFETIME = 309,
-    SERIAL_POLICY = 310,
-    SERIAL_POLICY_VAL = 311,
-    QUERY_MODULE = 312,
-    INTERFACES = 313,
-    ADDRESS = 314,
-    PORT = 315,
-    IPA = 316,
-    IPA6 = 317,
-    VIA = 318,
-    CONTROL = 319,
-    ALLOW = 320,
-    LISTEN_ON = 321,
-    LOG = 322,
-    LOG_DEST = 323,
-    LOG_SRC = 324,
-    LOG_LEVEL = 325
+    TIMER_DB = 307,
+    DNSSEC_ENABLE = 308,
+    DNSSEC_KEYDIR = 309,
+    SIGNATURE_LIFETIME = 310,
+    SERIAL_POLICY = 311,
+    SERIAL_POLICY_VAL = 312,
+    QUERY_MODULE = 313,
+    INTERFACES = 314,
+    ADDRESS = 315,
+    PORT = 316,
+    IPA = 317,
+    IPA6 = 318,
+    VIA = 319,
+    CONTROL = 320,
+    ALLOW = 321,
+    LISTEN_ON = 322,
+    LOG = 323,
+    LOG_DEST = 324,
+    LOG_SRC = 325,
+    LOG_LEVEL = 326
   };
 #endif
 /* Tokens.  */
@@ -165,25 +166,26 @@ extern int cf_debug;
 #define RATE_LIMIT_SLIP 304
 #define TRANSFERS 305
 #define STORAGE 306
-#define DNSSEC_ENABLE 307
-#define DNSSEC_KEYDIR 308
-#define SIGNATURE_LIFETIME 309
-#define SERIAL_POLICY 310
-#define SERIAL_POLICY_VAL 311
-#define QUERY_MODULE 312
-#define INTERFACES 313
-#define ADDRESS 314
-#define PORT 315
-#define IPA 316
-#define IPA6 317
-#define VIA 318
-#define CONTROL 319
-#define ALLOW 320
-#define LISTEN_ON 321
-#define LOG 322
-#define LOG_DEST 323
-#define LOG_SRC 324
-#define LOG_LEVEL 325
+#define TIMER_DB 307
+#define DNSSEC_ENABLE 308
+#define DNSSEC_KEYDIR 309
+#define SIGNATURE_LIFETIME 310
+#define SERIAL_POLICY 311
+#define SERIAL_POLICY_VAL 312
+#define QUERY_MODULE 313
+#define INTERFACES 314
+#define ADDRESS 315
+#define PORT 316
+#define IPA 317
+#define IPA6 318
+#define VIA 319
+#define CONTROL 320
+#define ALLOW 321
+#define LISTEN_ON 322
+#define LOG 323
+#define LOG_DEST 324
+#define LOG_SRC 325
+#define LOG_LEVEL 326
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -199,7 +201,7 @@ union YYSTYPE
 		knot_tsig_algorithm_t alg;
 	} tok;
 
-#line 203 "knot/conf/libknotd_la-cf-parse.h" /* yacc.c:1909  */
+#line 205 "knot/conf/libknotd_la-cf-parse.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
