@@ -27,6 +27,7 @@
 #include "knot/zone/serial.h"
 #include "knot/zone/zonedb.h"
 #include "libknot/dnssec/rrset-sign.h"
+#include "contrib/mempattern.h"
 #include "contrib/sockaddr.h"
 
 /*! \brief Check if given node was already visited. */
@@ -752,7 +753,7 @@ static int planned_answer(struct query_plan *plan, knot_pkt_t *response, struct 
 
 #undef SOLVE_STEP
 
-int internet_query(knot_pkt_t *response, struct query_data *qdata)
+int internet_process_query(knot_pkt_t *response, struct query_data *qdata)
 {
 	if (response == NULL || qdata == NULL) {
 		return KNOT_STATE_FAIL;

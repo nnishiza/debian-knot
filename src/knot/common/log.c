@@ -172,7 +172,7 @@ int log_init()
 	/* Setup initial state. */
 	int ret = KNOT_EOK;
 	int emask = LOG_MASK(LOG_CRIT) | LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
-	int imask = LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG);
+	int imask = LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
 
 	/* Publish base log sink. */
 	struct log_sink *log = sink_setup(0);
@@ -474,16 +474,13 @@ static logtype_t get_logtype(const char *logname)
 	}
 }
 
-int log_reconfigure(conf_t *conf, void *data)
+void log_reconfigure(conf_t *conf)
 {
-	// Data not used
-	UNUSED(data);
-
 	// Use defaults if no 'log' section is configured.
 	if (conf_id_count(conf, C_LOG) == 0) {
 		log_close();
 		log_init();
-		return KNOT_EOK;
+		return;
 	}
 
 	// Find maximum log facility id
@@ -499,7 +496,7 @@ int log_reconfigure(conf_t *conf, void *data)
 	// Initialize logsystem
 	struct log_sink *log = sink_setup(files);
 	if (log == NULL) {
-		return KNOT_ENOMEM;
+		return;
 	}
 
 	// Setup logs
@@ -539,6 +536,4 @@ int log_reconfigure(conf_t *conf, void *data)
 	}
 
 	sink_publish(log);
-
-	return KNOT_EOK;
 }

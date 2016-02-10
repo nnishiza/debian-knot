@@ -1,4 +1,4 @@
-/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,12 +16,8 @@
 
 #include "libknot/libknot.h"
 #include "knot/zone/timers.h"
-#include "knot/zone/zonedb.h"
-#include "contrib/string.h"
 #include "contrib/wire.h"
 #include "contrib/wire_ctx.h"
-
-/* ---- Knot-internal event code to db key lookup tables ------------------ - */
 
 #define PERSISTENT_EVENT_COUNT 3
 
@@ -140,8 +136,6 @@ static int read_timers(knot_db_txn_t *txn, const zone_t *zone, time_t *timers)
 	return KNOT_EOK;
 }
 
-/* -------- API ------------------------------------------------------------- */
-
 int open_timers_db(const char *path, knot_db_t **timer_db)
 {
 	if (path == NULL || timer_db == NULL) {
@@ -154,6 +148,7 @@ int open_timers_db(const char *path, knot_db_t **timer_db)
 	}
 
 	struct knot_db_lmdb_opts opts = KNOT_DB_LMDB_OPTS_INITIALIZER;
+	opts.mapsize = (size_t)TIMER_MAPSIZE * 1024 * 1024;
 	opts.path = path;
 
 	return db_api->init(timer_db, NULL, &opts);

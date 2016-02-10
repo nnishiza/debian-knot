@@ -15,6 +15,7 @@
  */
 
 #include <dirent.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -108,8 +109,23 @@ static int make_daemon(int nochdir, int noclose)
 	return 0;
 }
 
-/*! \brief SIGINT signal handler. */
-static void interrupt_handle(int signum)
+struct signal {
+	int signum;
+	bool handle;
+};
+
+/*! \brief Signals used by the server. */
+static const struct signal SIGNALS[] = {
+	{ SIGHUP,  true  },  /* Reload server. */
+	{ SIGINT,  true  },  /* Terminate server .*/
+	{ SIGTERM, true  },
+	{ SIGALRM, false },  /* Internal thread synchronization. */
+	{ SIGPIPE, false },  /* Ignored. Some I/O errors. */
+	{ 0 }
+};
+
+/*! \brief Server signal handler. */
+static void handle_signal(int signum)
 {
 	switch (signum) {
 	case SIGHUP:
@@ -117,6 +133,9 @@ static void interrupt_handle(int signum)
 		break;
 	case SIGINT:
 	case SIGTERM:
+		if (sig_req_stop) {
+			abort();
+		}
 		sig_req_stop = true;
 		break;
 	default:
@@ -128,23 +147,31 @@ static void interrupt_handle(int signum)
 /*! \brief Setup signal handlers and blocking mask. */
 static void setup_signals(void)
 {
-	struct sigaction action;
-	memset(&action, 0, sizeof(struct sigaction));
-	action.sa_handler = interrupt_handle;
+	/* Block all signals. */
+	static sigset_t all;
+	sigfillset(&all);
+	pthread_sigmask(SIG_SETMASK, &all, NULL);
 
-	static sigset_t block_mask;
-	(void)sigemptyset(&block_mask);
+	/* Setup handlers. */
+	struct sigaction action = { .sa_handler = handle_signal };
+	for (const struct signal *s = SIGNALS; s->signum > 0; s++) {
+		sigaction(s->signum, &action, NULL);
+	}
+}
 
-	int signals[] = { SIGALRM, SIGHUP, SIGINT, SIGPIPE, SIGTERM };
-	size_t count = sizeof(signals) / sizeof(*signals);
+/*! \brief Unblock server control signals. */
+static void enable_signals(void)
+{
+	sigset_t mask;
+	sigemptyset(&mask);
 
-	for (int i = 0; i < count; i++) {
-		int signal = signals[i];
-		sigaction(signal, &action, NULL);
-		sigaddset(&block_mask, signal);
+	for (const struct signal *s = SIGNALS; s->signum > 0; s++) {
+		if (s->handle) {
+			sigaddset(&mask, s->signum);
+		}
 	}
 
-	pthread_sigmask(SIG_BLOCK, &block_mask, NULL);
+	pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 /*! \brief POSIX 1003.1e capabilities. */
@@ -186,44 +213,49 @@ static void setup_capabilities(void)
 }
 
 /*! \brief Event loop listening for signals and remote commands. */
-static void event_loop(server_t *server)
+static void event_loop(server_t *server, char *socket)
 {
 	uint8_t buf[KNOT_WIRE_MAX_PKTSIZE];
 	size_t buflen = sizeof(buf);
 
-	/* Read control socket configuration. */
-	conf_val_t listen_val = conf_get(conf(), C_CTL, C_LISTEN);
-	conf_val_t rundir_val = conf_get(conf(), C_SRV, C_RUNDIR);
-	char *rundir = conf_abs_path(&rundir_val, NULL);
-	char *listen = conf_abs_path(&listen_val, rundir);
-	free(rundir);
+	/* Get control socket configuration. */
+	char *listen = socket;
+	if (socket == NULL) {
+		conf_val_t listen_val = conf_get(conf(), C_CTL, C_LISTEN);
+		conf_val_t rundir_val = conf_get(conf(), C_SRV, C_RUNDIR);
+		char *rundir = conf_abs_path(&rundir_val, NULL);
+		listen = conf_abs_path(&listen_val, rundir);
+		free(rundir);
+	}
 
 	/* Bind to control socket (error logging is inside the function. */
 	int sock = remote_bind(listen);
-	free(listen);
 
-	sigset_t empty;
-	(void)sigemptyset(&empty);
+	if (socket == NULL) {
+		free(listen);
+	}
+
+	enable_signals();
 
 	/* Run event loop. */
 	for (;;) {
-		int ret = remote_poll(sock, &empty);
-
-		/* Events. */
-		if (ret > 0) {
-			ret = remote_process(server, sock, buf, buflen);
-			if (ret == KNOT_CTL_ESTOP) {
-				break;
-			}
-		}
-
 		/* Interrupts. */
 		if (sig_req_stop) {
 			break;
 		}
 		if (sig_req_reload) {
 			sig_req_reload = false;
-			server_reload(server, conf()->filename);
+			server_reload(server, conf()->filename, true);
+		}
+
+		/* Control interface. */
+		struct pollfd pfd = { .fd = sock, .events = POLLIN };
+		int ret = poll(&pfd, 1, -1);
+		if (ret > 0) {
+			ret = remote_process(server, sock, buf, buflen);
+			if (ret == KNOT_CTL_ESTOP) {
+				break;
+			}
 		}
 	}
 
@@ -240,10 +272,13 @@ static void print_help(void)
 	       "                           (default %s)\n"
 	       " -C, --confdb <dir>      Use a binary configuration database directory.\n"
 	       "                           (default %s)\n"
+	       " -s, --socket <path>     Use a remote control UNIX socket path.\n"
+	       "                           (default %s)\n"
 	       " -d, --daemonize=[dir]   Run the server as a daemon (with new root directory).\n"
+	       " -v, --verbose           Enable debug output.\n"
 	       " -h, --help              Print the program help.\n"
 	       " -V, --version           Print the program version.\n",
-	       PROGRAM_NAME, CONF_DEFAULT_FILE, CONF_DEFAULT_DBDIR);
+	       PROGRAM_NAME, CONF_DEFAULT_FILE, CONF_DEFAULT_DBDIR, RUN_DIR "/knot.sock");
 }
 
 static void print_version(void)
@@ -297,13 +332,9 @@ static int set_config(const char *confdb, const char *config)
 		}
 	}
 
-	/* Run post-open config operations. */
-	ret = conf_post_open(new_conf);
-	if (ret != KNOT_EOK) {
-		log_fatal("failed to use configuration (%s)", knot_strerror(ret));
-		conf_free(new_conf);
-		return ret;
-	}
+	/* Activate global query modules. */
+	conf_activate_modules(new_conf, NULL, &new_conf->query_modules,
+	                      &new_conf->query_plan);
 
 	/* Update to the new config. */
 	conf_update(new_conf);
@@ -317,12 +348,16 @@ int main(int argc, char **argv)
 	const char *config = NULL;
 	const char *confdb = NULL;
 	const char *daemon_root = "/";
+	char *socket = NULL;
+	bool verbose = false;
 
 	/* Long options. */
 	struct option opts[] = {
 		{ "config",    required_argument, NULL, 'c' },
 		{ "confdb",    required_argument, NULL, 'C' },
+		{ "socket",    required_argument, NULL, 's' },
 		{ "daemonize", optional_argument, NULL, 'd' },
+		{ "verbose",   no_argument,       NULL, 'v' },
 		{ "help",      no_argument,       NULL, 'h' },
 		{ "version",   no_argument,       NULL, 'V' },
 		{ NULL }
@@ -330,7 +365,7 @@ int main(int argc, char **argv)
 
 	/* Parse command line arguments. */
 	int opt = 0, li = 0;
-	while ((opt = getopt_long(argc, argv, "c:C:dhV", opts, &li)) != -1) {
+	while ((opt = getopt_long(argc, argv, "c:C:s:dvhV", opts, &li)) != -1) {
 		switch (opt) {
 		case 'c':
 			config = optarg;
@@ -338,11 +373,17 @@ int main(int argc, char **argv)
 		case 'C':
 			confdb = optarg;
 			break;
+		case 's':
+			socket = optarg;
+			break;
 		case 'd':
 			daemonize = true;
 			if (optarg) {
 				daemon_root = optarg;
 			}
+			break;
+		case 'v':
+			verbose = true;
 			break;
 		case 'h':
 			print_help();
@@ -388,6 +429,9 @@ int main(int argc, char **argv)
 
 	/* Initialize logging subsystem. */
 	log_init();
+	if (verbose) {
+		log_levels_add(LOGT_STDOUT, LOG_ANY, LOG_MASK(LOG_DEBUG));
+	}
 
 	/* Set up the configuration */
 	int ret = set_config(confdb, config);
@@ -397,7 +441,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Reconfigure logging. */
-	log_reconfigure(conf(), NULL);
+	log_reconfigure(conf());
 
 	/* Initialize server. */
 	server_t server;
@@ -412,7 +456,6 @@ int main(int argc, char **argv)
 	/* Reconfigure server interfaces.
 	 * @note This MUST be done before we drop privileges. */
 	server_reconfigure(conf(), &server);
-	log_info("configured %zu zones", conf_id_count(conf(), C_ZONE));
 
 	/* Alter privileges. */
 	int uid, gid;
@@ -453,7 +496,7 @@ int main(int argc, char **argv)
 	rcu_register_thread();
 
 	/* Populate zone database. */
-	log_info("loading zones");
+	log_info("loading %zu zones", conf_id_count(conf(), C_ZONE));
 	server_update_zones(conf(), &server);
 
 	/* Check number of loaded zones. */
@@ -484,7 +527,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Start the event loop. */
-	event_loop(&server);
+	event_loop(&server, socket);
 
 	/* Teardown server. */
 	server_stop(&server);
