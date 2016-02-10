@@ -32,10 +32,11 @@ Vcs-Git: git://anonscm.debian.org/pkg-dns/knot.git
 Package: knot
 Architecture: any
 Depends: adduser,
-	 python-yaml,
          libdnssec0 (= ${binary:Version}),
          libknot1 (= ${binary:Version}),
          libzscanner0 (= ${binary:Version}),
+         python,
+         python-yaml,
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: systemd
@@ -49,7 +50,8 @@ Description: authoritative domain name server
 
 Package: libknot1
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
 Section: libs
 Replaces: knot-libs (<< 2.0.1-4)
 Breaks: knot-libs (<< 2.0.1-4)
@@ -66,7 +68,8 @@ Description: authoritative domain name server
 
 Package: libzscanner0
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
 Section: libs
 Replaces: knot-libs (<< 2.0.1-4)
 Breaks: knot-libs (<< 2.0.1-4)
@@ -83,7 +86,8 @@ Description: authoritative domain name server
 
 Package: libdnssec0
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
 Section: libs
 Replaces: knot-libs (<< 2.0.1-4)
 Breaks: knot-libs (<< 2.0.1-4)
@@ -101,10 +105,10 @@ Description: authoritative domain name server
 Package: libknot-dev
 Architecture: any
 Depends: libdnssec0 (= ${binary:Version}),
+         libgnutls28-dev,
+         libjansson-dev,
          libknot1 (= ${binary:Version}),
          libzscanner0 (= ${binary:Version}),
-	 libgnutls28-dev,
-	 libjansson-dev,
          ${misc:Depends},
          ${shlibs:Depends}
 Section: libdevel
