@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.60])
-AC_INIT([knot], [1.6.6], [knot-dns@labs.nic.cz])
+AC_INIT([knot], [1.6.7], [knot-dns@labs.nic.cz])
 AM_INIT_AUTOMAKE([gnits subdir-objects dist-xz -Wall -Werror])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot/main.c])
@@ -375,7 +375,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sched.h>]], [[cpuset_t* set = cpuset
 # Add code coverage macro
 AX_CODE_COVERAGE
 
-AC_PATH_PROG([SPHINXBUILD], [sphinx-build], [false])
+AC_PATH_PROGS([SPHINXBUILD], [sphinx-build sphinx-build-3], [false])
 AS_IF([test "$SPHINXBUILD" = "false"],
   [AC_MSG_WARN([Could not find the 'sphinx-build' executable, you will be unable to regenerate documentation.])],
   [AC_PATH_PROG([PDFLATEX], [pdflatex], [false])

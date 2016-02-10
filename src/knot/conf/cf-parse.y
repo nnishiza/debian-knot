@@ -525,6 +525,7 @@ static void ident_auto(void *scanner, int tok, conf_t *conf, bool val)
 %token <tok> RATE_LIMIT_SLIP
 %token <tok> TRANSFERS
 %token <TOK> STORAGE
+%token <TOK> TIMER_DB
 %token <tok> DNSSEC_ENABLE
 %token <tok> DNSSEC_KEYDIR
 %token <tok> SIGNATURE_LIFETIME
@@ -683,7 +684,7 @@ system:
 	SET_SIZE(new_config->rrl_size, $3.i, "rate-limit-size");
  }
  | system RATE_LIMIT_SLIP NUM ';' {
-	SET_NUM(new_config->rrl_slip, $3.i, 1, RRL_SLIP_MAX, "rate-limit-slip");
+	SET_NUM(new_config->rrl_slip, $3.i, 0, RRL_SLIP_MAX, "rate-limit-slip");
  }
  | system TRANSFERS NUM ';' {
 	SET_INT(new_config->xfers, $3.i, "transfers");
@@ -1012,6 +1013,7 @@ zones:
 	SET_NUM(new_config->dbsync_timeout, $3.i, 0, INT_MAX, "zonefile-sync");
  }
  | zones STORAGE TEXT ';' { new_config->storage = $3.t; }
+ | zones TIMER_DB TEXT ';' { new_config->timer_db = $3.t; }
  | zones DNSSEC_ENABLE BOOL ';' { new_config->dnssec_enable = $3.i; }
  | zones DNSSEC_KEYDIR TEXT ';' { new_config->dnssec_keydir = $3.t; }
  | zones SIGNATURE_LIFETIME NUM ';' {
