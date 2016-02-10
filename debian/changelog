@@ -1,3 +1,9 @@
+knot (2.1.1-1) unstable; urgency=medium
+
+  * Imported Upstream version 2.1.1
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 10 Feb 2016 20:01:44 +0100
+
 knot (2.1.0-3) unstable; urgency=medium
 
   * Add small python helper programs to get values from knot.conf
