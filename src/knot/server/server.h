@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,9 +14,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*!
- * \file server.h
- *
- * \author Lubos Slovak <lubos.slovak@nic.cz>
+ * \file
  *
  * \brief Core server functions.
  *
@@ -31,19 +29,18 @@
 
 #include "sys/socket.h"
 
-#include "libknot/libknot.h"
+#include "knot/conf/conf.h"
 #include "knot/common/evsched.h"
 #include "knot/common/fdset.h"
 #include "knot/server/dthreads.h"
+#include "knot/common/ref.h"
 #include "knot/server/rrl.h"
 #include "knot/worker/pool.h"
 #include "knot/zone/zonedb.h"
 #include "contrib/ucw/lists.h"
 
 /* Forwad declarations. */
-struct iface;
 struct server;
-struct conf;
 
 /*! \brief I/O handler structure.
   */
@@ -74,11 +71,10 @@ typedef struct iface {
 	struct sockaddr_storage addr;
 } iface_t;
 
-/* Handler types. */
+/* Handler indexes. */
 enum {
 	IO_UDP = 0,
-	IO_TCP,
-	IO_COUNT
+	IO_TCP = 1
 };
 
 typedef struct ifacelist {
@@ -102,8 +98,10 @@ typedef struct server {
 	knot_db_t *timers_db;
 
 	/*! \brief I/O handlers. */
-	unsigned tu_size;
-	iohandler_t handler[IO_COUNT];
+	struct {
+		unsigned size;
+		iohandler_t handler;
+	} handlers[2];
 
 	/*! \brief Background jobs. */
 	worker_pool_t *workers;
@@ -157,11 +155,12 @@ void server_wait(server_t *server);
 /*!
  * \brief Reload server configuration.
  *
- * \param server Server instance.
- * \param cf Config file path.
+ * \param server            Server instance.
+ * \param cf                Config file path.
+ * \param refresh_hostname  Refresh hostname indicator.
  * \return
  */
-int server_reload(server_t *server, const char *cf);
+int server_reload(server_t *server, const char *cf, bool refresh_hostname);
 
 /*!
  * \brief Requests server to stop.
@@ -174,30 +173,25 @@ void server_stop(server_t *server);
  * \brief Server reconfiguration routine.
  *
  * Routine for dynamic server reconfiguration.
- *
- * \retval KNOT_EOK on success.
- * \retval KNOT_ENOTRUNNING if the server is not running.
- * \retval KNOT_EINVAL on invalid parameters.
- * \retval KNOT_ERROR unspecified error.
  */
-int server_reconfigure(conf_t *conf, void *data);
+void server_reconfigure(conf_t *conf, server_t *data);
 
 /*!
  * \brief Reconfigure zone database.
  *
- * Routine for dynamic server reconfiguration.
- *
- * \return KNOT_EOK on success or KNOT_ error
+ * Routine for dynamic server zones reconfiguration.
  */
-int server_update_zones(conf_t *conf, void *data);
+void server_update_zones(conf_t *conf, server_t *server);
 
 /*!
  * \brief Update fdsets from current interfaces list.
- * \param s Server.
- * \param fds Filedescriptor set.
- * \param type I/O type (UDP/TCP).
+ *
+ * \param server  Server.
+ * \param fds     File descriptor set.
+ * \param index   I/O index (UDP/TCP).
+ *
  * \return new interface list
  */
-ref_t *server_set_ifaces(server_t *s, fdset_t *fds, int type, int thread_id);
+ref_t *server_set_ifaces(server_t *server, fdset_t *fds, int index, int thread_id);
 
 /*! @} */

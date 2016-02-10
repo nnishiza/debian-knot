@@ -15,7 +15,6 @@
  */
 
 #include <dlfcn.h>
-#include <time.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -36,8 +35,8 @@
 
 #include "knot/server/udp-handler.h"
 #include "knot/server/server.h"
+#include "knot/nameserver/process_query.h"
 #include "libknot/libknot.h"
-#include "libknot/processing/overlay.h"
 #include "contrib/macros.h"
 #include "contrib/mempattern.h"
 #include "contrib/sockaddr.h"
@@ -56,52 +55,6 @@ typedef struct udp_context {
 	server_t *server;            /*!< Name server structure. */
 	unsigned thread_id;          /*!< Thread identifier. */
 } udp_context_t;
-
-/* FD_COPY macro compat. */
-#ifndef FD_COPY
-#define FD_COPY(src, dest) memcpy((dest), (src), sizeof(fd_set))
-#endif
-
-/* Mirror mode (no answering). */
-/* #define MIRROR_MODE 1 */
-
-/* PPS measurement. */
-/* #define MEASURE_PPS 1 */
-
-/* Next-gen packet processing API. */
-#define PACKET_NG
-#ifdef PACKET_NG
-#include "knot/nameserver/process_query.h"
-#endif
-
-/* PPS measurement */
-#ifdef MEASURE_PPS
-
-/* Not thread-safe, used only for RX thread. */
-static struct timeval __pps_t0, __pps_t1;
-volatile static unsigned __pps_rx = 0;
-static inline void udp_pps_begin()
-{
-	gettimeofday(&__pps_t0, NULL);
-}
-
-static inline void udp_pps_sample(unsigned n, unsigned thr_id)
-{
-	__pps_rx += n;
-	if (thr_id == 0) {
-		gettimeofday(&__pps_t1, NULL);
-		if (time_diff(&__pps_t0, &__pps_t1) >= 1000.0) {
-			unsigned pps = __pps_rx;
-			memcpy(&__pps_t0, &__pps_t1, sizeof(struct timeval));
-			__pps_rx = 0;
-			log_server_info("RX rate %u packets/second", pps);
-		}
-	}
-}
-#else
-static inline void udp_pps_begin() {}
-static inline void udp_pps_sample(unsigned n, unsigned thr_id) {}
-#endif
 
 static void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
                        struct iovec *rx, struct iovec *tx)
@@ -172,6 +125,36 @@ static int (*_udp_recv)(int, void *) = 0;
 static int (*_udp_handle)(udp_context_t *, void *) = 0;
 static int (*_udp_send)(void *) = 0;
 
+/*! \brief Control message to fit IP_PKTINFO or IPv6_RECVPKTINFO. */
+typedef union {
+	struct cmsghdr cmsg;
+	uint8_t buf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+} cmsg_pktinfo_t;
+
+static void udp_pktinfo_handle(const struct msghdr *rx, struct msghdr *tx)
+{
+	tx->msg_controllen = rx->msg_controllen;
+	if (tx->msg_controllen > 0) {
+		tx->msg_control = rx->msg_control;
+	} else {
+		// BSD has problem with zero length and not-null pointer
+		tx->msg_control = NULL;
+	}
+
+	#if defined(__APPLE__)
+	/*
+	 * Workaround for OS X: If ipi_ifindex is non-zero, the source address
+	 * will be ignored. We need to use correct one.
+	 */
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(tx);
+	if (cmsg->cmsg_type == IP_PKTINFO) {
+		struct in_pktinfo *info = (struct in_pktinfo *)CMSG_DATA(cmsg);
+		info->ipi_spec_dst = info->ipi_addr;
+		info->ipi_ifindex = 0;
+	}
+	#endif
+}
+
 /* UDP recvfrom() request struct. */
 struct udp_recvfrom {
 	int fd;
@@ -179,6 +162,7 @@ struct udp_recvfrom {
 	struct msghdr msg[NBUFS];
 	struct iovec iov[NBUFS];
 	uint8_t buf[NBUFS][KNOT_WIRE_MAX_PKTSIZE];
+	cmsg_pktinfo_t pktinfo;
 };
 
 static void *udp_recvfrom_init(void)
@@ -187,8 +171,8 @@ static void *udp_recvfrom_init(void)
 	if (rq == NULL) {
 		return NULL;
 	}
-
 	memset(rq, 0, sizeof(struct udp_recvfrom));
+
 	for (unsigned i = 0; i < NBUFS; ++i) {
 		rq->iov[i].iov_base = rq->buf + i;
 		rq->iov[i].iov_len = KNOT_WIRE_MAX_PKTSIZE;
@@ -196,8 +180,8 @@ static void *udp_recvfrom_init(void)
 		rq->msg[i].msg_namelen = sizeof(rq->addr);
 		rq->msg[i].msg_iov = &rq->iov[i];
 		rq->msg[i].msg_iovlen = 1;
-		rq->msg[i].msg_control = NULL;
-		rq->msg[i].msg_controllen = 0;
+		rq->msg[i].msg_control = &rq->pktinfo.cmsg;
+		rq->msg[i].msg_controllen = sizeof(rq->pktinfo);
 	}
 	return rq;
 }
@@ -215,6 +199,7 @@ static int udp_recvfrom_recv(int fd, void *d)
 	struct udp_recvfrom *rq = (struct udp_recvfrom *)d;
 	rq->iov[RX].iov_len = KNOT_WIRE_MAX_PKTSIZE;
 	rq->msg[RX].msg_namelen = sizeof(struct sockaddr_storage);
+	rq->msg[RX].msg_controllen = sizeof(rq->pktinfo);
 
 	int ret = recvmsg(fd, &rq->msg[RX], MSG_DONTWAIT);
 	if (ret > 0) {
@@ -233,6 +218,8 @@ static int udp_recvfrom_handle(udp_context_t *ctx, void *d)
 	/* Prepare TX address. */
 	rq->msg[TX].msg_namelen = rq->msg[RX].msg_namelen;
 	rq->iov[TX].iov_len = KNOT_WIRE_MAX_PKTSIZE;
+
+	udp_pktinfo_handle(&rq->msg[RX], &rq->msg[TX]);
 
 	/* Process received pkt. */
 	udp_handle(ctx, rq->fd, &rq->addr, &rq->iov[RX], &rq->iov[TX]);
@@ -303,12 +290,13 @@ static int udp_sendmmsg(int sock, struct sockaddr *_, struct mmsghdr *msgs, size
 /* UDP recvmmsg() request struct. */
 struct udp_recvmmsg {
 	int fd;
-	struct sockaddr_storage *addrs;
+	struct sockaddr_storage addrs[RECVMMSG_BATCHLEN];
 	char *iobuf[NBUFS];
 	struct iovec *iov[NBUFS];
 	struct mmsghdr *msgs[NBUFS];
 	unsigned rcvd;
 	knot_mm_t mm;
+	cmsg_pktinfo_t pktinfo[RECVMMSG_BATCHLEN];
 };
 
 static void *udp_recvmmsg_init(void)
@@ -317,11 +305,8 @@ static void *udp_recvmmsg_init(void)
 	mm_ctx_mempool(&mm, sizeof(struct udp_recvmmsg));
 
 	struct udp_recvmmsg *rq = mm.alloc(mm.ctx, sizeof(struct udp_recvmmsg));
+	memset(rq, 0, sizeof(*rq));
 	memcpy(&rq->mm, &mm, sizeof(knot_mm_t));
-
-	/* Initialize addresses. */
-	rq->addrs = mm.alloc(mm.ctx, sizeof(struct sockaddr_storage) * RECVMMSG_BATCHLEN);
-	memset(rq->addrs, 0, sizeof(struct sockaddr_storage) * RECVMMSG_BATCHLEN);
 
 	/* Initialize buffers. */
 	for (unsigned i = 0; i < NBUFS; ++i) {
@@ -336,6 +321,8 @@ static void *udp_recvmmsg_init(void)
 			rq->msgs[i][k].msg_hdr.msg_iovlen = 1;
 			rq->msgs[i][k].msg_hdr.msg_name = rq->addrs + k;
 			rq->msgs[i][k].msg_hdr.msg_namelen = sizeof(struct sockaddr_storage);
+			rq->msgs[i][k].msg_hdr.msg_control = &rq->pktinfo[k].cmsg;
+			rq->msgs[i][k].msg_hdr.msg_controllen = sizeof(cmsg_pktinfo_t);
 		}
 	}
 
@@ -355,6 +342,7 @@ static int udp_recvmmsg_deinit(void *d)
 static int udp_recvmmsg_recv(int fd, void *d)
 {
 	struct udp_recvmmsg *rq = (struct udp_recvmmsg *)d;
+
 	int n = recvmmsg(fd, rq->msgs[RX], RECVMMSG_BATCHLEN, MSG_DONTWAIT, NULL);
 	if (n > 0) {
 		rq->fd = fd;
@@ -372,6 +360,8 @@ static int udp_recvmmsg_handle(udp_context_t *ctx, void *d)
 		struct iovec *rx = rq->msgs[RX][i].msg_hdr.msg_iov;
 		struct iovec *tx = rq->msgs[TX][i].msg_hdr.msg_iov;
 		rx->iov_len = rq->msgs[RX][i].msg_len; /* Received bytes. */
+
+		udp_pktinfo_handle(&rq->msgs[RX][i].msg_hdr,&rq->msgs[TX][i].msg_hdr);
 
 		udp_handle(ctx, rq->fd, rq->addrs + i, rx, tx);
 		rq->msgs[TX][i].msg_len = tx->iov_len;
@@ -399,6 +389,7 @@ static int udp_recvmmsg_send(void *d)
 		memset(rq->addrs + i, 0, sizeof(struct sockaddr_storage));
 		rq->msgs[RX][i].msg_hdr.msg_namelen = sizeof(struct sockaddr_storage);
 		rq->msgs[TX][i].msg_hdr.msg_namelen = sizeof(struct sockaddr_storage);
+		rq->msgs[RX][i].msg_hdr.msg_controllen = sizeof(cmsg_pktinfo_t);
 	}
 	return rc;
 }
@@ -530,8 +521,6 @@ int udp_master(dthread_t *thread)
 	struct pollfd *fds = NULL;
 	nfds_t nfds = 0;
 
-	udp_pps_begin();
-
 	/* Loop until all data is read. */
 	for (;;) {
 
@@ -574,7 +563,6 @@ int udp_master(dthread_t *thread)
 				/* Flush allocated memory. */
 				mp_flush(mm.ctx);
 				_udp_send(rq);
-				udp_pps_sample(rcvd, thr_id);
 			}
 		}
 	}

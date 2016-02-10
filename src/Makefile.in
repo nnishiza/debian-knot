@@ -484,8 +484,8 @@ am__knotc_SOURCES_DIST = utils/knotc/commands.c utils/knotc/commands.h \
 @HAVE_DAEMON_TRUE@	utils/knotc/main.$(OBJEXT)
 knotc_OBJECTS = $(am_knotc_OBJECTS)
 @HAVE_DAEMON_TRUE@knotc_DEPENDENCIES = libknotd.la
-am__knotd_SOURCES_DIST = knot/main.c
-@HAVE_DAEMON_TRUE@am_knotd_OBJECTS = knot/knotd-main.$(OBJEXT)
+am__knotd_SOURCES_DIST = utils/knotd/main.c
+@HAVE_DAEMON_TRUE@am_knotd_OBJECTS = utils/knotd/knotd-main.$(OBJEXT)
 knotd_OBJECTS = $(am_knotd_OBJECTS)
 @HAVE_DAEMON_TRUE@knotd_DEPENDENCIES = libknotd.la \
 @HAVE_DAEMON_TRUE@	$(am__DEPENDENCIES_1)
@@ -950,7 +950,7 @@ pkgconfig_DATA = libknot.pc
 @HAVE_DAEMON_TRUE@	utils/knotc/main.c
 
 @HAVE_DAEMON_TRUE@knotd_SOURCES = \
-@HAVE_DAEMON_TRUE@	knot/main.c
+@HAVE_DAEMON_TRUE@	utils/knotd/main.c
 
 @HAVE_DAEMON_TRUE@knot1to2_SOURCES = \
 @HAVE_DAEMON_TRUE@	utils/knot1to2/cf-lex.c			\
@@ -1948,14 +1948,14 @@ utils/knotc/main.$(OBJEXT): utils/knotc/$(am__dirstamp) \
 knotc$(EXEEXT): $(knotc_OBJECTS) $(knotc_DEPENDENCIES) $(EXTRA_knotc_DEPENDENCIES) 
 	@rm -f knotc$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(knotc_OBJECTS) $(knotc_LDADD) $(LIBS)
-knot/$(am__dirstamp):
-	@$(MKDIR_P) knot
-	@: > knot/$(am__dirstamp)
-knot/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) knot/$(DEPDIR)
-	@: > knot/$(DEPDIR)/$(am__dirstamp)
-knot/knotd-main.$(OBJEXT): knot/$(am__dirstamp) \
-	knot/$(DEPDIR)/$(am__dirstamp)
+utils/knotd/$(am__dirstamp):
+	@$(MKDIR_P) utils/knotd
+	@: > utils/knotd/$(am__dirstamp)
+utils/knotd/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/knotd/$(DEPDIR)
+	@: > utils/knotd/$(DEPDIR)/$(am__dirstamp)
+utils/knotd/knotd-main.$(OBJEXT): utils/knotd/$(am__dirstamp) \
+	utils/knotd/$(DEPDIR)/$(am__dirstamp)
 
 knotd$(EXEEXT): $(knotd_OBJECTS) $(knotd_DEPENDENCIES) $(EXTRA_knotd_DEPENDENCIES) 
 	@rm -f knotd$(EXEEXT)
@@ -2000,7 +2000,6 @@ mostlyclean-compile:
 	-rm -f contrib/openbsd/*.lo
 	-rm -f contrib/ucw/*.$(OBJEXT)
 	-rm -f contrib/ucw/*.lo
-	-rm -f knot/*.$(OBJEXT)
 	-rm -f knot/common/*.$(OBJEXT)
 	-rm -f knot/common/*.lo
 	-rm -f knot/conf/*.$(OBJEXT)
@@ -2045,6 +2044,7 @@ mostlyclean-compile:
 	-rm -f utils/khost/*.$(OBJEXT)
 	-rm -f utils/knot1to2/*.$(OBJEXT)
 	-rm -f utils/knotc/*.$(OBJEXT)
+	-rm -f utils/knotd/*.$(OBJEXT)
 	-rm -f utils/knsupdate/*.$(OBJEXT)
 
 distclean-compile:
@@ -2068,7 +2068,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/ucw/$(DEPDIR)/heap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/ucw/$(DEPDIR)/lists.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/ucw/$(DEPDIR)/mempool.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/$(DEPDIR)/knotd-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/common/$(DEPDIR)/libknotd_la-evsched.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/common/$(DEPDIR)/libknotd_la-fdset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/common/$(DEPDIR)/libknotd_la-log.Plo@am__quote@
@@ -2197,6 +2196,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knotc/$(DEPDIR)/estimator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knotc/$(DEPDIR)/main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knotc/$(DEPDIR)/remote.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/knotd/$(DEPDIR)/knotd-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate_exec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate_params.Po@am__quote@
@@ -2995,19 +2995,19 @@ utils/common/libknotus_la-token.lo: utils/common/token.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-token.lo `test -f 'utils/common/token.c' || echo '$(srcdir)/'`utils/common/token.c
 
-knot/knotd-main.o: knot/main.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/knotd-main.o -MD -MP -MF knot/$(DEPDIR)/knotd-main.Tpo -c -o knot/knotd-main.o `test -f 'knot/main.c' || echo '$(srcdir)/'`knot/main.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/$(DEPDIR)/knotd-main.Tpo knot/$(DEPDIR)/knotd-main.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/main.c' object='knot/knotd-main.o' libtool=no @AMDEPBACKSLASH@
+utils/knotd/knotd-main.o: utils/knotd/main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knotd/knotd-main.o -MD -MP -MF utils/knotd/$(DEPDIR)/knotd-main.Tpo -c -o utils/knotd/knotd-main.o `test -f 'utils/knotd/main.c' || echo '$(srcdir)/'`utils/knotd/main.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knotd/$(DEPDIR)/knotd-main.Tpo utils/knotd/$(DEPDIR)/knotd-main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knotd/main.c' object='utils/knotd/knotd-main.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/knotd-main.o `test -f 'knot/main.c' || echo '$(srcdir)/'`knot/main.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knotd/knotd-main.o `test -f 'utils/knotd/main.c' || echo '$(srcdir)/'`utils/knotd/main.c
 
-knot/knotd-main.obj: knot/main.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/knotd-main.obj -MD -MP -MF knot/$(DEPDIR)/knotd-main.Tpo -c -o knot/knotd-main.obj `if test -f 'knot/main.c'; then $(CYGPATH_W) 'knot/main.c'; else $(CYGPATH_W) '$(srcdir)/knot/main.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/$(DEPDIR)/knotd-main.Tpo knot/$(DEPDIR)/knotd-main.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/main.c' object='knot/knotd-main.obj' libtool=no @AMDEPBACKSLASH@
+utils/knotd/knotd-main.obj: utils/knotd/main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knotd/knotd-main.obj -MD -MP -MF utils/knotd/$(DEPDIR)/knotd-main.Tpo -c -o utils/knotd/knotd-main.obj `if test -f 'utils/knotd/main.c'; then $(CYGPATH_W) 'utils/knotd/main.c'; else $(CYGPATH_W) '$(srcdir)/utils/knotd/main.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knotd/$(DEPDIR)/knotd-main.Tpo utils/knotd/$(DEPDIR)/knotd-main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knotd/main.c' object='utils/knotd/knotd-main.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/knotd-main.obj `if test -f 'knot/main.c'; then $(CYGPATH_W) 'knot/main.c'; else $(CYGPATH_W) '$(srcdir)/knot/main.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knotd/knotd-main.obj `if test -f 'utils/knotd/main.c'; then $(CYGPATH_W) 'utils/knotd/main.c'; else $(CYGPATH_W) '$(srcdir)/utils/knotd/main.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -3289,8 +3289,6 @@ distclean-generic:
 	-rm -f contrib/openbsd/$(am__dirstamp)
 	-rm -f contrib/ucw/$(DEPDIR)/$(am__dirstamp)
 	-rm -f contrib/ucw/$(am__dirstamp)
-	-rm -f knot/$(DEPDIR)/$(am__dirstamp)
-	-rm -f knot/$(am__dirstamp)
 	-rm -f knot/common/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/common/$(am__dirstamp)
 	-rm -f knot/conf/$(DEPDIR)/$(am__dirstamp)
@@ -3339,6 +3337,8 @@ distclean-generic:
 	-rm -f utils/knot1to2/$(am__dirstamp)
 	-rm -f utils/knotc/$(DEPDIR)/$(am__dirstamp)
 	-rm -f utils/knotc/$(am__dirstamp)
+	-rm -f utils/knotd/$(DEPDIR)/$(am__dirstamp)
+	-rm -f utils/knotd/$(am__dirstamp)
 	-rm -f utils/knsupdate/$(DEPDIR)/$(am__dirstamp)
 	-rm -f utils/knsupdate/$(am__dirstamp)
 
@@ -3353,7 +3353,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libLTLIBRARIES \
 	clean-sbinPROGRAMS mostlyclean-am
 
 distclean: distclean-recursive
-	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/db/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knsupdate/$(DEPDIR)
+	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/db/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -3403,7 +3403,7 @@ installcheck-am: installcheck-binPROGRAMS installcheck-libexecPROGRAMS \
 	installcheck-sbinPROGRAMS
 
 maintainer-clean: maintainer-clean-recursive
-	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/db/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knsupdate/$(DEPDIR)
+	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/db/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

@@ -109,15 +109,36 @@ typedef struct {
  * Configuration access flags.
  */
 typedef enum {
-	CONF_FNONE     = 0,      /*!< Empty flag. */
-	CONF_FREADONLY = 1 << 0, /*!< Read only access. */
-	CONF_FNOCHECK  = 1 << 1  /*!< Disabled confdb check. */
+	CONF_FNONE        = 0,      /*!< Empty flag. */
+	CONF_FREADONLY    = 1 << 0, /*!< Read only access. */
+	CONF_FNOCHECK     = 1 << 1, /*!< Disabled confdb check. */
+	CONF_FNOHOSTNAME  = 1 << 2, /*!< Don't set the hostname. */
 } conf_flag_t;
 
 /*!
  * Returns the active configuration.
  */
 conf_t* conf(void);
+
+/*!
+ * Refreshes common read-only transaction.
+ *
+ * \param[in] conf  Configuration.
+ *
+ * \return Error code, KNOT_EOK if success.
+ */
+int conf_refresh_txn(
+	conf_t *conf
+);
+
+/*!
+ * Refreshes cached hostname.
+ *
+ * \param[in] conf  Configuration.
+ */
+void conf_refresh_hostname(
+	conf_t *conf
+);
 
 /*!
  * Creates new or opens old configuration database.
@@ -147,17 +168,6 @@ int conf_new(
  */
 int conf_clone(
 	conf_t **conf
-);
-
-/*!
- * Processes some additional operations and checks after configuration loading.
- *
- * \param[in] conf  Configuration.
- *
- * \return Error code, KNOT_EOK if success.
- */
-int conf_post_open(
-	conf_t *conf
 );
 
 /*!
@@ -196,12 +206,10 @@ void conf_activate_modules(
 /*!
  * Deactivates query modules list.
  *
- * \param[in] conf           Configuration.
  * \param[in] query_modules  Destination query modules list.
  * \param[in] query_plan     Destination query plan.
  */
 void conf_deactivate_modules(
-	conf_t *conf,
 	list_t *query_modules,
 	struct query_plan **query_plan
 );

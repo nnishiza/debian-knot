@@ -161,7 +161,7 @@ static int zone_status(zone_t *zone, remote_cmdargs_t *a)
 
 	conf_val_t val = conf_zone_get(conf(), C_DNSSEC_SIGNING, zone->name);
 	bool dnssec_enable = conf_bool(&val);
-	bool is_slave = zone_is_slave(zone);
+	bool is_slave = zone_is_slave(conf(), zone);
 
 	int n = snprintf(buf, sizeof(buf),
 	                 "%s%s\ttype=%s | serial=%u | %s %s | %s %s",
@@ -198,7 +198,7 @@ static int zone_refresh(zone_t *zone, remote_cmdargs_t *a)
 {
 	UNUSED(a);
 
-	if (!zone_is_slave(zone)) {
+	if (!zone_is_slave(conf(), zone)) {
 		return KNOT_ENOTSUP;
 	}
 
@@ -211,7 +211,7 @@ static int zone_retransfer(zone_t *zone, remote_cmdargs_t *a)
 {
 	UNUSED(a);
 
-	if (!zone_is_slave(zone)) {
+	if (!zone_is_slave(conf(), zone)) {
 		return KNOT_ENOTSUP;
 	}
 
@@ -269,7 +269,7 @@ static int ctl_reload(server_t *s, remote_cmdargs_t *a)
 	UNUSED(s);
 	UNUSED(a);
 
-	return server_reload(s, conf()->filename);
+	return server_reload(s, conf()->filename, true);
 }
 
 static int ctl_zone_status(server_t *s, remote_cmdargs_t *a)
@@ -375,7 +375,7 @@ static int ctl_conf_commit(server_t *s, remote_cmdargs_t *a)
 		return ret;
 	}
 
-	return server_reload(s, NULL);
+	return server_reload(s, NULL, false);
 }
 
 static int ctl_conf_abort(server_t *s, remote_cmdargs_t *a)

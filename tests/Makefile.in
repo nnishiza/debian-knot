@@ -98,12 +98,12 @@ check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
 	process_answer$(EXEEXT) process_query$(EXEEXT) \
 	query_module$(EXEEXT) rdata$(EXEEXT) rdataset$(EXEEXT) \
 	requestor$(EXEEXT) rrl$(EXEEXT) rrset$(EXEEXT) \
-	rrset_wire$(EXEEXT) server$(EXEEXT) tsig_key$(EXEEXT) \
-	wire$(EXEEXT) wire_ctx$(EXEEXT) worker_pool$(EXEEXT) \
-	worker_queue$(EXEEXT) yparser$(EXEEXT) ypscheme$(EXEEXT) \
-	yptrafo$(EXEEXT) zone_events$(EXEEXT) zone_serial$(EXEEXT) \
-	zone_timers$(EXEEXT) zone_update$(EXEEXT) zonedb$(EXEEXT) \
-	ztree$(EXEEXT) modules/online_sign$(EXEEXT)
+	rrset_wire$(EXEEXT) server$(EXEEXT) sockaddr$(EXEEXT) \
+	tsig_key$(EXEEXT) wire$(EXEEXT) wire_ctx$(EXEEXT) \
+	worker_pool$(EXEEXT) worker_queue$(EXEEXT) yparser$(EXEEXT) \
+	ypscheme$(EXEEXT) yptrafo$(EXEEXT) zone_events$(EXEEXT) \
+	zone_serial$(EXEEXT) zone_timers$(EXEEXT) zone_update$(EXEEXT) \
+	zonedb$(EXEEXT) ztree$(EXEEXT) modules/online_sign$(EXEEXT)
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
@@ -305,6 +305,11 @@ server_OBJECTS = server.$(OBJEXT)
 server_LDADD = $(LDADD)
 server_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+sockaddr_SOURCES = sockaddr.c
+sockaddr_OBJECTS = sockaddr.$(OBJEXT)
+sockaddr_LDADD = $(LDADD)
+sockaddr_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 tsig_key_SOURCES = tsig_key.c
 tsig_key_OBJECTS = tsig_key.$(OBJEXT)
 tsig_key_LDADD = $(LDADD)
@@ -416,10 +421,10 @@ SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	lookup.c modules/online_sign.c net.c net_shortwrite.c node.c \
 	overlay.c pkt.c $(process_answer_SOURCES) \
 	$(process_query_SOURCES) query_module.c rdata.c rdataset.c \
-	requestor.c rrl.c rrset.c rrset_wire.c server.c tsig_key.c \
-	wire.c wire_ctx.c worker_pool.c worker_queue.c yparser.c \
-	ypscheme.c yptrafo.c zone_events.c zone_serial.c zone_timers.c \
-	zone_update.c zonedb.c ztree.c
+	requestor.c rrl.c rrset.c rrset_wire.c server.c sockaddr.c \
+	tsig_key.c wire.c wire_ctx.c worker_pool.c worker_queue.c \
+	yparser.c ypscheme.c yptrafo.c zone_events.c zone_serial.c \
+	zone_timers.c zone_update.c zonedb.c ztree.c
 DIST_SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	$(conf_SOURCES) conf_tools.c $(confdb_SOURCES) \
 	$(confio_SOURCES) db.c descriptor.c dname.c dthreads.c edns.c \
@@ -427,10 +432,10 @@ DIST_SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	lookup.c modules/online_sign.c net.c net_shortwrite.c node.c \
 	overlay.c pkt.c $(process_answer_SOURCES) \
 	$(process_query_SOURCES) query_module.c rdata.c rdataset.c \
-	requestor.c rrl.c rrset.c rrset_wire.c server.c tsig_key.c \
-	wire.c wire_ctx.c worker_pool.c worker_queue.c yparser.c \
-	ypscheme.c yptrafo.c zone_events.c zone_serial.c zone_timers.c \
-	zone_update.c zonedb.c ztree.c
+	requestor.c rrl.c rrset.c rrset_wire.c server.c sockaddr.c \
+	tsig_key.c wire.c wire_ctx.c worker_pool.c worker_queue.c \
+	yparser.c ypscheme.c yptrafo.c zone_events.c zone_serial.c \
+	zone_timers.c zone_update.c zonedb.c ztree.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -833,6 +838,10 @@ server$(EXEEXT): $(server_OBJECTS) $(server_DEPENDENCIES) $(EXTRA_server_DEPENDE
 	@rm -f server$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(server_OBJECTS) $(server_LDADD) $(LIBS)
 
+sockaddr$(EXEEXT): $(sockaddr_OBJECTS) $(sockaddr_DEPENDENCIES) $(EXTRA_sockaddr_DEPENDENCIES) 
+	@rm -f sockaddr$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(sockaddr_OBJECTS) $(sockaddr_LDADD) $(LIBS)
+
 tsig_key$(EXEEXT): $(tsig_key_OBJECTS) $(tsig_key_DEPENDENCIES) $(EXTRA_tsig_key_DEPENDENCIES) 
 	@rm -f tsig_key$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(tsig_key_OBJECTS) $(tsig_key_LDADD) $(LIBS)
@@ -931,6 +940,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset_wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sockaddr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsig_key.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wire_ctx.Po@am__quote@

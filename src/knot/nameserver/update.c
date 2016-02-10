@@ -1,4 +1,4 @@
-/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,31 +14,21 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <sys/socket.h>
 #include <urcu.h>
 
 #include "dnssec/random.h"
+#include "knot/common/log.h"
 #include "knot/nameserver/update.h"
+#include "knot/nameserver/capture.h"
 #include "knot/nameserver/internet.h"
 #include "knot/nameserver/process_query.h"
-#include "knot/updates/apply.h"
-#include "knot/dnssec/zone-sign.h"
-#include "knot/common/log.h"
-#include "knot/dnssec/zone-events.h"
 #include "knot/updates/ddns.h"
-#include "knot/updates/zone-update.h"
-#include "libknot/libknot.h"
-#include "libknot/descriptor.h"
-#include "libknot/tsig-op.h"
-#include "knot/zone/zone.h"
+#include "knot/updates/apply.h"
 #include "knot/zone/events/events.h"
-#include "knot/server/tcp-handler.h"
-#include "knot/server/udp-handler.h"
-#include "knot/nameserver/capture.h"
-#include "libknot/processing/requestor.h"
-#include "contrib/macros.h"
+#include "libknot/libknot.h"
 #include "contrib/net.h"
 #include "contrib/print.h"
-#include "contrib/sockaddr.h"
 
 /* UPDATE-specific logging (internal, expects 'qdata' variable set). */
 #define UPDATE_LOG(severity, msg, ...) \
@@ -139,7 +129,7 @@ static int process_bulk(zone_t *zone, list_t *requests, zone_update_t *up)
 	return KNOT_EOK;
 }
 
-static int process_normal(zone_t *zone, list_t *requests)
+static int process_normal(conf_t *conf, zone_t *zone, list_t *requests)
 {
 	assert(requests);
 
@@ -161,7 +151,7 @@ static int process_normal(zone_t *zone, list_t *requests)
 
 	// Apply changes.
 	zone_contents_t *new_contents = NULL;
-	ret = zone_update_commit(&up, &new_contents);
+	ret = zone_update_commit(conf, &up, &new_contents);
 	if (ret != KNOT_EOK) {
 		if (ret == KNOT_ETTL) {
 			set_rcodes(requests, KNOT_RCODE_REFUSED);
@@ -173,15 +163,11 @@ static int process_normal(zone_t *zone, list_t *requests)
 
 	/* If there is anything to change */
 	if (new_contents) {
-		/* Temporarily unlock locked configuration. */
-		rcu_read_unlock();
-
 		/* Switch zone contents. */
 		zone_contents_t *old_contents = zone_switch_contents(zone, new_contents);
 
 		/* Sync RCU. */
 		synchronize_rcu();
-		rcu_read_lock();
 
 		/* Clear obsolete zone contents. */
 		update_free_zone(&old_contents);
@@ -190,7 +176,7 @@ static int process_normal(zone_t *zone, list_t *requests)
 	zone_update_clear(&up);
 
 	/* Sync zonefile immediately if configured. */
-	conf_val_t val = conf_zone_get(conf(), C_ZONEFILE_SYNC, zone->name);
+	conf_val_t val = conf_zone_get(conf, C_ZONEFILE_SYNC, zone->name);
 	if (conf_int(&val) == 0) {
 		zone_events_schedule(zone, ZONE_EVENT_FLUSH, ZONE_EVENT_NOW);
 	}
@@ -198,7 +184,7 @@ static int process_normal(zone_t *zone, list_t *requests)
 	return KNOT_EOK;
 }
 
-static void process_requests(zone_t *zone, list_t *requests)
+static void process_requests(conf_t *conf, zone_t *zone, list_t *requests)
 {
 	assert(zone);
 	assert(requests);
@@ -209,7 +195,7 @@ static void process_requests(zone_t *zone, list_t *requests)
 	const uint32_t old_serial = zone_contents_serial(zone->contents);
 
 	/* Process authenticated packet. */
-	int ret = process_normal(zone, requests);
+	int ret = process_normal(conf, zone, requests);
 	if (ret != KNOT_EOK) {
 		log_zone_error(zone->name, "DDNS, processing failed (%s)",
 		               knot_strerror(ret));
@@ -231,7 +217,7 @@ static void process_requests(zone_t *zone, list_t *requests)
 	zone_events_schedule(zone, ZONE_EVENT_NOTIFY, ZONE_EVENT_NOW);
 }
 
-static int remote_forward(struct knot_request *request, conf_remote_t *remote)
+static int remote_forward(conf_t *conf, struct knot_request *request, conf_remote_t *remote)
 {
 	/* Copy request and assign new ID. */
 	knot_pkt_t *query = knot_pkt_new(NULL, request->query->max_size, NULL);
@@ -276,9 +262,9 @@ static int remote_forward(struct knot_request *request, conf_remote_t *remote)
 	/* Enqueue the request. */
 	ret = knot_requestor_enqueue(&re, req);
 	if (ret == KNOT_EOK) {
-		conf_val_t *val = &conf()->cache.srv_tcp_reply_timeout;
-		struct timeval tv = { conf_int(val), 0 };
-		ret = knot_requestor_exec(&re, &tv);
+		conf_val_t *val = &conf->cache.srv_tcp_reply_timeout;
+		int timeout = conf_int(val) * 1000;
+		ret = knot_requestor_exec(&re, timeout);
 	} else {
 		knot_request_free(req, re.mm);
 	}
@@ -289,25 +275,25 @@ static int remote_forward(struct knot_request *request, conf_remote_t *remote)
 	return ret;
 }
 
-static void forward_request(zone_t *zone, struct knot_request *request)
+static void forward_request(conf_t *conf, zone_t *zone, struct knot_request *request)
 {
 	/* Read the ddns master or the first master. */
-	conf_val_t remote = conf_zone_get(conf(), C_DDNS_MASTER, zone->name);
+	conf_val_t remote = conf_zone_get(conf, C_DDNS_MASTER, zone->name);
 	if (remote.code != KNOT_EOK) {
-		remote = conf_zone_get(conf(), C_MASTER, zone->name);
+		remote = conf_zone_get(conf, C_MASTER, zone->name);
 	}
 
 	/* Get the number of remote addresses. */
-	conf_val_t addr = conf_id_get(conf(), C_RMT, C_ADDR, &remote);
+	conf_val_t addr = conf_id_get(conf, C_RMT, C_ADDR, &remote);
 	size_t addr_count = conf_val_count(&addr);
 	assert(addr_count > 0);
 
 	/* Try all remote addresses to forward the request to. */
 	int ret = KNOT_EOK;
 	for (size_t i = 0; i < addr_count; i++) {
-		conf_remote_t master = conf_remote(conf(), &remote, i);
+		conf_remote_t master = conf_remote(conf, &remote, i);
 
-		ret = remote_forward(request, &master);
+		ret = remote_forward(conf, request, &master);
 		if (ret == KNOT_EOK) {
 			break;
 		}
@@ -328,7 +314,7 @@ static void forward_request(zone_t *zone, struct knot_request *request)
 	}
 }
 
-static void forward_requests(zone_t *zone, list_t *requests)
+static void forward_requests(conf_t *conf, zone_t *zone, list_t *requests)
 {
 	assert(zone);
 	assert(requests);
@@ -336,7 +322,7 @@ static void forward_requests(zone_t *zone, list_t *requests)
 	ptrnode_t *node = NULL;
 	WALK_LIST(node, *requests) {
 		struct knot_request *req = node->d;
-		forward_request(zone, req);
+		forward_request(conf, zone, req);
 	}
 }
 
@@ -366,10 +352,10 @@ static bool update_tsig_check(struct query_data *qdata, struct knot_request *req
 
 #undef UPDATE_LOG
 
-static void send_update_response(const zone_t *zone, struct knot_request *req)
+static void send_update_response(conf_t *conf, const zone_t *zone, struct knot_request *req)
 {
 	if (req->resp) {
-		if (!zone_is_slave(zone)) {
+		if (!zone_is_slave(conf, zone)) {
 			// Sign the response with TSIG where applicable
 			struct query_data qdata;
 			init_qdata_from_request(&qdata, zone, req, NULL);
@@ -378,10 +364,10 @@ static void send_update_response(const zone_t *zone, struct knot_request *req)
 		}
 
 		if (net_is_stream(req->fd)) {
-			conf_val_t *val = &conf()->cache.srv_tcp_reply_timeout;
-			struct timeval timeout = { conf_int(val), 0 };
+			conf_val_t *val = &conf->cache.srv_tcp_reply_timeout;
+			int timeout = conf_int(val) * 1000;
 			net_dns_tcp_send(req->fd, req->resp->wire, req->resp->size,
-			                 &timeout);
+			                 timeout);
 		} else {
 			net_dgram_send(req->fd, req->resp->wire, req->resp->size,
 			               &req->remote);
@@ -397,18 +383,18 @@ static void free_request(struct knot_request *req)
 	free(req);
 }
 
-static void send_update_responses(const zone_t *zone, list_t *updates)
+static void send_update_responses(conf_t *conf, const zone_t *zone, list_t *updates)
 {
 	ptrnode_t *node = NULL, *nxt = NULL;
 	WALK_LIST_DELSAFE(node, nxt, *updates) {
 		struct knot_request *req = node->d;
-		send_update_response(zone, req);
+		send_update_response(conf, zone, req);
 		free_request(req);
 	}
 	ptrlist_free(updates, NULL);
 }
 
-static int init_update_responses(const zone_t *zone, list_t *updates,
+static int init_update_responses(conf_t *conf, const zone_t *zone, list_t *updates,
                                  size_t *update_count)
 {
 	ptrnode_t *node = NULL, *nxt = NULL;
@@ -421,7 +407,7 @@ static int init_update_responses(const zone_t *zone, list_t *updates,
 
 		assert(req->query);
 		knot_pkt_init_response(req->resp, req->query);
-		if (zone_is_slave(zone)) {
+		if (zone_is_slave(conf, zone)) {
 			// Don't check TSIG for forwards.
 			continue;
 		}
@@ -435,7 +421,7 @@ static int init_update_responses(const zone_t *zone, list_t *updates,
 
 		if (!update_tsig_check(&qdata, req)) {
 			// ACL/TSIG check failed, send response.
-			send_update_response(zone, req);
+			send_update_response(conf, zone, req);
 			// Remove this request from processing list.
 			free_request(req);
 			ptrlist_rem(node, NULL);
@@ -446,7 +432,7 @@ static int init_update_responses(const zone_t *zone, list_t *updates,
 	return KNOT_EOK;
 }
 
-int update_query_process(knot_pkt_t *pkt, struct query_data *qdata)
+int update_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 {
 	/* RFC1996 require SOA question. */
 	NS_NEED_QTYPE(qdata, KNOT_RRTYPE_SOA, KNOT_RCODE_FORMERR);
@@ -473,7 +459,7 @@ int update_query_process(knot_pkt_t *pkt, struct query_data *qdata)
 	return KNOT_STATE_DONE;
 }
 
-void updates_execute(zone_t *zone)
+void updates_execute(conf_t *conf, zone_t *zone)
 {
 	/* Get list of pending updates. */
 	list_t updates;
@@ -482,39 +468,32 @@ void updates_execute(zone_t *zone)
 		return;
 	}
 
-	/* Block config changes. */
-	rcu_read_lock();
-
 	/* Init updates respones. */
-	int ret = init_update_responses(zone, &updates, &update_count);
+	int ret = init_update_responses(conf, zone, &updates, &update_count);
 	if (ret != KNOT_EOK) {
 		/* Send what responses we can. */
 		set_rcodes(&updates, KNOT_RCODE_SERVFAIL);
-		send_update_responses(zone, &updates);
-		rcu_read_unlock();
+		send_update_responses(conf, zone, &updates);
 		return;
 	}
 
 	if (update_count == 0) {
 		/* All updates failed their ACL checks. */
-		rcu_read_unlock();
 		return;
 	}
 
 	/* Process update list - forward if zone has master, or execute.
 	   RCODEs are set. */
-	if (zone_is_slave(zone)) {
+	if (zone_is_slave(conf, zone)) {
 		log_zone_info(zone->name,
 		              "DDNS, forwarding %zu updates", update_count);
-		forward_requests(zone, &updates);
+		forward_requests(conf, zone, &updates);
 	} else {
 		log_zone_info(zone->name,
 		              "DDNS, processing %zu updates", update_count);
-		process_requests(zone, &updates);
+		process_requests(conf, zone, &updates);
 	}
 
 	/* Send responses. */
-	send_update_responses(zone, &updates);
-
-	rcu_read_unlock();
+	send_update_responses(conf, zone, &updates);
 }

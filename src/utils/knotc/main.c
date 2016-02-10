@@ -94,7 +94,7 @@ static int set_config(const cmd_desc_t *desc, const char *confdb,
 	          (src != NULL) ? src : "empty");
 
 	/* Prepare config flags. */
-	conf_flag_t conf_flags = CONF_FNONE;
+	conf_flag_t conf_flags = CONF_FNOHOSTNAME;
 	if (confdb != NULL && !(desc->flags & CMD_CONF_FWRITE)) {
 		conf_flags |= CONF_FREADONLY;
 	}
@@ -117,14 +117,6 @@ static int set_config(const cmd_desc_t *desc, const char *confdb,
 			conf_free(new_conf);
 			return ret;
 		}
-	}
-
-	/* Finalize the config (needed for conf check and cached items). */
-	ret = conf_post_open(new_conf);
-	if (ret != KNOT_EOK) {
-		log_error("failed to use configuration (%s)", knot_strerror(ret));
-		conf_free(new_conf);
-		return ret;
 	}
 
 	/* Update to the new config. */
