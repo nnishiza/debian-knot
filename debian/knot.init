@@ -26,7 +26,7 @@ KNOTC=/usr/sbin/knotc
 KNOTD_ARGS="-c /etc/knot/knot.conf"
 
 # Read configuration variable file if it is present
-[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+[ -r /etc/default/knot ] && . /etc/default/knot
 
 DAEMON_ARGS="-d $KNOTD_ARGS"
 
