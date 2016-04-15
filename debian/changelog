@@ -1,3 +1,10 @@
+knot (2.1.1-2) unstable; urgency=medium
+
+  * Add python to Depends and run wrap-and-sort -a
+  * Parse correct /etc/default/knot instead of /etc/default/knotd
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 15 Apr 2016 17:18:02 +0200
+
 knot (2.1.1-1) unstable; urgency=medium
 
   * Imported Upstream version 2.1.1
