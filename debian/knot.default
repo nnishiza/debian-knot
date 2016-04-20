@@ -1,4 +1,4 @@
 KNOTD_ARGS="-c /etc/knot/knot.conf"
 
 # or for configuration database
-# KNOTD_ARGS=-C /etc/knot/confdb/
+# KNOTD_ARGS=-C /var/lib/knot/confdb/
