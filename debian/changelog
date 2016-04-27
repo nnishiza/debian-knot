@@ -1,3 +1,10 @@
+knot (2.2.0-1) unstable; urgency=medium
+
+  * confdb should be in /var/lib/knot/ by default
+  * Imported Upstream version 2.2.0
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 27 Apr 2016 10:01:51 +0200
+
 knot (2.1.1-2) unstable; urgency=medium
 
   * Add python to Depends and run wrap-and-sort -a
