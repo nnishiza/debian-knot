@@ -4,11 +4,9 @@ AM_CPPFLAGS = \
 	-I$(srcdir)/../shared \
 	-I$(srcdir)/../lib \
 	-I$(srcdir)/../lib/dnssec \
-	$(CODE_COVERAGE_CFLAGS) \
 	$(gnutls_CFLAGS)
 
 AM_LDFLAGS = \
-	$(CODE_COVERAGE_LDFLAGS) \
 	-static
 
 LDADD = \
@@ -25,6 +23,7 @@ check_PROGRAMS = \
 	event_keystate	\
 	kasp_dir_escape	\
 	kasp_dir_file	\
+	kasp_policy	\
 	kasp_store	\
 	key		\
 	key_algorithm	\
@@ -50,7 +49,7 @@ check_PROGRAMS = \
 
 keystore_pkcs11_CPPFLAGS = $(AM_CPPFLAGS) -DLIBDIR='"$(libdir)"'
 
-check-compile-only: $(check_PROGRAMS)
+check-compile: $(check_PROGRAMS)
 
 check-local: $(check_PROGRAMS)
 	$(top_builddir)/libtap/runtests -s $(srcdir) \

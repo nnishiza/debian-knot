@@ -3,8 +3,8 @@
 AC_PREREQ([2.60])
 
 m4_define([knot_VERSION_MAJOR],2)dnl
-m4_define([knot_VERSION_MINOR],1)dnl
-m4_define([knot_VERSION_PATCH],1)dnl
+m4_define([knot_VERSION_MINOR],2)dnl
+m4_define([knot_VERSION_PATCH],0)dnl
 m4_define([knot_VERSION_EXTRA],)dnl
 m4_define([knot_PKG_VERSION],[knot_VERSION_MAJOR.knot_VERSION_MINOR.knot_VERSION_PATCH]knot_VERSION_EXTRA)dnl
 
@@ -131,7 +131,7 @@ PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle], [
 
     save_LIBS=$LIBS
     LIBS="$LIBS $gnutls_LIBS"
-    AC_CHECK_FUNC([gnutls_pkcs11_privkey_generate3], [enable_pkcs11=yes], [enable_pkcs11=no])
+    AC_CHECK_FUNC([gnutls_pkcs11_copy_pubkey], [enable_pkcs11=yes], [enable_pkcs11=no])
     AS_IF([test "$enable_pkcs11" = yes],
         [AC_DEFINE([ENABLE_PKCS11], [1], [PKCS 11 support available])])
 
@@ -424,6 +424,33 @@ AC_ARG_ENABLE([rosedb],
 AS_IF([test "$enable_rosedb" = yes], [AC_DEFINE([HAVE_ROSEDB], [1], [Define to 1 to enable static RR query module.])])
 AM_CONDITIONAL([HAVE_ROSEDB], [test "$enable_rosedb" = yes])
 
+# libedit
+AS_IF([test "$enable_daemon" = "yes" -o "$enable_utilities" = "yes"], [
+  PKG_CHECK_MODULES([libedit], [libedit], [with_libedit=yes], [
+    with_libedit=no
+    AC_CHECK_HEADER([histedit.h], [
+      # workaround for OpenBSD
+      AS_CASE([$host_os],
+        [openbsd*], [libedit_deps=-lcurses],
+        [libedit_deps=]
+      )
+      AC_CHECK_LIB([edit], [el_init], [
+        with_libedit=yes
+        libedit_CFLAGS=
+        libedit_LIBS="-ledit $libedit_deps"
+        ], [], [$libedit_deps]
+      )
+    ])
+  ])
+  AS_IF([test "$with_libedit" != "yes"], [
+    AC_MSG_ERROR([libedit not found])
+  ])
+], [
+  with_libedit=no
+  libedit_CFLAGS=
+  libedit_LIBS=
+])
+
 ############################################
 # Dependencies needed for Knot DNS utilities
 ############################################
@@ -554,6 +581,7 @@ AC_MSG_RESULT([
     LibURCU:  ${liburcu_LIBS} ${liburcu_CFLAGS}
     GnuTLS:   ${gnutls_LIBS} ${gnutls_CFLAGS}
     Jansson:  ${jansson_LIBS} ${jansson_CFLAGS}
+    Libedit:  ${libedit_LIBS} ${libedit_CFLAGS}
     LMDB:     ${enable_lmdb} ${lmdb_LIBS} ${lmdb_CFLAGS}
 
     Sanitizer: ${sanitize_CFLAGS}

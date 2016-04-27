@@ -19,6 +19,7 @@ check_PROGRAMS = \
 	conf_tools			\
 	confdb				\
 	confio				\
+	control				\
 	db				\
 	descriptor			\
 	dname				\
@@ -63,9 +64,15 @@ check_PROGRAMS = \
 	ztree
 
 check_PROGRAMS += \
-	modules/online_sign
+	modules/online_sign		\
+	utils/test_lookup
 
-check-compile-only: $(check_PROGRAMS)
+utils_test_lookup_LDADD = \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknotus.la \
+	$(libedit_LIBS)
+
+check-compile: $(check_PROGRAMS)
 
 check-local: $(check_PROGRAMS)
 	$(top_builddir)/libtap/runtests -s $(top_srcdir)/tests \

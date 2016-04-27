@@ -51,18 +51,8 @@ int zone_tree_insert(zone_tree_t *tree, zone_node_t *node)
 	return KNOT_EOK;
 }
 
-int zone_tree_find(zone_tree_t *tree, const knot_dname_t *owner,
-                          const zone_node_t **found)
-{
-	if (owner == NULL || found == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	return zone_tree_get(tree, owner, (zone_node_t **)found);
-}
-
 int zone_tree_get(zone_tree_t *tree, const knot_dname_t *owner,
-                         zone_node_t **found)
+                  zone_node_t **found)
 {
 	if (owner == NULL) {
 		return KNOT_EINVAL;
@@ -83,24 +73,6 @@ int zone_tree_get(zone_tree_t *tree, const knot_dname_t *owner,
 	}
 
 	return KNOT_EOK;
-}
-
-int zone_tree_find_less_or_equal(zone_tree_t *tree,
-                                 const knot_dname_t *owner,
-                                 const zone_node_t **found,
-                                 const zone_node_t **previous)
-{
-	if (owner == NULL || found == NULL || previous == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	zone_node_t *f = NULL, *p = NULL;
-	int ret = zone_tree_get_less_or_equal(tree, owner, &f, &p);
-
-	*found = f;
-	*previous = p;
-
-	return ret;
 }
 
 int zone_tree_get_less_or_equal(zone_tree_t *tree,
@@ -210,6 +182,45 @@ int zone_tree_remove(zone_tree_t *tree,
 	}
 
 	hattrie_del(tree, (char*)lf+1, *lf);
+	return KNOT_EOK;
+}
+
+/*! \brief Clears wildcard child if set in parent node. */
+static void fix_wildcard_child(zone_node_t *node, const knot_dname_t *owner)
+{
+	if ((node->flags & NODE_FLAGS_WILDCARD_CHILD)
+	    && knot_dname_is_wildcard(owner)) {
+		node->flags &= ~NODE_FLAGS_WILDCARD_CHILD;
+	}
+}
+
+int zone_tree_delete_empty_node(zone_tree_t *tree, zone_node_t *node)
+{
+	if (!tree || !node) {
+		return KNOT_EINVAL;
+	}
+
+	if (node->rrset_count == 0 && node->children == 0) {
+		zone_node_t *parent_node = node->parent;
+		if (parent_node) {
+			parent_node->children--;
+			fix_wildcard_child(parent_node, node->owner);
+			if (parent_node->parent != NULL) { /* Is not apex */
+				// Recurse using the parent node, do not delete possibly empty parent.
+				int ret = zone_tree_delete_empty_node(tree, parent_node);
+				if (ret != KNOT_EOK) {
+					return ret;
+				}
+			}
+		}
+
+		// Delete node
+		zone_node_t *removed_node = NULL;
+		zone_tree_remove(tree, node->owner, &removed_node);
+		UNUSED(removed_node);
+		node_free(&node, NULL);
+	}
+
 	return KNOT_EOK;
 }
 

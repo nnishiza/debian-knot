@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -103,10 +103,8 @@ int conf_io_commit(
  * Aborts the current writing transaction.
  *
  * \param[in] child  Nested transaction indicator.
- *
- * \return Error code, KNOT_EOK if success.
  */
-int conf_io_abort(
+void conf_io_abort(
 	bool child
 );
 
@@ -144,11 +142,11 @@ int conf_io_diff(
 /*!
  * Gets the configuration item(s) value(s).
  *
- * \param[in] key0        Section name (NULL to get all sections).
- * \param[in] key1        Item name (NULL to get all section items).
- * \param[in] id          Section identifier name (NULL to consider all section identifiers).
- * \param[in] get_current The current configuration or the active transaction switch.
- * \param[out] io         Operation output.
+ * \param[in] key0         Section name (NULL to get all sections).
+ * \param[in] key1         Item name (NULL to get all section items).
+ * \param[in] id           Section identifier name (NULL to consider all section identifiers).
+ * \param[in] get_current  The current configuration or the active transaction switch.
+ * \param[out] io          Operation output.
  *
  * \return Error code, KNOT_EOK if success.
  */
@@ -204,32 +202,6 @@ int conf_io_unset(
  * \return Error code, KNOT_EOK if success.
  */
 int conf_io_check(
-	conf_io_t *io
-);
-
-/*!
- * Returns textual item key part of the operation result.
- *
- * \note The result must be deallocated.
- *
- * \param[out] io  Operation output.
- *
- * \return String or NULL.
- */
-char *conf_io_txt_key(
-	conf_io_t *io
-);
-
-/*!
- * Returns textual item data part of the operation result.
- *
- * \note The result must be deallocated.
- *
- * \param[out] io  Operation output.
- *
- * \return String or NULL.
- */
-char *conf_io_txt_data(
 	conf_io_t *io
 );
 

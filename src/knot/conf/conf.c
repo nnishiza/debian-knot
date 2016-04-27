@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -238,6 +238,58 @@ conf_val_t conf_default_get_txn(
 	return val;
 }
 
+bool conf_rawid_exists_txn(
+	conf_t *conf,
+	knot_db_txn_t *txn,
+	const yp_name_t *key0_name,
+	const uint8_t *id,
+	size_t id_len)
+{
+	if (key0_name == NULL || id == NULL) {
+		CONF_LOG(LOG_DEBUG, "conf_rawid_exists (%s)", knot_strerror(KNOT_EINVAL));
+		return false;
+	}
+
+	int ret = conf_db_get(conf, txn, key0_name, NULL, id, id_len, NULL);
+	switch (ret) {
+	case KNOT_EOK:
+		return true;
+	default:
+		CONF_LOG(LOG_ERR, "failed to check '%s' for identifier (%s)",
+		         key0_name + 1, knot_strerror(ret));
+		// FALLTHROUGH
+	case KNOT_ENOENT:
+	case KNOT_YP_EINVAL_ID:
+		return false;
+	}
+}
+
+bool conf_id_exists_txn(
+	conf_t *conf,
+	knot_db_txn_t *txn,
+	const yp_name_t *key0_name,
+	conf_val_t *id)
+{
+	if (key0_name == NULL || id == NULL || id->code != KNOT_EOK) {
+		CONF_LOG(LOG_DEBUG, "conf_id_exists (%s)", knot_strerror(KNOT_EINVAL));
+		return false;
+	}
+
+	conf_val(id);
+
+	int ret = conf_db_get(conf, txn, key0_name, NULL, id->data, id->len, NULL);
+	switch (ret) {
+	case KNOT_EOK:
+		return true;
+	default:
+		CONF_LOG(LOG_ERR, "failed to check '%s' for identifier (%s)",
+		         key0_name + 1, knot_strerror(ret));
+		// FALLTHROUGH
+	case KNOT_YP_EINVAL_ID:
+		return false;
+	}
+}
+
 size_t conf_id_count_txn(
 	conf_t *conf,
 	knot_db_txn_t *txn,
@@ -347,8 +399,8 @@ void conf_val(
 	assert(val->code == KNOT_EOK || val->code == KNOT_EOF);
 
 	if (val->item->flags & YP_FMULTI) {
-		// Check if already called.
-		if (val->data != NULL) {
+		// Check if already called and not at the end.
+		if (val->data != NULL && val->code != KNOT_EOF) {
 			return;
 		}
 
@@ -623,6 +675,35 @@ struct sockaddr_storage conf_addr_range(
 	}
 
 	return out;
+}
+
+bool conf_addr_range_match(
+	conf_val_t *range,
+	const struct sockaddr_storage *addr)
+{
+	if (range == NULL || addr == NULL) {
+		return false;
+	}
+
+	while (range->code == KNOT_EOK) {
+		int mask;
+		struct sockaddr_storage min, max;
+
+		min = conf_addr_range(range, &max, &mask);
+		if (max.ss_family == AF_UNSPEC) {
+			if (sockaddr_net_match(addr, &min, mask)) {
+				return true;
+			}
+		} else {
+			if (sockaddr_range_match(addr, &min, &max)) {
+				return true;
+			}
+		}
+
+		conf_val_next(range);
+	}
+
+	return false;
 }
 
 char* conf_abs_path(

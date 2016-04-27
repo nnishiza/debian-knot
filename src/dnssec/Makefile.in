@@ -307,9 +307,7 @@ CCDEPMODE = @CCDEPMODE@
 CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
-CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
-CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -418,6 +416,8 @@ jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
 libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
+libedit_CFLAGS = @libedit_CFLAGS@
+libedit_LIBS = @libedit_LIBS@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
@@ -462,12 +462,8 @@ AM_CPPFLAGS = \
 	-I$(srcdir)/lib \
 	-I$(srcdir)/lib/dnssec \
 	-I$(top_srcdir)/src \
-	$(CODE_COVERAGE_CFLAGS) \
 	$(gnutls_CFLAGS) \
 	$(jansson_CFLAGS)
-
-AM_LDFLAGS = \
-	$(CODE_COVERAGE_LDFLAGS)
 
 noinst_LTLIBRARIES = libshared.la
 lib_LTLIBRARIES = libdnssec.la
@@ -1658,6 +1654,10 @@ uninstall-am: uninstall-include_dnssecHEADERS uninstall-libLTLIBRARIES \
 
 .PRECIOUS: Makefile
 
+
+.PHONY: check-compile
+check-compile:
+	$(MAKE) $(AM_MAKEFLAGS) -C tests $@
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

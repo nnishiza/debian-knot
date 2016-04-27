@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,128 +16,54 @@
 
 #include <getopt.h>
 #include <stdio.h>
-#include <sys/stat.h>
 
-#include "dnssec/crypto.h"
 #include "knot/common/log.h"
-#include "knot/conf/conf.h"
-#include "libknot/libknot.h"
-#include "utils/knotc/commands.h"
 #include "utils/common/params.h"
+#include "utils/common/strtonum.h"
+#include "utils/knotc/commands.h"
+#include "utils/knotc/interactive.h"
+#include "utils/knotc/process.h"
 
-#define PROGRAM_NAME "knotc"
+#define PROGRAM_NAME		"knotc"
+#define SPACE			"                  "
+#define DEFAULT_CTL_TIMEOUT	5
 
 static void print_help(void)
 {
 	printf("Usage: %s [parameters] <action> [action_args]\n"
 	       "\n"
 	       "Parameters:\n"
-	       " -c, --config <file>                  Use a textual configuration file.\n"
-	       "                                       (default %s)\n"
-	       " -C, --confdb <dir>                   Use a binary configuration database directory.\n"
-	       "                                       (default %s)\n"
-	       " -s, --socket <path>                  Use a remote control UNIX socket path.\n"
-	       "                                       (default %s)\n"
-	       " -f, --force                          Forced operation. Overrides some checks.\n"
-	       " -v, --verbose                        Enable debug output.\n"
-	       " -h, --help                           Print the program help.\n"
-	       " -V, --version                        Print the program version.\n"
-	       "\n"
-	       "Actions:\n",
-	       PROGRAM_NAME, CONF_DEFAULT_FILE, CONF_DEFAULT_DBDIR, RUN_DIR "/knot.sock");
+	       " -c, --config <file>"SPACE"Use a textual configuration file.\n"
+	       "                    "SPACE" (default %s)\n"
+	       " -C, --confdb <dir> "SPACE"Use a binary configuration database directory.\n"
+	       "                    "SPACE" (default %s)\n"
+	       " -s, --socket <path>"SPACE"Use a control UNIX socket path.\n"
+	       "                    "SPACE" (default %s)\n"
+	       " -t, --timeout <sec>"SPACE"Use a control socket timeout in seconds.\n"
+	       "                    "SPACE" (default %u seconds)\n"
+	       " -f, --force        "SPACE"Forced operation. Overrides some checks.\n"
+	       " -v, --verbose      "SPACE"Enable debug output.\n"
+	       " -h, --help         "SPACE"Print the program help.\n"
+	       " -V, --version      "SPACE"Print the program version.\n",
+	       PROGRAM_NAME, CONF_DEFAULT_FILE, CONF_DEFAULT_DBDIR,
+	       RUN_DIR "/knot.sock", DEFAULT_CTL_TIMEOUT);
 
-	for (const cmd_help_t *cmd = cmd_help_table; cmd->name != NULL; cmd++) {
-		printf(" %-15s %-20s %s\n", cmd->name, cmd->params, cmd->desc);
-	}
-
-	printf("\n"
-	       "Note:\n"
-	       " Empty <zone> parameter means all zones.\n"
-	       " Type <item> parameter in the form of <section>[<identifier>].<name>.\n"
-	       " (*) indicates a local operation which requires a configuration.\n");
+	print_commands();
 }
 
-static int set_config(const cmd_desc_t *desc, const char *confdb,
-                      const char *config, char *socket)
-{
-	if (config != NULL && confdb != NULL) {
-		log_error("ambiguous configuration source");
-		return KNOT_EINVAL;
-	}
-
-	/* Choose the optimal config source. */
-	struct stat st;
-	bool import = false;
-	if (desc->flags == CMD_CONF_FNONE && socket != NULL) {
-		import = false;
-		confdb = NULL;
-	} else if (confdb != NULL) {
-		import = false;
-	} else if (desc->flags == CMD_CONF_FWRITE) {
-		import = false;
-		confdb = CONF_DEFAULT_DBDIR;
-	} else if (config != NULL){
-		import = true;
-	} else if (stat(CONF_DEFAULT_DBDIR, &st) == 0) {
-		import = false;
-		confdb = CONF_DEFAULT_DBDIR;
-	} else if (stat(CONF_DEFAULT_FILE, &st) == 0) {
-		import = true;
-		config = CONF_DEFAULT_FILE;
-	} else if (desc->flags != CMD_CONF_FNONE) {
-		log_error("no configuration source available");
-		return KNOT_EINVAL;
-	}
-
-	const char *src = import ? config : confdb;
-	log_debug("%s '%s'", import ? "config" : "confdb",
-	          (src != NULL) ? src : "empty");
-
-	/* Prepare config flags. */
-	conf_flag_t conf_flags = CONF_FNOHOSTNAME;
-	if (confdb != NULL && !(desc->flags & CMD_CONF_FWRITE)) {
-		conf_flags |= CONF_FREADONLY;
-	}
-
-	/* Open confdb. */
-	conf_t *new_conf = NULL;
-	int ret = conf_new(&new_conf, conf_scheme, confdb, conf_flags);
-	if (ret != KNOT_EOK) {
-		log_error("failed to open configuration database '%s' (%s)",
-		          (confdb != NULL) ? confdb : "", knot_strerror(ret));
-		return ret;
-	}
-
-	/* Import the config file. */
-	if (import) {
-		ret = conf_import(new_conf, config, true);
-		if (ret != KNOT_EOK) {
-			log_error("failed to load configuration file '%s' (%s)",
-			          config, knot_strerror(ret));
-			conf_free(new_conf);
-			return ret;
-		}
-	}
-
-	/* Update to the new config. */
-	conf_update(new_conf);
-
-	return KNOT_EOK;
-}
+params_t params = {
+	.flags = CMD_FNONE,
+	.timeout = DEFAULT_CTL_TIMEOUT * 1000
+};
 
 int main(int argc, char **argv)
 {
-	cmd_flag_t flags = CMD_FNONE;
-	const char *config = NULL;
-	const char *confdb = NULL;
-	char *socket = NULL;
-	bool verbose = false;
-
 	/* Long options. */
 	struct option opts[] = {
 		{ "config",  required_argument, NULL, 'c' },
 		{ "confdb",  required_argument, NULL, 'C' },
 		{ "socket",  required_argument, NULL, 's' },
+		{ "timeout", required_argument, NULL, 't' },
 		{ "force",   no_argument,       NULL, 'f' },
 		{ "verbose", no_argument,       NULL, 'v' },
 		{ "help",    no_argument,       NULL, 'h' },
@@ -147,22 +73,30 @@ int main(int argc, char **argv)
 
 	/* Parse command line arguments */
 	int opt = 0, li = 0;
-	while ((opt = getopt_long(argc, argv, "c:C:s:fvhV", opts, &li)) != -1) {
+	while ((opt = getopt_long(argc, argv, "c:C:s:t:fvhV", opts, &li)) != -1) {
 		switch (opt) {
 		case 'c':
-			config = optarg;
+			params.config = optarg;
 			break;
 		case 'C':
-			confdb = optarg;
+			params.confdb = optarg;
 			break;
 		case 's':
-			socket = optarg;
+			params.socket = optarg;
+			break;
+		case 't':
+			if (knot_str2uint16t(optarg, &params.timeout) != KNOT_EOK) {
+				print_help();
+				return EXIT_FAILURE;
+			}
+			/* Convert to milliseconds. */
+			params.timeout *= 1000;
 			break;
 		case 'f':
-			flags |= CMD_FFORCE;
+			params.flags |= CMD_FFORCE;
 			break;
 		case 'v':
-			verbose = true;
+			params.verbose = true;
 			break;
 		case 'h':
 			print_help();
@@ -176,84 +110,24 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* Check if there's at least one remaining non-option. */
-	if (argc - optind < 1) {
-		print_help();
-		return EXIT_FAILURE;
-	}
-
 	/* Set up simplified logging just to stdout/stderr. */
 	log_init();
 	log_levels_set(LOGT_STDOUT, LOG_ANY, LOG_MASK(LOG_INFO) | LOG_MASK(LOG_NOTICE));
 	log_levels_set(LOGT_STDERR, LOG_ANY, LOG_UPTO(LOG_WARNING));
 	log_levels_set(LOGT_SYSLOG, LOG_ANY, 0);
 	log_flag_set(LOG_FNO_TIMESTAMP | LOG_FNO_INFO);
-	if (verbose) {
+	if (params.verbose) {
 		log_levels_add(LOGT_STDOUT, LOG_ANY, LOG_MASK(LOG_DEBUG));
 	}
 
-	/* Translate old command name. */
-	const char *command = argv[optind];
-	for (const cmd_desc_old_t *desc = cmd_table_old; desc->old_name != NULL; desc++) {
-		if (strcmp(desc->old_name, command) == 0) {
-			log_notice("obsolete command '%s', using '%s' instead",
-			           desc->old_name, desc->new_name);
-			command = desc->new_name;
-			break;
-		}
+	int ret;
+	if (argc - optind < 1) {
+		ret = interactive_loop(&params);
+	} else {
+		ret = process_cmd(argc - optind, (const char **)argv + optind, &params);
 	}
 
-	/* Find requested command. */
-	const cmd_desc_t *desc = cmd_table;
-	while (desc->name != NULL) {
-		if (strcmp(desc->name, command) == 0) {
-			break;
-		}
-		desc++;
-	}
-	if (desc->name == NULL) {
-		log_error("invalid command '%s'", command);
-		log_close();
-		return EXIT_FAILURE;
-	}
-
-	/* Set up the configuration */
-	int ret = set_config(desc, confdb, config, socket);
-	if (ret != KNOT_EOK) {
-		log_close();
-		return EXIT_FAILURE;
-	}
-
-	/* Prepare command parameters. */
-	cmd_args_t args = {
-		socket,
-		argc - optind - 1,
-		argv + optind + 1,
-		flags
-	};
-
-	/* Get the control socket from confdb if not specified. */
-	if (socket == NULL) {
-		conf_val_t listen_val = conf_get(conf(), C_CTL, C_LISTEN);
-		conf_val_t rundir_val = conf_get(conf(), C_SRV, C_RUNDIR);
-		char *rundir = conf_abs_path(&rundir_val, NULL);
-		args.socket = conf_abs_path(&listen_val, rundir);
-		free(rundir);
-	}
-
-	log_debug("socket '%s'", (args.socket != NULL) ? args.socket : "");
-
-	/* Execute the command. */
-	dnssec_crypto_init();
-	ret = desc->cmd(&args);
-	dnssec_crypto_cleanup();
-
-	/* Cleanup */
-	if (socket == NULL) {
-		free(args.socket);
-	}
-	conf_free(conf());
 	log_close();
 
-	return ret == KNOT_EOK ? EXIT_SUCCESS : EXIT_FAILURE;
+	return (ret == KNOT_EOK) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

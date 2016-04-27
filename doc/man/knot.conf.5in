@@ -150,6 +150,7 @@ server:
     rate\-limit: INT
     rate\-limit\-slip: INT
     rate\-limit\-table\-size: INT
+    rate\-limit\-whitelist: ADDR[/INT] | ADDR\-ADDR ...
     listen: ADDR[@INT] ...
 .ft P
 .fi
@@ -295,6 +296,13 @@ proportional to the configured value. Setting the value high is not advisable.
 .UNINDENT
 .sp
 \fIDefault:\fP 1
+.SS rate\-limit\-whitelist
+.sp
+A list of IP addresses, network subnets, or network ranges to exempt from
+rate limiting. Empty list means that no incoming connection will be
+white\-listed.
+.sp
+\fIDefault:\fP not set
 .SS max\-udp\-payload
 .sp
 Maximum EDNS0 UDP payload size.
@@ -404,15 +412,21 @@ Configuration of the server control interface.
 .ft C
 control:
     listen: STR
+    timeout: TIME
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .SS listen
 .sp
-A UNIX socket path where the server listens for remote control commands.
+A UNIX socket path where the server listens for control commands.
 .sp
 \fIDefault:\fP \fI\%rundir\fP/knot.sock
+.SS timeout
+.sp
+Maximum time the control socket operations can take. Set 0 for infinity.
+.sp
+\fIDefault:\fP 5
 .SH REMOTE SECTION
 .sp
 Definitions of remote servers for outgoing connections (source of a zone
@@ -809,6 +823,8 @@ zone\-specific logging, use this module in the proper zone configuration.
 mod\-dnstap:
   \- id: STR
     sink: STR
+    identity: STR
+    version: STR
 .ft P
 .fi
 .UNINDENT
@@ -822,6 +838,16 @@ A sink path, which can be either a file or a UNIX socket when prefixed with
 \fBunix:\fP\&.
 .sp
 \fIRequired\fP
+.SS identity
+.sp
+A DNS server identity. Set empty value to disable.
+.sp
+\fIDefault:\fP FQDN hostname
+.SS version
+.sp
+A DNS server version. Set empty value to disable.
+.sp
+\fIDefault:\fP server version
 .SH MODULE SYNTH-RECORD
 .sp
 This module is able to synthesize either forward or reverse records for the

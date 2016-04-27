@@ -213,9 +213,7 @@ CCDEPMODE = @CCDEPMODE@
 CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
-CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
-CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -324,6 +322,8 @@ jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
 libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
+libedit_CFLAGS = @libedit_CFLAGS@
+libedit_LIBS = @libedit_LIBS@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
@@ -368,11 +368,7 @@ top_srcdir = @top_srcdir@
 @HAVE_UTILS_TRUE@	-I$(srcdir)/../lib/dnssec \
 @HAVE_UTILS_TRUE@	-I$(srcdir)/../lib \
 @HAVE_UTILS_TRUE@	-I$(top_srcdir)/src \
-@HAVE_UTILS_TRUE@	$(gnutls_CFLAGS) \
-@HAVE_UTILS_TRUE@	$(CODE_COVERAGE_CFLAGS)
-
-@HAVE_UTILS_TRUE@AM_LDFLAGS = \
-@HAVE_UTILS_TRUE@	$(CODE_COVERAGE_LDFLAGS)
+@HAVE_UTILS_TRUE@	$(gnutls_CFLAGS)
 
 @HAVE_UTILS_TRUE@libutils_la_LIBADD = \
 @HAVE_UTILS_TRUE@	$(builddir)/../libdnssec.la \

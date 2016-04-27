@@ -1,6 +1,11 @@
 ACLOCAL_AMFLAGS = -I $(top_srcdir)/m4
 SUBDIRS = zscanner dnssec contrib/dnstap .
 
+.PHONY: check-compile
+check-compile:
+	$(MAKE) $(AM_MAKEFLAGS) -C zscanner $@
+	$(MAKE) $(AM_MAKEFLAGS) -C dnssec $@
+
 lib_LTLIBRARIES =				\
 	libknot.la
 noinst_LTLIBRARIES = 				\
@@ -13,9 +18,6 @@ AM_CPPFLAGS = \
 	-DSTORAGE_DIR='"${storage_dir}"'	\
 	-DRUN_DIR='"${run_dir}"'		\
 	-I$(srcdir)/dnssec/lib
-
-AM_CFLAGS = $(CODE_COVERAGE_CFLAGS)
-AM_LDFLAGS = $(CODE_COVERAGE_LDFLAGS)
 
 ######################
 # Knot DNS Libraries #
@@ -40,6 +42,8 @@ libcontrib_la_SOURCES = 			\
 	contrib/base64.c			\
 	contrib/base64.h			\
 	contrib/endian.h			\
+	contrib/files.c				\
+	contrib/files.h				\
 	contrib/getline.c			\
 	contrib/getline.h			\
 	contrib/hhash.c				\
@@ -96,6 +100,7 @@ nobase_libknot_la_HEADERS =			\
 	libknot/binary.h			\
 	libknot/codes.h				\
 	libknot/consts.h			\
+	libknot/control/control.h		\
 	libknot/descriptor.h			\
 	libknot/dname.h				\
 	libknot/dnssec/rrset-sign.h		\
@@ -139,6 +144,7 @@ nobase_libknot_la_HEADERS =			\
 libknot_la_SOURCES =				\
 	libknot/binary.c			\
 	libknot/codes.c				\
+	libknot/control/control.c		\
 	libknot/descriptor.c			\
 	libknot/dname.c				\
 	libknot/dnssec/rrset-sign.c		\
@@ -188,6 +194,32 @@ libknot_la_CPPFLAGS +=				\
 	-I$(srcdir)/contrib/lmdb/
 endif
 
+# static: utilities shared
+libknotus_la_SOURCES =				\
+	utils/common/exec.c			\
+	utils/common/exec.h			\
+	utils/common/hex.c			\
+	utils/common/hex.h			\
+	utils/common/lookup.c			\
+	utils/common/lookup.h			\
+	utils/common/msg.c			\
+	utils/common/msg.h			\
+	utils/common/netio.c			\
+	utils/common/netio.h			\
+	utils/common/params.c			\
+	utils/common/params.h			\
+	utils/common/resolv.c			\
+	utils/common/resolv.h			\
+	utils/common/sign.c			\
+	utils/common/sign.h			\
+	utils/common/strtonum.h			\
+	utils/common/token.c			\
+	utils/common/token.h
+
+libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS) $(libedit_CFLAGS)
+libknotus_la_LDFLAGS = $(AM_LDFLAGS) $(libidn_LIBS)
+libknotus_la_LIBADD = libcontrib.la libknot.la
+
 ###################
 # Knot DNS Daemon #
 ###################
@@ -196,7 +228,7 @@ if HAVE_DAEMON
 
 sbin_PROGRAMS = knotc knotd
 libexec_PROGRAMS = knot1to2
-noinst_LTLIBRARIES += libknotd.la
+noinst_LTLIBRARIES += libknotd.la libknotus.la
 
 EXTRA_DIST += 					\
 	utils/knot1to2/cf-lex.l			\
@@ -207,8 +239,10 @@ knotc_SOURCES =					\
 	utils/knotc/commands.h			\
 	utils/knotc/estimator.c			\
 	utils/knotc/estimator.h			\
-	utils/knotc/remote.c			\
-	utils/knotc/remote.h			\
+	utils/knotc/interactive.c		\
+	utils/knotc/interactive.h		\
+	utils/knotc/process.c			\
+	utils/knotc/process.h			\
 	utils/knotc/main.c
 
 knotd_SOURCES =					\
@@ -241,8 +275,8 @@ libknotd_la_SOURCES =				\
 	knot/conf/tools.h			\
 	knot/ctl/commands.c			\
 	knot/ctl/commands.h			\
-	knot/ctl/remote.c			\
-	knot/ctl/remote.h			\
+	knot/ctl/process.c			\
+	knot/ctl/process.h			\
 	knot/dnssec/context.c			\
 	knot/dnssec/context.h			\
 	knot/dnssec/nsec-chain.c		\
@@ -368,7 +402,8 @@ libknotd_la_LIBADD = libknot.la libknot-yparser.la zscanner/libzscanner.la $(lib
 
 knotd_CPPFLAGS = $(AM_CPPFLAGS) $(liburcu_CFLAGS)
 knotd_LDADD = libknotd.la $(liburcu_LIBS)
-knotc_LDADD = libknotd.la
+knotc_CPPFLAGS = $(AM_CPPFLAGS) $(libedit_CFLAGS)
+knotc_LDADD = libknotd.la libknotus.la $(libedit_LIBS)
 knot1to2_LDADD = libcontrib.la
 
 ####################################
@@ -429,30 +464,6 @@ knsupdate_SOURCES =				\
 	utils/knsupdate/knsupdate_params.c	\
 	utils/knsupdate/knsupdate_params.h
 
-# static: utilities shared
-libknotus_la_SOURCES =				\
-	utils/common/exec.c			\
-	utils/common/exec.h			\
-	utils/common/hex.c			\
-	utils/common/hex.h			\
-	utils/common/msg.c			\
-	utils/common/msg.h			\
-	utils/common/netio.c			\
-	utils/common/netio.h			\
-	utils/common/params.c			\
-	utils/common/params.h			\
-	utils/common/resolv.c			\
-	utils/common/resolv.h			\
-	utils/common/sign.c			\
-	utils/common/sign.h			\
-	utils/common/strtonum.h			\
-	utils/common/token.c			\
-	utils/common/token.h
-
-libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS)
-libknotus_la_LDFLAGS = $(AM_LDFLAGS) $(libidn_LIBS)
-libknotus_la_LIBADD = libcontrib.la libknot.la
-
 # bin programs
 kdig_LDADD       = $(libidn_LIBS) libknotus.la
 khost_LDADD      = $(libidn_LIBS) libknotus.la
@@ -465,12 +476,16 @@ knsupdate_LDADD  = zscanner/libzscanner.la libknotus.la
 if HAVE_DNSTAP
 kdig_LDADD         += $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
 khost_LDADD        += $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
+kdig_CFLAGS = $(AM_CFLAGS) $(DNSTAP_CFLAGS)
+khost_CFLAGS = $(AM_CFLAGS) $(DNSTAP_CFLAGS)
 endif # HAVE_DNSTAP
 
 if HAVE_ROSEDB
 bin_PROGRAMS += rosedb_tool
 rosedb_tool_SOURCES = knot/modules/rosedb_tool.c
 rosedb_tool_LDADD = libknotd.la
+rosedb_tool_CFLAGS = $(AM_CFLAGS) $(lmdb_CFLAGS) $(DNSTAP_CFLAGS)
+rosedb_tool_LDFLAGS = $(AM_LDFLAGS) $(lmdb_LIBS)
 endif # HAVE_ROSEDB
 
 endif # HAVE_UTILS

@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -508,25 +508,84 @@ static void wire_len_data_encode_to_str(rrset_dump_params_t *p,
 	p->ret = 0;
 }
 
-static void wire_text_to_str(rrset_dump_params_t *p)
+static void wire_unknown_to_str(rrset_dump_params_t *p)
 {
-	// First byte is string length.
-	if (p->in_max < 1) {
+	int    ret;
+	size_t in_len = p->in_max;
+	size_t out_len = 0;
+
+	// Write unknown length header.
+	if (in_len > 0) {
+		ret = snprintf(p->out, p->out_max, "\\# %zu ", in_len);
+	} else {
+		ret = snprintf(p->out, p->out_max, "\\# 0");
+	}
+	if (ret <= 0 || (size_t)ret >= p->out_max) {
 		return;
 	}
-	size_t in_len = *(p->in);
-	p->in++;
-	p->in_max--;
+	out_len = ret;
 
-	// Check if the given length makes sense.
-	if (in_len > p->in_max) {
-		return;
+	// Fill in output.
+	p->out += out_len;
+	p->out_max -= out_len;
+	p->total += out_len;
+
+	// Write hex data if any.
+	if (in_len > 0) {
+		// If wrap mode wrap line.
+		if (p->style->wrap) {
+			dump_string(p, BLOCK_INDENT);
+			if (p->ret != 0) {
+				return;
+			}
+		}
+
+		wire_data_encode_to_str(p, &hex_encode, &hex_encode_alloc);
+		if (p->ret != 0) {
+			return;
+		}
 	}
 
-	// Opening quoatition.
-	dump_string(p, "\"");
-	if (p->ret != 0) {
-		return;
+	p->ret = 0;
+}
+
+static void wire_text_to_str(rrset_dump_params_t *p, bool quote, bool with_header)
+{
+	size_t in_len = 0;
+
+	if (with_header) {
+		// First byte is string length.
+		if (p->in_max < 1) {
+			return;
+		}
+		in_len = *(p->in);
+		p->in++;
+		p->in_max--;
+
+		// Check if the given length makes sense.
+		if (in_len > p->in_max) {
+			return;
+		}
+	} else {
+		in_len = p->in_max;
+	}
+
+	// Check if quotation can ever be disabled (parser protection fallback).
+	if (!quote) {
+		for (size_t i = 0; i < in_len; i++) {
+			if (p->in[i] == ' ') { // Other WS characters are encoded.
+				quote = true;
+				break;
+			}
+		}
+	}
+
+	// Opening quotation.
+	if (quote) {
+		dump_string(p, "\"");
+		if (p->ret != 0) {
+			return;
+		}
 	}
 
 	// Loop over all characters.
@@ -564,10 +623,12 @@ static void wire_text_to_str(rrset_dump_params_t *p)
 		}
 	}
 
-	// Closing quoatition.
-	dump_string(p, "\"");
-	if (p->ret != 0) {
-		return;
+	// Closing quotation.
+	if (quote) {
+		dump_string(p, "\"");
+		if (p->ret != 0) {
+			return;
+		}
 	}
 
 	// String termination.
@@ -938,6 +999,14 @@ static void wire_loc_to_str(rrset_dump_params_t *p)
 	// Read values.
 	wire_ctx_t wire = wire_ctx_init_const(p->in, p->in_max);
 	uint8_t version = wire_ctx_read_u8(&wire);
+
+	// Version check.
+	if (version != 0) {
+		wire_unknown_to_str(p);
+		return;
+	}
+
+	// Continue to read values.
 	uint8_t size_w = wire_ctx_read_u8(&wire);
 	uint8_t hpre_w = wire_ctx_read_u8(&wire);
 	uint8_t vpre_w = wire_ctx_read_u8(&wire);
@@ -952,11 +1021,6 @@ static void wire_loc_to_str(rrset_dump_params_t *p)
 
 	p->in += wire_ctx_offset(&wire);
 	p->in_max = wire_ctx_available(&wire);
-
-	// Version check.
-	if (version != 0) {
-		return;
-	}
 
 	// Latitude calculation.
 	char lat_mark;
@@ -1210,47 +1274,6 @@ static void wire_tsig_rcode_to_str(rrset_dump_params_t *p)
 	p->ret = 0;
 }
 
-static void wire_unknown_to_str(rrset_dump_params_t *p)
-{
-	int    ret;
-	size_t in_len = p->in_max;
-	size_t out_len = 0;
-
-	// Write unknown length header.
-	if (in_len > 0) {
-		ret = snprintf(p->out, p->out_max, "\\# %zu ", in_len);
-	} else {
-		ret = snprintf(p->out, p->out_max, "\\# 0");
-	}
-	if (ret <= 0 || (size_t)ret >= p->out_max) {
-		return;
-	}
-	out_len = ret;
-
-	// Fill in output.
-	p->out += out_len;
-	p->out_max -= out_len;
-	p->total += out_len;
-
-	// Write hex data if any.
-	if (in_len > 0) {
-		// If wrap mode wrap line.
-		if (p->style->wrap) {
-			dump_string(p, BLOCK_INDENT);
-			if (p->ret != 0) {
-				return;
-			}
-		}
-
-		wire_data_encode_to_str(p, &hex_encode, &hex_encode_alloc);
-		if (p->ret != 0) {
-			return;
-		}
-	}
-
-	p->ret = 0;
-}
-
 static size_t dnskey_len(const uint8_t *rdata,
                          const size_t  rdata_len)
 {
@@ -1363,7 +1386,9 @@ static void dnskey_info(const uint8_t *rdata,
 				2, true, ""); CHECK_RET(p);
 #define DUMP_TSIG_DATA	wire_len_data_encode_to_str(p, &hex_encode, \
 				2, true, ""); CHECK_RET(p);
-#define DUMP_TEXT	wire_text_to_str(p); CHECK_RET(p);
+#define DUMP_TEXT	wire_text_to_str(p, true, true); CHECK_RET(p);
+#define DUMP_LONG_TEXT	wire_text_to_str(p, true, false); CHECK_RET(p);
+#define DUMP_UNQUOTED	wire_text_to_str(p, false, true); CHECK_RET(p);
 #define DUMP_BITMAP	wire_bitmap_to_str(p); CHECK_RET(p);
 #define DUMP_APL	wire_apl_to_str(p); CHECK_RET(p);
 #define DUMP_LOC	wire_loc_to_str(p); CHECK_RET(p);
@@ -1729,6 +1754,24 @@ static int dump_tsig(DUMP_PARAMS)
 	DUMP_END;
 }
 
+static int dump_uri(DUMP_PARAMS)
+{
+	DUMP_NUM16;     DUMP_SPACE;
+	DUMP_NUM16;     DUMP_SPACE;
+	DUMP_LONG_TEXT; DUMP_SPACE;
+
+	DUMP_END;
+}
+
+static int dump_caa(DUMP_PARAMS)
+{
+	DUMP_NUM8;      DUMP_SPACE;
+	DUMP_UNQUOTED;  DUMP_SPACE;
+	DUMP_LONG_TEXT; DUMP_SPACE;
+
+	DUMP_END;
+}
+
 static int dump_unknown(DUMP_PARAMS)
 {
 	if (p->style->wrap) {
@@ -1872,6 +1915,12 @@ int knot_rrset_txt_dump_data(const knot_rrset_t      *rrset,
 			break;
 		case KNOT_RRTYPE_TSIG:
 			ret = dump_tsig(&p);
+			break;
+		case KNOT_RRTYPE_URI:
+			ret = dump_uri(&p);
+			break;
+		case KNOT_RRTYPE_CAA:
+			ret = dump_caa(&p);
 			break;
 		default:
 			ret = dump_unknown(&p);
