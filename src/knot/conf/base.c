@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,10 +14,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <dirent.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 #include <urcu.h>
 
 #include "knot/conf/base.h"
@@ -29,6 +25,7 @@
 #include "libknot/libknot.h"
 #include "libknot/yparser/ypformat.h"
 #include "libknot/yparser/yptrafo.h"
+#include "contrib/files.h"
 #include "contrib/mempattern.h"
 #include "contrib/sockaddr.h"
 #include "contrib/string.h"
@@ -39,53 +36,6 @@ conf_t *s_conf;
 
 conf_t* conf(void) {
 	return s_conf;
-}
-
-static void rm_dir(const char *path)
-{
-	DIR *dir = opendir(path);
-	if (dir == NULL) {
-		CONF_LOG(LOG_WARNING, "failed to remove directory '%s'", path);
-		return;
-	}
-
-	// Prepare own dirent structure (see NOTES in man readdir_r).
-	size_t len = offsetof(struct dirent, d_name) +
-	             fpathconf(dirfd(dir), _PC_NAME_MAX) + 1;
-
-	struct dirent *entry = malloc(len);
-	if (entry == NULL) {
-		CONF_LOG(LOG_WARNING, "failed to remove directory '%s'", path);
-		closedir(dir);
-		return;
-	}
-	memset(entry, 0, len);
-
-	// Firstly, delete all files in the directory.
-	int ret;
-	struct dirent *result = NULL;
-	while ((ret = readdir_r(dir, entry, &result)) == 0 &&
-	       result != NULL) {
-		if (entry->d_name[0] == '.') {
-			continue;
-		}
-
-		char *file = sprintf_alloc("%s/%s", path, entry->d_name);
-		if (file == NULL) {
-			ret = KNOT_ENOMEM;
-			break;
-		}
-		remove(file);
-		free(file);
-	}
-
-	free(entry);
-	closedir(dir);
-
-	// Secondly, delete the directory if it is empty.
-	if (ret != 0 || remove(path) != 0) {
-		CONF_LOG(LOG_WARNING, "failed to remove whole directory '%s'", path);
-	}
 }
 
 static int init_and_check(
@@ -121,7 +71,12 @@ static int init_and_check(
 		}
 	}
 
-	return conf->api->txn_commit(&txn);
+	if (flags & CONF_FREADONLY) {
+		conf->api->txn_abort(&txn);
+		return KNOT_EOK;
+	} else {
+		return conf->api->txn_commit(&txn);
+	}
 }
 
 int conf_refresh_txn(
@@ -157,6 +112,8 @@ static void init_cache(
 	conf->cache.srv_tcp_hshake_timeout = conf_get(conf, C_SRV, C_TCP_HSHAKE_TIMEOUT);
 	conf->cache.srv_tcp_idle_timeout = conf_get(conf, C_SRV, C_TCP_IDLE_TIMEOUT);
 	conf->cache.srv_tcp_reply_timeout = conf_get(conf, C_SRV, C_TCP_REPLY_TIMEOUT);
+	conf->cache.srv_rate_limit_slip = conf_get(conf, C_SRV, C_RATE_LIMIT_SLIP);
+	conf->cache.srv_rate_limit_whitelist = conf_get(conf, C_SRV, C_RATE_LIMIT_WHITELIST);
 }
 
 int conf_new(
@@ -212,7 +169,9 @@ int conf_new(
 		ret = out->api->init(&out->db, out->mm, &lmdb_opts);
 
 		// Remove the database to ensure it is temporary.
-		rm_dir(lmdb_opts.path);
+		if (!remove_path(lmdb_opts.path)) {
+			CONF_LOG(LOG_WARNING, "failed to purge temporary directory '%s'", lmdb_opts.path);
+		}
 	} else {
 		// Set the specified database.
 		lmdb_opts.path = db_dir;

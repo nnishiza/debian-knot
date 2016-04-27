@@ -138,7 +138,7 @@ static int rrl_clsname(char *dst, size_t maxlen, uint8_t cls,
                        rrl_req_t *req, const zone_t *zone)
 {
 	/* Fallback zone (for errors etc.) */
-	const knot_dname_t *dn = (const knot_dname_t*)"\x00";
+	const knot_dname_t *dn = (const knot_dname_t *)"\x00";
 
 	/* Found associated zone. */
 	if (zone != NULL) {
@@ -152,8 +152,9 @@ static int rrl_clsname(char *dst, size_t maxlen, uint8_t cls,
 		break;
 	default:
 		/* Use QNAME */
-		if (req->query)
+		if (req->query) {
 			dn = knot_pkt_qname(req->query);
+		}
 		break;
 	}
 
@@ -177,29 +178,33 @@ static int rrl_classify(char *dst, size_t maxlen, const struct sockaddr_storage 
 	uint64_t nb = 0;
 	if (a->ss_family == AF_INET6) {
 		struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)a;
-		nb = *((uint64_t*)(&ipv6->sin6_addr)) & RRL_V6_PREFIX;
+		nb = *((uint64_t *)(&ipv6->sin6_addr)) & RRL_V6_PREFIX;
 	} else {
 		struct sockaddr_in *ipv4 = (struct sockaddr_in *)a;
 		nb = ((uint32_t)ipv4->sin_addr.s_addr) & RRL_V4_PREFIX;
 	}
-	if (blklen + sizeof(nb) > maxlen) return KNOT_ESPACE;
-	memcpy(dst + blklen, (void*)&nb, sizeof(nb));
+	if (blklen + sizeof(nb) > maxlen) {
+		return KNOT_ESPACE;
+	}
+	memcpy(dst + blklen, (void *)&nb, sizeof(nb));
 	blklen += sizeof(nb);
 
 	/* Name */
-	uint16_t *nlen = (uint16_t*)(dst + blklen);
+	uint16_t *nlen = (uint16_t *)(dst + blklen);
 	blklen += sizeof(uint16_t);
 	int len = rrl_clsname(dst + blklen, maxlen - blklen, cls, p, z);
-	if (len < 0)
+	if (len < 0) {
 		return len;
+	}
 	*nlen = len;
 	blklen += len;
 
 	/* Seed. */
-	if (blklen + sizeof(seed) > maxlen) return KNOT_ESPACE;
-	if (memcpy(dst + blklen, (void*)&seed, sizeof(seed)) == 0) {
-		blklen += sizeof(seed);
+	if (blklen + sizeof(seed) > maxlen) {
+		return KNOT_ESPACE;
 	}
+	memcpy(dst + blklen, (void *)&seed, sizeof(seed));
+	blklen += sizeof(seed);
 
 	return blklen;
 }
@@ -303,7 +308,9 @@ rrl_table_t *rrl_create(size_t size)
 
 	const size_t tbl_len = sizeof(rrl_table_t) + size * sizeof(rrl_item_t);
 	rrl_table_t *t = malloc(tbl_len);
-	if (!t) return NULL;
+	if (!t) {
+		return NULL;
+	}
 	memset(t, 0, sizeof(rrl_table_t));
 	t->size = size;
 	rrl_reseed(t);
@@ -313,7 +320,9 @@ rrl_table_t *rrl_create(size_t size)
 
 uint32_t rrl_setrate(rrl_table_t *rrl, uint32_t rate)
 {
-	if (!rrl) return 0;
+	if (!rrl) {
+		return 0;
+	}
 	uint32_t old = rrl->rate;
 	rrl->rate = rate;
 	return old;
@@ -321,13 +330,15 @@ uint32_t rrl_setrate(rrl_table_t *rrl, uint32_t rate)
 
 uint32_t rrl_rate(rrl_table_t *rrl)
 {
-	if (!rrl) return 0;
-	return rrl->rate;
+	return rrl ? rrl->rate : 0;
 }
 
 int rrl_setlocks(rrl_table_t *rrl, unsigned granularity)
 {
-	if (!rrl) return KNOT_EINVAL;
+	if (!rrl) {
+		return KNOT_EINVAL;
+	}
+
 	assert(!rrl->lk); /* Cannot change while locks are used. */
 	assert(granularity <= rrl->size / 10); /* Due to int. division err. */
 
@@ -337,12 +348,16 @@ int rrl_setlocks(rrl_table_t *rrl, unsigned granularity)
 
 	/* Alloc new locks. */
 	rrl->lk = malloc(granularity * sizeof(pthread_mutex_t));
-	if (!rrl->lk) return KNOT_ENOMEM;
+	if (!rrl->lk) {
+		return KNOT_ENOMEM;
+	}
 	memset(rrl->lk, 0, granularity * sizeof(pthread_mutex_t));
 
 	/* Initialize. */
 	for (size_t i = 0; i < granularity; ++i) {
-		if (pthread_mutex_init(rrl->lk + i, NULL) < 0) break;
+		if (pthread_mutex_init(rrl->lk + i, NULL) < 0) {
+			break;
+		}
 		++rrl->lk_count;
 	}
 
@@ -359,7 +374,7 @@ int rrl_setlocks(rrl_table_t *rrl, unsigned granularity)
 	return KNOT_EOK;
 }
 
-rrl_item_t* rrl_hash(rrl_table_t *t, const struct sockaddr_storage *a, rrl_req_t *p,
+rrl_item_t *rrl_hash(rrl_table_t *t, const struct sockaddr_storage *a, rrl_req_t *p,
                      const zone_t *zone, uint32_t stamp, int *lock)
 {
 	char buf[RRL_CLSBLK_MAXLEN];
@@ -374,11 +389,11 @@ rrl_item_t* rrl_hash(rrl_table_t *t, const struct sockaddr_storage *a, rrl_req_t
 	pthread_mutex_lock(&t->ll);
 
 	/* Find an exact match in <id, id + HOP_LEN). */
-	uint16_t *qname = (uint16_t*)(buf + sizeof(uint8_t) + sizeof(uint64_t));
+	uint16_t *qname = (uint16_t *)(buf + sizeof(uint8_t) + sizeof(uint64_t));
 	rrl_item_t match = {
-	        0, *((uint64_t*)(buf + 1)), t->rate,    /* hop, netblk, ntok */
-	        buf[0], RRL_BF_NULL,                    /* cls, flags */
-	        hash((char*)(qname + 1), *qname), stamp /* qname, time*/
+	        0, *((uint64_t *)(buf + 1)), t->rate,    /* hop, netblk, ntok */
+	        buf[0], RRL_BF_NULL,                     /* cls, flags */
+	        hash((char *)(qname + 1), *qname), stamp /* qname, time */
 	};
 
 	unsigned d = find_match(t, id, &match);
@@ -399,7 +414,7 @@ rrl_item_t* rrl_hash(rrl_table_t *t, const struct sockaddr_storage *a, rrl_req_t
 
 	/* found free elm 'k' which is in <id, id + HOP_LEN) */
 	t->arr[id].hop |= (1 << d);
-	rrl_item_t* b = t->arr + f;
+	rrl_item_t *b = t->arr + f;
 	assert(f == (id+d) % t->size);
 
 	/* Inspect bucket state. */
@@ -424,7 +439,9 @@ rrl_item_t* rrl_hash(rrl_table_t *t, const struct sockaddr_storage *a, rrl_req_t
 int rrl_query(rrl_table_t *rrl, const struct sockaddr_storage *a, rrl_req_t *req,
               const zone_t *zone)
 {
-	if (!rrl || !req || !a) return KNOT_EINVAL;
+	if (!rrl || !req || !a) {
+		return KNOT_EINVAL;
+	}
 
 	/* Calculate hash and fetch */
 	int ret = KNOT_EOK;
@@ -432,7 +449,9 @@ int rrl_query(rrl_table_t *rrl, const struct sockaddr_storage *a, rrl_req_t *req
 	uint32_t now = time(NULL);
 	rrl_item_t *b = rrl_hash(rrl, a, req, zone, now, &lock);
 	if (!b) {
-		if (lock > -1) rrl_unlock(rrl, lock);
+		if (lock > -1) {
+			rrl_unlock(rrl, lock);
+		}
 		return KNOT_ERROR;
 	}
 
@@ -475,7 +494,9 @@ int rrl_query(rrl_table_t *rrl, const struct sockaddr_storage *a, rrl_req_t *req
 		ret = KNOT_ELIMIT;
 	}
 
-	if (lock > -1) rrl_unlock(rrl, lock);
+	if (lock > -1) {
+		rrl_unlock(rrl, lock);
+	}
 	return ret;
 }
 
@@ -492,7 +513,9 @@ bool rrl_slip_roll(int n_slip)
 int rrl_destroy(rrl_table_t *rrl)
 {
 	if (rrl) {
-		if (rrl->lk_count > 0) pthread_mutex_destroy(&rrl->ll);
+		if (rrl->lk_count > 0) {
+			pthread_mutex_destroy(&rrl->ll);
+		}
 		for (size_t i = 0; i < rrl->lk_count; ++i) {
 			pthread_mutex_destroy(rrl->lk + i);
 		}

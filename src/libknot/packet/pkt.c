@@ -412,7 +412,7 @@ uint16_t knot_pkt_type(const knot_pkt_t *pkt)
 	bool is_query = (knot_wire_get_qr(pkt->wire) == 0);
 	uint16_t ret = KNOT_QUERY_INVALID;
 	uint8_t opcode = knot_wire_get_opcode(pkt->wire);
-	uint8_t query_type = knot_pkt_qtype(pkt);
+	uint16_t query_type = knot_pkt_qtype(pkt);
 
 	switch (opcode) {
 	case KNOT_OPCODE_QUERY:
@@ -771,7 +771,7 @@ int knot_pkt_parse_rr(knot_pkt_t *pkt, unsigned flags)
 	size_t rr_size = pkt->parsed;
 	knot_rrset_t *rr = &pkt->rr[pkt->rrset_count];
 	ret = knot_rrset_rr_from_wire(pkt->wire, &pkt->parsed, pkt->size,
-	                              &pkt->mm, rr);
+	                              &pkt->mm, rr, !(flags & KNOT_PF_NOCANON));
 	if (ret != KNOT_EOK) {
 		return ret;
 	}

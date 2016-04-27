@@ -223,9 +223,7 @@ CCDEPMODE = @CCDEPMODE@
 CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
-CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
-CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -334,6 +332,8 @@ jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
 libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
+libedit_CFLAGS = @libedit_CFLAGS@
+libedit_LIBS = @libedit_LIBS@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
@@ -861,8 +861,16 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
+.PHONY: singlehtml install-singlehtml
 singlehtml install-singlehtml:
 	$(MAKE) -C doc $@
+
+.PHONY: check-compile
+check-compile:
+	$(MAKE) $(AM_MAKEFLAGS) -C libtap $@
+	$(MAKE) $(AM_MAKEFLAGS) -C src $@
+	$(MAKE) $(AM_MAKEFLAGS) -C tests $@
+	$(MAKE) $(AM_MAKEFLAGS) -C tests-fuzz $@
 
 check-code-coverage:
 @CODE_COVERAGE_ENABLED_TRUE@	$(MAKE) $(AM_MAKEFLAGS) code-coverage-initial
@@ -916,7 +924,7 @@ code-coverage-summary:
 @CODE_COVERAGE_ENABLED_TRUE@	-rm -rf $(CODE_COVERAGE_INFO) $(CODE_COVERAGE_HTML)
 @CODE_COVERAGE_ENABLED_TRUE@	-find . -name "*.gcda" -o -name "*.gcov" -delete
 
-.PHONY: check-code-coverage code-coverage-initial code-coverage-capture code-coverage-html code-coverage-summary code-coverage-clean singlehtml install-singlehtml
+.PHONY: check-code-coverage code-coverage-initial code-coverage-capture code-coverage-html code-coverage-summary code-coverage-clean
 .NOTPARALLEL: clean
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

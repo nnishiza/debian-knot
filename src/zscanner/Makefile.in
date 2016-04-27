@@ -151,8 +151,8 @@ am__v_lt_0 = --silent
 am__v_lt_1 = 
 libzscanner_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libzscanner_la_CFLAGS) $(CFLAGS) $(libzscanner_la_LDFLAGS) \
-	$(LDFLAGS) -o $@
+	$(AM_CFLAGS) $(CFLAGS) $(libzscanner_la_LDFLAGS) $(LDFLAGS) -o \
+	$@
 am__dirstamp = $(am__leading_dot)dirstamp
 am_tests_zscanner_tool_OBJECTS = tests/zscanner-tool.$(OBJEXT) \
 	tests/tests.$(OBJEXT) tests/processing.$(OBJEXT)
@@ -241,9 +241,7 @@ CCDEPMODE = @CCDEPMODE@
 CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
-CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
-CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -352,6 +350,8 @@ jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
 libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
+libedit_CFLAGS = @libedit_CFLAGS@
+libedit_LIBS = @libedit_LIBS@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
@@ -418,9 +418,7 @@ nodist_libzscanner_la_SOURCES = \
 	scanner.c
 
 libzscanner_la_CPPFLAGS = $(AM_CPPFLAGS) $(CFLAG_VISIBILITY)
-libzscanner_la_CFLAGS = $(CODE_COVERAGE_CFLAGS)
 libzscanner_la_LDFLAGS = \
-	$(CODE_COVERAGE_LDFLAGS)	\
 	$(libzscanner_VERSION_INFO)
 
 LDADD = \
@@ -582,25 +580,25 @@ distclean-compile:
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
 libzscanner_la-error.lo: error.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -MT libzscanner_la-error.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-error.Tpo -c -o libzscanner_la-error.lo `test -f 'error.c' || echo '$(srcdir)/'`error.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzscanner_la-error.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-error.Tpo -c -o libzscanner_la-error.lo `test -f 'error.c' || echo '$(srcdir)/'`error.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzscanner_la-error.Tpo $(DEPDIR)/libzscanner_la-error.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='error.c' object='libzscanner_la-error.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -c -o libzscanner_la-error.lo `test -f 'error.c' || echo '$(srcdir)/'`error.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzscanner_la-error.lo `test -f 'error.c' || echo '$(srcdir)/'`error.c
 
 libzscanner_la-functions.lo: functions.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -MT libzscanner_la-functions.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-functions.Tpo -c -o libzscanner_la-functions.lo `test -f 'functions.c' || echo '$(srcdir)/'`functions.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzscanner_la-functions.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-functions.Tpo -c -o libzscanner_la-functions.lo `test -f 'functions.c' || echo '$(srcdir)/'`functions.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzscanner_la-functions.Tpo $(DEPDIR)/libzscanner_la-functions.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='functions.c' object='libzscanner_la-functions.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -c -o libzscanner_la-functions.lo `test -f 'functions.c' || echo '$(srcdir)/'`functions.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzscanner_la-functions.lo `test -f 'functions.c' || echo '$(srcdir)/'`functions.c
 
 libzscanner_la-scanner.lo: scanner.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -MT libzscanner_la-scanner.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-scanner.Tpo -c -o libzscanner_la-scanner.lo `test -f 'scanner.c' || echo '$(srcdir)/'`scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libzscanner_la-scanner.lo -MD -MP -MF $(DEPDIR)/libzscanner_la-scanner.Tpo -c -o libzscanner_la-scanner.lo `test -f 'scanner.c' || echo '$(srcdir)/'`scanner.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libzscanner_la-scanner.Tpo $(DEPDIR)/libzscanner_la-scanner.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='scanner.c' object='libzscanner_la-scanner.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(libzscanner_la_CFLAGS) $(CFLAGS) -c -o libzscanner_la-scanner.lo `test -f 'scanner.c' || echo '$(srcdir)/'`scanner.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libzscanner_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libzscanner_la-scanner.lo `test -f 'scanner.c' || echo '$(srcdir)/'`scanner.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -886,7 +884,7 @@ tests/unittests:
 	$(edit) < $(top_srcdir)/src/zscanner/$@.in > $(top_builddir)/src/zscanner/$@
 	chmod +x $(top_builddir)/src/zscanner/$@
 
-check-compile-only: $(check_SCRIPTS) $(check_PROGRAMS)
+check-compile: $(check_SCRIPTS) $(check_PROGRAMS)
 
 check-local: $(check_PROGRAMS)
 	$(top_builddir)/libtap/runtests \

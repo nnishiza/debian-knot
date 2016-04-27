@@ -103,6 +103,7 @@ General options related to the server.
      rate-limit: INT
      rate-limit-slip: INT
      rate-limit-table-size: INT
+     rate-limit-whitelist: ADDR[/INT] | ADDR-ADDR ...
      listen: ADDR[@INT] ...
 
 .. _server_identity:
@@ -311,6 +312,17 @@ noting, that some responses can't be truncated (e.g. SERVFAIL).
 
 *Default:* 1
 
+.. _server_rate-limit-whitelist:
+
+rate-limit-whitelist
+--------------------
+
+A list of IP addresses, network subnets, or network ranges to exempt from
+rate limiting. Empty list means that no incoming connection will be
+white-listed.
+
+*Default:* not set
+
 .. _server_max-udp-payload:
 
 max-udp-payload
@@ -453,15 +465,25 @@ Configuration of the server control interface.
 
  control:
      listen: STR
+     timeout: TIME
 
 .. _control_listen:
 
 listen
 ------
 
-A UNIX socket path where the server listens for remote control commands.
+A UNIX socket path where the server listens for control commands.
 
 *Default:* :ref:`rundir<server_rundir>`/knot.sock
+
+.. _control_timeout:
+
+timeout
+-------
+
+Maximum time the control socket operations can take. Set 0 for infinity.
+
+*Default:* 5
 
 .. _Remote section:
 
@@ -931,6 +953,8 @@ zone-specific logging, use this module in the proper zone configuration.
  mod-dnstap:
    - id: STR
      sink: STR
+     identity: STR
+     version: STR
 
 .. _mod-dnstap_id:
 
@@ -948,6 +972,24 @@ A sink path, which can be either a file or a UNIX socket when prefixed with
 ``unix:``.
 
 *Required*
+
+.. _mod-dnstap_identity:
+
+identity
+--------
+
+A DNS server identity. Set empty value to disable.
+
+*Default:* FQDN hostname
+
+.. _mod-dnstap_version:
+
+version
+-------
+
+A DNS server version. Set empty value to disable.
+
+*Default:* server version
 
 .. _Module synth-record:
 

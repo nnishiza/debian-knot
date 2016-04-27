@@ -46,17 +46,18 @@ struct event;
  *
  * Example callback:
  * \code
- * int print_callback(event_t *t) {
- *    return printf("Callback: %s\n", t->data);
+ * void print_callback(event_t *t) {
+ *    printf("Callback: %s\n", t->data);
  * }
  * \endcode
  */
-typedef int (*event_cb_t)(struct event *);
+typedef void (*event_cb_t)(struct event *);
 
 /*!
  * \brief Event structure.
  */
 typedef struct event {
+	struct heap_val hpos;
 	struct timeval tv; /*!< Event scheduled time. */
 	void *data;        /*!< Usable data ptr. */
 	event_cb_t cb;     /*!< Event callback. */
@@ -144,8 +145,6 @@ int evsched_schedule(event_t *ev, uint32_t dt);
  * \retval KNOT_EINVAL
  */
 int evsched_cancel(event_t *ev);
-
-
 
 void evsched_start(evsched_t *sched);
 void evsched_stop(evsched_t *sched);

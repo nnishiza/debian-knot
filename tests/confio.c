@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include "test_conf.h"
 #include "knot/conf/confio.h"
 #include "knot/conf/tools.h"
-#include "knot/ctl/remote.h"
+#include "libknot/yparser/yptrafo.h"
 #include "contrib/string.h"
 #include "contrib/openbsd/strlcat.h"
 
@@ -29,13 +29,128 @@
 #define ZONE2		"zone2"
 #define ZONE3		"zone3"
 
+char *format_key(conf_io_t *io)
+{
+	char id[KNOT_DNAME_TXT_MAXLEN + 1] = "\0";
+	size_t id_len = sizeof(id);
+
+	// Get the textual item id.
+	if (io->id_len > 0 && !io->id_as_data) {
+		if (yp_item_to_txt(io->key0->var.g.id, io->id, io->id_len, id,
+		                   &id_len, YP_SNOQUOTE) != KNOT_EOK) {
+			return NULL;
+		}
+	}
+
+	// Get the item prefix.
+	const char *prefix = "";
+	switch (io->type) {
+	case NEW: prefix = "+"; break;
+	case OLD: prefix = "-"; break;
+	default: break;
+	}
+
+	// Format the item key.
+	return sprintf_alloc(
+		"%s%.*s%s%.*s%s%s%.*s",
+		prefix, (int)io->key0->name[0], io->key0->name + 1,
+		(io->id_len > 0 && !io->id_as_data ? "[" : ""),
+		(io->id_len > 0 && !io->id_as_data ? (int)id_len : 0), id,
+		(io->id_len > 0 && !io->id_as_data ? "]" : ""),
+		(io->key1 != NULL ? "." : ""),
+		(io->key1 != NULL ? (int)io->key1->name[0] : 0),
+		(io->key1 != NULL ? io->key1->name + 1 : ""));
+}
+
+static int append_data(const yp_item_t *item, const uint8_t *bin, size_t bin_len,
+                       char *out, size_t out_len)
+{
+	char buf[YP_MAX_TXT_DATA_LEN + 1] = "\0";
+	size_t buf_len = sizeof(buf);
+
+	int ret = yp_item_to_txt(item, bin, bin_len, buf, &buf_len, YP_SNONE);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	if (strlcat(out, buf, out_len) >= out_len) {
+		return KNOT_ESPACE;
+	}
+
+	return KNOT_EOK;
+}
+
+char *format_data(conf_io_t *io)
+{
+	char out[YP_MAX_TXT_DATA_LEN + 1] = "\0";
+
+	// Return the item identifier as the item data.
+	if (io->id_as_data) {
+		if (append_data(io->key0->var.g.id, io->id, io->id_len, out,
+		                sizeof(out)) != KNOT_EOK) {
+			return NULL;
+		}
+
+		return strdup(out);
+	}
+
+	// Check for no data.
+	if (io->data.val == NULL && io->data.bin == NULL) {
+		return NULL;
+	}
+
+	const yp_item_t *item = (io->key1 != NULL) ? io->key1 : io->key0;
+
+	// Format explicit binary data value.
+	if (io->data.bin != NULL) {
+		if (append_data(item, io->data.bin, io->data.bin_len, out,
+		                sizeof(out)) != KNOT_EOK) {
+			return NULL;
+		}
+	// Format multivalued item data.
+	} else if (item->flags & YP_FMULTI) {
+		size_t values = conf_val_count(io->data.val);
+		for (size_t i = 0; i < values; i++) {
+			// Skip other values if known index (counted from 1).
+			if (io->data.index > 0 &&
+			    io->data.index != i + 1) {
+				conf_val_next(io->data.val);
+				continue;
+			}
+
+			if (i > 0) {
+				if (strlcat(out, " ", sizeof(out)) >= sizeof(out)) {
+					return NULL;
+				}
+			}
+
+			conf_val(io->data.val);
+			if (append_data(item, io->data.val->data, io->data.val->len,
+			                out, sizeof(out)) != KNOT_EOK) {
+				return NULL;
+			}
+
+			conf_val_next(io->data.val);
+		}
+	// Format singlevalued item data.
+	} else {
+		conf_val(io->data.val);
+		if (append_data(item, io->data.val->data, io->data.val->len, out,
+		                sizeof(out)) != KNOT_EOK) {
+			return NULL;
+		}
+	}
+
+	return strdup(out);
+}
+
 static int format_item(conf_io_t *io)
 {
 	char *out = (char *)io->misc;
 
 	// Get the item key and data strings.
-	char *key = conf_io_txt_key(io);
-	char *data = conf_io_txt_data(io);
+	char *key = format_key(io);
+	char *data = format_data(io);
 
 	// Format the item.
 	char *item = sprintf_alloc(
@@ -82,16 +197,13 @@ static void test_conf_io_begin()
 	ok(conf()->io.txn == &(conf()->io.txn_stack[CONF_MAX_TXN_DEPTH - 1]),
 	   "check txn depth");
 
-	ok(conf_io_abort(false) == KNOT_EOK, "abort parent txn");
+	conf_io_abort(false);
 	ok(conf()->io.txn == NULL, "check txn depth");
 #endif
 }
 
 static void test_conf_io_abort()
 {
-	ok(conf_io_abort(false) == KNOT_CONF_ENOTXN, "abort no txn");
-	ok(conf_io_abort(true) == KNOT_CONF_ENOTXN, "abort no txn");
-
 #if defined(__OpenBSD__)
 	SKIP_OPENBSD
 #else
@@ -113,14 +225,14 @@ static void test_conf_io_abort()
 
 	for (int i = CONF_MAX_TXN_DEPTH - 1; i > 0; i--) {
 		char idx[2] = { '0' + i };
-		ok(conf_io_abort(true) == KNOT_EOK, "abort child txn %s", idx);
+		conf_io_abort(true);
 		conf_val_t val = conf_get_txn(conf(), conf()->io.txn, C_SERVER, C_VERSION);
 		ok(val.code == KNOT_EOK, "check entry");
 		const char *data = conf_str(&val);
 		ok(*data == (idx[0] - 1), "compare txn data '%s'", data);
 	}
 
-	ok(conf_io_abort(false) == KNOT_EOK, "abort parent txn");
+	conf_io_abort(false);
 	ok(conf()->io.txn == NULL, "check txn depth");
 
 	// Test child abort with commited subchild.
@@ -134,10 +246,10 @@ static void test_conf_io_abort()
 	ok(val.code == KNOT_EOK, "check entry");
 	const char *data = conf_str(&val);
 	ok(strcmp(data, "text") == 0, "compare subchild txn data '%s'", data);
-	ok(conf_io_abort(true) == KNOT_EOK, "abort child txn");
+	conf_io_abort(true);
 	val = conf_get_txn(conf(), conf()->io.txn, C_SERVER, C_VERSION);
 	ok(val.code == KNOT_ENOENT, "check entry");
-	ok(conf_io_abort(false) == KNOT_EOK, "abort parent txn");
+	conf_io_abort(false);
 
 	// Test unchanged read_txn.
 	val = conf_get_txn(conf(), &conf()->read_txn, C_SERVER, C_VERSION);
@@ -188,7 +300,7 @@ static void test_conf_io_commit()
 	idx[0] = '0' + CONF_MAX_TXN_DEPTH - 1;
 	const char *data = conf_str(&val);
 	ok(strcmp(data, idx) == 0, "compare final data '%s'", data);
-	ok(conf_io_abort(false) == KNOT_EOK, "abort new parent txn");
+	conf_io_abort(false);
 
 	// Test unchanged read_txn.
 	val = conf_get_txn(conf(), &conf()->read_txn, C_SERVER, C_VERSION);
@@ -235,8 +347,7 @@ static void test_conf_io_check()
 	   KNOT_ENOENT, "check missing master remote");
 	ok(io.error.code == KNOT_ENOENT, "compare error code");
 
-	ok(conf_io_abort(false) == KNOT_EOK, "abort parent txn");
-	ok(conf()->io.txn == NULL, "check txn depth");
+	conf_io_abort(false);
 }
 
 static void test_conf_io_set()
@@ -376,8 +487,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_ENOENT, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	ok(conf_io_unset("server", "version", NULL, NULL) ==
 	   KNOT_EOK, "unset value");
@@ -402,8 +513,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_ENOENT, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	// Whole section items.
 	ok(conf_io_unset("server", NULL, NULL, NULL) ==
@@ -414,8 +525,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_ENOENT, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	// Prepare dnames.
 	knot_dname_t *zone1 = knot_dname_from_str_alloc(ZONE1);
@@ -442,8 +553,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_EOK, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	// Multi group, single value (not all match), all ids.
 	ok(conf_io_unset("zone", "comment", NULL, "abc") ==
@@ -456,8 +567,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_EOK, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	// Multi group, single value (all match), all ids.
 	ok(conf_io_unset("zone", "comment", NULL, NULL) ==
@@ -470,8 +581,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_ENOENT, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	// Multi group, all items, specific id.
 	ok(conf_io_unset("zone", NULL, ZONE1, NULL) ==
@@ -484,8 +595,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_EOK, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	// Multi group, all items, all ids.
 	ok(conf_io_unset("zone", NULL, NULL, NULL) ==
@@ -498,8 +609,8 @@ static void test_conf_io_unset()
 	ok(val.code == KNOT_ENOENT, "check entry");
 
 	// Restart transaction.
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
-	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
+	conf_io_abort(false);
+	ok(conf_io_begin(false) == KNOT_EOK, "restart txn");
 
 	// All groups.
 	ok(conf_io_unset(NULL, NULL, NULL, NULL) ==
@@ -519,7 +630,7 @@ static void test_conf_io_unset()
 	knot_dname_free(&zone2, NULL);
 	knot_dname_free(&zone3, NULL);
 
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
+	conf_io_abort(false);
 }
 
 static void test_conf_io_get()
@@ -647,7 +758,7 @@ static void test_conf_io_get()
 
 	knot_dname_free(&zone1, NULL);
 
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
+	conf_io_abort(false);
 }
 
 static void test_conf_io_diff()
@@ -744,7 +855,7 @@ static void test_conf_io_diff()
 	      "-zone[zone3.].comment = \"xyz\"";
 	ok(strcmp(ref, out) == 0, "compare result");
 
-	ok(conf_io_abort(false) == KNOT_EOK, "abort txn");
+	conf_io_abort(false);
 }
 
 static void test_conf_io_list()

@@ -89,7 +89,7 @@ build_triplet = @build@
 host_triplet = @host@
 check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
 	changeset$(EXEEXT) conf$(EXEEXT) conf_tools$(EXEEXT) \
-	confdb$(EXEEXT) confio$(EXEEXT) db$(EXEEXT) \
+	confdb$(EXEEXT) confio$(EXEEXT) control$(EXEEXT) db$(EXEEXT) \
 	descriptor$(EXEEXT) dname$(EXEEXT) dthreads$(EXEEXT) \
 	edns$(EXEEXT) endian$(EXEEXT) fdset$(EXEEXT) hattrie$(EXEEXT) \
 	hhash$(EXEEXT) internal_mem$(EXEEXT) journal$(EXEEXT) \
@@ -103,7 +103,8 @@ check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
 	worker_pool$(EXEEXT) worker_queue$(EXEEXT) yparser$(EXEEXT) \
 	ypscheme$(EXEEXT) yptrafo$(EXEEXT) zone_events$(EXEEXT) \
 	zone_serial$(EXEEXT) zone_timers$(EXEEXT) zone_update$(EXEEXT) \
-	zonedb$(EXEEXT) ztree$(EXEEXT) modules/online_sign$(EXEEXT)
+	zonedb$(EXEEXT) ztree$(EXEEXT) modules/online_sign$(EXEEXT) \
+	utils/test_lookup$(EXEEXT)
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
@@ -163,6 +164,11 @@ am_confio_OBJECTS = confio.$(OBJEXT)
 confio_OBJECTS = $(am_confio_OBJECTS)
 confio_LDADD = $(LDADD)
 confio_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+control_SOURCES = control.c
+control_OBJECTS = control.$(OBJEXT)
+control_LDADD = $(LDADD)
+control_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 db_SOURCES = db.c
 db_OBJECTS = db.$(OBJEXT)
@@ -315,6 +321,11 @@ tsig_key_OBJECTS = tsig_key.$(OBJEXT)
 tsig_key_LDADD = $(LDADD)
 tsig_key_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+utils_test_lookup_SOURCES = utils/test_lookup.c
+utils_test_lookup_OBJECTS = utils/test_lookup.$(OBJEXT)
+am__DEPENDENCIES_1 =
+utils_test_lookup_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknotus.la $(am__DEPENDENCIES_1)
 wire_SOURCES = wire.c
 wire_OBJECTS = wire.$(OBJEXT)
 wire_LDADD = $(LDADD)
@@ -416,26 +427,28 @@ am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	$(conf_SOURCES) conf_tools.c $(confdb_SOURCES) \
-	$(confio_SOURCES) db.c descriptor.c dname.c dthreads.c edns.c \
-	endian.c fdset.c hattrie.c hhash.c internal_mem.c journal.c \
-	lookup.c modules/online_sign.c net.c net_shortwrite.c node.c \
-	overlay.c pkt.c $(process_answer_SOURCES) \
-	$(process_query_SOURCES) query_module.c rdata.c rdataset.c \
-	requestor.c rrl.c rrset.c rrset_wire.c server.c sockaddr.c \
-	tsig_key.c wire.c wire_ctx.c worker_pool.c worker_queue.c \
-	yparser.c ypscheme.c yptrafo.c zone_events.c zone_serial.c \
-	zone_timers.c zone_update.c zonedb.c ztree.c
+	$(confio_SOURCES) control.c db.c descriptor.c dname.c \
+	dthreads.c edns.c endian.c fdset.c hattrie.c hhash.c \
+	internal_mem.c journal.c lookup.c modules/online_sign.c net.c \
+	net_shortwrite.c node.c overlay.c pkt.c \
+	$(process_answer_SOURCES) $(process_query_SOURCES) \
+	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
+	rrset_wire.c server.c sockaddr.c tsig_key.c \
+	utils/test_lookup.c wire.c wire_ctx.c worker_pool.c \
+	worker_queue.c yparser.c ypscheme.c yptrafo.c zone_events.c \
+	zone_serial.c zone_timers.c zone_update.c zonedb.c ztree.c
 DIST_SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	$(conf_SOURCES) conf_tools.c $(confdb_SOURCES) \
-	$(confio_SOURCES) db.c descriptor.c dname.c dthreads.c edns.c \
-	endian.c fdset.c hattrie.c hhash.c internal_mem.c journal.c \
-	lookup.c modules/online_sign.c net.c net_shortwrite.c node.c \
-	overlay.c pkt.c $(process_answer_SOURCES) \
-	$(process_query_SOURCES) query_module.c rdata.c rdataset.c \
-	requestor.c rrl.c rrset.c rrset_wire.c server.c sockaddr.c \
-	tsig_key.c wire.c wire_ctx.c worker_pool.c worker_queue.c \
-	yparser.c ypscheme.c yptrafo.c zone_events.c zone_serial.c \
-	zone_timers.c zone_update.c zonedb.c ztree.c
+	$(confio_SOURCES) control.c db.c descriptor.c dname.c \
+	dthreads.c edns.c endian.c fdset.c hattrie.c hhash.c \
+	internal_mem.c journal.c lookup.c modules/online_sign.c net.c \
+	net_shortwrite.c node.c overlay.c pkt.c \
+	$(process_answer_SOURCES) $(process_query_SOURCES) \
+	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
+	rrset_wire.c server.c sockaddr.c tsig_key.c \
+	utils/test_lookup.c wire.c wire_ctx.c worker_pool.c \
+	worker_queue.c yparser.c ypscheme.c yptrafo.c zone_events.c \
+	zone_serial.c zone_timers.c zone_update.c zonedb.c ztree.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -476,9 +489,7 @@ CCDEPMODE = @CCDEPMODE@
 CC_LLVM = @CC_LLVM@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
-CODE_COVERAGE_CFLAGS = @CODE_COVERAGE_CFLAGS@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
-CODE_COVERAGE_LDFLAGS = @CODE_COVERAGE_LDFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -587,6 +598,8 @@ jansson_CFLAGS = @jansson_CFLAGS@
 jansson_LIBS = @jansson_LIBS@
 libdir = @libdir@
 libdnssec_VERSION_INFO = @libdnssec_VERSION_INFO@
+libedit_CFLAGS = @libedit_CFLAGS@
+libedit_LIBS = @libedit_LIBS@
 libexecdir = @libexecdir@
 libfstrm_CFLAGS = @libfstrm_CFLAGS@
 libfstrm_LIBS = @libfstrm_LIBS@
@@ -635,6 +648,11 @@ LDADD = \
 	$(top_builddir)/src/libknot.la \
 	$(top_builddir)/src/libknotd.la \
 	$(libcrypto_LIBS)
+
+utils_test_lookup_LDADD = \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknotus.la \
+	$(libedit_LIBS)
 
 acl_SOURCES = acl.c test_conf.h
 conf_SOURCES = conf.c test_conf.h
@@ -717,6 +735,10 @@ confdb$(EXEEXT): $(confdb_OBJECTS) $(confdb_DEPENDENCIES) $(EXTRA_confdb_DEPENDE
 confio$(EXEEXT): $(confio_OBJECTS) $(confio_DEPENDENCIES) $(EXTRA_confio_DEPENDENCIES) 
 	@rm -f confio$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(confio_OBJECTS) $(confio_LDADD) $(LIBS)
+
+control$(EXEEXT): $(control_OBJECTS) $(control_DEPENDENCIES) $(EXTRA_control_DEPENDENCIES) 
+	@rm -f control$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(control_OBJECTS) $(control_LDADD) $(LIBS)
 
 db$(EXEEXT): $(db_OBJECTS) $(db_DEPENDENCIES) $(EXTRA_db_DEPENDENCIES) 
 	@rm -f db$(EXEEXT)
@@ -845,6 +867,18 @@ sockaddr$(EXEEXT): $(sockaddr_OBJECTS) $(sockaddr_DEPENDENCIES) $(EXTRA_sockaddr
 tsig_key$(EXEEXT): $(tsig_key_OBJECTS) $(tsig_key_DEPENDENCIES) $(EXTRA_tsig_key_DEPENDENCIES) 
 	@rm -f tsig_key$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(tsig_key_OBJECTS) $(tsig_key_LDADD) $(LIBS)
+utils/$(am__dirstamp):
+	@$(MKDIR_P) utils
+	@: > utils/$(am__dirstamp)
+utils/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/$(DEPDIR)
+	@: > utils/$(DEPDIR)/$(am__dirstamp)
+utils/test_lookup.$(OBJEXT): utils/$(am__dirstamp) \
+	utils/$(DEPDIR)/$(am__dirstamp)
+
+utils/test_lookup$(EXEEXT): $(utils_test_lookup_OBJECTS) $(utils_test_lookup_DEPENDENCIES) $(EXTRA_utils_test_lookup_DEPENDENCIES) utils/$(am__dirstamp)
+	@rm -f utils/test_lookup$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(utils_test_lookup_OBJECTS) $(utils_test_lookup_LDADD) $(LIBS)
 
 wire$(EXEEXT): $(wire_OBJECTS) $(wire_DEPENDENCIES) $(EXTRA_wire_DEPENDENCIES) 
 	@rm -f wire$(EXEEXT)
@@ -901,6 +935,7 @@ ztree$(EXEEXT): $(ztree_OBJECTS) $(ztree_DEPENDENCIES) $(EXTRA_ztree_DEPENDENCIE
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f modules/*.$(OBJEXT)
+	-rm -f utils/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
@@ -913,6 +948,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf_tools.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/confdb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/confio.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/control.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/db.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/descriptor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dname.Po@am__quote@
@@ -956,6 +992,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zonedb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ztree.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@modules/$(DEPDIR)/online_sign.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/test_lookup.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -987,6 +1024,7 @@ mostlyclean-libtool:
 clean-libtool:
 	-rm -rf .libs _libs
 	-rm -rf modules/.libs modules/_libs
+	-rm -rf utils/.libs utils/_libs
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -1105,6 +1143,8 @@ distclean-generic:
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
 	-rm -f modules/$(DEPDIR)/$(am__dirstamp)
 	-rm -f modules/$(am__dirstamp)
+	-rm -f utils/$(DEPDIR)/$(am__dirstamp)
+	-rm -f utils/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -1115,7 +1155,7 @@ clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR) modules/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) modules/$(DEPDIR) utils/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -1161,7 +1201,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR) modules/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) modules/$(DEPDIR) utils/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -1199,7 +1239,7 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-check-compile-only: $(check_PROGRAMS)
+check-compile: $(check_PROGRAMS)
 
 check-local: $(check_PROGRAMS)
 	$(top_builddir)/libtap/runtests -s $(top_srcdir)/tests \

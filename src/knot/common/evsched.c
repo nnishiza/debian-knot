@@ -132,7 +132,7 @@ void evsched_deinit(evsched_t *sched)
 	pthread_cond_destroy(&sched->notify);
 
 	while (!EMPTY_HEAP(&sched->heap)) {
-		event_t *e = *HHEAD(&sched->heap);
+		event_t *e = (event_t *)*HHEAD(&sched->heap);
 		heap_delmin(&sched->heap);
 		evsched_event_free(e);
 	}
@@ -165,6 +165,7 @@ event_t *evsched_event_create(evsched_t *sched, event_cb_t cb, void *data)
 	e->sched = sched;
 	e->cb = cb;
 	e->data = data;
+	e->hpos.pos=0;
 
 	return e;
 }
@@ -180,28 +181,29 @@ void evsched_event_free(event_t *ev)
 
 int evsched_schedule(event_t *ev, uint32_t dt)
 {
-	if (ev == NULL) {
+	if (ev == NULL || ev->sched == NULL) {
 		return KNOT_EINVAL;
 	}
 
 	struct timeval new_time = timeval_in(dt);
 
-	/* Lock calendar. */
 	evsched_t *sched = ev->sched;
+
+	/* Lock calendar. */
 	pthread_mutex_lock(&sched->heap_lock);
 
 	ev->tv = new_time;
 
 	/* Make sure it's not already enqueued. */
-	int found = heap_find(&sched->heap, ev);
+	int found = heap_find(&sched->heap, (heap_val_t *)ev);
 	if (found > 0) {
-		heap_replace(&sched->heap, found, ev);
+		heap_replace(&sched->heap, found, (heap_val_t *)ev);
 	} else {
-		heap_insert(&sched->heap, ev);
+		heap_insert(&sched->heap, (heap_val_t *)ev);
 	}
 
 	/* Unlock calendar. */
-	pthread_cond_broadcast(&sched->notify);
+	pthread_cond_signal(&sched->notify);
 	pthread_mutex_unlock(&sched->heap_lock);
 
 	return KNOT_EOK;
@@ -213,17 +215,19 @@ int evsched_cancel(event_t *ev)
 		return KNOT_EINVAL;
 	}
 
-	/* Lock calendar. */
-	pthread_mutex_lock(&ev->sched->heap_lock);
+	evsched_t *sched = ev->sched;
 
-	int found = heap_find(&ev->sched->heap, ev);
+	/* Lock calendar. */
+	pthread_mutex_lock(&sched->heap_lock);
+
+	int found = heap_find(&sched->heap, (heap_val_t *)ev);
 	if (found > 0) {
-		heap_delete(&ev->sched->heap, found);
+		heap_delete(&sched->heap, found);
 	}
 
 	/* Unlock calendar. */
-	pthread_cond_broadcast(&ev->sched->notify);
-	pthread_mutex_unlock(&ev->sched->heap_lock);
+	pthread_cond_signal(&sched->notify);
+	pthread_mutex_unlock(&sched->heap_lock);
 
 	/* Reset event timer. */
 	memset(&ev->tv, 0, sizeof(struct timeval));
@@ -240,7 +244,7 @@ void evsched_stop(evsched_t *sched)
 {
 	pthread_mutex_lock(&sched->heap_lock);
 	dt_stop(sched->thread);
-	pthread_cond_broadcast(&sched->notify);
+	pthread_cond_signal(&sched->notify);
 	pthread_mutex_unlock(&sched->heap_lock);
 }
 
