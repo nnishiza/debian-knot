@@ -15,7 +15,7 @@ if [ "$1" = "configure" ]; then
     # Convert the configuration file to a new format if we are upgrading
     if [ -n "$2" ] && dpkg --compare-versions "$2" lt "2.0.0~"; then
 	# Only convert if the configuration is not valid (e.g. 1.x based)
-	if ! knotc checkconf 2>/dev/null >/dev/null; then
+	if ! knotc conf-check 2>/dev/null >/dev/null; then
 	    BACKUP_DIR=/var/backups/knot/$(date +%Y%m%d-%H%M%S)
 	    mkdir -p ${BACKUP_DIR}
 	    echo "Backup config file /etc/knot/knot.conf to ${BACKUP_DIR}."
