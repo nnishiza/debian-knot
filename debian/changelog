@@ -1,3 +1,9 @@
+knot (2.2.0-3) unstable; urgency=medium
+
+  * knotc checkconf is not knotc conf-check (Closes: #823574)
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 20 May 2016 14:22:11 +0200
+
 knot (2.2.0-2) unstable; urgency=medium
 
   * Do dbgsym migration of debug symbols
