@@ -1,3 +1,9 @@
+knot (2.2.1-1) unstable; urgency=medium
+
+  * Imported Upstream version 2.2.1
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 24 May 2016 17:48:16 +0200
+
 knot (2.2.0-3) unstable; urgency=medium
 
   * knotc checkconf is not knotc conf-check (Closes: #823574)
