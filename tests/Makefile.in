@@ -92,10 +92,10 @@ check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
 	confdb$(EXEEXT) confio$(EXEEXT) control$(EXEEXT) db$(EXEEXT) \
 	descriptor$(EXEEXT) dname$(EXEEXT) dthreads$(EXEEXT) \
 	edns$(EXEEXT) endian$(EXEEXT) fdset$(EXEEXT) hattrie$(EXEEXT) \
-	hhash$(EXEEXT) internal_mem$(EXEEXT) journal$(EXEEXT) \
-	lookup$(EXEEXT) net$(EXEEXT) net_shortwrite$(EXEEXT) \
-	node$(EXEEXT) overlay$(EXEEXT) pkt$(EXEEXT) \
-	process_answer$(EXEEXT) process_query$(EXEEXT) \
+	heap$(EXEEXT) hhash$(EXEEXT) internal_mem$(EXEEXT) \
+	journal$(EXEEXT) lookup$(EXEEXT) net$(EXEEXT) \
+	net_shortwrite$(EXEEXT) node$(EXEEXT) overlay$(EXEEXT) \
+	pkt$(EXEEXT) process_answer$(EXEEXT) process_query$(EXEEXT) \
 	query_module$(EXEEXT) rdata$(EXEEXT) rdataset$(EXEEXT) \
 	requestor$(EXEEXT) rrl$(EXEEXT) rrset$(EXEEXT) \
 	rrset_wire$(EXEEXT) server$(EXEEXT) sockaddr$(EXEEXT) \
@@ -209,6 +209,11 @@ hattrie_SOURCES = hattrie.c
 hattrie_OBJECTS = hattrie.$(OBJEXT)
 hattrie_LDADD = $(LDADD)
 hattrie_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+heap_SOURCES = heap.c
+heap_OBJECTS = heap.$(OBJEXT)
+heap_LDADD = $(LDADD)
+heap_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 hhash_SOURCES = hhash.c
 hhash_OBJECTS = hhash.$(OBJEXT)
@@ -428,7 +433,7 @@ am__v_CCLD_1 =
 SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	$(conf_SOURCES) conf_tools.c $(confdb_SOURCES) \
 	$(confio_SOURCES) control.c db.c descriptor.c dname.c \
-	dthreads.c edns.c endian.c fdset.c hattrie.c hhash.c \
+	dthreads.c edns.c endian.c fdset.c hattrie.c heap.c hhash.c \
 	internal_mem.c journal.c lookup.c modules/online_sign.c net.c \
 	net_shortwrite.c node.c overlay.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
@@ -440,7 +445,7 @@ SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 DIST_SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
 	$(conf_SOURCES) conf_tools.c $(confdb_SOURCES) \
 	$(confio_SOURCES) control.c db.c descriptor.c dname.c \
-	dthreads.c edns.c endian.c fdset.c hattrie.c hhash.c \
+	dthreads.c edns.c endian.c fdset.c hattrie.c heap.c hhash.c \
 	internal_mem.c journal.c lookup.c modules/online_sign.c net.c \
 	net_shortwrite.c node.c overlay.c pkt.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
@@ -772,6 +777,10 @@ hattrie$(EXEEXT): $(hattrie_OBJECTS) $(hattrie_DEPENDENCIES) $(EXTRA_hattrie_DEP
 	@rm -f hattrie$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(hattrie_OBJECTS) $(hattrie_LDADD) $(LIBS)
 
+heap$(EXEEXT): $(heap_OBJECTS) $(heap_DEPENDENCIES) $(EXTRA_heap_DEPENDENCIES) 
+	@rm -f heap$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(heap_OBJECTS) $(heap_LDADD) $(LIBS)
+
 hhash$(EXEEXT): $(hhash_OBJECTS) $(hhash_DEPENDENCIES) $(EXTRA_hhash_DEPENDENCIES) 
 	@rm -f hhash$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(hhash_OBJECTS) $(hhash_LDADD) $(LIBS)
@@ -957,6 +966,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/endian.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fdset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hattrie.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/heap.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hhash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/internal_mem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal.Po@am__quote@

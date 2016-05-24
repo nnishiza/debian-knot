@@ -25,12 +25,12 @@
 #include "dnssec/keytag.h"
 #include "dnssec/sign.h"
 #include "knot/dnssec/context.h"
+#include "knot/dnssec/rrset-sign.h"
 #include "knot/dnssec/zone-keys.h"
 #include "knot/dnssec/zone-sign.h"
 #include "knot/updates/changesets.h"
 #include "libknot/descriptor.h"
 #include "libknot/dname.h"
-#include "libknot/dnssec/rrset-sign.h"
 #include "libknot/libknot.h"
 #include "libknot/rrset.h"
 #include "libknot/rrtype/rrsig.h"
@@ -1071,7 +1071,7 @@ static int sign_changeset_wrap(knot_rrset_t *chg_rrset, changeset_signing_data_t
 			/*
 			 * If RRSet in zone DOES have RRSIGs although we
 			 * should not sign it, DDNS-caused change to node/rr
-			 * occured and we have to drop all RRSIGs.
+			 * occurred and we have to drop all RRSIGs.
 			 *
 			 * OR
 			 *

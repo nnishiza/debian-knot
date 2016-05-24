@@ -202,8 +202,7 @@ libknot_yparser_la_OBJECTS = $(am_libknot_yparser_la_OBJECTS)
 libknot_la_DEPENDENCIES = dnssec/libdnssec.la libcontrib.la
 am__libknot_la_SOURCES_DIST = libknot/binary.c libknot/codes.c \
 	libknot/control/control.c libknot/descriptor.c libknot/dname.c \
-	libknot/dnssec/rrset-sign.c libknot/error.c \
-	libknot/db/db_lmdb.c libknot/db/db_trie.c \
+	libknot/error.c libknot/db/db_lmdb.c libknot/db/db_trie.c \
 	libknot/packet/compr.c libknot/packet/pkt.c \
 	libknot/packet/rrset-wire.c libknot/packet/wire.c \
 	libknot/processing/layer.c libknot/processing/overlay.c \
@@ -216,16 +215,15 @@ am__libknot_la_SOURCES_DIST = libknot/binary.c libknot/codes.c \
 	libknot/rrtype/soa.c libknot/rrtype/tsig.c libknot/tsig-op.c \
 	libknot/tsig.c libknot/attribute.h libknot/binary.h \
 	libknot/codes.h libknot/consts.h libknot/control/control.h \
-	libknot/descriptor.h libknot/dname.h \
-	libknot/dnssec/rrset-sign.h libknot/errcode.h libknot/error.h \
-	libknot/libknot.h libknot/lookup.h libknot/mm_ctx.h \
-	libknot/db/db.h libknot/db/db_lmdb.h libknot/db/db_trie.h \
-	libknot/packet/compr.h libknot/packet/pkt.h \
-	libknot/packet/rrset-wire.h libknot/packet/wire.h \
-	libknot/processing/layer.h libknot/processing/overlay.h \
-	libknot/processing/requestor.h libknot/rdata.h \
-	libknot/rdataset.h libknot/rrset-dump.h libknot/rrset.h \
-	libknot/rrtype/aaaa.h libknot/rrtype/dnskey.h \
+	libknot/descriptor.h libknot/dname.h libknot/errcode.h \
+	libknot/error.h libknot/libknot.h libknot/lookup.h \
+	libknot/mm_ctx.h libknot/db/db.h libknot/db/db_lmdb.h \
+	libknot/db/db_trie.h libknot/packet/compr.h \
+	libknot/packet/pkt.h libknot/packet/rrset-wire.h \
+	libknot/packet/wire.h libknot/processing/layer.h \
+	libknot/processing/overlay.h libknot/processing/requestor.h \
+	libknot/rdata.h libknot/rdataset.h libknot/rrset-dump.h \
+	libknot/rrset.h libknot/rrtype/aaaa.h libknot/rrtype/dnskey.h \
 	libknot/rrtype/ds.h libknot/rrtype/naptr.h \
 	libknot/rrtype/nsec.h libknot/rrtype/nsec3.h \
 	libknot/rrtype/nsec3param.h libknot/rrtype/opt.h \
@@ -241,7 +239,6 @@ am_libknot_la_OBJECTS = libknot/libknot_la-binary.lo \
 	libknot/libknot_la-codes.lo \
 	libknot/control/libknot_la-control.lo \
 	libknot/libknot_la-descriptor.lo libknot/libknot_la-dname.lo \
-	libknot/dnssec/libknot_la-rrset-sign.lo \
 	libknot/libknot_la-error.lo libknot/db/libknot_la-db_lmdb.lo \
 	libknot/db/libknot_la-db_trie.lo \
 	libknot/packet/libknot_la-compr.lo \
@@ -285,7 +282,8 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 	knot/dnssec/context.h knot/dnssec/nsec-chain.c \
 	knot/dnssec/nsec-chain.h knot/dnssec/nsec3-chain.c \
 	knot/dnssec/nsec3-chain.h knot/dnssec/policy.c \
-	knot/dnssec/policy.h knot/dnssec/zone-events.c \
+	knot/dnssec/policy.h knot/dnssec/rrset-sign.c \
+	knot/dnssec/rrset-sign.h knot/dnssec/zone-events.c \
 	knot/dnssec/zone-events.h knot/dnssec/zone-keys.c \
 	knot/dnssec/zone-keys.h knot/dnssec/zone-nsec.c \
 	knot/dnssec/zone-nsec.h knot/dnssec/zone-sign.c \
@@ -355,6 +353,7 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-nsec-chain.lo \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-nsec3-chain.lo \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-policy.lo \
+@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-rrset-sign.lo \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-events.lo \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-keys.lo \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-nsec.lo \
@@ -890,7 +889,6 @@ nobase_libknot_la_HEADERS = \
 	libknot/control/control.h		\
 	libknot/descriptor.h			\
 	libknot/dname.h				\
-	libknot/dnssec/rrset-sign.h		\
 	libknot/errcode.h			\
 	libknot/error.h				\
 	libknot/libknot.h			\
@@ -931,8 +929,7 @@ nobase_libknot_la_HEADERS = \
 # dynamic: libknot sources
 libknot_la_SOURCES = libknot/binary.c libknot/codes.c \
 	libknot/control/control.c libknot/descriptor.c libknot/dname.c \
-	libknot/dnssec/rrset-sign.c libknot/error.c \
-	libknot/db/db_lmdb.c libknot/db/db_trie.c \
+	libknot/error.c libknot/db/db_lmdb.c libknot/db/db_trie.c \
 	libknot/packet/compr.c libknot/packet/pkt.c \
 	libknot/packet/rrset-wire.c libknot/packet/wire.c \
 	libknot/processing/layer.c libknot/processing/overlay.c \
@@ -1020,6 +1017,8 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@	knot/dnssec/nsec3-chain.c \
 @HAVE_DAEMON_TRUE@	knot/dnssec/nsec3-chain.h \
 @HAVE_DAEMON_TRUE@	knot/dnssec/policy.c knot/dnssec/policy.h \
+@HAVE_DAEMON_TRUE@	knot/dnssec/rrset-sign.c \
+@HAVE_DAEMON_TRUE@	knot/dnssec/rrset-sign.h \
 @HAVE_DAEMON_TRUE@	knot/dnssec/zone-events.c \
 @HAVE_DAEMON_TRUE@	knot/dnssec/zone-events.h \
 @HAVE_DAEMON_TRUE@	knot/dnssec/zone-keys.c \
@@ -1361,15 +1360,6 @@ libknot/libknot_la-descriptor.lo: libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
 libknot/libknot_la-dname.lo: libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
-libknot/dnssec/$(am__dirstamp):
-	@$(MKDIR_P) libknot/dnssec
-	@: > libknot/dnssec/$(am__dirstamp)
-libknot/dnssec/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) libknot/dnssec/$(DEPDIR)
-	@: > libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
-libknot/dnssec/libknot_la-rrset-sign.lo:  \
-	libknot/dnssec/$(am__dirstamp) \
-	libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
 libknot/libknot_la-error.lo: libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
 libknot/db/$(am__dirstamp):
@@ -1505,6 +1495,8 @@ knot/dnssec/libknotd_la-nsec-chain.lo: knot/dnssec/$(am__dirstamp) \
 knot/dnssec/libknotd_la-nsec3-chain.lo: knot/dnssec/$(am__dirstamp) \
 	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
 knot/dnssec/libknotd_la-policy.lo: knot/dnssec/$(am__dirstamp) \
+	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/dnssec/libknotd_la-rrset-sign.lo: knot/dnssec/$(am__dirstamp) \
 	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
 knot/dnssec/libknotd_la-zone-events.lo: knot/dnssec/$(am__dirstamp) \
 	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
@@ -2071,8 +2063,6 @@ mostlyclean-compile:
 	-rm -f libknot/control/*.lo
 	-rm -f libknot/db/*.$(OBJEXT)
 	-rm -f libknot/db/*.lo
-	-rm -f libknot/dnssec/*.$(OBJEXT)
-	-rm -f libknot/dnssec/*.lo
 	-rm -f libknot/packet/*.$(OBJEXT)
 	-rm -f libknot/packet/*.lo
 	-rm -f libknot/processing/*.$(OBJEXT)
@@ -2129,6 +2119,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-nsec-chain.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-nsec3-chain.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-policy.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-rrset-sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-events.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-keys.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-nsec.Plo@am__quote@
@@ -2196,7 +2187,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/control/$(DEPDIR)/libknot_la-control.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/db/$(DEPDIR)/libknot_la-db_lmdb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/db/$(DEPDIR)/libknot_la-db_trie.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/dnssec/$(DEPDIR)/libknot_la-rrset-sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/libknot_la-compr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/libknot_la-pkt.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/libknot_la-rrset-wire.Plo@am__quote@
@@ -2308,13 +2298,6 @@ libknot/libknot_la-dname.lo: libknot/dname.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/dname.c' object='libknot/libknot_la-dname.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/libknot_la-dname.lo `test -f 'libknot/dname.c' || echo '$(srcdir)/'`libknot/dname.c
-
-libknot/dnssec/libknot_la-rrset-sign.lo: libknot/dnssec/rrset-sign.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/dnssec/libknot_la-rrset-sign.lo -MD -MP -MF libknot/dnssec/$(DEPDIR)/libknot_la-rrset-sign.Tpo -c -o libknot/dnssec/libknot_la-rrset-sign.lo `test -f 'libknot/dnssec/rrset-sign.c' || echo '$(srcdir)/'`libknot/dnssec/rrset-sign.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/dnssec/$(DEPDIR)/libknot_la-rrset-sign.Tpo libknot/dnssec/$(DEPDIR)/libknot_la-rrset-sign.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/dnssec/rrset-sign.c' object='libknot/dnssec/libknot_la-rrset-sign.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/dnssec/libknot_la-rrset-sign.lo `test -f 'libknot/dnssec/rrset-sign.c' || echo '$(srcdir)/'`libknot/dnssec/rrset-sign.c
 
 libknot/libknot_la-error.lo: libknot/error.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/libknot_la-error.lo -MD -MP -MF libknot/$(DEPDIR)/libknot_la-error.Tpo -c -o libknot/libknot_la-error.lo `test -f 'libknot/error.c' || echo '$(srcdir)/'`libknot/error.c
@@ -2595,6 +2578,13 @@ knot/dnssec/libknotd_la-policy.lo: knot/dnssec/policy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/dnssec/policy.c' object='knot/dnssec/libknotd_la-policy.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/dnssec/libknotd_la-policy.lo `test -f 'knot/dnssec/policy.c' || echo '$(srcdir)/'`knot/dnssec/policy.c
+
+knot/dnssec/libknotd_la-rrset-sign.lo: knot/dnssec/rrset-sign.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/dnssec/libknotd_la-rrset-sign.lo -MD -MP -MF knot/dnssec/$(DEPDIR)/libknotd_la-rrset-sign.Tpo -c -o knot/dnssec/libknotd_la-rrset-sign.lo `test -f 'knot/dnssec/rrset-sign.c' || echo '$(srcdir)/'`knot/dnssec/rrset-sign.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/dnssec/$(DEPDIR)/libknotd_la-rrset-sign.Tpo knot/dnssec/$(DEPDIR)/libknotd_la-rrset-sign.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/dnssec/rrset-sign.c' object='knot/dnssec/libknotd_la-rrset-sign.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/dnssec/libknotd_la-rrset-sign.lo `test -f 'knot/dnssec/rrset-sign.c' || echo '$(srcdir)/'`knot/dnssec/rrset-sign.c
 
 knot/dnssec/libknotd_la-zone-events.lo: knot/dnssec/zone-events.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/dnssec/libknotd_la-zone-events.lo -MD -MP -MF knot/dnssec/$(DEPDIR)/libknotd_la-zone-events.Tpo -c -o knot/dnssec/libknotd_la-zone-events.lo `test -f 'knot/dnssec/zone-events.c' || echo '$(srcdir)/'`knot/dnssec/zone-events.c
@@ -3280,7 +3270,6 @@ clean-libtool:
 	-rm -rf libknot/.libs libknot/_libs
 	-rm -rf libknot/control/.libs libknot/control/_libs
 	-rm -rf libknot/db/.libs libknot/db/_libs
-	-rm -rf libknot/dnssec/.libs libknot/dnssec/_libs
 	-rm -rf libknot/packet/.libs libknot/packet/_libs
 	-rm -rf libknot/processing/.libs libknot/processing/_libs
 	-rm -rf libknot/rrtype/.libs libknot/rrtype/_libs
@@ -3565,8 +3554,6 @@ distclean-generic:
 	-rm -f libknot/control/$(am__dirstamp)
 	-rm -f libknot/db/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/db/$(am__dirstamp)
-	-rm -f libknot/dnssec/$(DEPDIR)/$(am__dirstamp)
-	-rm -f libknot/dnssec/$(am__dirstamp)
 	-rm -f libknot/packet/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/packet/$(am__dirstamp)
 	-rm -f libknot/processing/$(DEPDIR)/$(am__dirstamp)
@@ -3601,7 +3588,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libLTLIBRARIES \
 	clean-sbinPROGRAMS mostlyclean-am
 
 distclean: distclean-recursive
-	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/db/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
+	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/db/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -3651,7 +3638,7 @@ installcheck-am: installcheck-binPROGRAMS installcheck-libexecPROGRAMS \
 	installcheck-sbinPROGRAMS
 
 maintainer-clean: maintainer-clean-recursive
-	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/db/$(DEPDIR) libknot/dnssec/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
+	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/db/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

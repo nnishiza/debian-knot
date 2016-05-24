@@ -40,7 +40,7 @@
  * \param name Domain name to create the 'next closer' name to.
  *
  * \return 'Next closer name' to the given domain name or NULL if an error
- *         occured.
+ *         occurred.
  */
 static knot_dname_t *ns_next_closer(const knot_dname_t *closest_encloser,
                                       const knot_dname_t *name)
@@ -98,7 +98,7 @@ static int ns_put_nsec3_from_node(const zone_node_t *node,
  * \param resp Response where to add the RRSets.
  *
  * \retval KNOT_EOK
- * \retval NS_ERR_SERVFAIL if a runtime collision occured. The server should
+ * \retval NS_ERR_SERVFAIL if a runtime collision occurred. The server should
  *                         respond with SERVFAIL in such case.
  */
 static int ns_put_covering_nsec3(const zone_contents_t *zone,
@@ -214,7 +214,7 @@ static int ns_put_nsec3_closest_encloser_proof(
  *
  * \param name Domain name to get the wildcard child name of.
  *
- * \return Wildcard child name or NULL if an error occured.
+ * \return Wildcard child name or NULL if an error occurred.
  */
 static knot_dname_t *ns_wildcard_child_name(const knot_dname_t *name)
 {
@@ -709,7 +709,7 @@ int nsec_prove_dp_security(knot_pkt_t *pkt, struct query_data *qdata)
 int nsec_append_rrsigs(knot_pkt_t *pkt, struct query_data *qdata, bool optional)
 {
 	int ret = KNOT_EOK;
-	uint32_t flags = (optional) ? KNOT_PF_NOTRUNC : KNOT_PF_NULL;
+	uint32_t flags = optional ? KNOT_PF_NOTRUNC : KNOT_PF_NULL;
 	flags |= KNOT_PF_FREE; // Free all RRSIGs, they are synthesized
 
 	/* Append RRSIGs for section. */
@@ -728,7 +728,7 @@ int nsec_append_rrsigs(knot_pkt_t *pkt, struct query_data *qdata, bool optional)
 	/* Clear the list. */
 	nsec_clear_rrsigs(qdata);
 
-	return KNOT_EOK;
+	return ret;
 }
 
 void nsec_clear_rrsigs(struct query_data *qdata)

@@ -24,9 +24,9 @@
 #include "dnssec/keytag.h"
 #include "knot/zone/semantic-check.h"
 #include "knot/common/log.h"
+#include "knot/dnssec/rrset-sign.h"
 #include "knot/dnssec/zone-nsec.h"
 #include "libknot/libknot.h"
-#include "libknot/dnssec/rrset-sign.h"
 #include "contrib/base32hex.h"
 #include "contrib/mempattern.h"
 #include "contrib/wire.h"
@@ -106,7 +106,7 @@ static char *error_messages[(-ZC_ERR_UNKNOWN) + 1] = {
 	"DNAME, wildcard pointing to itself",
 
 	/* ^
-	   | Important errors (to be logged on first occurence and counted) */
+	   | Important errors (to be logged on first occurrence and counted) */
 
 	/* Below are errors of lesser importance, to be counted unless
 	   specified otherwise */
