@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -314,23 +314,36 @@ int event_load(conf_t *conf, zone_t *zone)
 	assert(zone);
 
 	/* Take zone file mtime and load it. */
+	time_t mtime;
 	char *filename = conf_zonefile(conf, zone->name);
-	time_t mtime = zonefile_mtime(filename);
+	int ret = zonefile_exists(filename, &mtime);
 	free(filename);
+	if (ret != KNOT_EOK) {
+		goto fail;
+	}
+
 	uint32_t dnssec_refresh = time(NULL);
 
 	zone_contents_t *contents = NULL;
-	int ret = zone_load_contents(conf, zone->name, &contents);
+	ret = zone_load_contents(conf, zone->name, &contents);
 	if (ret != KNOT_EOK) {
 		goto fail;
 	}
 
-	/* Store zonefile serial and apply changes from the journal. */
-	zone->zonefile_serial = zone_contents_serial(contents);
-	ret = zone_load_journal(conf, zone, contents);
-	if (ret != KNOT_EOK) {
-		goto fail;
+	/* Store the zonefile SOA serial. */
+	zone->zonefile.serial = zone_contents_serial(contents);
+
+	/* Apply journal if first load or reload with original zonefile. */
+	if (zone->contents == NULL ||
+	    (zone->zonefile.exists && zone->zonefile.mtime == mtime)) {
+		ret = zone_load_journal(conf, zone, contents);
+		if (ret != KNOT_EOK) {
+			goto fail;
+		}
 	}
+
+	/* Store the zonefile mtime. */
+	zone->zonefile.mtime = mtime;
 
 	/* Post load actions - calculate delta, sign with DNSSEC... */
 	/*! \todo issue #242 dnssec signing should occur in the special event */
@@ -353,9 +366,10 @@ int event_load(conf_t *conf, zone_t *zone)
 	}
 
 	/* Everything went alright, switch the contents. */
-	zone->zonefile_mtime = mtime;
-	zone_contents_t *old = zone_switch_contents(zone, contents);
 	zone->flags &= ~ZONE_EXPIRED;
+	zone->zonefile.exists = true;
+	zone_contents_t *old = zone_switch_contents(zone, contents);
+	bool old_contents = (old != NULL);
 	uint32_t old_serial = zone_contents_serial(old);
 	if (old != NULL) {
 		synchronize_rcu();
@@ -385,12 +399,17 @@ int event_load(conf_t *conf, zone_t *zone)
 	}
 
 	uint32_t current_serial = zone_contents_serial(zone->contents);
-	log_zone_info(zone->name, "loaded, serial %u -> %u",
-	              old_serial, current_serial);
+	if (old_contents) {
+		log_zone_info(zone->name, "loaded, serial %u -> %u",
+		              old_serial, current_serial);
+	} else {
+		log_zone_info(zone->name, "loaded, serial %u", current_serial);
+	}
 
 	return KNOT_EOK;
 
 fail:
+	zone->zonefile.exists = false;
 	zone_contents_deep_free(&contents);
 
 	/* Try to bootstrap the zone if local error. */
@@ -561,8 +580,7 @@ int event_expire(conf_t *conf, zone_t *zone)
 	synchronize_rcu();
 
 	/* Expire zonefile information. */
-	zone->zonefile_mtime = 0;
-	zone->zonefile_serial = 0;
+	zone->zonefile.exists = false;
 	zone->flags |= ZONE_EXPIRED;
 	zone_contents_deep_free(&expired);
 
@@ -718,4 +736,3 @@ uint32_t bootstrap_next(uint32_t timer)
 	}
 	return timer;
 }
-

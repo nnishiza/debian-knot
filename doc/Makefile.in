@@ -351,7 +351,7 @@ SPHINX_V_1 = -vv -n
 AM_V_SPHINX = $(AM_V_SPHINX_@AM_V@)
 AM_V_SPHINX_ = $(AM_V_SPHINX_@AM_DEFAULT_V@)
 AM_V_SPHINX_0 = @echo "  SPHINX   $@";
-AM_V_ECHO = @sh -c 'if $(AM_V_P); then echo $$1; fi' -- 
+AM_V_ECHO = @sh -c 'if $(AM_V_P); then echo $$1; fi' --
 SPHINXBUILDDIR = $(builddir)/_build
 _SPHINXOPTS = -c $(srcdir) \
 	         -a \
@@ -616,22 +616,22 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@HAVE_DOCS_FALSE@pdf-local:
-@HAVE_PDFLATEX_FALSE@pdf-local:
-@HAVE_SPHINXBUILD_FALSE@pdf-local:
-@HAVE_DOCS_FALSE@info-local:
-@HAVE_MAKEINFO_FALSE@info-local:
-@HAVE_SPHINXBUILD_FALSE@info-local:
-@HAVE_DOCS_FALSE@install-html-local:
-@HAVE_SPHINXBUILD_FALSE@install-html-local:
-@HAVE_DOCS_FALSE@html-local:
-@HAVE_SPHINXBUILD_FALSE@html-local:
 @HAVE_DOCS_FALSE@install-info-local:
 @HAVE_MAKEINFO_FALSE@install-info-local:
 @HAVE_SPHINXBUILD_FALSE@install-info-local:
+@HAVE_DOCS_FALSE@html-local:
+@HAVE_SPHINXBUILD_FALSE@html-local:
+@HAVE_DOCS_FALSE@info-local:
+@HAVE_MAKEINFO_FALSE@info-local:
+@HAVE_SPHINXBUILD_FALSE@info-local:
 @HAVE_DOCS_FALSE@install-pdf-local:
 @HAVE_PDFLATEX_FALSE@install-pdf-local:
 @HAVE_SPHINXBUILD_FALSE@install-pdf-local:
+@HAVE_DOCS_FALSE@install-html-local:
+@HAVE_SPHINXBUILD_FALSE@install-html-local:
+@HAVE_DOCS_FALSE@pdf-local:
+@HAVE_PDFLATEX_FALSE@pdf-local:
+@HAVE_SPHINXBUILD_FALSE@pdf-local:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-local mostlyclean-am

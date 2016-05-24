@@ -130,12 +130,18 @@ int zone_load_journal(conf_t *conf, zone_t *zone, zone_contents_t *contents)
 	apply_init_ctx(&a_ctx);
 
 	ret = apply_changesets_directly(&a_ctx, contents, &chgs);
-	log_zone_info(zone->name, "changes from journal applied %u -> %u (%s)",
-	              serial, zone_contents_serial(contents),
-	              knot_strerror(ret));
+	if (ret == KNOT_EOK) {
+		log_zone_info(zone->name, "changes from journal applied %u -> %u",
+		              serial, zone_contents_serial(contents));
+	} else {
+		log_zone_error(zone->name, "changes from journal applied %u -> %u (%s)",
+		               serial, zone_contents_serial(contents),
+		               knot_strerror(ret));
+	}
 
 	update_cleanup(&a_ctx);
 	changesets_free(&chgs);
+
 	return ret;
 }
 
@@ -190,7 +196,7 @@ int zone_load_post(conf_t *conf, zone_t *zone, zone_contents_t *contents,
 		if (ret != KNOT_EOK) {
 			return ret;
 		}
-		ret = zone_contents_create_diff(zone->contents, contents, &change);
+		ret = zone_contents_diff(zone->contents, contents, &change);
 		if (ret == KNOT_ENODIFF) {
 			log_zone_warning(zone->name, "failed to create journal "
 			                 "entry, zone file changed without "

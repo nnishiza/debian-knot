@@ -4,7 +4,7 @@ AC_PREREQ([2.60])
 
 m4_define([knot_VERSION_MAJOR],2)dnl
 m4_define([knot_VERSION_MINOR],2)dnl
-m4_define([knot_VERSION_PATCH],0)dnl
+m4_define([knot_VERSION_PATCH],1)dnl
 m4_define([knot_VERSION_EXTRA],)dnl
 m4_define([knot_PKG_VERSION],[knot_VERSION_MAJOR.knot_VERSION_MINOR.knot_VERSION_PATCH]knot_VERSION_EXTRA)dnl
 
@@ -194,15 +194,6 @@ AS_IF([test "$enable_reuseport" != no], [
 
 AS_IF([test "$enable_reuseport" = yes],[
    AC_DEFINE([ENABLE_REUSEPORT], [1], [Use SO_REUSEPORT.])])
-
-# Check for link time optimizations support and predictive commoning
-AC_ARG_ENABLE([lto],
-    AS_HELP_STRING([--enable-lto=yes|no], [enable link-time optimizations, enable if not broken for some extra speed [default=no]]),
-    [case "${enableval}" in
-      yes) AX_CHECK_COMPILE_FLAG("-flto", [CFLAGS="$CFLAGS -flto"], []) ;;
-      no) ;;
-      *)  AC_MSG_ERROR([bad value ${enableval} for --enable-lto]) ;;
-    esac])
 
 AX_CHECK_COMPILE_FLAG("-fpredictive-commoning", [CFLAGS="$CFLAGS -fpredictive-commoning"], [], "-Werror")
 

@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -52,11 +52,12 @@ static zone_status_t zone_file_status(conf_t *conf, const zone_t *old_zone,
 	assert(name);
 
 	char *zonefile = conf_zonefile(conf, name);
-	time_t mtime = zonefile_mtime(zonefile);
+	time_t mtime;
+	int ret = zonefile_exists(zonefile, &mtime);
 	free(zonefile);
 
-	if (mtime < 0) {
-		// Zone file does not exist.
+	// Zone file does not exist.
+	if (ret != KNOT_EOK) {
 		if (old_zone) {
 			// Deferred flush.
 			return ZONE_STATUS_FOUND_CURRENT;
@@ -65,10 +66,9 @@ static zone_status_t zone_file_status(conf_t *conf, const zone_t *old_zone,
 			       ZONE_STATUS_BOOSTRAP : ZONE_STATUS_NOT_FOUND;
 		}
 	} else {
-		// Zone file exists.
 		if (old_zone == NULL) {
 			return ZONE_STATUS_FOUND_NEW;
-		} else if (old_zone->zonefile_mtime == mtime) {
+		} else if (old_zone->zonefile.exists && old_zone->zonefile.mtime == mtime) {
 			return ZONE_STATUS_FOUND_CURRENT;
 		} else {
 			return ZONE_STATUS_FOUND_UPDATED;
@@ -79,8 +79,8 @@ static zone_status_t zone_file_status(conf_t *conf, const zone_t *old_zone,
 /*!
  * \brief Log message about loaded zone (name and status).
  *
- * \param zone       Zone structure.
- * \param status     Zone file status.
+ * \param zone    Zone structure.
+ * \param status  Zone file status.
  */
 static void log_zone_load_info(const zone_t *zone, zone_status_t status)
 {
@@ -97,14 +97,14 @@ static void log_zone_load_info(const zone_t *zone, zone_status_t status)
 	}
 	assert(action);
 
-	uint32_t serial = 0;
 	if (zone->contents && zone->contents->apex) {
 		const knot_rdataset_t *soa = node_rdataset(zone->contents->apex,
 		                                           KNOT_RRTYPE_SOA);
-		serial = knot_soa_serial(soa);
+		uint32_t serial = knot_soa_serial(soa);
+		log_zone_info(zone->name, "zone %s, serial %u", action, serial);
+	} else {
+		log_zone_info(zone->name, "zone %s", action);
 	}
-
-	log_zone_info(zone->name, "zone %s, serial %u", action, serial);
 }
 
 static zone_t *create_zone_from(const knot_dname_t *name, server_t *server)
@@ -149,8 +149,7 @@ static zone_t *create_zone_reload(conf_t *conf, const knot_dname_t *name,
 		zone_events_replan_ddns(zone, old_zone);
 		break;
 	case ZONE_STATUS_FOUND_CURRENT:
-		zone->zonefile_mtime = old_zone->zonefile_mtime;
-		zone->zonefile_serial = old_zone->zonefile_serial;
+		zone->zonefile = old_zone->zonefile;
 		/* Reuse events from old zone. */
 		zone_events_update(conf, zone, old_zone);
 		break;

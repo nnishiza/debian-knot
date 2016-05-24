@@ -19,19 +19,19 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "contrib/wire_ctx.h"
 #include "dnssec/error.h"
 #include "dnssec/kasp.h"
 #include "dnssec/key.h"
 #include "dnssec/sign.h"
+#include "knot/dnssec/rrset-sign.h"
 #include "libknot/attribute.h"
 #include "libknot/descriptor.h"
-#include "libknot/dnssec/rrset-sign.h"
 #include "libknot/libknot.h"
 #include "libknot/packet/rrset-wire.h"
 #include "libknot/packet/wire.h"
 #include "libknot/rrset.h"
 #include "libknot/rrtype/rrsig.h"
-#include "contrib/wire_ctx.h"
 
 #define RRSIG_RDATA_SIGNER_OFFSET 18
 
@@ -224,7 +224,7 @@ static int sign_ctx_add_data(dnssec_sign_ctx_t *ctx,
  * \param[in]  sig_incepted  Timestamp of signature inception.
  * \param[in]  sig_expires   Timestamp of signature expiration.
  *
- * \return Error code, KNOT_EOK if succesful.
+ * \return Error code, KNOT_EOK if successful.
  */
 static int rrsigs_create_rdata(knot_rrset_t *rrsigs, dnssec_sign_ctx_t *ctx,
                                const knot_rrset_t *covered,

@@ -93,7 +93,7 @@ static void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
 		state = knot_overlay_produce(&udp->overlay, ans);
 	}
 
-	/* Send response only if finished successfuly. */
+	/* Send response only if finished successfully. */
 	if (state == KNOT_STATE_DONE) {
 		tx->iov_len = ans->size;
 	} else {
@@ -407,16 +407,13 @@ void __attribute__ ((constructor)) udp_master_init()
 
 	/* Optimized functions. */
 #ifdef HAVE_RECVMMSG
-	/* Check for recvmmsg() support. */
-	if (dlsym(RTLD_DEFAULT, "recvmmsg") != 0) {
-		recvmmsg(0, NULL, 0, 0, 0);
-		if (errno != ENOSYS) {
-			_udp_init = udp_recvmmsg_init;
-			_udp_deinit = udp_recvmmsg_deinit;
-			_udp_recv = udp_recvmmsg_recv;
-			_udp_send = udp_recvmmsg_send;
-			_udp_handle = udp_recvmmsg_handle;
-		}
+	recvmmsg(0, NULL, 0, 0, 0);
+	if (errno != ENOSYS) {
+		_udp_init = udp_recvmmsg_init;
+		_udp_deinit = udp_recvmmsg_deinit;
+		_udp_recv = udp_recvmmsg_recv;
+		_udp_send = udp_recvmmsg_send;
+		_udp_handle = udp_recvmmsg_handle;
 	}
 
 	/* Check for sendmmsg() support. */
