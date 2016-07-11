@@ -8,6 +8,7 @@ Build-Depends-Indep: ghostscript,
                      texinfo,
                      texlive,
                      texlive-font-utils,
+		     texlive-generic-extra,
                      texlive-latex-extra
 Build-Depends: autotools-dev,
                bash-completion,
