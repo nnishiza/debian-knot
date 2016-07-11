@@ -1,3 +1,10 @@
+knot (2.2.1-2) unstable; urgency=high
+
+  * Add texlive-generic-extra to B-D for missing iftex.sty
+    (Closes: #829428)
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 11 Jul 2016 11:47:34 +0200
+
 knot (2.2.1-1) unstable; urgency=medium
 
   * Imported Upstream version 2.2.1
