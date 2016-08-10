@@ -1,3 +1,13 @@
+knot (2.3.0-1) unstable; urgency=medium
+
+  * Imported Upstream version 2.3.0
+   + Zone size limit restriction for DDNS, AXFR, and IXFR (CVE-2016-6171)
+     (Closes: #830809)
+  * Restructure d/rules so dh_install --fail-missing works again
+  * Upstream bumped SOVERSION to libknot3, libdnssec2 and libzscanner1
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 10 Aug 2016 09:16:35 +0200
+
 knot (2.2.1-2) unstable; urgency=high
 
   * Add texlive-generic-extra to B-D for missing iftex.sty
