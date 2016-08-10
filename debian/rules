@@ -7,7 +7,7 @@
 # This special exception was added by Craig Small in version 0.37 of dh-make.
 
 # Uncomment this to turn on verbose mode.
-export DH_VERBOSE=1
+# export DH_VERBOSE=1
 
 # To enable all, uncomment following line
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
@@ -20,6 +20,12 @@ ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),hurd-i386))
   RECVMMSG:=--enable-recvmmsg=no
 else
   RECVMMSG:=--enable-recvmmsg=yes
+endif
+
+ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),amd64 i386))
+  RUN_TEST := dh_auto_test
+else
+  RUN_TEST := -timeout 5m --kill=5s dh_auto_test
 endif
 
 %:
@@ -62,8 +68,9 @@ override_dh_auto_install-arch:
 override_dh_auto_install-indep:
 	dh_auto_install -- install-info install-pdf install-html
 
-override_dh_auto_test:
-	-dh_auto_test
+override_dh_auto_test-indep:
+override_dh_auto_test-arch:
+	$(RUN_TEST)
 
 override_dh_strip:
 	dh_strip --dbgsym-migration='knot-dbg (<< 2.2.0-2~)' || dh_strip
