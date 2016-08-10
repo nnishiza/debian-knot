@@ -26,7 +26,7 @@ Build-Depends: autotools-dev,
                libsystemd-dev [linux-any] | libsystemd-journal-dev [linux-any],
                liburcu-dev (>= 0.4),
                pkg-config
-Standards-Version: 3.9.6
+Standards-Version: 3.9.8
 Homepage: http://www.knot-dns.cz/
 Vcs-Browser: https://anonscm.debian.org/git/pkg-dns/knot.git
 Vcs-Git: git://anonscm.debian.org/pkg-dns/knot.git
@@ -34,9 +34,9 @@ Vcs-Git: git://anonscm.debian.org/pkg-dns/knot.git
 Package: knot
 Architecture: any
 Depends: adduser,
-         libdnssec0 (= ${binary:Version}),
+         libdnssec2 (= ${binary:Version}),
          libknot3 (= ${binary:Version}),
-         libzscanner0 (= ${binary:Version}),
+         libzscanner1 (= ${binary:Version}),
          python,
          python-yaml,
          ${misc:Depends},
@@ -68,7 +68,7 @@ Description: authoritative domain name server
  This package provides libknot shared library used by Knot DNS and
  Knot Resolver.
 
-Package: libzscanner0
+Package: libzscanner1
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends}
@@ -86,7 +86,7 @@ Description: authoritative domain name server
  This package provides a fast zone parser shared library used by Knot
  DNS and Knot Resolver.
 
-Package: libdnssec0
+Package: libdnssec2
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends}
@@ -106,11 +106,11 @@ Description: authoritative domain name server
 
 Package: libknot-dev
 Architecture: any
-Depends: libdnssec0 (= ${binary:Version}),
+Depends: libdnssec2 (= ${binary:Version}),
          libgnutls28-dev,
          libjansson-dev,
          libknot3 (= ${binary:Version}),
-         libzscanner0 (= ${binary:Version}),
+         libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Section: libdevel
@@ -129,9 +129,9 @@ Description: authoritative domain name server
 
 Package: knot-dnsutils
 Architecture: any
-Depends: libdnssec0 (= ${binary:Version}),
+Depends: libdnssec2 (= ${binary:Version}),
          libknot3 (= ${binary:Version}),
-         libzscanner0 (= ${binary:Version}),
+         libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Section: net
@@ -160,9 +160,9 @@ Description: Clients provided with Knot DNS (kdig, knslookup, knsupdate)
 
 Package: knot-host
 Architecture: any
-Depends: libdnssec0 (= ${binary:Version}),
+Depends: libdnssec2 (= ${binary:Version}),
          libknot3 (= ${binary:Version}),
-         libzscanner0 (= ${binary:Version}),
+         libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Section: net
