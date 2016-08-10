@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,14 +32,24 @@
 #include "libknot/mm_ctx.h"
 
 /*! \brief Structure for zone contents updating / querying. */
-typedef struct {
+typedef struct zone_update {
 	zone_t *zone;                /*!< Zone being updated. */
 	zone_contents_t *new_cont;   /*!< New zone contents for full updates. */
 	changeset_t change;          /*!< Changes we want to apply. */
 	apply_ctx_t a_ctx;           /*!< Context for applying changesets. */
-	uint8_t flags;               /*!< Zone update flags. */
+	uint32_t flags;              /*!< Zone update flags. */
 	knot_mm_t mm;                /*!< Memory context used for intermediate nodes. */
 } zone_update_t;
+
+typedef struct {
+	zone_update_t *update;          /*!< The update we're iterating over. */
+	hattrie_iter_t *base_it;        /*!< Iterator for the original zone in the case of INCREMENTAL update or the new zone in case of FULL update. */
+	hattrie_iter_t *add_it;         /*!< Iterator for the added nodes in the changeset. Available in the INCREMENTAL update only. */
+	const zone_node_t *base_node;   /*!< The original node (INCREMENTAL update) or new node (FULL update). */
+	const zone_node_t *add_node;    /*!< The additions to that node (INCREMENTAL update only). */
+	const zone_node_t *next_node;   /*!< The smaller of t_node and ch_node (INCREMENTAL update) or next new node (FULL update). */
+	bool nsec3;                     /*!< Set when we're using the NSEC3 node tree. */
+} zone_update_iter_t;
 
 typedef enum {
 	UPDATE_FULL           = 1 << 0, /*!< Replace the old zone by a complete new one. */
@@ -122,7 +132,12 @@ void zone_update_clear(zone_update_t *update);
 /*!
  * \brief Adds an RRSet to the zone.
  *
+ * \warning Do not edit the zone_update when any iterator is active. Any
+ *          zone_update modifications will invalidate the trie iterators
+ *          in the zone_update iterator(s).
+ *
  * \param update  Zone update.
+ * \param rrset   RRSet to add.
  *
  * \return KNOT_E*
  */
@@ -131,11 +146,45 @@ int zone_update_add(zone_update_t *update, const knot_rrset_t *rrset);
 /*!
  * \brief Removes an RRSet from the zone.
  *
+ * \warning Do not edit the zone_update when any iterator is active. Any
+ *          zone_update modifications will invalidate the trie iterators
+ *          in the zone_update iterator(s).
+ *
  * \param update  Zone update.
+ * \param rrset   RRSet to remove.
  *
  * \return KNOT_E*
  */
 int zone_update_remove(zone_update_t *update, const knot_rrset_t *rrset);
+
+/*!
+ * \brief Removes a whole RRSet of specified type from the zone.
+ *
+ * \warning Do not edit the zone_update when any iterator is active. Any
+ *          zone_update modifications will invalidate the trie iterators
+ *          in the zone_update iterator(s).
+ *
+ * \param update  Zone update.
+ * \param owner   Node name to remove.
+ * \param type    RRSet type to remove.
+ *
+ * \return KNOT_E*
+ */
+int zone_update_remove_rrset(zone_update_t *update, knot_dname_t *owner, uint16_t type);
+
+/*!
+ * \brief Removes a whole node from the zone.
+ *
+ * \warning Do not edit the zone_update when any iterator is active. Any
+ *          zone_update modifications will invalidate the trie iterators
+ *          in the zone_update iterator(s).
+ *
+ * \param update  Zone update.
+ * \param owner   Node name to remove.
+ *
+ * \return KNOT_E*
+ */
+int zone_update_remove_node(zone_update_t *update, const knot_dname_t *owner);
 
 /*!
  * \brief Commits all changes to the zone, signs it, saves changes to journal.
@@ -146,6 +195,61 @@ int zone_update_remove(zone_update_t *update, const knot_rrset_t *rrset);
  * \return KNOT_E*
  */
 int zone_update_commit(conf_t *conf, zone_update_t *update);
+
+/*!
+ * \brief Setup a zone_update iterator for both FULL and INCREMENTAL updates.
+ *
+ * \warning Do not init or use iterators when the zone is edited. Any
+ *          zone_update modifications will invalidate the trie iterators
+ *          in the zone_update iterator.
+ *
+ * \param it       Iterator.
+ * \param update   Zone update.
+ *
+ * \return KNOT_E*
+ */
+int zone_update_iter(zone_update_iter_t *it, zone_update_t *update);
+
+/*!
+ * \brief Setup a zone_update iterator for both FULL and INCREMENTAL updates.
+ *        Version for iterating over nsec3 nodes.
+ *
+ * \warning Do not init or use iterators when the zone is edited. Any
+ *          zone_update modifications will invalidate the trie iterators
+ *          in the zone_update iterator.
+ *
+ *
+ * \param it       Iterator.
+ * \param update   Zone update.
+ *
+ * \return KNOT_E*
+ */
+int zone_update_iter_nsec3(zone_update_iter_t *it, zone_update_t *update);
+
+/*!
+ * \brief Move the iterator to the next item.
+ *
+ * \param it  Iterator.
+ *
+ * \return KNOT_E*
+ */
+int zone_update_iter_next(zone_update_iter_t *it);
+
+/*!
+ * \brief Get the value of the iterator.
+ *
+ * \param it  Iterator.
+ *
+ * \return A (synthesized or added) node with all its current data.
+ */
+const zone_node_t *zone_update_iter_val(zone_update_iter_t *it);
+
+/*!
+ * \brief Finish the iterator and clean it up.
+ *
+ * \param it  Iterator.
+ */
+void zone_update_iter_finish(zone_update_iter_t *it);
 
 /*!
  * \brief Returns bool whether there are any changes at all.

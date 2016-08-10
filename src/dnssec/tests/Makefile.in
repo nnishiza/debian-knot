@@ -88,20 +88,19 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 check_PROGRAMS = binary$(EXEEXT) crypto$(EXEEXT) \
-	event_keystate$(EXEEXT) kasp_dir_escape$(EXEEXT) \
-	kasp_dir_file$(EXEEXT) kasp_policy$(EXEEXT) \
-	kasp_store$(EXEEXT) key$(EXEEXT) key_algorithm$(EXEEXT) \
-	key_ds$(EXEEXT) keyid$(EXEEXT) keystore_pkcs11$(EXEEXT) \
-	keystore_pkcs8$(EXEEXT) keystore_pkcs8_dir$(EXEEXT) \
-	keytag$(EXEEXT) list$(EXEEXT) nsec_bitmap$(EXEEXT) \
-	nsec_hash$(EXEEXT) random$(EXEEXT) sign$(EXEEXT) \
-	sign_der$(EXEEXT) shared_base32hex$(EXEEXT) \
+	event_keystate$(EXEEXT) event_nsec3_resalt$(EXEEXT) \
+	kasp_dir_escape$(EXEEXT) kasp_dir_file$(EXEEXT) \
+	kasp_policy$(EXEEXT) kasp_store$(EXEEXT) key$(EXEEXT) \
+	key_algorithm$(EXEEXT) key_ds$(EXEEXT) keyid$(EXEEXT) \
+	keystore_pkcs11$(EXEEXT) keystore_pkcs8$(EXEEXT) \
+	keystore_pkcs8_dir$(EXEEXT) keytag$(EXEEXT) list$(EXEEXT) \
+	nsec_bitmap$(EXEEXT) nsec_hash$(EXEEXT) random$(EXEEXT) \
+	sign$(EXEEXT) sign_der$(EXEEXT) shared_base32hex$(EXEEXT) \
 	shared_bignum$(EXEEXT) shared_dname$(EXEEXT) \
-	shared_strtonum$(EXEEXT) shared_timestamp$(EXEEXT) \
-	shared_wire$(EXEEXT) tsig$(EXEEXT)
+	shared_timestamp$(EXEEXT) shared_wire$(EXEEXT) tsig$(EXEEXT)
 subdir = src/dnssec/tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_clang.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
@@ -133,6 +132,11 @@ event_keystate_SOURCES = event_keystate.c
 event_keystate_OBJECTS = event_keystate.$(OBJEXT)
 event_keystate_LDADD = $(LDADD)
 event_keystate_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(builddir)/../libdnssec.la
+event_nsec3_resalt_SOURCES = event_nsec3_resalt.c
+event_nsec3_resalt_OBJECTS = event_nsec3_resalt.$(OBJEXT)
+event_nsec3_resalt_LDADD = $(LDADD)
+event_nsec3_resalt_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
 kasp_dir_escape_SOURCES = kasp_dir_escape.c
 kasp_dir_escape_OBJECTS = kasp_dir_escape.$(OBJEXT)
@@ -229,11 +233,6 @@ shared_dname_OBJECTS = shared_dname.$(OBJEXT)
 shared_dname_LDADD = $(LDADD)
 shared_dname_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(builddir)/../libdnssec.la
-shared_strtonum_SOURCES = shared_strtonum.c
-shared_strtonum_OBJECTS = shared_strtonum.$(OBJEXT)
-shared_strtonum_LDADD = $(LDADD)
-shared_strtonum_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(builddir)/../libdnssec.la
 shared_timestamp_SOURCES = shared_timestamp.c
 shared_timestamp_OBJECTS = shared_timestamp.$(OBJEXT)
 shared_timestamp_LDADD = $(LDADD)
@@ -293,20 +292,20 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = binary.c crypto.c event_keystate.c kasp_dir_escape.c \
-	kasp_dir_file.c kasp_policy.c kasp_store.c key.c \
-	key_algorithm.c key_ds.c keyid.c keystore_pkcs11.c \
+SOURCES = binary.c crypto.c event_keystate.c event_nsec3_resalt.c \
+	kasp_dir_escape.c kasp_dir_file.c kasp_policy.c kasp_store.c \
+	key.c key_algorithm.c key_ds.c keyid.c keystore_pkcs11.c \
 	keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
 	nsec_bitmap.c nsec_hash.c random.c shared_base32hex.c \
-	shared_bignum.c shared_dname.c shared_strtonum.c \
-	shared_timestamp.c shared_wire.c sign.c sign_der.c tsig.c
-DIST_SOURCES = binary.c crypto.c event_keystate.c kasp_dir_escape.c \
-	kasp_dir_file.c kasp_policy.c kasp_store.c key.c \
-	key_algorithm.c key_ds.c keyid.c keystore_pkcs11.c \
+	shared_bignum.c shared_dname.c shared_timestamp.c \
+	shared_wire.c sign.c sign_der.c tsig.c
+DIST_SOURCES = binary.c crypto.c event_keystate.c event_nsec3_resalt.c \
+	kasp_dir_escape.c kasp_dir_file.c kasp_policy.c kasp_store.c \
+	key.c key_algorithm.c key_ds.c keyid.c keystore_pkcs11.c \
 	keystore_pkcs8.c keystore_pkcs8_dir.c keytag.c list.c \
 	nsec_bitmap.c nsec_hash.c random.c shared_base32hex.c \
-	shared_bignum.c shared_dname.c shared_strtonum.c \
-	shared_timestamp.c shared_wire.c sign.c sign_der.c tsig.c
+	shared_bignum.c shared_dname.c shared_timestamp.c \
+	shared_wire.c sign.c sign_der.c tsig.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -343,7 +342,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
-CC_LLVM = @CC_LLVM@
+CC_CLANG_VERSION = @CC_CLANG_VERSION@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
@@ -384,6 +383,7 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -567,6 +567,10 @@ event_keystate$(EXEEXT): $(event_keystate_OBJECTS) $(event_keystate_DEPENDENCIES
 	@rm -f event_keystate$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(event_keystate_OBJECTS) $(event_keystate_LDADD) $(LIBS)
 
+event_nsec3_resalt$(EXEEXT): $(event_nsec3_resalt_OBJECTS) $(event_nsec3_resalt_DEPENDENCIES) $(EXTRA_event_nsec3_resalt_DEPENDENCIES) 
+	@rm -f event_nsec3_resalt$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(event_nsec3_resalt_OBJECTS) $(event_nsec3_resalt_LDADD) $(LIBS)
+
 kasp_dir_escape$(EXEEXT): $(kasp_dir_escape_OBJECTS) $(kasp_dir_escape_DEPENDENCIES) $(EXTRA_kasp_dir_escape_DEPENDENCIES) 
 	@rm -f kasp_dir_escape$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(kasp_dir_escape_OBJECTS) $(kasp_dir_escape_LDADD) $(LIBS)
@@ -643,10 +647,6 @@ shared_dname$(EXEEXT): $(shared_dname_OBJECTS) $(shared_dname_DEPENDENCIES) $(EX
 	@rm -f shared_dname$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_dname_OBJECTS) $(shared_dname_LDADD) $(LIBS)
 
-shared_strtonum$(EXEEXT): $(shared_strtonum_OBJECTS) $(shared_strtonum_DEPENDENCIES) $(EXTRA_shared_strtonum_DEPENDENCIES) 
-	@rm -f shared_strtonum$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(shared_strtonum_OBJECTS) $(shared_strtonum_LDADD) $(LIBS)
-
 shared_timestamp$(EXEEXT): $(shared_timestamp_OBJECTS) $(shared_timestamp_DEPENDENCIES) $(EXTRA_shared_timestamp_DEPENDENCIES) 
 	@rm -f shared_timestamp$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(shared_timestamp_OBJECTS) $(shared_timestamp_LDADD) $(LIBS)
@@ -676,6 +676,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/binary.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/crypto.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/event_keystate.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/event_nsec3_resalt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kasp_dir_escape.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kasp_dir_file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kasp_policy.Po@am__quote@
@@ -695,7 +696,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_base32hex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_bignum.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_dname.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_strtonum.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_timestamp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shared_wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sign.Po@am__quote@

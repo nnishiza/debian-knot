@@ -105,6 +105,10 @@ Options
 **+**\ [\ **no**\ ]\ **short**
   Show record data only.
 
+**+**\ [\ **no**\ ]\ **generic**
+  Use the generic representation format when printing resource record types
+  and data.
+
 **+**\ [\ **no**\ ]\ **aaflag**
   Set the AA flag.
 
@@ -174,65 +178,58 @@ Options
 **+**\ [\ **no**\ ]\ **ignore**
   Don't use TCP automatically if a truncated reply is received.
 
+**+**\ [\ **no**\ ]\ **tls**
+  Use TLS with the Opportunistic privacy profile.
+
+**+**\ [\ **no**\ ]\ **tls-ca**\[\ =\ *FILE*\]
+  Use TLS with the Out-Of-Band privacy profile, use a specified PEM file
+  (default is system certificate storage if no argument is provided).
+  Can be specified multiple times.
+
+**+**\ [\ **no**\ ]\ **tls-pin**\ =\ *BASE64*
+  Use TLS with a pinned certificate check. The PIN must be a Base64 encoded
+  SHA-256 hash of the X.509 SubjectPublicKeyInfo. Can be specified multiple times.
+
+**+**\ [\ **no**\ ]\ **tls-hostname**\ =\ *STR*
+  Use TLS with a remote server hostname check.
+
 **+**\ [\ **no**\ ]\ **nsid**
   Request the nameserver identifier (NSID).
 
-**+**\ [\ **no**\ ]\ **edns**\ =\ *N*
+**+**\ [\ **no**\ ]\ **bufsize**\ =\ *B*
+  Set the EDNS buffer size in bytes (default is 512 bytes).
+
+**+**\ [\ **no**\ ]\ **padding**\ =\ *B*
+  Set EDNS(0) padding option data length (default is no).
+
+**+**\ [\ **no**\ ]\ **alignment**\[\ =\ *B*\]
+  Align the query to B\-byte-block message using the EDNS(0) padding option
+  (default is no or 128 if no argument is specified).
+
+**+**\ [\ **no**\ ]\ **client**\ =\ *SUBN*
+  Set the EDNS client subnet SUBN=IP/prefix.
+
+**+**\ [\ **no**\ ]\ **edns**\[\ =\ *N*\]
   Use EDNS version (default is 0).
+
+**+**\ [\ **no**\ ]\ **time**\ =\ *T*
+  Set the wait-for-reply interval in seconds (default is 5 seconds). This timeout
+  applies to each query attempt.
+
+**+**\ [\ **no**\ ]\ **retry**\ =\ *N*
+  Set the number (>=0) of UDP retries (default is 2). This doesn't apply to
+  AXFR/IXFR.
 
 **+noidn**
   Disable the IDN transformation to ASCII and vice versa. IDNA2003 support depends
   on libidn availability during project building!
-
-**+generic**
-  Use the generic representation format when printing resource record types
-  and data.
-
-**+client**\ =\ *SUBN*
-  Set the EDNS client subnet SUBN=IP/prefix.
-
-**+time**\ =\ *T*
-  Set the wait-for-reply interval in seconds (default is 5 seconds). This timeout
-  applies to each query attempt.
-
-**+retry**\ =\ *N*
-  Set the number (>=0) of UDP retries (default is 2). This doesn't apply to
-  AXFR/IXFR.
-
-**+bufsize**\ =\ *B*
-  Set the EDNS buffer size in bytes (default is 512 bytes).
 
 Notes
 -----
 
 Options **-k** and **-y** can not be used simultaneously.
 
-Missing features with regard to ISC dig:
-
-  Options **-f** and **-m** and query options:
-  **+split**\ =\ *W*,
-  **+tries**\ =\ *T*,
-  **+ndots**\ =\ *D*,
-  **+domain**\ =\ *somename*,
-  **+trusted-key**\ =\ *####*,
-  **+**\ [\ **no**\ ]\ **fail**,
-  **+**\ [\ **no**\ ]\ **vc**,
-  **+**\ [\ **no**\ ]\ **search**,
-  **+**\ [\ **no**\ ]\ **showsearch**,
-  **+**\ [\ **no**\ ]\ **defname**,
-  **+**\ [\ **no**\ ]\ **aaonly**,
-  **+**\ [\ **no**\ ]\ **cmd**,
-  **+**\ [\ **no**\ ]\ **identify**,
-  **+**\ [\ **no**\ ]\ **comments**,
-  **+**\ [\ **no**\ ]\ **rrcomments**,
-  **+**\ [\ **no**\ ]\ **onesoa**,
-  **+**\ [\ **no**\ ]\ **besteffort**,
-  **+**\ [\ **no**\ ]\ **sigchase**,
-  **+**\ [\ **no**\ ]\ **topdown**,
-  **+**\ [\ **no**\ ]\ **nssearch**, and
-  **+**\ [\ **no**\ ]\ **trace**.
-
-  Per-user file configuration via :file:`~/.digrc`.
+Dnssec-keygen keyfile format is not supported. Use :manpage:`keymgr(8)` instead.
 
 Examples
 --------
@@ -250,6 +247,13 @@ Examples
 
      $ kdig +tcp example.com -t A @192.0.2.1 -x 2001:DB8::1 @192.0.2.2
 
+4. Get SOA record for example.com, use TLS, use system certificates, check
+   for specified hostname, check for certificate pin, and print additional
+   debug info::
+
+     $ kdig -d @185.49.141.38 +tls-ca +tls-host=getdnsapi.net \
+       +tls-pin=foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc9S= soa example.com
+
 Files
 -----
 
@@ -258,4 +262,4 @@ Files
 See Also
 --------
 
-:manpage:`khost(1)`, :manpage:`knsupdate(1)`.
+:manpage:`khost(1)`, :manpage:`knsupdate(1)`, :manpage:`keymgr(8)`.

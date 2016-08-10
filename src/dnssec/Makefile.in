@@ -92,7 +92,7 @@ build_triplet = @build@
 host_triplet = @host@
 subdir = src/dnssec
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_clang.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
@@ -142,6 +142,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 am_libdnssec_la_OBJECTS = lib/libdnssec_la-binary.lo \
 	lib/libdnssec_la-crypto.lo lib/libdnssec_la-error.lo \
 	lib/event/action/libdnssec_la-initial_key.lo \
+	lib/event/action/libdnssec_la-nsec3_resalt.lo \
 	lib/event/action/libdnssec_la-zsk_rollover.lo \
 	lib/event/libdnssec_la-event.lo \
 	lib/event/libdnssec_la-keystate.lo \
@@ -167,7 +168,8 @@ am_libdnssec_la_OBJECTS = lib/libdnssec_la-binary.lo \
 	lib/keystore/libdnssec_la-pkcs8.lo \
 	lib/keystore/libdnssec_la-pkcs8_dir.lo \
 	lib/list/libdnssec_la-list.lo lib/nsec/libdnssec_la-bitmap.lo \
-	lib/nsec/libdnssec_la-hash.lo lib/libdnssec_la-random.lo \
+	lib/nsec/libdnssec_la-hash.lo lib/nsec/libdnssec_la-nsec.lo \
+	lib/p11/libdnssec_la-p11.lo lib/libdnssec_la-random.lo \
 	lib/sign/libdnssec_la-der.lo lib/sign/libdnssec_la-sign.lo \
 	lib/libdnssec_la-tsig.lo
 libdnssec_la_OBJECTS = $(am_libdnssec_la_OBJECTS)
@@ -304,7 +306,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
-CC_LLVM = @CC_LLVM@
+CC_CLANG_VERSION = @CC_CLANG_VERSION@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
@@ -345,6 +347,7 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -455,7 +458,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = . utils tests
+SUBDIRS = . tests
 AM_CPPFLAGS = \
 	-include $(top_builddir)/src/config.h \
 	-I$(srcdir)/shared \
@@ -488,7 +491,6 @@ libshared_la_SOURCES = \
 	shared/pem.c \
 	shared/pem.h \
 	shared/shared.h \
-	shared/strtonum.h \
 	shared/timestamp.c \
 	shared/timestamp.h \
 	shared/wire.h
@@ -530,6 +532,7 @@ libdnssec_la_SOURCES = \
 	lib/error.c \
 	lib/event/action.h \
 	lib/event/action/initial_key.c \
+	lib/event/action/nsec3_resalt.c \
 	lib/event/action/zsk_rollover.c \
 	lib/event/event.c \
 	lib/event/keystate.c \
@@ -579,6 +582,9 @@ libdnssec_la_SOURCES = \
 	lib/list/ucw_clists.h \
 	lib/nsec/bitmap.c \
 	lib/nsec/hash.c \
+	lib/nsec/nsec.c \
+	lib/p11/p11.c \
+	lib/p11/p11.h \
 	lib/random.c \
 	lib/sign/der.c \
 	lib/sign/der.h \
@@ -690,6 +696,9 @@ lib/event/action/$(DEPDIR)/$(am__dirstamp):
 lib/event/action/libdnssec_la-initial_key.lo:  \
 	lib/event/action/$(am__dirstamp) \
 	lib/event/action/$(DEPDIR)/$(am__dirstamp)
+lib/event/action/libdnssec_la-nsec3_resalt.lo:  \
+	lib/event/action/$(am__dirstamp) \
+	lib/event/action/$(DEPDIR)/$(am__dirstamp)
 lib/event/action/libdnssec_la-zsk_rollover.lo:  \
 	lib/event/action/$(am__dirstamp) \
 	lib/event/action/$(DEPDIR)/$(am__dirstamp)
@@ -797,6 +806,16 @@ lib/nsec/libdnssec_la-bitmap.lo: lib/nsec/$(am__dirstamp) \
 	lib/nsec/$(DEPDIR)/$(am__dirstamp)
 lib/nsec/libdnssec_la-hash.lo: lib/nsec/$(am__dirstamp) \
 	lib/nsec/$(DEPDIR)/$(am__dirstamp)
+lib/nsec/libdnssec_la-nsec.lo: lib/nsec/$(am__dirstamp) \
+	lib/nsec/$(DEPDIR)/$(am__dirstamp)
+lib/p11/$(am__dirstamp):
+	@$(MKDIR_P) lib/p11
+	@: > lib/p11/$(am__dirstamp)
+lib/p11/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) lib/p11/$(DEPDIR)
+	@: > lib/p11/$(DEPDIR)/$(am__dirstamp)
+lib/p11/libdnssec_la-p11.lo: lib/p11/$(am__dirstamp) \
+	lib/p11/$(DEPDIR)/$(am__dirstamp)
 lib/libdnssec_la-random.lo: lib/$(am__dirstamp) \
 	lib/$(DEPDIR)/$(am__dirstamp)
 lib/sign/$(am__dirstamp):
@@ -862,6 +881,8 @@ mostlyclean-compile:
 	-rm -f lib/list/*.lo
 	-rm -f lib/nsec/*.$(OBJEXT)
 	-rm -f lib/nsec/*.lo
+	-rm -f lib/p11/*.$(OBJEXT)
+	-rm -f lib/p11/*.lo
 	-rm -f lib/sign/*.$(OBJEXT)
 	-rm -f lib/sign/*.lo
 	-rm -f shared/*.$(OBJEXT)
@@ -880,6 +901,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/event/$(DEPDIR)/libdnssec_la-keystate.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/event/$(DEPDIR)/libdnssec_la-utils.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/event/action/$(DEPDIR)/libdnssec_la-initial_key.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@lib/event/action/$(DEPDIR)/libdnssec_la-nsec3_resalt.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/event/action/$(DEPDIR)/libdnssec_la-zsk_rollover.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/kasp/$(DEPDIR)/libdnssec_la-kasp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/kasp/$(DEPDIR)/libdnssec_la-keystore.Plo@am__quote@
@@ -908,6 +930,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@lib/list/$(DEPDIR)/libdnssec_la-list.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/nsec/$(DEPDIR)/libdnssec_la-bitmap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/nsec/$(DEPDIR)/libdnssec_la-hash.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@lib/nsec/$(DEPDIR)/libdnssec_la-nsec.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@lib/p11/$(DEPDIR)/libdnssec_la-p11.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/sign/$(DEPDIR)/libdnssec_la-der.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@lib/sign/$(DEPDIR)/libdnssec_la-sign.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@shared/$(DEPDIR)/libshared_la-base32hex.Plo@am__quote@
@@ -971,6 +995,13 @@ lib/event/action/libdnssec_la-initial_key.lo: lib/event/action/initial_key.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/event/action/initial_key.c' object='lib/event/action/libdnssec_la-initial_key.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/event/action/libdnssec_la-initial_key.lo `test -f 'lib/event/action/initial_key.c' || echo '$(srcdir)/'`lib/event/action/initial_key.c
+
+lib/event/action/libdnssec_la-nsec3_resalt.lo: lib/event/action/nsec3_resalt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/event/action/libdnssec_la-nsec3_resalt.lo -MD -MP -MF lib/event/action/$(DEPDIR)/libdnssec_la-nsec3_resalt.Tpo -c -o lib/event/action/libdnssec_la-nsec3_resalt.lo `test -f 'lib/event/action/nsec3_resalt.c' || echo '$(srcdir)/'`lib/event/action/nsec3_resalt.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/event/action/$(DEPDIR)/libdnssec_la-nsec3_resalt.Tpo lib/event/action/$(DEPDIR)/libdnssec_la-nsec3_resalt.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/event/action/nsec3_resalt.c' object='lib/event/action/libdnssec_la-nsec3_resalt.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/event/action/libdnssec_la-nsec3_resalt.lo `test -f 'lib/event/action/nsec3_resalt.c' || echo '$(srcdir)/'`lib/event/action/nsec3_resalt.c
 
 lib/event/action/libdnssec_la-zsk_rollover.lo: lib/event/action/zsk_rollover.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/event/action/libdnssec_la-zsk_rollover.lo -MD -MP -MF lib/event/action/$(DEPDIR)/libdnssec_la-zsk_rollover.Tpo -c -o lib/event/action/libdnssec_la-zsk_rollover.lo `test -f 'lib/event/action/zsk_rollover.c' || echo '$(srcdir)/'`lib/event/action/zsk_rollover.c
@@ -1196,6 +1227,20 @@ lib/nsec/libdnssec_la-hash.lo: lib/nsec/hash.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/nsec/libdnssec_la-hash.lo `test -f 'lib/nsec/hash.c' || echo '$(srcdir)/'`lib/nsec/hash.c
 
+lib/nsec/libdnssec_la-nsec.lo: lib/nsec/nsec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/nsec/libdnssec_la-nsec.lo -MD -MP -MF lib/nsec/$(DEPDIR)/libdnssec_la-nsec.Tpo -c -o lib/nsec/libdnssec_la-nsec.lo `test -f 'lib/nsec/nsec.c' || echo '$(srcdir)/'`lib/nsec/nsec.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/nsec/$(DEPDIR)/libdnssec_la-nsec.Tpo lib/nsec/$(DEPDIR)/libdnssec_la-nsec.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/nsec/nsec.c' object='lib/nsec/libdnssec_la-nsec.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/nsec/libdnssec_la-nsec.lo `test -f 'lib/nsec/nsec.c' || echo '$(srcdir)/'`lib/nsec/nsec.c
+
+lib/p11/libdnssec_la-p11.lo: lib/p11/p11.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/p11/libdnssec_la-p11.lo -MD -MP -MF lib/p11/$(DEPDIR)/libdnssec_la-p11.Tpo -c -o lib/p11/libdnssec_la-p11.lo `test -f 'lib/p11/p11.c' || echo '$(srcdir)/'`lib/p11/p11.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/p11/$(DEPDIR)/libdnssec_la-p11.Tpo lib/p11/$(DEPDIR)/libdnssec_la-p11.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/p11/p11.c' object='lib/p11/libdnssec_la-p11.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/p11/libdnssec_la-p11.lo `test -f 'lib/p11/p11.c' || echo '$(srcdir)/'`lib/p11/p11.c
+
 lib/libdnssec_la-random.lo: lib/random.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdnssec_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/libdnssec_la-random.lo -MD -MP -MF lib/$(DEPDIR)/libdnssec_la-random.Tpo -c -o lib/libdnssec_la-random.lo `test -f 'lib/random.c' || echo '$(srcdir)/'`lib/random.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/$(DEPDIR)/libdnssec_la-random.Tpo lib/$(DEPDIR)/libdnssec_la-random.Plo
@@ -1301,6 +1346,7 @@ clean-libtool:
 	-rm -rf lib/keystore/.libs lib/keystore/_libs
 	-rm -rf lib/list/.libs lib/list/_libs
 	-rm -rf lib/nsec/.libs lib/nsec/_libs
+	-rm -rf lib/p11/.libs lib/p11/_libs
 	-rm -rf lib/sign/.libs lib/sign/_libs
 	-rm -rf shared/.libs shared/_libs
 install-pkgconfigDATA: $(pkgconfig_DATA)
@@ -1552,6 +1598,8 @@ distclean-generic:
 	-rm -f lib/list/$(am__dirstamp)
 	-rm -f lib/nsec/$(DEPDIR)/$(am__dirstamp)
 	-rm -f lib/nsec/$(am__dirstamp)
+	-rm -f lib/p11/$(DEPDIR)/$(am__dirstamp)
+	-rm -f lib/p11/$(am__dirstamp)
 	-rm -f lib/sign/$(DEPDIR)/$(am__dirstamp)
 	-rm -f lib/sign/$(am__dirstamp)
 	-rm -f shared/$(DEPDIR)/$(am__dirstamp)
@@ -1566,7 +1614,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	clean-noinstLTLIBRARIES mostlyclean-am
 
 distclean: distclean-recursive
-	-rm -rf lib/$(DEPDIR) lib/event/$(DEPDIR) lib/event/action/$(DEPDIR) lib/kasp/$(DEPDIR) lib/kasp/dir/$(DEPDIR) lib/key/$(DEPDIR) lib/keystore/$(DEPDIR) lib/list/$(DEPDIR) lib/nsec/$(DEPDIR) lib/sign/$(DEPDIR) shared/$(DEPDIR)
+	-rm -rf lib/$(DEPDIR) lib/event/$(DEPDIR) lib/event/action/$(DEPDIR) lib/kasp/$(DEPDIR) lib/kasp/dir/$(DEPDIR) lib/key/$(DEPDIR) lib/keystore/$(DEPDIR) lib/list/$(DEPDIR) lib/nsec/$(DEPDIR) lib/p11/$(DEPDIR) lib/sign/$(DEPDIR) shared/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -1612,7 +1660,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-recursive
-	-rm -rf lib/$(DEPDIR) lib/event/$(DEPDIR) lib/event/action/$(DEPDIR) lib/kasp/$(DEPDIR) lib/kasp/dir/$(DEPDIR) lib/key/$(DEPDIR) lib/keystore/$(DEPDIR) lib/list/$(DEPDIR) lib/nsec/$(DEPDIR) lib/sign/$(DEPDIR) shared/$(DEPDIR)
+	-rm -rf lib/$(DEPDIR) lib/event/$(DEPDIR) lib/event/action/$(DEPDIR) lib/kasp/$(DEPDIR) lib/kasp/dir/$(DEPDIR) lib/key/$(DEPDIR) lib/keystore/$(DEPDIR) lib/list/$(DEPDIR) lib/nsec/$(DEPDIR) lib/p11/$(DEPDIR) lib/sign/$(DEPDIR) shared/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

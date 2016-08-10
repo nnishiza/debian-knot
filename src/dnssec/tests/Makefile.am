@@ -21,6 +21,7 @@ check_PROGRAMS = \
 	binary		\
 	crypto		\
 	event_keystate	\
+	event_nsec3_resalt \
 	kasp_dir_escape	\
 	kasp_dir_file	\
 	kasp_policy	\
@@ -42,7 +43,6 @@ check_PROGRAMS = \
 	shared_base32hex \
 	shared_bignum	\
 	shared_dname	\
-	shared_strtonum	\
 	shared_timestamp \
 	shared_wire	\
 	tsig

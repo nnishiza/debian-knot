@@ -229,9 +229,19 @@ static int answer_edns_init(const knot_pkt_t *query, knot_pkt_t *resp,
 	}
 
 	/* Initialize OPT record. */
-	conf_val_t *max_payload = &conf()->cache.srv_max_udp_payload;
-	int ret = knot_edns_init(&qdata->opt_rr, conf_int(max_payload), 0,
-	                     KNOT_EDNS_VERSION, qdata->mm);
+	int16_t max_payload;
+	switch (qdata->param->remote->ss_family) {
+	case AF_INET:
+		max_payload = conf()->cache.srv_max_ipv4_udp_payload;
+		break;
+	case AF_INET6:
+		max_payload = conf()->cache.srv_max_ipv6_udp_payload;
+		break;
+	default:
+		return KNOT_ERROR;
+	}
+	int ret = knot_edns_init(&qdata->opt_rr, max_payload, 0,
+	                         KNOT_EDNS_VERSION, qdata->mm);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -341,9 +351,18 @@ static int prepare_answer(const knot_pkt_t *query, knot_pkt_t *resp, knot_layer_
 	if (has_limit) {
 		resp->max_size = KNOT_WIRE_MIN_PKTSIZE;
 		if (knot_pkt_has_edns(query)) {
-			conf_val_t *max_payload = &conf()->cache.srv_max_udp_payload;
+			uint16_t server;
+			switch (qdata->param->remote->ss_family) {
+			case AF_INET:
+				server = conf()->cache.srv_max_ipv4_udp_payload;
+				break;
+			case AF_INET6:
+				server = conf()->cache.srv_max_ipv6_udp_payload;
+				break;
+			default:
+				return KNOT_ERROR;
+			}
 			uint16_t client = knot_edns_get_payload(query->opt_rr);
-			uint16_t server = conf_int(max_payload);
 			uint16_t transfer = MIN(client, server);
 			resp->max_size = MAX(resp->max_size, transfer);
 		}
@@ -436,7 +455,7 @@ static int ratelimit_apply(int state, knot_pkt_t *pkt, knot_layer_t *ctx)
 	}
 
 	/* Now it is slip or drop. */
-	int slip = conf_int(&conf()->cache.srv_rate_limit_slip);
+	int slip = conf()->cache.srv_rate_limit_slip;
 	if (slip > 0 && rrl_slip_roll(slip)) {
 		/* Answer slips. */
 		if (process_query_err(ctx, pkt) != KNOT_STATE_DONE) {
@@ -475,8 +494,7 @@ static int process_query_out(knot_layer_t *ctx, knot_pkt_t *pkt)
 	 * Preprocessing.
 	 */
 
-	int ret = prepare_answer(query, pkt, ctx);
-	if (ret != KNOT_EOK) {
+	if (prepare_answer(query, pkt, ctx) != KNOT_EOK) {
 		next_state = KNOT_STATE_FAIL;
 		goto finish;
 	}
@@ -519,8 +537,7 @@ static int process_query_out(knot_layer_t *ctx, knot_pkt_t *pkt)
 		}
 
 		/* Put OPT RR to the additional section. */
-		ret = answer_edns_put(pkt, qdata);
-		if (ret != KNOT_EOK) {
+		if (answer_edns_put(pkt, qdata) != KNOT_EOK) {
 			next_state = KNOT_STATE_FAIL;
 			goto finish;
 		}
@@ -545,16 +562,16 @@ finish:
 	}
 	/* In case of NS_PROC_FAIL, RCODE is set in the error-processing function. */
 
-	/* Rate limits (if applicable). */
-	if (qdata->param->proc_flags & NS_QUERY_LIMIT_RATE) {
-		next_state = ratelimit_apply(next_state, pkt, ctx);
-	}
-
 	/* After query processing code. */
 	if (plan) {
 		WALK_LIST(step, plan->stage[QPLAN_END]) {
 			next_state = step->process(next_state, pkt, qdata, step->ctx);
 		}
+	}
+
+	/* Rate limits (if applicable). */
+	if (qdata->param->proc_flags & NS_QUERY_LIMIT_RATE) {
+		next_state = ratelimit_apply(next_state, pkt, ctx);
 	}
 
 	rcu_read_unlock();
@@ -584,7 +601,7 @@ bool process_query_acl_check(conf_t *conf, const knot_dname_t *zone_name,
 	conf_val_t acl = conf_zone_get(conf, C_ACL, zone_name);
 	if (!acl_allowed(conf, &acl, action, query_source, &tsig)) {
 		char addr_str[SOCKADDR_STRLEN] = { 0 };
-		sockaddr_tostr(addr_str, sizeof(addr_str), query_source);
+		sockaddr_tostr(addr_str, sizeof(addr_str), (struct sockaddr *)query_source);
 		const knot_lookup_t *act = knot_lookup_by_id((knot_lookup_t *)acl_actions,
 		                                             action);
 		char *key_name = knot_dname_to_str_alloc(tsig.name);

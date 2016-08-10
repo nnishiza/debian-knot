@@ -114,15 +114,18 @@ static void fill_remote_addr(net_t *net, Dnstap__Message *message, bool is_initi
 		break;
 	}
 
+	ProtobufCBinaryData *addr = NULL;
+	uint32_t port = 0;
 	if (is_initiator) {
-		sockaddr_set_raw(&ss, family, message->response_address.data,
-		                 message->response_address.len);
-		sockaddr_port_set(&ss, message->response_port);
+		addr = &message->response_address;
+		port = message->response_port;
 	} else {
-		sockaddr_set_raw(&ss, family, message->query_address.data,
-		                 message->query_address.len);
-		sockaddr_port_set(&ss, message->query_port);
+		addr = &message->query_address;
+		port = message->query_port;
 	}
+
+	sockaddr_set_raw(&ss, family, addr->data, addr->len);
+	sockaddr_port_set((struct sockaddr *)&ss, port);
 
 	get_addr_str(&ss, sock_type, &net->remote_str);
 }
@@ -220,7 +223,7 @@ static void process_dnstap(const query_t *query)
 }
 #endif // USE_DNSTAP
 
-static int add_query_edns(knot_pkt_t *packet, const query_t *query, int max_size)
+static int add_query_edns(knot_pkt_t *packet, const query_t *query, uint16_t max_size)
 {
 	/* Initialize OPT RR. */
 	knot_rrset_t opt_rr;
@@ -267,6 +270,25 @@ static int add_query_edns(knot_pkt_t *packet, const query_t *query, int max_size
 		}
 	}
 
+	/* Append EDNS Padding. */
+	int padding = query->padding;
+	if (query->alignment > 0) {
+		padding = knot_edns_alignment_size(packet->size,
+		                                   knot_rrset_size(&opt_rr),
+		                                   query->alignment);
+	}
+	if (padding > -1) {
+		uint8_t zeros[padding];
+		memset(zeros, 0, sizeof(zeros));
+
+		ret = knot_edns_add_option(&opt_rr, KNOT_EDNS_OPTION_PADDING,
+		                           padding, zeros, &packet->mm);
+		if (ret != KNOT_EOK) {
+			knot_rrset_clear(&opt_rr, &packet->mm);
+			return ret;
+		}
+	}
+
 	/* Add prepared OPT to packet. */
 	ret = knot_pkt_put(packet, KNOT_COMPR_HINT_NONE, &opt_rr, KNOT_PF_FREE);
 	if (ret != KNOT_EOK) {
@@ -278,15 +300,13 @@ static int add_query_edns(knot_pkt_t *packet, const query_t *query, int max_size
 
 static bool use_edns(const query_t *query)
 {
-	return query->flags.do_flag || query->nsid || query->edns > -1 ||
-	       query->subnet != NULL;
+	return query->edns > -1 || query->udp_size > -1 || query->nsid ||
+	       query->flags.do_flag || query->subnet != NULL ||
+	       query->padding > -1 || query->alignment > 0;
 }
 
-static knot_pkt_t* create_query_packet(const query_t *query)
+static knot_pkt_t *create_query_packet(const query_t *query)
 {
-	knot_pkt_t *packet;
-	int        ret = 0;
-
 	// Set packet buffer size.
 	uint16_t max_size;
 	if (query->udp_size < 0) {
@@ -300,7 +320,7 @@ static knot_pkt_t* create_query_packet(const query_t *query)
 	}
 
 	// Create packet skeleton.
-	packet = create_empty_packet(max_size);
+	knot_pkt_t *packet = create_empty_packet(max_size);
 	if (packet == NULL) {
 		return NULL;
 	}
@@ -341,8 +361,8 @@ static knot_pkt_t* create_query_packet(const query_t *query)
 	}
 
 	// Set packet question.
-	ret = knot_pkt_put_question(packet, qname, query->class_num,
-	                            query->type_num);
+	int ret = knot_pkt_put_question(packet, qname, query->class_num,
+	                                query->type_num);
 	if (ret != KNOT_EOK) {
 		knot_dname_free(&qname, NULL);
 		knot_pkt_free(&packet);
@@ -383,7 +403,7 @@ static knot_pkt_t* create_query_packet(const query_t *query)
 		// Set SOA serial.
 		knot_soa_serial_set(&soa->rrs, query->serial);
 
-		ret = knot_pkt_put(packet, 0, soa, KNOT_PF_FREE);
+		ret = knot_pkt_put(packet, KNOT_COMPR_HINT_NONE, soa, KNOT_PF_FREE);
 		if (ret != KNOT_EOK) {
 			knot_rrset_free(&soa, &packet->mm);
 			knot_pkt_free(&packet);
@@ -397,7 +417,7 @@ static knot_pkt_t* create_query_packet(const query_t *query)
 	knot_pkt_begin(packet, KNOT_ADDITIONAL);
 
 	// Create EDNS section if required.
-	if (query->udp_size >= 0 || use_edns(query)) {
+	if (use_edns(query)) {
 		int ret = add_query_edns(packet, query, max_size);
 		if (ret != KNOT_EOK) {
 			ERR("can't set up EDNS section\n");
@@ -460,12 +480,12 @@ static int64_t first_serial_check(const knot_pkt_t *reply)
 	}
 }
 
-static bool last_serial_check(const uint32_t serial, const knot_pkt_t *reply,
-                              const size_t msg_count)
+static bool finished_xfr(const uint32_t serial, const knot_pkt_t *reply,
+                         const size_t msg_count, bool is_ixfr)
 {
 	const knot_pktsection_t *answer = knot_pkt_section(reply, KNOT_ANSWER);
 
-	if (answer->count <= 0 || (answer->count == 1 && msg_count == 1)) {
+	if (answer->count <= 0) {
 		return false;
 	}
 
@@ -473,9 +493,10 @@ static bool last_serial_check(const uint32_t serial, const knot_pkt_t *reply,
 
 	if (last->type != KNOT_RRTYPE_SOA) {
 		return false;
+	} else if (answer->count == 1 && msg_count == 1) {
+		return is_ixfr;
 	} else {
-		int64_t last_serial = knot_soa_serial(&last->rrs);
-		return last_serial == serial;
+		return knot_soa_serial(&last->rrs) == serial;
 	}
 }
 
@@ -684,7 +705,7 @@ static void process_query(const query_t *query)
 		for (size_t i = 0; i <= query->retries; i++) {
 			// Initialize network structure for current server.
 			ret = net_init(query->local, remote, iptype, socktype,
-				       query->wait, &net);
+				       query->wait, &query->tls, &net);
 			if (ret != KNOT_EOK) {
 				continue;
 			}
@@ -867,6 +888,23 @@ static int process_xfr_packet(const knot_pkt_t      *query,
 				}
 			}
 
+			// Check for error reply.
+			uint16_t rcode = knot_pkt_get_ext_rcode(reply);
+			if (rcode != KNOT_RCODE_NOERROR) {
+				const char *rcode_str = "Unknown";
+
+				const knot_lookup_t *code =
+					knot_lookup_by_id(knot_rcode_names, rcode);
+				if (code != NULL) {
+					rcode_str = code->name;
+				}
+
+				ERR("server replied %s\n", rcode_str);
+				knot_pkt_free(&reply);
+				net_close(net);
+				return 0;
+			}
+
 			// Read first SOA serial.
 			serial = first_serial_check(reply);
 
@@ -889,8 +927,8 @@ static int process_xfr_packet(const knot_pkt_t      *query,
 		// Print reply packet.
 		print_data_xfr(reply, style);
 
-		// Stop if last SOA record has correct serial.
-		if (last_serial_check(serial, reply, msg_count)) {
+		// Check for finished transfer.
+		if (finished_xfr(serial, reply, msg_count, query_ctx->serial != -1)) {
 			knot_pkt_free(&reply);
 			break;
 		}
@@ -949,8 +987,8 @@ static void process_xfr(const query_t *query)
 	    get_sockname(socktype));
 
 	// Initialize network structure.
-	ret = net_init(query->local, remote, iptype, socktype,
-	               query->wait, &net);
+	ret = net_init(query->local, remote, iptype, socktype, query->wait,
+	               &query->tls, &net);
 	if (ret != KNOT_EOK) {
 		sign_context_deinit(&sign_ctx);
 		knot_pkt_free(&out_packet);

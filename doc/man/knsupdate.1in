@@ -156,27 +156,11 @@ Quit the program.
 .sp
 Options \fB\-k\fP and \fB\-y\fP can not be used simultaneously.
 .sp
-Missing features with regard to ISC nsupdate:
-.INDENT 0.0
-.INDENT 3.5
-Authentication using GSS\-TSIG or SIG(0).
+Dnssec\-keygen keyfile format is not supported. Use \fBkeymgr(8)\fP instead.
 .sp
-Options \fB\-D\fP, \fB\-g\fP, \fB\-o\fP, \fB\-l\fP, \fB\-L\fP, \fB\-R\fP and \fB\-u\fP\&.
-.sp
-Commands: \fBgsstsig\fP, \fBoldgsstsig\fP and \fBrealm\fP\&.
-.UNINDENT
-.UNINDENT
-.sp
-Differences with regard to ISC nsupdate:
-.INDENT 0.0
-.INDENT 3.5
-Zone name/server guessing, if the zone name/server is not specified.
+Zone name/server guessing is not supported if the zone name/server is not specified.
 .sp
 Empty line doesn\(aqt send the update.
-.sp
-BIND\-like key format (\fBddns\-confgen\fP output) is not supported.
-.UNINDENT
-.UNINDENT
 .SH EXAMPLES
 .INDENT 0.0
 .IP 1. 3
@@ -205,7 +189,7 @@ $ knsupdate
 .UNINDENT
 .SH SEE ALSO
 .sp
-\fIkdig(1)\fP, \fIkhost(1)\fP\&.
+\fBkdig(1)\fP, \fBkhost(1)\fP, \fBkeymgr(8)\fP\&.
 .SH AUTHOR
 CZ.NIC Labs <http://www.knot-dns.cz>
 .SH COPYRIGHT

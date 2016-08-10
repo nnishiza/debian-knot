@@ -14,15 +14,19 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
 #include <urcu.h>
 
 #include "knot/common/log.h"
 #include "knot/conf/confio.h"
 #include "knot/ctl/commands.h"
+#include "knot/updates/zone-update.h"
 #include "libknot/libknot.h"
 #include "libknot/yparser/yptrafo.h"
 #include "contrib/macros.h"
+#include "contrib/mempattern.h"
 #include "contrib/string.h"
+#include "zscanner/scanner.h"
 
 void ctl_log_data(knot_ctl_data_t *data)
 {
@@ -101,7 +105,7 @@ static int zones_apply(ctl_args_t *args, int (*fcn)(zone_t *, ctl_args_t *))
 
 	while (true) {
 		zone_t *zone;
-		int ret = get_zone(args, &zone);
+		ret = get_zone(args, &zone);
 		if (ret == KNOT_EOK) {
 			ret = fcn(zone, args);
 		}
@@ -225,6 +229,15 @@ static int zone_status(zone_t *zone, ctl_args_t *args)
 		data[KNOT_CTL_IDX_DATA] = "disabled";
 	}
 
+	ret = knot_ctl_send(args->ctl, KNOT_CTL_TYPE_EXTRA, &data);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	// Zone transaction.
+	data[KNOT_CTL_IDX_TYPE] = "transaction";
+	data[KNOT_CTL_IDX_DATA] = (zone->control_update != NULL) ? "open" : "none";
+
 	return knot_ctl_send(args->ctl, KNOT_CTL_TYPE_EXTRA, &data);
 }
 
@@ -272,7 +285,10 @@ static int zone_flush(zone_t *zone, ctl_args_t *args)
 {
 	UNUSED(args);
 
-	zone->flags |= ZONE_FORCE_FLUSH;
+	if (ctl_has_flag(args->data[KNOT_CTL_IDX_FLAGS], CTL_FLAG_FORCE)) {
+		zone->flags |= ZONE_FORCE_FLUSH;
+	}
+
 	zone_events_schedule(zone, ZONE_EVENT_FLUSH, ZONE_EVENT_NOW);
 
 	return KNOT_EOK;
@@ -293,6 +309,600 @@ static int zone_sign(zone_t *zone, ctl_args_t *args)
 	return KNOT_EOK;
 }
 
+static int zone_txn_begin(zone_t *zone, ctl_args_t *args)
+{
+	UNUSED(args);
+
+	if (zone->control_update != NULL) {
+		return KNOT_TXN_EEXISTS;
+	}
+
+	zone->control_update = malloc(sizeof(zone_update_t));
+	if (zone->control_update == NULL) {
+		return KNOT_ENOMEM;
+	}
+
+	zone_update_flags_t type = (zone->contents == NULL) ? UPDATE_FULL : UPDATE_INCREMENTAL;
+	int ret = zone_update_init(zone->control_update, zone, type | UPDATE_SIGN);
+	if (ret != KNOT_EOK) {
+		free(zone->control_update);
+		zone->control_update = NULL;
+		return ret;
+	}
+
+	return KNOT_EOK;
+}
+
+static int zone_txn_commit(zone_t *zone, ctl_args_t *args)
+{
+	UNUSED(args);
+
+	if (zone->control_update == NULL) {
+		return KNOT_TXN_ENOTEXISTS;
+	}
+
+	rcu_read_unlock();
+	int ret = zone_update_commit(conf(), zone->control_update);
+	rcu_read_lock();
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	zone_update_clear(zone->control_update);
+	free(zone->control_update);
+	zone->control_update = NULL;
+
+	/* Sync zonefile immediately if configured. */
+	conf_val_t val = conf_zone_get(conf(), C_ZONEFILE_SYNC, zone->name);
+	if (conf_int(&val) == 0) {
+		zone_events_schedule(zone, ZONE_EVENT_FLUSH, ZONE_EVENT_NOW);
+	}
+
+	zone_events_schedule(zone, ZONE_EVENT_NOTIFY, ZONE_EVENT_NOW);
+
+	return KNOT_EOK;
+}
+
+static int zone_txn_abort(zone_t *zone, ctl_args_t *args)
+{
+	UNUSED(args);
+
+	if (zone->control_update == NULL) {
+		return KNOT_TXN_ENOTEXISTS;
+	}
+
+	zone_update_clear(zone->control_update);
+	free(zone->control_update);
+	zone->control_update = NULL;
+
+	return KNOT_EOK;
+}
+
+typedef struct {
+	ctl_args_t *args;
+	int type_filter; // -1: no specific type, [0, 2^16]: specific type.
+	knot_dump_style_t style;
+	knot_ctl_data_t data;
+	char zone[KNOT_DNAME_TXT_MAXLEN + 1];
+	char owner[KNOT_DNAME_TXT_MAXLEN + 1];
+	char ttl[16];
+	char type[32];
+	char rdata[2 * 65536];
+} send_ctx_t;
+
+static send_ctx_t *create_send_ctx(const knot_dname_t *zone_name, ctl_args_t *args)
+{
+	send_ctx_t *ctx = mm_alloc(&args->mm, sizeof(*ctx));
+	if (ctx == NULL) {
+		return NULL;
+	}
+	memset(ctx, 0, sizeof(*ctx));
+
+	ctx->args = args;
+
+	// Set the dump style.
+	ctx->style.show_ttl = true;
+	ctx->style.human_tmstamp = true;
+
+	// Set the output data buffers.
+	ctx->data[KNOT_CTL_IDX_ZONE]  = ctx->zone;
+	ctx->data[KNOT_CTL_IDX_OWNER] = ctx->owner;
+	ctx->data[KNOT_CTL_IDX_TTL]   = ctx->ttl;
+	ctx->data[KNOT_CTL_IDX_TYPE]  = ctx->type;
+	ctx->data[KNOT_CTL_IDX_DATA]  = ctx->rdata;
+
+	// Set the ZONE.
+	if (knot_dname_to_str(ctx->zone, zone_name, sizeof(ctx->zone)) == NULL) {
+		mm_free(&args->mm, ctx);
+		return NULL;
+	}
+
+	// Set the TYPE filter.
+	if (args->data[KNOT_CTL_IDX_TYPE] != NULL) {
+		uint16_t type;
+		if (knot_rrtype_from_string(args->data[KNOT_CTL_IDX_TYPE], &type) != 0) {
+			mm_free(&args->mm, ctx);
+			return NULL;
+		}
+		ctx->type_filter = type;
+	} else {
+		ctx->type_filter = -1;
+	}
+
+	return ctx;
+}
+
+static int send_rrset(knot_rrset_t *rrset, send_ctx_t *ctx)
+{
+	int ret = snprintf(ctx->ttl, sizeof(ctx->ttl), "%u", knot_rrset_ttl(rrset));
+	if (ret <= 0 || ret >= sizeof(ctx->ttl)) {
+		return KNOT_ESPACE;
+	}
+
+	if (knot_rrtype_to_string(rrset->type, ctx->type, sizeof(ctx->type)) < 0) {
+		return KNOT_ESPACE;
+	}
+
+	for (size_t i = 0; i < rrset->rrs.rr_count; ++i) {
+		ret = knot_rrset_txt_dump_data(rrset, i, ctx->rdata,
+		                               sizeof(ctx->rdata), &ctx->style);
+		if (ret < 0) {
+			return ret;
+		}
+
+		ret = knot_ctl_send(ctx->args->ctl, KNOT_CTL_TYPE_DATA, &ctx->data);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+	}
+
+	return KNOT_EOK;
+}
+
+static int send_node(zone_node_t *node, void *ctx_void)
+{
+	send_ctx_t *ctx = ctx_void;
+	if (knot_dname_to_str(ctx->owner, node->owner, sizeof(ctx->owner)) == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	for (size_t i = 0; i < node->rrset_count; ++i) {
+		knot_rrset_t rrset = node_rrset_at(node, i);
+
+		// Check for requested TYPE.
+		if (ctx->type_filter != -1 && rrset.type != ctx->type_filter) {
+			continue;
+		}
+
+		int ret = send_rrset(&rrset, ctx);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+	}
+
+	return KNOT_EOK;
+}
+
+static int get_owner(uint8_t *out, size_t out_len, knot_dname_t *origin,
+                     ctl_args_t *args)
+{
+	const char *owner = args->data[KNOT_CTL_IDX_OWNER];
+	assert(owner != NULL);
+
+	bool fqdn = false;
+	int prefix_len = 0;
+
+	size_t owner_len = strlen(owner);
+	if (owner_len > 0 && (owner_len != 1 || owner[0] != '@')) {
+		// Check if the owner is FQDN.
+		if (owner[owner_len - 1] == '.') {
+			fqdn = true;
+		}
+
+		knot_dname_t *dname = knot_dname_from_str(out, owner, out_len);
+		if (dname == NULL) {
+			return KNOT_EINVAL;
+		}
+
+		int ret = knot_dname_to_lower(dname);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+
+		prefix_len = knot_dname_size(out);
+		if (prefix_len <= 0) {
+			return KNOT_EINVAL;
+		}
+
+		// Ignore trailing dot.
+		prefix_len--;
+	}
+
+	// Append the origin.
+	if (!fqdn) {
+		int origin_len = knot_dname_size(origin);
+		if (origin_len <= 0 || origin_len > out_len - prefix_len) {
+			return KNOT_EINVAL;
+		}
+		memcpy(out + prefix_len, origin, origin_len);
+	}
+
+	return KNOT_EOK;
+}
+
+static int zone_read(zone_t *zone, ctl_args_t *args)
+{
+	send_ctx_t *ctx = create_send_ctx(zone->name, args);
+	if (ctx == NULL) {
+		return KNOT_ENOMEM;
+	}
+
+	int ret = KNOT_EOK;
+
+	if (args->data[KNOT_CTL_IDX_OWNER] != NULL) {
+		uint8_t owner[KNOT_DNAME_MAXLEN];
+
+		ret = get_owner(owner, sizeof(owner), zone->name, args);
+		if (ret != KNOT_EOK) {
+			goto zone_read_failed;
+		}
+
+		const zone_node_t *node = zone_contents_find_node(zone->contents, owner);
+		if (node == NULL) {
+			ret = KNOT_ENONODE;
+			goto zone_read_failed;
+		}
+
+		ret = send_node((zone_node_t *)node, ctx);
+	} else if (zone->contents != NULL) {
+		ret = zone_contents_tree_apply_inorder(zone->contents, send_node, ctx);
+	}
+
+zone_read_failed:
+	mm_free(&args->mm, ctx);
+
+	return ret;
+}
+
+static int zone_flag_txn_get(zone_t *zone, ctl_args_t *args, const char *flag)
+{
+	if (zone->control_update == NULL) {
+		return KNOT_TXN_ENOTEXISTS;
+	}
+
+	send_ctx_t *ctx = create_send_ctx(zone->name, args);
+	if (ctx == NULL) {
+		return KNOT_ENOMEM;
+	}
+	ctx->data[KNOT_CTL_IDX_FLAGS] = flag;
+
+	int ret = KNOT_EOK;
+
+	if (args->data[KNOT_CTL_IDX_OWNER] != NULL) {
+		uint8_t owner[KNOT_DNAME_MAXLEN];
+
+		ret = get_owner(owner, sizeof(owner), zone->name, args);
+		if (ret != KNOT_EOK) {
+			goto zone_txn_get_failed;
+		}
+
+		const zone_node_t *node = zone_update_get_node(zone->control_update, owner);
+		if (node == NULL) {
+			ret = KNOT_ENONODE;
+			goto zone_txn_get_failed;
+		}
+
+		ret = send_node((zone_node_t *)node, ctx);
+	} else {
+		zone_update_iter_t it;
+		ret = zone_update_iter(&it, zone->control_update);
+		if (ret != KNOT_EOK) {
+			goto zone_txn_get_failed;
+		}
+
+		const zone_node_t *iter_node = zone_update_iter_val(&it);
+		while (iter_node != NULL) {
+			ret = send_node((zone_node_t *)iter_node, ctx);
+			if (ret != KNOT_EOK) {
+				zone_update_iter_finish(&it);
+				goto zone_txn_get_failed;
+			}
+
+			ret = zone_update_iter_next(&it);
+			if (ret != KNOT_EOK) {
+				zone_update_iter_finish(&it);
+				goto zone_txn_get_failed;
+			}
+
+			iter_node = zone_update_iter_val(&it);
+		}
+		zone_update_iter_finish(&it);
+	}
+
+zone_txn_get_failed:
+	mm_free(&args->mm, ctx);
+
+	return ret;
+}
+
+static int zone_txn_get(zone_t *zone, ctl_args_t *args)
+{
+	return zone_flag_txn_get(zone, args, NULL);
+}
+
+static int send_changeset_part(changeset_t *ch, send_ctx_t *ctx, bool from)
+{
+	ctx->data[KNOT_CTL_IDX_FLAGS] = from ? CTL_FLAG_REM : CTL_FLAG_ADD;
+
+	// Send SOA only if explicitly changed.
+	if (ch->soa_to != NULL) {
+		knot_rrset_t *soa = from ? ch->soa_from : ch->soa_to;
+		assert(soa);
+
+		char *owner = knot_dname_to_str(ctx->owner, soa->owner, sizeof(ctx->owner));
+		if (owner == NULL) {
+			return KNOT_EINVAL;
+		}
+
+		int ret = send_rrset(soa, ctx);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+	}
+
+	// Send other records.
+	changeset_iter_t it;
+	int ret = from ? changeset_iter_rem(&it, ch, true) :
+	                 changeset_iter_add(&it, ch, true);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	knot_rrset_t rrset = changeset_iter_next(&it);
+	while (!knot_rrset_empty(&rrset)) {
+		char *owner = knot_dname_to_str(ctx->owner, rrset.owner, sizeof(ctx->owner));
+		if (owner == NULL) {
+			changeset_iter_clear(&it);
+			return KNOT_EINVAL;
+		}
+
+		ret = send_rrset(&rrset, ctx);
+		if (ret != KNOT_EOK) {
+			changeset_iter_clear(&it);
+			return ret;
+		}
+
+		rrset = changeset_iter_next(&it);
+	}
+	changeset_iter_clear(&it);
+
+	return KNOT_EOK;
+}
+
+static int send_changeset(changeset_t *ch, send_ctx_t *ctx)
+{
+	// First send 'from' changeset part.
+	int ret = send_changeset_part(ch, ctx, true);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	// Second send 'to' changeset part.
+	ret = send_changeset_part(ch, ctx, false);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	return KNOT_EOK;
+}
+
+static int zone_txn_diff(zone_t *zone, ctl_args_t *args)
+{
+	if (zone->control_update == NULL) {
+		return KNOT_TXN_ENOTEXISTS;
+	}
+
+	// FULL update has no changeset to print, do a 'get' instead.
+	if (zone->control_update->flags & UPDATE_FULL) {
+		return zone_flag_txn_get(zone, args, CTL_FLAG_ADD);
+	}
+
+	send_ctx_t *ctx = create_send_ctx(zone->name, args);
+	if (ctx == NULL) {
+		return KNOT_ENOMEM;
+	}
+
+	int ret = send_changeset(&zone->control_update->change, ctx);
+	mm_free(&args->mm, ctx);
+	return ret;
+}
+
+static int get_ttl(zone_t *zone, ctl_args_t *args, uint32_t *ttl)
+{
+	uint8_t owner[KNOT_DNAME_MAXLEN];
+
+	int ret = get_owner(owner, sizeof(owner), zone->name, args);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	const zone_node_t *node = zone_update_get_node(zone->control_update, owner);
+	if (node == NULL) {
+		return KNOT_ETTL;
+	}
+
+	uint16_t type;
+	if (knot_rrtype_from_string(args->data[KNOT_CTL_IDX_TYPE], &type) != 0) {
+		return KNOT_EINVAL;
+	}
+
+	knot_rdataset_t *rdataset = node_rdataset(node, type);
+	if (rdataset == NULL) {
+		return KNOT_ETTL;
+	}
+
+	*ttl = knot_rdataset_ttl(rdataset);
+
+	return KNOT_EOK;
+}
+
+static int create_rrset(knot_rrset_t **rrset, zone_t *zone, ctl_args_t *args,
+                        bool need_ttl)
+{
+	char origin_buff[KNOT_DNAME_TXT_MAXLEN + 1];
+	char *origin = knot_dname_to_str(origin_buff, zone->name, sizeof(origin_buff));
+	if (origin == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	const char *owner = args->data[KNOT_CTL_IDX_OWNER];
+	const char *type  = args->data[KNOT_CTL_IDX_TYPE];
+	const char *data  = args->data[KNOT_CTL_IDX_DATA];
+	const char *ttl   = need_ttl ? args->data[KNOT_CTL_IDX_TTL] : NULL;
+
+	// Prepare a buffer for a reconstructed record.
+	const size_t buff_len = sizeof(((send_ctx_t *)0)->owner) +
+	                        sizeof(((send_ctx_t *)0)->ttl) +
+	                        sizeof(((send_ctx_t *)0)->type) +
+	                        sizeof(((send_ctx_t *)0)->rdata);
+	char *buff = mm_alloc(&args->mm, buff_len);
+	if (buff == NULL) {
+		return KNOT_ENOMEM;
+	}
+
+	uint32_t default_ttl = 0;
+	if (ttl == NULL) {
+		int ret = get_ttl(zone, args, &default_ttl);
+		if (need_ttl && ret != KNOT_EOK) {
+			mm_free(&args->mm, buff);
+			return ret;
+		}
+	}
+
+	// Reconstruct the record.
+	int ret = snprintf(buff, buff_len, "%s %s %s %s\n",
+	                   (owner != NULL ? owner : ""),
+	                   (ttl   != NULL ? ttl   : ""),
+	                   (type  != NULL ? type  : ""),
+	                   (data  != NULL ? data  : ""));
+	if (ret <= 0 || ret >= buff_len) {
+		mm_free(&args->mm, buff);
+		return KNOT_ESPACE;
+	}
+	size_t rdata_len = ret;
+
+	// Initialize RR parser.
+	zs_scanner_t *scanner = mm_alloc(&args->mm, sizeof(*scanner));
+	if (scanner == NULL) {
+		ret = KNOT_ENOMEM;
+		goto parser_failed;
+	}
+
+	// Parse the record.
+	if (zs_init(scanner, origin, KNOT_CLASS_IN, default_ttl) != 0 ||
+	    zs_set_input_string(scanner, buff, rdata_len) != 0 ||
+	    zs_parse_record(scanner) != 0 ||
+	    scanner->state != ZS_STATE_DATA) {
+		ret = KNOT_EPARSEFAIL;
+		goto parser_failed;
+	}
+
+	// Create output rrset.
+	*rrset = knot_rrset_new(scanner->r_owner, scanner->r_type,
+	                        scanner->r_class, NULL);
+	if (*rrset == NULL) {
+		ret = KNOT_ENOMEM;
+		goto parser_failed;
+	}
+
+	ret = knot_rrset_add_rdata(*rrset, scanner->r_data, scanner->r_data_length,
+	                           scanner->r_ttl, NULL);
+parser_failed:
+	zs_deinit(scanner);
+	mm_free(&args->mm, scanner);
+	mm_free(&args->mm, buff);
+
+	return ret;
+}
+
+static int zone_txn_set(zone_t *zone, ctl_args_t *args)
+{
+	if (zone->control_update == NULL) {
+		return KNOT_TXN_ENOTEXISTS;
+	}
+
+	if (args->data[KNOT_CTL_IDX_OWNER] == NULL ||
+	    args->data[KNOT_CTL_IDX_TYPE]  == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	knot_rrset_t *rrset;
+	int ret = create_rrset(&rrset, zone, args, true);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	ret = zone_update_add(zone->control_update, rrset);
+	knot_rrset_free(&rrset, NULL);
+
+	// Silently update TTL.
+	if (ret == KNOT_ETTL) {
+		ret = KNOT_EOK;
+	}
+
+	return ret;
+}
+
+static int zone_txn_unset(zone_t *zone, ctl_args_t *args)
+{
+	if (zone->control_update == NULL) {
+		return KNOT_TXN_ENOTEXISTS;
+	}
+
+	if (args->data[KNOT_CTL_IDX_OWNER] == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	// Remove specific record.
+	if (args->data[KNOT_CTL_IDX_DATA] != NULL) {
+		if (args->data[KNOT_CTL_IDX_TYPE] == NULL) {
+			return KNOT_EINVAL;
+		}
+
+		knot_rrset_t *rrset;
+		int ret = create_rrset(&rrset, zone, args, false);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+
+		ret = zone_update_remove(zone->control_update, rrset);
+		knot_rrset_free(&rrset, NULL);
+		return ret;
+	} else {
+		uint8_t owner[KNOT_DNAME_MAXLEN];
+
+		int ret = get_owner(owner, sizeof(owner), zone->name, args);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+
+		// Remove whole rrset.
+		if (args->data[KNOT_CTL_IDX_TYPE] != NULL) {
+			uint16_t type;
+			if (knot_rrtype_from_string(args->data[KNOT_CTL_IDX_TYPE],
+			                            &type) != 0) {
+				return KNOT_EINVAL;
+			}
+
+			return zone_update_remove_rrset(zone->control_update, owner, type);
+		// Remove whole node.
+		} else {
+			return zone_update_remove_node(zone->control_update, owner);
+		}
+	}
+
+}
+
 static int ctl_zone(ctl_args_t *args, ctl_cmd_t cmd)
 {
 	switch (cmd) {
@@ -308,6 +918,22 @@ static int ctl_zone(ctl_args_t *args, ctl_cmd_t cmd)
 		return zones_apply(args, zone_flush);
 	case CTL_ZONE_SIGN:
 		return zones_apply(args, zone_sign);
+	case CTL_ZONE_READ:
+		return zones_apply(args, zone_read);
+	case CTL_ZONE_BEGIN:
+		return zones_apply(args, zone_txn_begin);
+	case CTL_ZONE_COMMIT:
+		return zones_apply(args, zone_txn_commit);
+	case CTL_ZONE_ABORT:
+		return zones_apply(args, zone_txn_abort);
+	case CTL_ZONE_DIFF:
+		return zones_apply(args, zone_txn_diff);
+	case CTL_ZONE_GET:
+		return zones_apply(args, zone_txn_get);
+	case CTL_ZONE_SET:
+		return zones_apply(args, zone_txn_set);
+	case CTL_ZONE_UNSET:
+		return zones_apply(args, zone_txn_unset);
 	default:
 		assert(0);
 		return KNOT_EINVAL;
@@ -339,6 +965,62 @@ static int ctl_server(ctl_args_t *args, ctl_cmd_t cmd)
 	return ret;
 }
 
+static int send_block_data(conf_io_t *io, knot_ctl_data_t *data)
+{
+	knot_ctl_t *ctl = (knot_ctl_t *)io->misc;
+
+	const yp_item_t *item = (io->key1 != NULL) ? io->key1 : io->key0;
+	assert(item != NULL);
+
+	char buff[YP_MAX_TXT_DATA_LEN + 1] = "\0";
+
+	(*data)[KNOT_CTL_IDX_DATA] = buff;
+
+	// Format explicit binary data value.
+	if (io->data.bin != NULL) {
+		size_t buff_len = sizeof(buff);
+		int ret = yp_item_to_txt(item, io->data.bin, io->data.bin_len, buff,
+		                         &buff_len, YP_SNOQUOTE);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		return knot_ctl_send(ctl, KNOT_CTL_TYPE_DATA, data);
+	// Format all multivalued item data if no specified index.
+	} else if ((item->flags & YP_FMULTI) && io->data.index == 0) {
+		size_t values = conf_val_count(io->data.val);
+		for (size_t i = 0; i < values; i++) {
+			conf_val(io->data.val);
+			size_t buff_len = sizeof(buff);
+			int ret = yp_item_to_txt(item, io->data.val->data,
+			                         io->data.val->len, buff,&buff_len,
+			                         YP_SNOQUOTE);
+			if (ret != KNOT_EOK) {
+				return ret;
+			}
+
+			knot_ctl_type_t type = (i == 0) ? KNOT_CTL_TYPE_DATA :
+			                                  KNOT_CTL_TYPE_EXTRA;
+			ret = knot_ctl_send(ctl, type, data);
+			if (ret != KNOT_EOK) {
+				return ret;
+			}
+
+			conf_val_next(io->data.val);
+		}
+		return KNOT_EOK;
+	// Format singlevalued item data or a specified one from multivalued.
+	} else {
+		conf_val(io->data.val);
+		size_t buff_len = sizeof(buff);
+		int ret = yp_item_to_txt(item, io->data.val->data, io->data.val->len,
+		                         buff, &buff_len, YP_SNOQUOTE);
+		if (ret != KNOT_EOK) {
+			return ret;
+		}
+		return knot_ctl_send(ctl, KNOT_CTL_TYPE_DATA, data);
+	}
+}
+
 static int send_block(conf_io_t *io)
 {
 	knot_ctl_t *ctl = (knot_ctl_t *)io->misc;
@@ -362,8 +1044,8 @@ static int send_block(conf_io_t *io)
 
 	// Get the item prefix.
 	switch (io->type) {
-	case NEW: data[KNOT_CTL_IDX_TYPE] = "+"; break;
-	case OLD: data[KNOT_CTL_IDX_TYPE] = "-"; break;
+	case NEW: data[KNOT_CTL_IDX_FLAGS] = CTL_FLAG_ADD; break;
+	case OLD: data[KNOT_CTL_IDX_FLAGS] = CTL_FLAG_REM; break;
 	default: break;
 	}
 
@@ -386,57 +1068,8 @@ static int send_block(conf_io_t *io)
 
 	if (io->data.val == NULL && io->data.bin == NULL) {
 		return knot_ctl_send(ctl, KNOT_CTL_TYPE_DATA, &data);
-	}
-
-	const yp_item_t *item = (io->key1 != NULL) ? io->key1 : io->key0;
-	assert(item != NULL);
-
-	char buff[YP_MAX_TXT_DATA_LEN + 1] = "\0";
-
-	data[KNOT_CTL_IDX_DATA] = buff;
-
-	// Format explicit binary data value.
-	if (io->data.bin != NULL) {
-		size_t buff_len = sizeof(buff);
-		int ret = yp_item_to_txt(item, io->data.bin, io->data.bin_len, buff,
-		                         &buff_len, YP_SNOQUOTE);
-		if (ret != KNOT_EOK) {
-			return ret;
-		}
-		return knot_ctl_send(ctl, KNOT_CTL_TYPE_DATA, &data);
-	// Format all multivalued item data if no specified index.
-	} else if ((item->flags & YP_FMULTI) && io->data.index == 0) {
-		size_t values = conf_val_count(io->data.val);
-		for (size_t i = 0; i < values; i++) {
-			conf_val(io->data.val);
-			size_t buff_len = sizeof(buff);
-			int ret = yp_item_to_txt(item, io->data.val->data,
-			                         io->data.val->len, buff,&buff_len,
-			                         YP_SNOQUOTE);
-			if (ret != KNOT_EOK) {
-				return ret;
-			}
-
-			knot_ctl_type_t type = (i == 0) ? KNOT_CTL_TYPE_DATA :
-			                                  KNOT_CTL_TYPE_EXTRA;
-			ret = knot_ctl_send(ctl, type, &data);
-			if (ret != KNOT_EOK) {
-				return ret;
-			}
-
-			conf_val_next(io->data.val);
-		}
-		return KNOT_EOK;
-	// Format singlevalued item data or a specified one from multivalued.
 	} else {
-		conf_val(io->data.val);
-		size_t buff_len = sizeof(buff);
-		int ret = yp_item_to_txt(item, io->data.val->data, io->data.val->len,
-		                         buff, &buff_len, YP_SNOQUOTE);
-		if (ret != KNOT_EOK) {
-			return ret;
-		}
-		return knot_ctl_send(ctl, KNOT_CTL_TYPE_DATA, &data);
+		return send_block_data(io, &data);
 	}
 }
 
@@ -608,6 +1241,15 @@ static const desc_t cmd_table[] = {
 	[CTL_ZONE_FLUSH]      = { "zone-flush",      ctl_zone },
 	[CTL_ZONE_SIGN]       = { "zone-sign",       ctl_zone },
 
+	[CTL_ZONE_READ]       = { "zone-read",       ctl_zone },
+	[CTL_ZONE_BEGIN]      = { "zone-begin",      ctl_zone },
+	[CTL_ZONE_COMMIT]     = { "zone-commit",     ctl_zone },
+	[CTL_ZONE_ABORT]      = { "zone-abort",      ctl_zone },
+	[CTL_ZONE_DIFF]       = { "zone-diff",       ctl_zone },
+	[CTL_ZONE_GET]        = { "zone-get",        ctl_zone },
+	[CTL_ZONE_SET]        = { "zone-set",        ctl_zone },
+	[CTL_ZONE_UNSET]      = { "zone-unset",      ctl_zone },
+
 	[CTL_CONF_LIST]       = { "conf-list",       ctl_conf_read },
 	[CTL_CONF_READ]       = { "conf-read",       ctl_conf_read },
 	[CTL_CONF_BEGIN]      = { "conf-begin",      ctl_conf_txn },
@@ -617,13 +1259,13 @@ static const desc_t cmd_table[] = {
 	[CTL_CONF_GET]        = { "conf-get",        ctl_conf_read },
 	[CTL_CONF_SET]        = { "conf-set",        ctl_conf_modify },
 	[CTL_CONF_UNSET]      = { "conf-unset",      ctl_conf_modify },
-
-	{ NULL }
 };
 
-const char* ctl_cmd_to_str(ctl_cmd_t cmd)
+#define MAX_CTL_CODE (sizeof(cmd_table) / sizeof(desc_t) - 1)
+
+const char *ctl_cmd_to_str(ctl_cmd_t cmd)
 {
-	if (cmd < CTL_STATUS || cmd > CTL_CONF_UNSET) {
+	if (cmd <= CTL_NONE || cmd > MAX_CTL_CODE) {
 		return NULL;
 	}
 
@@ -636,7 +1278,7 @@ ctl_cmd_t ctl_str_to_cmd(const char *cmd_str)
 		return CTL_NONE;
 	}
 
-	for (ctl_cmd_t cmd = CTL_NONE; cmd_table[cmd].name != NULL; cmd++) {
+	for (ctl_cmd_t cmd = CTL_NONE + 1; cmd <= MAX_CTL_CODE; cmd++) {
 		if (strcmp(cmd_str, cmd_table[cmd].name) == 0) {
 			return cmd;
 		}
@@ -652,4 +1294,13 @@ int ctl_exec(ctl_cmd_t cmd, ctl_args_t *args)
 	}
 
 	return cmd_table[cmd].fcn(args, cmd);
+}
+
+bool ctl_has_flag(const char *flags, const char *flag)
+{
+	if (flags == NULL || flag == NULL) {
+		return false;
+	}
+
+	return strstr(flags, flag) != NULL;
 }

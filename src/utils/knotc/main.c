@@ -17,9 +17,9 @@
 #include <getopt.h>
 #include <stdio.h>
 
+#include "contrib/strtonum.h"
 #include "knot/common/log.h"
 #include "utils/common/params.h"
-#include "utils/common/strtonum.h"
 #include "utils/knotc/commands.h"
 #include "utils/knotc/interactive.h"
 #include "utils/knotc/process.h"
@@ -52,7 +52,6 @@ static void print_help(void)
 }
 
 params_t params = {
-	.flags = CMD_FNONE,
 	.timeout = DEFAULT_CTL_TIMEOUT * 1000
 };
 
@@ -72,8 +71,8 @@ int main(int argc, char **argv)
 	};
 
 	/* Parse command line arguments */
-	int opt = 0, li = 0;
-	while ((opt = getopt_long(argc, argv, "c:C:s:t:fvhV", opts, &li)) != -1) {
+	int opt = 0;
+	while ((opt = getopt_long(argc, argv, "+c:C:s:t:fvhV", opts, NULL)) != -1) {
 		switch (opt) {
 		case 'c':
 			params.config = optarg;
@@ -85,7 +84,7 @@ int main(int argc, char **argv)
 			params.socket = optarg;
 			break;
 		case 't':
-			if (knot_str2int(optarg, &params.timeout) != KNOT_EOK) {
+			if (str_to_int(optarg, &params.timeout) != KNOT_EOK) {
 				print_help();
 				return EXIT_FAILURE;
 			}
@@ -93,7 +92,7 @@ int main(int argc, char **argv)
 			params.timeout *= 1000;
 			break;
 		case 'f':
-			params.flags |= CMD_FFORCE;
+			params.force = true;
 			break;
 		case 'v':
 			params.verbose = true;

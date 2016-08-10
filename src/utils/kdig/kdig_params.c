@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,18 +22,22 @@
 #include <stdlib.h>
 
 #include "utils/kdig/kdig_params.h"
+#include "utils/common/cert.h"
 #include "utils/common/msg.h"
 #include "utils/common/params.h"
 #include "utils/common/resolv.h"
 #include "libknot/descriptor.h"
 #include "libknot/libknot.h"
+#include "contrib/base64.h"
 #include "contrib/sockaddr.h"
+#include "contrib/strtonum.h"
 #include "contrib/ucw/lists.h"
 
 #define PROGRAM_NAME "kdig"
 
 #define DEFAULT_RETRIES_DIG	2
 #define DEFAULT_TIMEOUT_DIG	5
+#define DEFAULT_ALIGNMENT_SIZE	128
 
 static const flags_t DEFAULT_FLAGS_DIG = {
 	.aa_flag = false,
@@ -110,6 +114,24 @@ static int opt_noshort(const char *arg, void *query)
 	query_t *q = query;
 
 	q->style.format = FORMAT_FULL;
+
+	return KNOT_EOK;
+}
+
+static int opt_generic(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->style.style.generic = true;
+
+	return KNOT_EOK;
+}
+
+static int opt_nogeneric(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->style.style.generic = false;
 
 	return KNOT_EOK;
 }
@@ -491,25 +513,6 @@ static int opt_nottl(const char *arg, void *query)
 	return KNOT_EOK;
 }
 
-static int opt_tcp(const char *arg, void *query)
-{
-	query_t *q = query;
-
-	q->protocol = PROTO_TCP;
-
-	return KNOT_EOK;
-}
-
-static int opt_notcp(const char *arg, void *query)
-{
-	query_t *q = query;
-
-	q->protocol = PROTO_UDP;
-	q->ignore_tc = true;
-
-	return KNOT_EOK;
-}
-
 static int opt_ignore(const char *arg, void *query)
 {
 	query_t *q = query;
@@ -528,21 +531,129 @@ static int opt_noignore(const char *arg, void *query)
 	return KNOT_EOK;
 }
 
-static int opt_noidn(const char *arg, void *query)
+static int opt_tcp(const char *arg, void *query)
 {
 	query_t *q = query;
 
-	q->idn = false;
-	q->style.style.ascii_to_idn = NULL;
+	q->protocol = PROTO_TCP;
 
 	return KNOT_EOK;
 }
 
-static int opt_generic(const char *arg, void *query)
+static int opt_notcp(const char *arg, void *query)
 {
 	query_t *q = query;
 
-	q->style.style.generic = true;
+	q->protocol = PROTO_UDP;
+	return opt_ignore(arg, query);
+}
+
+static int opt_tls(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->tls.enable = true;
+	return opt_tcp(arg, query);
+}
+
+static int opt_notls(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	tls_params_clean(&q->tls);
+	tls_params_init(&q->tls);
+
+	return KNOT_EOK;
+}
+
+static int opt_tls_ca(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	if (arg == NULL) {
+		q->tls.system_ca = true;
+		return opt_tls(arg, query);
+	} else {
+		if (ptrlist_add(&q->tls.ca_files, strdup(arg), NULL) == NULL) {
+			return KNOT_ENOMEM;
+		}
+		return opt_tls(arg, query);
+	}
+}
+
+static int opt_notls_ca(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->tls.system_ca = false;
+
+	ptrnode_t *node = NULL, *nxt = NULL;
+	WALK_LIST_DELSAFE(node, nxt, q->tls.ca_files) {
+		free(node->d);
+	}
+	ptrlist_free(&q->tls.ca_files, NULL);
+
+	return KNOT_EOK;
+}
+
+static int opt_tls_pin(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	uint8_t pin[64] = { 0 };
+
+	int ret = base64_decode((const uint8_t *)arg, strlen(arg), pin, sizeof(pin));
+	if (ret < 0) {
+		ERR("invalid +tls-pin=%s\n", arg);
+		return ret;
+	} else if (ret != CERT_PIN_LEN) { // Check for 256-bit value.
+		ERR("invalid sha256 hash length +tls-pin=%s\n", arg);
+		return KNOT_EINVAL;
+	}
+
+	uint8_t *item = malloc(1 + ret); // 1 ~ leading data length.
+	if (item == NULL) {
+		return KNOT_ENOMEM;
+	}
+	item[0] = ret;
+	memcpy(&item[1], pin, ret);
+
+	if (ptrlist_add(&q->tls.pins, item, NULL) == NULL) {
+		return KNOT_ENOMEM;
+	}
+
+	return opt_tls(arg, query);
+}
+
+static int opt_notls_pin(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	ptrnode_t *node = NULL, *nxt = NULL;
+	WALK_LIST_DELSAFE(node, nxt, q->tls.pins) {
+		free(node->d);
+	}
+	ptrlist_free(&q->tls.pins, NULL);
+
+	return KNOT_EOK;
+}
+
+static int opt_tls_hostname(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	free(q->tls.hostname);
+	q->tls.hostname = strdup(arg);
+
+	return opt_tls(arg, query);
+}
+
+static int opt_notls_hostname(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	free(q->tls.hostname);
+	q->tls.hostname = NULL;
 
 	return KNOT_EOK;
 }
@@ -565,44 +676,85 @@ static int opt_nonsid(const char *arg, void *query)
 	return KNOT_EOK;
 }
 
-static int opt_edns(const char *arg, void *query)
+static int opt_bufsize(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	uint16_t num;
+	if (str_to_u16(arg, &num) != KNOT_EOK) {
+		ERR("invalid +bufsize=%s\n", arg);
+		return KNOT_EINVAL;
+	}
+
+	// Disable EDNS if zero bufsize.
+	if (num == 0) {
+		q->udp_size = -1;
+	} else if (num < KNOT_WIRE_HEADER_SIZE) {
+		q->udp_size = KNOT_WIRE_HEADER_SIZE;
+	} else {
+		q->udp_size = num;
+	}
+
+	return KNOT_EOK;
+}
+
+static int opt_nobufsize(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->udp_size = -1;
+
+	return KNOT_EOK;
+}
+
+static int opt_padding(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	uint16_t num;
+	if (str_to_u16(arg, &num) != KNOT_EOK) {
+		ERR("invalid +padding=%s\n", arg);
+		return KNOT_EINVAL;
+	}
+
+	q->padding = num;
+
+	return KNOT_EOK;
+}
+
+static int opt_nopadding(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->padding = -1;
+
+	return KNOT_EOK;
+}
+
+static int opt_alignment(const char *arg, void *query)
 {
 	query_t *q = query;
 
 	if (arg == NULL) {
-		q->edns = 0;
+		q->alignment = DEFAULT_ALIGNMENT_SIZE;
 		return KNOT_EOK;
-	} else if (*arg == '\0') {
-		ERR("missing edns version\n");
-		return KNOT_EFEWDATA;
 	} else {
-		char *end;
-		long long num = strtoll(arg, &end, 10);
-		// Check for bad string.
-		if (end == arg || *end != '\0') {
-			ERR("bad +edns=%s\n", arg);
+		uint16_t num;
+		if (str_to_u16(arg, &num) != KNOT_EOK || num < 2) {
+			ERR("invalid +alignment=%s\n", arg);
 			return KNOT_EINVAL;
 		}
 
-		if (num < 0 || num > UINT8_MAX) {
-			ERR("+edns=%s is out of range\n", arg);
-			return KNOT_ERANGE;
-		}
-
-		q->edns = num;
-
+		q->alignment = num;
 		return KNOT_EOK;
 	}
 }
 
-static int opt_noedns(const char *arg, void *query)
+static int opt_noalignment(const char *arg, void *query)
 {
 	query_t *q = query;
 
-	q->edns = -1;
-	q->udp_size = -1;
-	q->flags.do_flag = false;
-	q->nsid = false;
+	q->alignment = 0;
 
 	return KNOT_EOK;
 }
@@ -614,11 +766,11 @@ static int opt_client(const char *arg, void *query)
 	struct in_addr  addr4;
 	struct in6_addr addr6;
 
-	char          *sep = NULL;
-	const size_t  arg_len = strlen(arg);
-	const char    *arg_end = arg + arg_len;
-	char          *addr = NULL;
-	size_t        addr_len = 0;
+	char         *sep = NULL;
+	const size_t arg_len = strlen(arg);
+	const char   *arg_end = arg + arg_len;
+	char         *addr = NULL;
+	size_t       addr_len = 0;
 
 	subnet_t *subnet = calloc(sizeof(subnet_t), 1);
 
@@ -651,11 +803,9 @@ static int opt_client(const char *arg, void *query)
 
 	// Parse network mask.
 	if (arg + addr_len < arg_end) {
-		char *end;
-
 		arg += addr_len + 1;
-		unsigned long num = strtoul(arg, &end, 10);
-		if (end == arg || *end != '\0' || num > subnet->netmask) {
+		uint8_t num;
+		if (str_to_u8(arg, &num) != KNOT_EOK || num > subnet->netmask) {
 			free(subnet);
 			ERR("invalid network mask +client=%s\n", arg);
 			return KNOT_EINVAL;
@@ -669,149 +819,224 @@ static int opt_client(const char *arg, void *query)
 	return KNOT_EOK;
 }
 
+static int opt_noclient(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	free(q->subnet);
+	q->subnet = NULL;
+
+	return KNOT_EOK;
+}
+
+static int opt_edns(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	if (arg == NULL) {
+		q->edns = 0;
+		return KNOT_EOK;
+	} else {
+		uint8_t num;
+		if (str_to_u8(arg, &num) != KNOT_EOK) {
+			ERR("invalid +edns=%s\n", arg);
+			return KNOT_EINVAL;
+		}
+
+		q->edns = num;
+		return KNOT_EOK;
+	}
+}
+
+static int opt_noedns(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->edns = -1;
+	opt_nodoflag(arg, query);
+	opt_nonsid(arg, query);
+	opt_nobufsize(arg, query);
+	opt_nopadding(arg, query);
+	opt_noalignment(arg, query);
+	opt_noclient(arg, query);
+
+	return KNOT_EOK;
+}
+
 static int opt_time(const char *arg, void *query)
 {
 	query_t *q = query;
 
-	return params_parse_wait(arg, &q->wait);
+	if (params_parse_wait(arg, &q->wait) != KNOT_EOK) {
+		ERR("invalid +time=%s\n", arg);
+		return KNOT_EINVAL;
+	}
+
+	return KNOT_EOK;
+}
+
+static int opt_notime(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->wait = DEFAULT_TIMEOUT_DIG;
+
+	return KNOT_EOK;
 }
 
 static int opt_retry(const char *arg, void *query)
 {
 	query_t *q = query;
 
-	return params_parse_num(arg, &q->retries);
-}
-
-static int opt_bufsize(const char *arg, void *query)
-{
-	query_t *q = query;
-
-	char *end;
-	long long num = strtoll(arg, &end, 10);
-	// Check for bad string.
-	if (end == arg || *end != '\0') {
-		ERR("bad +bufsize=%s\n", arg);
+	if (str_to_u32(arg, &q->retries) != KNOT_EOK) {
+		ERR("invalid +retry=%s\n", arg);
 		return KNOT_EINVAL;
-	}
-
-	if (num > UINT16_MAX) {
-		num = UINT16_MAX;
-		WARN("+bufsize=%s is too big, using %lld instead\n", arg, num);
-	} else if (num < 0) {
-		num = 0;
-		WARN("+bufsize=%s is too small, using %lld instead\n", arg, num);
-	}
-
-	// Disable EDNS if zero bufsize.
-	if (num == 0) {
-		q->udp_size = -1;
-	} else {
-		q->udp_size = num;
 	}
 
 	return KNOT_EOK;
 }
 
+static int opt_noretry(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->retries = DEFAULT_RETRIES_DIG;
+
+	return KNOT_EOK;
+}
+
+static int opt_noidn(const char *arg, void *query)
+{
+	query_t *q = query;
+
+	q->idn = false;
+	q->style.style.ascii_to_idn = NULL;
+
+	return KNOT_EOK;
+}
+
 static const param_t kdig_opts2[] = {
-	{ "multiline",    ARG_NONE,     opt_multiline },
-	{ "nomultiline",  ARG_NONE,     opt_nomultiline },
+	{ "multiline",      ARG_NONE,     opt_multiline },
+	{ "nomultiline",    ARG_NONE,     opt_nomultiline },
 
-	{ "short",        ARG_NONE,     opt_short },
-	{ "noshort",      ARG_NONE,     opt_noshort },
+	{ "short",          ARG_NONE,     opt_short },
+	{ "noshort",        ARG_NONE,     opt_noshort },
 
-	{ "aaflag",       ARG_NONE,     opt_aaflag },
-	{ "noaaflag",     ARG_NONE,     opt_noaaflag },
+	{ "generic",        ARG_NONE,     opt_generic },
+	{ "nogeneric",      ARG_NONE,     opt_nogeneric },
 
-	{ "tcflag",       ARG_NONE,     opt_tcflag },
-	{ "notcflag",     ARG_NONE,     opt_notcflag },
+	{ "aaflag",         ARG_NONE,     opt_aaflag },
+	{ "noaaflag",       ARG_NONE,     opt_noaaflag },
 
-	{ "rdflag",       ARG_NONE,     opt_rdflag },
-	{ "nordflag",     ARG_NONE,     opt_nordflag },
+	{ "tcflag",         ARG_NONE,     opt_tcflag },
+	{ "notcflag",       ARG_NONE,     opt_notcflag },
 
-	{ "recurse",      ARG_NONE,     opt_rdflag },
-	{ "norecurse",    ARG_NONE,     opt_nordflag },
+	{ "rdflag",         ARG_NONE,     opt_rdflag },
+	{ "nordflag",       ARG_NONE,     opt_nordflag },
 
-	{ "raflag",       ARG_NONE,     opt_raflag },
-	{ "noraflag",     ARG_NONE,     opt_noraflag },
+	{ "recurse",        ARG_NONE,     opt_rdflag },
+	{ "norecurse",      ARG_NONE,     opt_nordflag },
 
-	{ "zflag",        ARG_NONE,     opt_zflag },
-	{ "nozflag",      ARG_NONE,     opt_nozflag },
+	{ "raflag",         ARG_NONE,     opt_raflag },
+	{ "noraflag",       ARG_NONE,     opt_noraflag },
 
-	{ "adflag",       ARG_NONE,     opt_adflag },
-	{ "noadflag",     ARG_NONE,     opt_noadflag },
+	{ "zflag",          ARG_NONE,     opt_zflag },
+	{ "nozflag",        ARG_NONE,     opt_nozflag },
 
-	{ "cdflag",       ARG_NONE,     opt_cdflag },
-	{ "nocdflag",     ARG_NONE,     opt_nocdflag },
+	{ "adflag",         ARG_NONE,     opt_adflag },
+	{ "noadflag",       ARG_NONE,     opt_noadflag },
 
-	{ "dnssec",       ARG_NONE,     opt_doflag },
-	{ "nodnssec",     ARG_NONE,     opt_nodoflag },
+	{ "cdflag",         ARG_NONE,     opt_cdflag },
+	{ "nocdflag",       ARG_NONE,     opt_nocdflag },
 
-	{ "all",          ARG_NONE,     opt_all },
-	{ "noall",        ARG_NONE,     opt_noall },
+	{ "dnssec",         ARG_NONE,     opt_doflag },
+	{ "nodnssec",       ARG_NONE,     opt_nodoflag },
 
-	{ "qr",           ARG_NONE,     opt_qr },
-	{ "noqr",         ARG_NONE,     opt_noqr },
+	{ "all",            ARG_NONE,     opt_all },
+	{ "noall",          ARG_NONE,     opt_noall },
 
-	{ "header",       ARG_NONE,     opt_header },
-	{ "noheader",     ARG_NONE,     opt_noheader },
+	{ "qr",             ARG_NONE,     opt_qr },
+	{ "noqr",           ARG_NONE,     opt_noqr },
 
-	{ "opt",          ARG_NONE,     opt_opt },
-	{ "noopt",        ARG_NONE,     opt_noopt },
+	{ "header",         ARG_NONE,     opt_header },
+	{ "noheader",       ARG_NONE,     opt_noheader },
 
-	{ "question",     ARG_NONE,     opt_question },
-	{ "noquestion",   ARG_NONE,     opt_noquestion },
+	{ "opt",            ARG_NONE,     opt_opt },
+	{ "noopt",          ARG_NONE,     opt_noopt },
 
-	{ "answer",       ARG_NONE,     opt_answer },
-	{ "noanswer",     ARG_NONE,     opt_noanswer },
+	{ "question",       ARG_NONE,     opt_question },
+	{ "noquestion",     ARG_NONE,     opt_noquestion },
 
-	{ "authority",    ARG_NONE,     opt_authority },
-	{ "noauthority",  ARG_NONE,     opt_noauthority },
+	{ "answer",         ARG_NONE,     opt_answer },
+	{ "noanswer",       ARG_NONE,     opt_noanswer },
 
-	{ "additional",   ARG_NONE,     opt_additional },
-	{ "noadditional", ARG_NONE,     opt_noadditional },
+	{ "authority",      ARG_NONE,     opt_authority },
+	{ "noauthority",    ARG_NONE,     opt_noauthority },
 
-	{ "tsig",         ARG_NONE,     opt_tsig },
-	{ "notsig",       ARG_NONE,     opt_notsig },
+	{ "additional",     ARG_NONE,     opt_additional },
+	{ "noadditional",   ARG_NONE,     opt_noadditional },
 
-	{ "stats",        ARG_NONE,     opt_stats },
-	{ "nostats",      ARG_NONE,     opt_nostats },
+	{ "tsig",           ARG_NONE,     opt_tsig },
+	{ "notsig",         ARG_NONE,     opt_notsig },
 
-	{ "class",        ARG_NONE,     opt_class },
-	{ "noclass",      ARG_NONE,     opt_noclass },
+	{ "stats",          ARG_NONE,     opt_stats },
+	{ "nostats",        ARG_NONE,     opt_nostats },
 
-	{ "ttl",          ARG_NONE,     opt_ttl },
-	{ "nottl",        ARG_NONE,     opt_nottl },
+	{ "class",          ARG_NONE,     opt_class },
+	{ "noclass",        ARG_NONE,     opt_noclass },
 
-	{ "tcp",          ARG_NONE,     opt_tcp },
-	{ "notcp",        ARG_NONE,     opt_notcp },
+	{ "ttl",            ARG_NONE,     opt_ttl },
+	{ "nottl",          ARG_NONE,     opt_nottl },
 
-	{ "ignore",       ARG_NONE,     opt_ignore },
-	{ "noignore",     ARG_NONE,     opt_noignore },
+	{ "tcp",            ARG_NONE,     opt_tcp },
+	{ "notcp",          ARG_NONE,     opt_notcp },
 
-	{ "nsid",         ARG_NONE,     opt_nsid },
-	{ "nonsid",       ARG_NONE,     opt_nonsid },
+	{ "ignore",         ARG_NONE,     opt_ignore },
+	{ "noignore",       ARG_NONE,     opt_noignore },
 
-	{ "edns",         ARG_OPTIONAL, opt_edns },
-	{ "noedns",       ARG_NONE,     opt_noedns },
+	{ "tls",            ARG_NONE,     opt_tls },
+	{ "notls",          ARG_NONE,     opt_notls },
+
+	{ "tls-ca",         ARG_OPTIONAL, opt_tls_ca },
+	{ "notls-ca",       ARG_NONE,     opt_notls_ca },
+
+	{ "tls-pin",        ARG_REQUIRED, opt_tls_pin },
+	{ "notls-pin",      ARG_NONE,     opt_notls_pin },
+
+	{ "tls-hostname",   ARG_REQUIRED, opt_tls_hostname },
+	{ "notls-hostname", ARG_NONE,     opt_notls_hostname },
+
+	{ "nsid",           ARG_NONE,     opt_nsid },
+	{ "nonsid",         ARG_NONE,     opt_nonsid },
+
+	{ "bufsize",        ARG_REQUIRED, opt_bufsize },
+	{ "nobufsize",      ARG_NONE,     opt_nobufsize },
+
+	{ "padding",        ARG_REQUIRED, opt_padding },
+	{ "nopadding",      ARG_NONE,     opt_nopadding },
+
+	{ "alignment",      ARG_OPTIONAL, opt_alignment },
+	{ "noalignment",    ARG_NONE,     opt_noalignment },
+
+	{ "client",         ARG_REQUIRED, opt_client },
+	{ "noclient",       ARG_NONE,     opt_noclient },
+
+	{ "edns",           ARG_OPTIONAL, opt_edns },
+	{ "noedns",         ARG_NONE,     opt_noedns },
+
+	{ "time",           ARG_REQUIRED, opt_time },
+	{ "notime",         ARG_NONE,     opt_notime },
+
+	{ "retry",          ARG_REQUIRED, opt_retry },
+	{ "noretry",        ARG_NONE,     opt_noretry },
 
 	/* "idn" doesn't work since it must be called before query creation. */
-	{ "noidn",        ARG_NONE,     opt_noidn },
-
-	{ "generic",      ARG_NONE,     opt_generic },
-
-	{ "client",       ARG_REQUIRED, opt_client },
-
-	{ "time",         ARG_REQUIRED, opt_time },
-
-	{ "retry",        ARG_REQUIRED, opt_retry },
-
-	{ "bufsize",      ARG_REQUIRED, opt_bufsize },
+	{ "noidn",          ARG_NONE,     opt_noidn },
 
 	{ NULL }
 };
 
-query_t* query_create(const char *owner, const query_t *conf)
+query_t *query_create(const char *owner, const query_t *conf)
 {
 	// Create output structure.
 	query_t *query = calloc(1, sizeof(query_t));
@@ -853,6 +1078,9 @@ query_t* query_create(const char *owner, const query_t *conf)
 		query->idn = true;
 		query->nsid = false;
 		query->edns = -1;
+		query->padding = -1;
+		query->alignment = 0;
+		tls_params_init(&query->tls);
 		//query->tsig_key
 		query->subnet = NULL;
 #if USE_DNSTAP
@@ -888,6 +1116,9 @@ query_t* query_create(const char *owner, const query_t *conf)
 		query->idn = conf->idn;
 		query->nsid = conf->nsid;
 		query->edns = conf->edns;
+		query->padding = conf->padding;
+		query->alignment = conf->alignment;
+		tls_params_copy(&query->tls, &conf->tls);
 		if (conf->tsig_key.name != NULL) {
 			int ret = knot_tsig_key_copy(&query->tsig_key,
 			                             &conf->tsig_key);
@@ -895,7 +1126,6 @@ query_t* query_create(const char *owner, const query_t *conf)
 				query_free(query);
 				return NULL;
 			}
-
 		}
 		if (conf->subnet != NULL) {
 			query->subnet = malloc(sizeof(subnet_t));
@@ -940,6 +1170,8 @@ void query_free(query_t *query)
 	if (query->local != NULL) {
 		srv_info_free(query->local);
 	}
+
+	tls_params_clean(&query->tls);
 
 	// Cleanup signing key.
 	knot_tsig_key_deinit(&query->tsig_key);
@@ -1146,7 +1378,12 @@ static int parse_server(const char *value, kdig_params_t *params)
 		query = params->config;
 	}
 
-	return params_parse_server(value, &query->servers, query->port);
+	if (params_parse_server(value, &query->servers, query->port) != KNOT_EOK) {
+		ERR("invalid server @%s\n", value);
+		return KNOT_EINVAL;
+	}
+
+	return KNOT_EOK;
 }
 
 static int parse_tsig(const char *value, query_t *query)
@@ -1226,6 +1463,8 @@ static void complete_servers(query_t *query, const query_t *conf)
 		def_port = query->port;
 	} else if (strlen(conf->port) > 0) {
 		def_port = conf->port;
+	} else if (query->tls.enable) {
+		def_port = DEFAULT_DNS_TLS_PORT;
 	} else {
 		def_port = DEFAULT_DNS_PORT;
 	}
@@ -1331,47 +1570,53 @@ void complete_queries(list_t *queries, const query_t *conf)
 
 static void print_help(void)
 {
-	printf("Usage: %s [-4] [-6] [-dh] [-b address] [-c class] [-p port]\n"
+	printf("Usage: %s [-4] [-6] [-d] [-b address] [-c class] [-p port]\n"
 	       "            [-q name] [-t type] [-x address] [-k keyfile]\n"
 	       "            [-y [algo:]keyname:key] [-E tapfile] [-G tapfile]\n"
 	       "            name [type] [class] [@server]\n"
 	       "\n"
-	       "       +[no]multiline  Wrap long records to more lines.\n"
-	       "       +[no]short      Show record data only.\n"
-	       "       +[no]aaflag     Set AA flag.\n"
-	       "       +[no]tcflag     Set TC flag.\n"
-	       "       +[no]rdflag     Set RD flag.\n"
-	       "       +[no]recurse    Same as +[no]rdflag\n"
-	       "       +[no]raflag     Set RA flag.\n"
-	       "       +[no]zflag      Set zero flag bit.\n"
-	       "       +[no]adflag     Set AD flag.\n"
-	       "       +[no]cdflag     Set CD flag.\n"
-	       "       +[no]dnssec     Set DO flag.\n"
-	       "       +[no]all        Show all packet sections.\n"
-	       "       +[no]qr         Show query packet.\n"
-	       "       +[no]header     Show packet header.\n"
-	       "       +[no]opt        Show EDNS pseudosection.\n"
-	       "       +[no]question   Show question section.\n"
-	       "       +[no]answer     Show answer section.\n"
-	       "       +[no]authority  Show authority section.\n"
-	       "       +[no]additional Show additional section.\n"
-	       "       +[no]tsig       Show TSIG pseudosection.\n"
-	       "       +[no]stats      Show trailing packet statistics.\n"
-	       "       +[no]class      Show DNS class.\n"
-	       "       +[no]ttl        Show TTL value.\n"
-	       "       +[no]tcp        Use TCP protocol.\n"
-	       "       +[no]ignore     Don't use TCP automatically if truncated.\n"
-	       "       +[no]nsid       Request NSID.\n"
-	       "       +[no]edns=N     Use EDNS (=version).\n"
-	       "       +noidn          Disable IDN transformation.\n"
-	       "       +generic        Use generic representation format.\n"
-	       "       +client=SUBN    Set EDNS client subnet IP/prefix.\n"
-	       "       +time=T         Set wait for reply interval in seconds.\n"
-	       "       +retry=N        Set number of retries.\n"
-	       "       +bufsize=B      Set EDNS buffer size.\n"
+	       "       +[no]multiline        Wrap long records to more lines.\n"
+	       "       +[no]short            Show record data only.\n"
+	       "       +[no]generic          Use generic representation format.\n"
+	       "       +[no]aaflag           Set AA flag.\n"
+	       "       +[no]tcflag           Set TC flag.\n"
+	       "       +[no]rdflag           Set RD flag.\n"
+	       "       +[no]recurse          Same as +[no]rdflag\n"
+	       "       +[no]raflag           Set RA flag.\n"
+	       "       +[no]zflag            Set zero flag bit.\n"
+	       "       +[no]adflag           Set AD flag.\n"
+	       "       +[no]cdflag           Set CD flag.\n"
+	       "       +[no]dnssec           Set DO flag.\n"
+	       "       +[no]all              Show all packet sections.\n"
+	       "       +[no]qr               Show query packet.\n"
+	       "       +[no]header           Show packet header.\n"
+	       "       +[no]opt              Show EDNS pseudosection.\n"
+	       "       +[no]question         Show question section.\n"
+	       "       +[no]answer           Show answer section.\n"
+	       "       +[no]authority        Show authority section.\n"
+	       "       +[no]additional       Show additional section.\n"
+	       "       +[no]tsig             Show TSIG pseudosection.\n"
+	       "       +[no]stats            Show trailing packet statistics.\n"
+	       "       +[no]class            Show DNS class.\n"
+	       "       +[no]ttl              Show TTL value.\n"
+	       "       +[no]tcp              Use TCP protocol.\n"
+	       "       +[no]ignore           Don't use TCP automatically if truncated.\n"
+	       "       +[no]tls              Use TLS with Opportunistic privacy profile.\n"
+	       "       +[no]tls-ca[=FILE]    Use TLS with Out-Of-Band privacy profile.\n"
+	       "       +[no]tls-pin=BASE64   Use TLS with pinned certificate.\n"
+	       "       +[no]tls-hostname=STR Use TLS with remote server hostname.\n"
+	       "       +[no]nsid             Request NSID.\n"
+	       "       +[no]bufsize=B        Set EDNS buffer size.\n"
+	       "       +[no]padding=N        Padding block size EDNS(0) padding.\n"
+	       "       +[no]alignment[=N]    Set packet alignment with EDNS(0) padding.\n"
+	       "       +[no]client=SUBN      Set EDNS(0) client subnet IP/prefix.\n"
+	       "       +[no]edns[=N]         Use EDNS (=version).\n"
+	       "       +[no]time=T           Set wait for reply interval in seconds.\n"
+	       "       +[no]retry=N          Set number of retries.\n"
+	       "       +noidn                Disable IDN transformation.\n"
 	       "\n"
-	       "       -h, --help      Print the program help.\n"
-	       "       -V, --version   Print the program version.\n",
+	       "       -h, --help            Print the program help.\n"
+	       "       -V, --version         Print the program version.\n",
 	       PROGRAM_NAME);
 }
 
@@ -1635,21 +1880,21 @@ static int parse_opt2(const char *value, kdig_params_t *params)
 	// Check argument presence.
 	switch (kdig_opts2[ret].arg) {
 	case ARG_NONE:
-		if (arg != NULL) {
-			ERR("superfluous option argument: +%s\n", value);
-			return KNOT_ENOTSUP;
+		if (arg != NULL && *arg != '\0') {
+			WARN("superfluous option argument: +%s\n", value);
 		}
 		break;
 	case ARG_REQUIRED:
 		if (arg == NULL) {
 			ERR("missing argument: +%s\n", value);
 			return KNOT_EFEWDATA;
-		} else if (*arg == '\0') {
+		}
+		// FALLTHROUGH
+	case ARG_OPTIONAL:
+		if (arg != NULL && *arg == '\0') {
 			ERR("empty argument: +%s\n", value);
 			return KNOT_EFEWDATA;
 		}
-		break;
-	case ARG_OPTIONAL:
 		break;
 	}
 
@@ -1673,8 +1918,7 @@ static int parse_token(const char *value, kdig_params_t *params)
 		return KNOT_EOK;
 	} else if (parse_class(value, query) == KNOT_EOK) {
 		return KNOT_EOK;
-	} else if (parse_name(value, &params->queries, params->config)
-	           == KNOT_EOK) {
+	} else if (parse_name(value, &params->queries, params->config) == KNOT_EOK) {
 		return KNOT_EOK;
 	}
 

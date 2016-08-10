@@ -3,7 +3,7 @@
 /* Configuration DB mapsize. */
 #undef CONF_MAPSIZE
 
-/* PKCS 11 support available */
+/* PKCS #11 support available */
 #undef ENABLE_PKCS11
 
 /* Use SO_REUSEPORT. */
@@ -154,8 +154,7 @@
 /* Define to 1 to enable IDN support */
 #undef LIBIDN
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Name of package */

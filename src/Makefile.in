@@ -100,7 +100,8 @@ host_triplet = @host@
 @HAVE_LMDB_FALSE@am__append_2 = \
 @HAVE_LMDB_FALSE@	-I$(srcdir)/contrib/lmdb/
 
-@HAVE_DAEMON_TRUE@sbin_PROGRAMS = knotc$(EXEEXT) knotd$(EXEEXT)
+@HAVE_DAEMON_TRUE@sbin_PROGRAMS = keymgr$(EXEEXT) knotc$(EXEEXT) \
+@HAVE_DAEMON_TRUE@	knotd$(EXEEXT) kzonecheck$(EXEEXT)
 @HAVE_DAEMON_TRUE@libexec_PROGRAMS = knot1to2$(EXEEXT)
 @HAVE_DAEMON_TRUE@am__append_3 = libknotd.la libknotus.la
 @HAVE_DAEMON_TRUE@am__append_4 = \
@@ -122,7 +123,8 @@ host_triplet = @host@
 @HAVE_DAEMON_TRUE@@HAVE_ROSEDB_TRUE@	knot/modules/rosedb.h
 
 @HAVE_UTILS_TRUE@bin_PROGRAMS = kdig$(EXEEXT) khost$(EXEEXT) \
-@HAVE_UTILS_TRUE@	knsupdate$(EXEEXT) $(am__EXEEXT_1)
+@HAVE_UTILS_TRUE@	knsec3hash$(EXEEXT) knsupdate$(EXEEXT) \
+@HAVE_UTILS_TRUE@	$(am__EXEEXT_1)
 @HAVE_UTILS_TRUE@am__append_9 = libknotus.la
 
 #######################################
@@ -130,10 +132,12 @@ host_triplet = @host@
 #######################################
 @HAVE_DNSTAP_TRUE@@HAVE_UTILS_TRUE@am__append_10 = $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
 @HAVE_DNSTAP_TRUE@@HAVE_UTILS_TRUE@am__append_11 = $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
-@HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@am__append_12 = rosedb_tool
+@HAVE_DNSTAP_TRUE@@HAVE_UTILS_TRUE@am__append_12 = $(DNSTAP_CFLAGS)
+@HAVE_DNSTAP_TRUE@@HAVE_UTILS_TRUE@am__append_13 = $(DNSTAP_CFLAGS)
+@HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@am__append_14 = rosedb_tool
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_clang.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
@@ -182,9 +186,9 @@ LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libcontrib_la_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
 am_libcontrib_la_OBJECTS = contrib/base32hex.lo contrib/base64.lo \
-	contrib/files.lo contrib/getline.lo contrib/hhash.lo \
-	contrib/mempattern.lo contrib/net.lo contrib/print.lo \
-	contrib/sockaddr.lo contrib/string.lo \
+	contrib/files.lo contrib/fnv/hash_64a.lo contrib/getline.lo \
+	contrib/hhash.lo contrib/mempattern.lo contrib/net.lo \
+	contrib/print.lo contrib/sockaddr.lo contrib/string.lo \
 	contrib/hat-trie/hat-trie.lo \
 	contrib/murmurhash3/murmurhash3.lo contrib/openbsd/strlcat.lo \
 	contrib/openbsd/strlcpy.lo contrib/ucw/heap.lo \
@@ -201,54 +205,55 @@ am_libknot_yparser_la_OBJECTS = libknot/yparser/yparser.lo \
 libknot_yparser_la_OBJECTS = $(am_libknot_yparser_la_OBJECTS)
 libknot_la_DEPENDENCIES = dnssec/libdnssec.la libcontrib.la
 am__libknot_la_SOURCES_DIST = libknot/binary.c libknot/codes.c \
-	libknot/control/control.c libknot/descriptor.c libknot/dname.c \
-	libknot/error.c libknot/db/db_lmdb.c libknot/db/db_trie.c \
+	libknot/control/control.c libknot/cookies/alg-fnv64.c \
+	libknot/cookies/client.c libknot/cookies/server.c \
+	libknot/descriptor.c libknot/dname.c libknot/error.c \
+	libknot/db/db_lmdb.c libknot/db/db_trie.c \
 	libknot/packet/compr.c libknot/packet/pkt.c \
 	libknot/packet/rrset-wire.c libknot/packet/wire.c \
-	libknot/processing/layer.c libknot/processing/overlay.c \
-	libknot/processing/requestor.c libknot/rdata.c \
-	libknot/rdataset.c libknot/rrset-dump.c libknot/rrset.c \
-	libknot/rrtype/aaaa.c libknot/rrtype/dnskey.c \
+	libknot/rdata.c libknot/rdataset.c libknot/rrset-dump.c \
+	libknot/rrset.c libknot/rrtype/aaaa.c libknot/rrtype/dnskey.c \
 	libknot/rrtype/ds.c libknot/rrtype/naptr.c \
 	libknot/rrtype/nsec3.c libknot/rrtype/nsec3param.c \
-	libknot/rrtype/opt.c libknot/rrtype/rrsig.c \
-	libknot/rrtype/soa.c libknot/rrtype/tsig.c libknot/tsig-op.c \
-	libknot/tsig.c libknot/attribute.h libknot/binary.h \
-	libknot/codes.h libknot/consts.h libknot/control/control.h \
-	libknot/descriptor.h libknot/dname.h libknot/errcode.h \
-	libknot/error.h libknot/libknot.h libknot/lookup.h \
-	libknot/mm_ctx.h libknot/db/db.h libknot/db/db_lmdb.h \
-	libknot/db/db_trie.h libknot/packet/compr.h \
-	libknot/packet/pkt.h libknot/packet/rrset-wire.h \
-	libknot/packet/wire.h libknot/processing/layer.h \
-	libknot/processing/overlay.h libknot/processing/requestor.h \
+	libknot/rrtype/opt.c libknot/rrtype/opt-cookie.c \
+	libknot/rrtype/rrsig.c libknot/rrtype/soa.c \
+	libknot/rrtype/tsig.c libknot/tsig-op.c libknot/tsig.c \
+	libknot/attribute.h libknot/binary.h libknot/codes.h \
+	libknot/consts.h libknot/control/control.h \
+	libknot/cookies/alg-fnv64.h libknot/cookies/client.h \
+	libknot/cookies/server.h libknot/descriptor.h libknot/dname.h \
+	libknot/errcode.h libknot/error.h libknot/libknot.h \
+	libknot/lookup.h libknot/mm_ctx.h libknot/db/db.h \
+	libknot/db/db_lmdb.h libknot/db/db_trie.h \
+	libknot/packet/compr.h libknot/packet/pkt.h \
+	libknot/packet/rrset-wire.h libknot/packet/wire.h \
 	libknot/rdata.h libknot/rdataset.h libknot/rrset-dump.h \
 	libknot/rrset.h libknot/rrtype/aaaa.h libknot/rrtype/dnskey.h \
 	libknot/rrtype/ds.h libknot/rrtype/naptr.h \
 	libknot/rrtype/nsec.h libknot/rrtype/nsec3.h \
 	libknot/rrtype/nsec3param.h libknot/rrtype/opt.h \
-	libknot/rrtype/rdname.h libknot/rrtype/rrsig.h \
-	libknot/rrtype/soa.h libknot/rrtype/tsig.h \
-	libknot/rrtype/txt.h libknot/tsig-op.h libknot/tsig.h \
-	libknot/version.h contrib/lmdb/lmdb.h contrib/lmdb/mdb.c \
-	contrib/lmdb/midl.c contrib/lmdb/midl.h
+	libknot/rrtype/opt-cookie.h libknot/rrtype/rdname.h \
+	libknot/rrtype/rrsig.h libknot/rrtype/soa.h \
+	libknot/rrtype/tsig.h libknot/rrtype/txt.h libknot/tsig-op.h \
+	libknot/tsig.h libknot/version.h contrib/lmdb/lmdb.h \
+	contrib/lmdb/mdb.c contrib/lmdb/midl.c contrib/lmdb/midl.h
 am__objects_1 =
 @HAVE_LMDB_FALSE@am__objects_2 = contrib/lmdb/libknot_la-mdb.lo \
 @HAVE_LMDB_FALSE@	contrib/lmdb/libknot_la-midl.lo
 am_libknot_la_OBJECTS = libknot/libknot_la-binary.lo \
 	libknot/libknot_la-codes.lo \
 	libknot/control/libknot_la-control.lo \
+	libknot/cookies/libknot_la-alg-fnv64.lo \
+	libknot/cookies/libknot_la-client.lo \
+	libknot/cookies/libknot_la-server.lo \
 	libknot/libknot_la-descriptor.lo libknot/libknot_la-dname.lo \
 	libknot/libknot_la-error.lo libknot/db/libknot_la-db_lmdb.lo \
 	libknot/db/libknot_la-db_trie.lo \
 	libknot/packet/libknot_la-compr.lo \
 	libknot/packet/libknot_la-pkt.lo \
 	libknot/packet/libknot_la-rrset-wire.lo \
-	libknot/packet/libknot_la-wire.lo \
-	libknot/processing/libknot_la-layer.lo \
-	libknot/processing/libknot_la-overlay.lo \
-	libknot/processing/libknot_la-requestor.lo \
-	libknot/libknot_la-rdata.lo libknot/libknot_la-rdataset.lo \
+	libknot/packet/libknot_la-wire.lo libknot/libknot_la-rdata.lo \
+	libknot/libknot_la-rdataset.lo \
 	libknot/libknot_la-rrset-dump.lo libknot/libknot_la-rrset.lo \
 	libknot/rrtype/libknot_la-aaaa.lo \
 	libknot/rrtype/libknot_la-dnskey.lo \
@@ -257,6 +262,7 @@ am_libknot_la_OBJECTS = libknot/libknot_la-binary.lo \
 	libknot/rrtype/libknot_la-nsec3.lo \
 	libknot/rrtype/libknot_la-nsec3param.lo \
 	libknot/rrtype/libknot_la-opt.lo \
+	libknot/rrtype/libknot_la-opt-cookie.lo \
 	libknot/rrtype/libknot_la-rrsig.lo \
 	libknot/rrtype/libknot_la-soa.lo \
 	libknot/rrtype/libknot_la-tsig.lo \
@@ -287,26 +293,32 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 	knot/dnssec/zone-events.h knot/dnssec/zone-keys.c \
 	knot/dnssec/zone-keys.h knot/dnssec/zone-nsec.c \
 	knot/dnssec/zone-nsec.h knot/dnssec/zone-sign.c \
-	knot/dnssec/zone-sign.h knot/modules/dnsproxy.c \
+	knot/dnssec/zone-sign.h knot/events/events.c \
+	knot/events/events.h knot/events/handlers.h \
+	knot/events/handlers/dnssec.c knot/events/handlers/expire.c \
+	knot/events/handlers/flush.c knot/events/handlers/load.c \
+	knot/events/handlers/notify.c knot/events/handlers/refresh.c \
+	knot/events/handlers/update.c knot/events/replan.c \
+	knot/events/replan.h knot/modules/dnsproxy.c \
 	knot/modules/dnsproxy.h knot/modules/online_sign/module.c \
 	knot/modules/online_sign/module.h \
 	knot/modules/online_sign/nsec_next.c \
 	knot/modules/online_sign/nsec_next.h \
 	knot/modules/synth_record.c knot/modules/synth_record.h \
 	knot/nameserver/axfr.c knot/nameserver/axfr.h \
-	knot/nameserver/capture.c knot/nameserver/capture.h \
 	knot/nameserver/chaos.c knot/nameserver/chaos.h \
 	knot/nameserver/internet.c knot/nameserver/internet.h \
 	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
-	knot/nameserver/notify.c knot/nameserver/notify.h \
-	knot/nameserver/nsec_proofs.c knot/nameserver/nsec_proofs.h \
-	knot/nameserver/process_answer.c \
-	knot/nameserver/process_answer.h \
-	knot/nameserver/process_query.c \
+	knot/nameserver/log.h knot/nameserver/notify.c \
+	knot/nameserver/notify.h knot/nameserver/nsec_proofs.c \
+	knot/nameserver/nsec_proofs.h knot/nameserver/process_query.c \
 	knot/nameserver/process_query.h knot/nameserver/query_module.c \
 	knot/nameserver/query_module.h knot/nameserver/tsig_ctx.c \
 	knot/nameserver/tsig_ctx.h knot/nameserver/update.c \
-	knot/nameserver/update.h knot/common/evsched.c \
+	knot/nameserver/update.h knot/query/capture.c \
+	knot/query/capture.h knot/query/layer.c knot/query/layer.h \
+	knot/query/query.c knot/query/query.h knot/query/requestor.c \
+	knot/query/requestor.h knot/common/evsched.c \
 	knot/common/evsched.h knot/common/fdset.c knot/common/fdset.h \
 	knot/common/log.c knot/common/log.h knot/common/process.c \
 	knot/common/process.h knot/common/ref.c knot/common/ref.h \
@@ -323,9 +335,6 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 	knot/updates/zone-update.c knot/updates/zone-update.h \
 	knot/worker/pool.c knot/worker/pool.h knot/worker/queue.c \
 	knot/worker/queue.h knot/zone/contents.c knot/zone/contents.h \
-	knot/zone/events/events.c knot/zone/events/events.h \
-	knot/zone/events/handlers.c knot/zone/events/handlers.h \
-	knot/zone/events/replan.c knot/zone/events/replan.h \
 	knot/zone/node.c knot/zone/node.h knot/zone/semantic-check.c \
 	knot/zone/semantic-check.h knot/zone/serial.c \
 	knot/zone/serial.h knot/zone/timers.c knot/zone/timers.h \
@@ -358,22 +367,33 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-keys.lo \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-nsec.lo \
 @HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-sign.lo \
+@HAVE_DAEMON_TRUE@	knot/events/libknotd_la-events.lo \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-dnssec.lo \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-expire.lo \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-flush.lo \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-load.lo \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-notify.lo \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-refresh.lo \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-update.lo \
+@HAVE_DAEMON_TRUE@	knot/events/libknotd_la-replan.lo \
 @HAVE_DAEMON_TRUE@	knot/modules/libknotd_la-dnsproxy.lo \
 @HAVE_DAEMON_TRUE@	knot/modules/online_sign/libknotd_la-module.lo \
 @HAVE_DAEMON_TRUE@	knot/modules/online_sign/libknotd_la-nsec_next.lo \
 @HAVE_DAEMON_TRUE@	knot/modules/libknotd_la-synth_record.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-axfr.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-capture.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-chaos.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-internet.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-ixfr.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-notify.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-nsec_proofs.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-process_answer.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-process_query.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-query_module.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-tsig_ctx.lo \
 @HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-update.lo \
+@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-capture.lo \
+@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-layer.lo \
+@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-query.lo \
+@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-requestor.lo \
 @HAVE_DAEMON_TRUE@	knot/common/libknotd_la-evsched.lo \
 @HAVE_DAEMON_TRUE@	knot/common/libknotd_la-fdset.lo \
 @HAVE_DAEMON_TRUE@	knot/common/libknotd_la-log.lo \
@@ -394,9 +414,6 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 @HAVE_DAEMON_TRUE@	knot/worker/libknotd_la-pool.lo \
 @HAVE_DAEMON_TRUE@	knot/worker/libknotd_la-queue.lo \
 @HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-contents.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/events/libknotd_la-events.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/events/libknotd_la-handlers.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/events/libknotd_la-replan.lo \
 @HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-node.lo \
 @HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-semantic-check.lo \
 @HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-serial.lo \
@@ -416,7 +433,8 @@ libknotd_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(libknotd_la_LDFLAGS) $(LDFLAGS) -o $@
 @HAVE_DAEMON_TRUE@am_libknotd_la_rpath =
 libknotus_la_DEPENDENCIES = libcontrib.la libknot.la
-am_libknotus_la_OBJECTS = utils/common/libknotus_la-exec.lo \
+am_libknotus_la_OBJECTS = utils/common/libknotus_la-cert.lo \
+	utils/common/libknotus_la-exec.lo \
 	utils/common/libknotus_la-hex.lo \
 	utils/common/libknotus_la-lookup.lo \
 	utils/common/libknotus_la-msg.lo \
@@ -424,6 +442,7 @@ am_libknotus_la_OBJECTS = utils/common/libknotus_la-exec.lo \
 	utils/common/libknotus_la-params.lo \
 	utils/common/libknotus_la-resolv.lo \
 	utils/common/libknotus_la-sign.lo \
+	utils/common/libknotus_la-tls.lo \
 	utils/common/libknotus_la-token.lo
 libknotus_la_OBJECTS = $(am_libknotus_la_OBJECTS)
 libknotus_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
@@ -447,9 +466,29 @@ kdig_OBJECTS = $(am_kdig_OBJECTS)
 @HAVE_DNSTAP_TRUE@@HAVE_UTILS_TRUE@	contrib/dnstap/libdnstap.la
 @HAVE_UTILS_TRUE@kdig_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 @HAVE_UTILS_TRUE@	libknotus.la $(am__DEPENDENCIES_3)
-kdig_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(kdig_CFLAGS) $(CFLAGS) \
-	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+am__keymgr_SOURCES_DIST = utils/keymgr/cmdparse/command.c \
+	utils/keymgr/cmdparse/command.h utils/keymgr/cmdparse/match.h \
+	utils/keymgr/cmdparse/parameter.c \
+	utils/keymgr/cmdparse/parameter.h \
+	utils/keymgr/cmdparse/value.c utils/keymgr/cmdparse/value.h \
+	utils/keymgr/legacy/key.c utils/keymgr/legacy/key.h \
+	utils/keymgr/legacy/privkey.c utils/keymgr/legacy/privkey.h \
+	utils/keymgr/legacy/pubkey.c utils/keymgr/legacy/pubkey.h \
+	utils/keymgr/options.c utils/keymgr/options.h \
+	utils/keymgr/keymgr.c
+@HAVE_DAEMON_TRUE@am_keymgr_OBJECTS = utils/keymgr/cmdparse/keymgr-command.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/keymgr-parameter.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/keymgr-value.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/keymgr-key.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/keymgr-privkey.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/keymgr-pubkey.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/keymgr/keymgr-options.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/keymgr/keymgr-keymgr.$(OBJEXT)
+keymgr_OBJECTS = $(am_keymgr_OBJECTS)
+@HAVE_DAEMON_TRUE@keymgr_DEPENDENCIES = libknotd.la libknotus.la \
+@HAVE_DAEMON_TRUE@	dnssec/libdnssec.la dnssec/libshared.la \
+@HAVE_DAEMON_TRUE@	zscanner/libzscanner.la \
+@HAVE_DAEMON_TRUE@	$(am__DEPENDENCIES_1)
 am__khost_SOURCES_DIST = utils/kdig/kdig_exec.c utils/kdig/kdig_exec.h \
 	utils/kdig/kdig_params.c utils/kdig/kdig_params.h \
 	utils/khost/khost_main.c utils/khost/khost_params.c \
@@ -462,9 +501,6 @@ am__khost_SOURCES_DIST = utils/kdig/kdig_exec.c utils/kdig/kdig_exec.h \
 khost_OBJECTS = $(am_khost_OBJECTS)
 @HAVE_UTILS_TRUE@khost_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 @HAVE_UTILS_TRUE@	libknotus.la $(am__DEPENDENCIES_3)
-khost_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(khost_CFLAGS) $(CFLAGS) \
-	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 am__knot1to2_SOURCES_DIST = utils/knot1to2/cf-lex.c \
 	utils/knot1to2/cf-parse.tab.c utils/knot1to2/cf-parse.tab.h \
 	utils/knot1to2/extra.c utils/knot1to2/extra.h \
@@ -496,18 +532,30 @@ am__knotd_SOURCES_DIST = utils/knotd/main.c
 knotd_OBJECTS = $(am_knotd_OBJECTS)
 @HAVE_DAEMON_TRUE@knotd_DEPENDENCIES = libknotd.la \
 @HAVE_DAEMON_TRUE@	$(am__DEPENDENCIES_1)
+am__knsec3hash_SOURCES_DIST = dnssec/shared/print.h \
+	utils/knsec3hash/knsec3hash.c
+@HAVE_UTILS_TRUE@am_knsec3hash_OBJECTS = utils/knsec3hash/knsec3hash-knsec3hash.$(OBJEXT)
+knsec3hash_OBJECTS = $(am_knsec3hash_OBJECTS)
+@HAVE_UTILS_TRUE@knsec3hash_DEPENDENCIES = dnssec/libdnssec.la \
+@HAVE_UTILS_TRUE@	dnssec/libshared.la
 am__knsupdate_SOURCES_DIST = utils/knsupdate/knsupdate_exec.c \
 	utils/knsupdate/knsupdate_exec.h \
 	utils/knsupdate/knsupdate_main.c \
 	utils/knsupdate/knsupdate_params.c \
 	utils/knsupdate/knsupdate_params.h
-@HAVE_UTILS_TRUE@am_knsupdate_OBJECTS =  \
-@HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate_exec.$(OBJEXT) \
-@HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate_main.$(OBJEXT) \
-@HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate_params.$(OBJEXT)
+@HAVE_UTILS_TRUE@am_knsupdate_OBJECTS = utils/knsupdate/knsupdate-knsupdate_exec.$(OBJEXT) \
+@HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate-knsupdate_main.$(OBJEXT) \
+@HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate-knsupdate_params.$(OBJEXT)
 knsupdate_OBJECTS = $(am_knsupdate_OBJECTS)
 @HAVE_UTILS_TRUE@knsupdate_DEPENDENCIES = zscanner/libzscanner.la \
 @HAVE_UTILS_TRUE@	libknotus.la
+am__kzonecheck_SOURCES_DIST = utils/kzonecheck/main.c \
+	utils/kzonecheck/zone_check.c utils/kzonecheck/zone_check.h
+@HAVE_DAEMON_TRUE@am_kzonecheck_OBJECTS =  \
+@HAVE_DAEMON_TRUE@	utils/kzonecheck/main.$(OBJEXT) \
+@HAVE_DAEMON_TRUE@	utils/kzonecheck/zone_check.$(OBJEXT)
+kzonecheck_OBJECTS = $(am_kzonecheck_OBJECTS)
+@HAVE_DAEMON_TRUE@kzonecheck_DEPENDENCIES = libknotd.la
 am__rosedb_tool_SOURCES_DIST = knot/modules/rosedb_tool.c
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@am_rosedb_tool_OBJECTS = knot/modules/rosedb_tool-rosedb_tool.$(OBJEXT)
 rosedb_tool_OBJECTS = $(am_rosedb_tool_OBJECTS)
@@ -552,15 +600,18 @@ am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(libcontrib_la_SOURCES) $(libknot_yparser_la_SOURCES) \
 	$(libknot_la_SOURCES) $(libknotd_la_SOURCES) \
-	$(libknotus_la_SOURCES) $(kdig_SOURCES) $(khost_SOURCES) \
-	$(knot1to2_SOURCES) $(knotc_SOURCES) $(knotd_SOURCES) \
-	$(knsupdate_SOURCES) $(rosedb_tool_SOURCES)
+	$(libknotus_la_SOURCES) $(kdig_SOURCES) $(keymgr_SOURCES) \
+	$(khost_SOURCES) $(knot1to2_SOURCES) $(knotc_SOURCES) \
+	$(knotd_SOURCES) $(knsec3hash_SOURCES) $(knsupdate_SOURCES) \
+	$(kzonecheck_SOURCES) $(rosedb_tool_SOURCES)
 DIST_SOURCES = $(libcontrib_la_SOURCES) $(libknot_yparser_la_SOURCES) \
 	$(am__libknot_la_SOURCES_DIST) $(am__libknotd_la_SOURCES_DIST) \
 	$(libknotus_la_SOURCES) $(am__kdig_SOURCES_DIST) \
-	$(am__khost_SOURCES_DIST) $(am__knot1to2_SOURCES_DIST) \
-	$(am__knotc_SOURCES_DIST) $(am__knotd_SOURCES_DIST) \
-	$(am__knsupdate_SOURCES_DIST) $(am__rosedb_tool_SOURCES_DIST)
+	$(am__keymgr_SOURCES_DIST) $(am__khost_SOURCES_DIST) \
+	$(am__knot1to2_SOURCES_DIST) $(am__knotc_SOURCES_DIST) \
+	$(am__knotd_SOURCES_DIST) $(am__knsec3hash_SOURCES_DIST) \
+	$(am__knsupdate_SOURCES_DIST) $(am__kzonecheck_SOURCES_DIST) \
+	$(am__rosedb_tool_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -643,7 +694,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
-CC_LLVM = @CC_LLVM@
+CC_CLANG_VERSION = @CC_CLANG_VERSION@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
@@ -684,6 +735,7 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -828,6 +880,9 @@ libcontrib_la_SOURCES = \
 	contrib/endian.h			\
 	contrib/files.c				\
 	contrib/files.h				\
+	contrib/fnv/fnv.h			\
+	contrib/fnv/hash_64a.c			\
+	contrib/fnv/longlong.h			\
 	contrib/getline.c			\
 	contrib/getline.h			\
 	contrib/hhash.c				\
@@ -843,6 +898,7 @@ libcontrib_la_SOURCES = \
 	contrib/sockaddr.h			\
 	contrib/string.c			\
 	contrib/string.h			\
+	contrib/strtonum.h			\
 	contrib/time.h				\
 	contrib/tolower.h			\
 	contrib/trim.h				\
@@ -887,6 +943,9 @@ nobase_libknot_la_HEADERS = \
 	libknot/codes.h				\
 	libknot/consts.h			\
 	libknot/control/control.h		\
+	libknot/cookies/alg-fnv64.h		\
+	libknot/cookies/client.h		\
+	libknot/cookies/server.h		\
 	libknot/descriptor.h			\
 	libknot/dname.h				\
 	libknot/errcode.h			\
@@ -901,9 +960,6 @@ nobase_libknot_la_HEADERS = \
 	libknot/packet/pkt.h			\
 	libknot/packet/rrset-wire.h		\
 	libknot/packet/wire.h			\
-	libknot/processing/layer.h		\
-	libknot/processing/overlay.h		\
-	libknot/processing/requestor.h		\
 	libknot/rdata.h				\
 	libknot/rdataset.h			\
 	libknot/rrset-dump.h			\
@@ -916,6 +972,7 @@ nobase_libknot_la_HEADERS = \
 	libknot/rrtype/nsec3.h			\
 	libknot/rrtype/nsec3param.h		\
 	libknot/rrtype/opt.h			\
+	libknot/rrtype/opt-cookie.h		\
 	libknot/rrtype/rdname.h			\
 	libknot/rrtype/rrsig.h			\
 	libknot/rrtype/soa.h			\
@@ -928,19 +985,20 @@ nobase_libknot_la_HEADERS = \
 
 # dynamic: libknot sources
 libknot_la_SOURCES = libknot/binary.c libknot/codes.c \
-	libknot/control/control.c libknot/descriptor.c libknot/dname.c \
-	libknot/error.c libknot/db/db_lmdb.c libknot/db/db_trie.c \
+	libknot/control/control.c libknot/cookies/alg-fnv64.c \
+	libknot/cookies/client.c libknot/cookies/server.c \
+	libknot/descriptor.c libknot/dname.c libknot/error.c \
+	libknot/db/db_lmdb.c libknot/db/db_trie.c \
 	libknot/packet/compr.c libknot/packet/pkt.c \
 	libknot/packet/rrset-wire.c libknot/packet/wire.c \
-	libknot/processing/layer.c libknot/processing/overlay.c \
-	libknot/processing/requestor.c libknot/rdata.c \
-	libknot/rdataset.c libknot/rrset-dump.c libknot/rrset.c \
-	libknot/rrtype/aaaa.c libknot/rrtype/dnskey.c \
+	libknot/rdata.c libknot/rdataset.c libknot/rrset-dump.c \
+	libknot/rrset.c libknot/rrtype/aaaa.c libknot/rrtype/dnskey.c \
 	libknot/rrtype/ds.c libknot/rrtype/naptr.c \
 	libknot/rrtype/nsec3.c libknot/rrtype/nsec3param.c \
-	libknot/rrtype/opt.c libknot/rrtype/rrsig.c \
-	libknot/rrtype/soa.c libknot/rrtype/tsig.c libknot/tsig-op.c \
-	libknot/tsig.c $(nobase_libknot_la_HEADERS) $(am__append_1)
+	libknot/rrtype/opt.c libknot/rrtype/opt-cookie.c \
+	libknot/rrtype/rrsig.c libknot/rrtype/soa.c \
+	libknot/rrtype/tsig.c libknot/tsig-op.c libknot/tsig.c \
+	$(nobase_libknot_la_HEADERS) $(am__append_1)
 libknot_la_CPPFLAGS = $(AM_CPPFLAGS) $(CFLAG_VISIBILITY) \
 	$(lmdb_CFLAGS) $(am__append_2)
 libknot_la_CFLAGS = $(AM_CFLAGS)
@@ -952,6 +1010,8 @@ pkgconfig_DATA = libknot.pc
 
 # static: utilities shared
 libknotus_la_SOURCES = \
+	utils/common/cert.c			\
+	utils/common/cert.h			\
 	utils/common/exec.c			\
 	utils/common/exec.h			\
 	utils/common/hex.c			\
@@ -968,13 +1028,32 @@ libknotus_la_SOURCES = \
 	utils/common/resolv.h			\
 	utils/common/sign.c			\
 	utils/common/sign.h			\
-	utils/common/strtonum.h			\
+	utils/common/tls.c			\
+	utils/common/tls.h			\
 	utils/common/token.c			\
 	utils/common/token.h
 
-libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS) $(libedit_CFLAGS)
+libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS) $(libedit_CFLAGS) $(gnutls_CFLAGS)
 libknotus_la_LDFLAGS = $(AM_LDFLAGS) $(libidn_LIBS)
 libknotus_la_LIBADD = libcontrib.la libknot.la
+@HAVE_DAEMON_TRUE@keymgr_SOURCES = \
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/command.c		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/command.h		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/match.h		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/parameter.c	\
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/parameter.h	\
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/value.c		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/value.h		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/key.c		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/key.h		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/privkey.c		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/privkey.h		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/pubkey.c		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/legacy/pubkey.h		\
+@HAVE_DAEMON_TRUE@	utils/keymgr/options.c			\
+@HAVE_DAEMON_TRUE@	utils/keymgr/options.h			\
+@HAVE_DAEMON_TRUE@	utils/keymgr/keymgr.c
+
 @HAVE_DAEMON_TRUE@knotc_SOURCES = \
 @HAVE_DAEMON_TRUE@	utils/knotc/commands.c			\
 @HAVE_DAEMON_TRUE@	utils/knotc/commands.h			\
@@ -999,6 +1078,11 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@	utils/knot1to2/includes.h		\
 @HAVE_DAEMON_TRUE@	utils/knot1to2/main.c			\
 @HAVE_DAEMON_TRUE@	utils/knot1to2/scheme.h
+
+@HAVE_DAEMON_TRUE@kzonecheck_SOURCES = \
+@HAVE_DAEMON_TRUE@	utils/kzonecheck/main.c			\
+@HAVE_DAEMON_TRUE@	utils/kzonecheck/zone_check.c		\
+@HAVE_DAEMON_TRUE@	utils/kzonecheck/zone_check.h
 
 
 # static: server shared
@@ -1026,7 +1110,16 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@	knot/dnssec/zone-nsec.c \
 @HAVE_DAEMON_TRUE@	knot/dnssec/zone-nsec.h \
 @HAVE_DAEMON_TRUE@	knot/dnssec/zone-sign.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-sign.h \
+@HAVE_DAEMON_TRUE@	knot/dnssec/zone-sign.h knot/events/events.c \
+@HAVE_DAEMON_TRUE@	knot/events/events.h knot/events/handlers.h \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/dnssec.c \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/expire.c \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/flush.c \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/load.c \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/notify.c \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/refresh.c \
+@HAVE_DAEMON_TRUE@	knot/events/handlers/update.c \
+@HAVE_DAEMON_TRUE@	knot/events/replan.c knot/events/replan.h \
 @HAVE_DAEMON_TRUE@	knot/modules/dnsproxy.c \
 @HAVE_DAEMON_TRUE@	knot/modules/dnsproxy.h \
 @HAVE_DAEMON_TRUE@	knot/modules/online_sign/module.c \
@@ -1037,20 +1130,16 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@	knot/modules/synth_record.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/axfr.c \
 @HAVE_DAEMON_TRUE@	knot/nameserver/axfr.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/capture.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/capture.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/chaos.c \
 @HAVE_DAEMON_TRUE@	knot/nameserver/chaos.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/internet.c \
 @HAVE_DAEMON_TRUE@	knot/nameserver/internet.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/ixfr.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/ixfr.h \
+@HAVE_DAEMON_TRUE@	knot/nameserver/ixfr.h knot/nameserver/log.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/notify.c \
 @HAVE_DAEMON_TRUE@	knot/nameserver/notify.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/nsec_proofs.c \
 @HAVE_DAEMON_TRUE@	knot/nameserver/nsec_proofs.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/process_answer.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/process_answer.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/process_query.c \
 @HAVE_DAEMON_TRUE@	knot/nameserver/process_query.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/query_module.c \
@@ -1059,12 +1148,16 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@	knot/nameserver/tsig_ctx.h \
 @HAVE_DAEMON_TRUE@	knot/nameserver/update.c \
 @HAVE_DAEMON_TRUE@	knot/nameserver/update.h \
-@HAVE_DAEMON_TRUE@	knot/common/evsched.c knot/common/evsched.h \
-@HAVE_DAEMON_TRUE@	knot/common/fdset.c knot/common/fdset.h \
-@HAVE_DAEMON_TRUE@	knot/common/log.c knot/common/log.h \
-@HAVE_DAEMON_TRUE@	knot/common/process.c knot/common/process.h \
-@HAVE_DAEMON_TRUE@	knot/common/ref.c knot/common/ref.h \
-@HAVE_DAEMON_TRUE@	knot/server/dthreads.c \
+@HAVE_DAEMON_TRUE@	knot/query/capture.c knot/query/capture.h \
+@HAVE_DAEMON_TRUE@	knot/query/layer.c knot/query/layer.h \
+@HAVE_DAEMON_TRUE@	knot/query/query.c knot/query/query.h \
+@HAVE_DAEMON_TRUE@	knot/query/requestor.c \
+@HAVE_DAEMON_TRUE@	knot/query/requestor.h knot/common/evsched.c \
+@HAVE_DAEMON_TRUE@	knot/common/evsched.h knot/common/fdset.c \
+@HAVE_DAEMON_TRUE@	knot/common/fdset.h knot/common/log.c \
+@HAVE_DAEMON_TRUE@	knot/common/log.h knot/common/process.c \
+@HAVE_DAEMON_TRUE@	knot/common/process.h knot/common/ref.c \
+@HAVE_DAEMON_TRUE@	knot/common/ref.h knot/server/dthreads.c \
 @HAVE_DAEMON_TRUE@	knot/server/dthreads.h knot/server/journal.c \
 @HAVE_DAEMON_TRUE@	knot/server/journal.h knot/server/rrl.c \
 @HAVE_DAEMON_TRUE@	knot/server/rrl.h \
@@ -1085,13 +1178,8 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@	knot/worker/pool.c knot/worker/pool.h \
 @HAVE_DAEMON_TRUE@	knot/worker/queue.c knot/worker/queue.h \
 @HAVE_DAEMON_TRUE@	knot/zone/contents.c knot/zone/contents.h \
-@HAVE_DAEMON_TRUE@	knot/zone/events/events.c \
-@HAVE_DAEMON_TRUE@	knot/zone/events/events.h \
-@HAVE_DAEMON_TRUE@	knot/zone/events/handlers.c \
-@HAVE_DAEMON_TRUE@	knot/zone/events/handlers.h \
-@HAVE_DAEMON_TRUE@	knot/zone/events/replan.c \
-@HAVE_DAEMON_TRUE@	knot/zone/events/replan.h knot/zone/node.c \
-@HAVE_DAEMON_TRUE@	knot/zone/node.h knot/zone/semantic-check.c \
+@HAVE_DAEMON_TRUE@	knot/zone/node.c knot/zone/node.h \
+@HAVE_DAEMON_TRUE@	knot/zone/semantic-check.c \
 @HAVE_DAEMON_TRUE@	knot/zone/semantic-check.h \
 @HAVE_DAEMON_TRUE@	knot/zone/serial.c knot/zone/serial.h \
 @HAVE_DAEMON_TRUE@	knot/zone/timers.c knot/zone/timers.h \
@@ -1112,11 +1200,16 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@libknotd_la_LIBADD = libknot.la libknot-yparser.la \
 @HAVE_DAEMON_TRUE@	zscanner/libzscanner.la $(liburcu_LIBS) \
 @HAVE_DAEMON_TRUE@	$(am__append_7)
+@HAVE_DAEMON_TRUE@keymgr_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/dnssec/lib/dnssec -I$(srcdir)/dnssec $(gnutls_CFLAGS)
+@HAVE_DAEMON_TRUE@keymgr_LDADD = libknotd.la libknotus.la dnssec/libdnssec.la dnssec/libshared.la \
+@HAVE_DAEMON_TRUE@               zscanner/libzscanner.la $(gnutls_LIBS)
+
 @HAVE_DAEMON_TRUE@knotd_CPPFLAGS = $(AM_CPPFLAGS) $(liburcu_CFLAGS)
 @HAVE_DAEMON_TRUE@knotd_LDADD = libknotd.la $(liburcu_LIBS)
 @HAVE_DAEMON_TRUE@knotc_CPPFLAGS = $(AM_CPPFLAGS) $(libedit_CFLAGS)
 @HAVE_DAEMON_TRUE@knotc_LDADD = libknotd.la libknotus.la $(libedit_LIBS)
 @HAVE_DAEMON_TRUE@knot1to2_LDADD = libcontrib.la
+@HAVE_DAEMON_TRUE@kzonecheck_LDADD = libknotd.la
 @HAVE_UTILS_TRUE@kdig_SOURCES = \
 @HAVE_UTILS_TRUE@	utils/kdig/kdig_exec.c			\
 @HAVE_UTILS_TRUE@	utils/kdig/kdig_exec.h			\
@@ -1133,6 +1226,10 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_UTILS_TRUE@	utils/khost/khost_params.c		\
 @HAVE_UTILS_TRUE@	utils/khost/khost_params.h
 
+@HAVE_UTILS_TRUE@knsec3hash_SOURCES = \
+@HAVE_UTILS_TRUE@	dnssec/shared/print.h			\
+@HAVE_UTILS_TRUE@	utils/knsec3hash/knsec3hash.c
+
 @HAVE_UTILS_TRUE@knsupdate_SOURCES = \
 @HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate_exec.c	\
 @HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate_exec.h	\
@@ -1142,13 +1239,18 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 
 
 # bin programs
+@HAVE_UTILS_TRUE@kdig_CPPFLAGS = $(AM_CPPFLAGS) $(gnutls_CFLAGS) \
+@HAVE_UTILS_TRUE@	$(am__append_12)
 @HAVE_UTILS_TRUE@kdig_LDADD = $(libidn_LIBS) libknotus.la \
 @HAVE_UTILS_TRUE@	$(am__append_10)
+@HAVE_UTILS_TRUE@khost_CPPFLAGS = $(AM_CPPFLAGS) $(gnutls_CFLAGS) \
+@HAVE_UTILS_TRUE@	$(am__append_13)
 @HAVE_UTILS_TRUE@khost_LDADD = $(libidn_LIBS) libknotus.la \
 @HAVE_UTILS_TRUE@	$(am__append_11)
+@HAVE_UTILS_TRUE@knsupdate_CPPFLAGS = $(AM_CPPFLAGS) $(gnutls_CFLAGS)
 @HAVE_UTILS_TRUE@knsupdate_LDADD = zscanner/libzscanner.la libknotus.la
-@HAVE_DNSTAP_TRUE@@HAVE_UTILS_TRUE@kdig_CFLAGS = $(AM_CFLAGS) $(DNSTAP_CFLAGS)
-@HAVE_DNSTAP_TRUE@@HAVE_UTILS_TRUE@khost_CFLAGS = $(AM_CFLAGS) $(DNSTAP_CFLAGS)
+@HAVE_UTILS_TRUE@knsec3hash_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/dnssec/lib/dnssec -I$(srcdir)/dnssec
+@HAVE_UTILS_TRUE@knsec3hash_LDADD = dnssec/libdnssec.la dnssec/libshared.la
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@rosedb_tool_SOURCES = knot/modules/rosedb_tool.c
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@rosedb_tool_LDADD = libknotd.la
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@rosedb_tool_CFLAGS = $(AM_CFLAGS) $(lmdb_CFLAGS) $(DNSTAP_CFLAGS)
@@ -1262,6 +1364,14 @@ contrib/base64.lo: contrib/$(am__dirstamp) \
 	contrib/$(DEPDIR)/$(am__dirstamp)
 contrib/files.lo: contrib/$(am__dirstamp) \
 	contrib/$(DEPDIR)/$(am__dirstamp)
+contrib/fnv/$(am__dirstamp):
+	@$(MKDIR_P) contrib/fnv
+	@: > contrib/fnv/$(am__dirstamp)
+contrib/fnv/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) contrib/fnv/$(DEPDIR)
+	@: > contrib/fnv/$(DEPDIR)/$(am__dirstamp)
+contrib/fnv/hash_64a.lo: contrib/fnv/$(am__dirstamp) \
+	contrib/fnv/$(DEPDIR)/$(am__dirstamp)
 contrib/getline.lo: contrib/$(am__dirstamp) \
 	contrib/$(DEPDIR)/$(am__dirstamp)
 contrib/hhash.lo: contrib/$(am__dirstamp) \
@@ -1356,6 +1466,19 @@ libknot/control/$(DEPDIR)/$(am__dirstamp):
 libknot/control/libknot_la-control.lo:  \
 	libknot/control/$(am__dirstamp) \
 	libknot/control/$(DEPDIR)/$(am__dirstamp)
+libknot/cookies/$(am__dirstamp):
+	@$(MKDIR_P) libknot/cookies
+	@: > libknot/cookies/$(am__dirstamp)
+libknot/cookies/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) libknot/cookies/$(DEPDIR)
+	@: > libknot/cookies/$(DEPDIR)/$(am__dirstamp)
+libknot/cookies/libknot_la-alg-fnv64.lo:  \
+	libknot/cookies/$(am__dirstamp) \
+	libknot/cookies/$(DEPDIR)/$(am__dirstamp)
+libknot/cookies/libknot_la-client.lo: libknot/cookies/$(am__dirstamp) \
+	libknot/cookies/$(DEPDIR)/$(am__dirstamp)
+libknot/cookies/libknot_la-server.lo: libknot/cookies/$(am__dirstamp) \
+	libknot/cookies/$(DEPDIR)/$(am__dirstamp)
 libknot/libknot_la-descriptor.lo: libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
 libknot/libknot_la-dname.lo: libknot/$(am__dirstamp) \
@@ -1387,21 +1510,6 @@ libknot/packet/libknot_la-rrset-wire.lo:  \
 	libknot/packet/$(DEPDIR)/$(am__dirstamp)
 libknot/packet/libknot_la-wire.lo: libknot/packet/$(am__dirstamp) \
 	libknot/packet/$(DEPDIR)/$(am__dirstamp)
-libknot/processing/$(am__dirstamp):
-	@$(MKDIR_P) libknot/processing
-	@: > libknot/processing/$(am__dirstamp)
-libknot/processing/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) libknot/processing/$(DEPDIR)
-	@: > libknot/processing/$(DEPDIR)/$(am__dirstamp)
-libknot/processing/libknot_la-layer.lo:  \
-	libknot/processing/$(am__dirstamp) \
-	libknot/processing/$(DEPDIR)/$(am__dirstamp)
-libknot/processing/libknot_la-overlay.lo:  \
-	libknot/processing/$(am__dirstamp) \
-	libknot/processing/$(DEPDIR)/$(am__dirstamp)
-libknot/processing/libknot_la-requestor.lo:  \
-	libknot/processing/$(am__dirstamp) \
-	libknot/processing/$(DEPDIR)/$(am__dirstamp)
 libknot/libknot_la-rdata.lo: libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
 libknot/libknot_la-rdataset.lo: libknot/$(am__dirstamp) \
@@ -1430,6 +1538,9 @@ libknot/rrtype/libknot_la-nsec3param.lo:  \
 	libknot/rrtype/$(am__dirstamp) \
 	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
 libknot/rrtype/libknot_la-opt.lo: libknot/rrtype/$(am__dirstamp) \
+	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
+libknot/rrtype/libknot_la-opt-cookie.lo:  \
+	libknot/rrtype/$(am__dirstamp) \
 	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
 libknot/rrtype/libknot_la-rrsig.lo: libknot/rrtype/$(am__dirstamp) \
 	libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
@@ -1506,6 +1617,43 @@ knot/dnssec/libknotd_la-zone-nsec.lo: knot/dnssec/$(am__dirstamp) \
 	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
 knot/dnssec/libknotd_la-zone-sign.lo: knot/dnssec/$(am__dirstamp) \
 	knot/dnssec/$(DEPDIR)/$(am__dirstamp)
+knot/events/$(am__dirstamp):
+	@$(MKDIR_P) knot/events
+	@: > knot/events/$(am__dirstamp)
+knot/events/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/events/$(DEPDIR)
+	@: > knot/events/$(DEPDIR)/$(am__dirstamp)
+knot/events/libknotd_la-events.lo: knot/events/$(am__dirstamp) \
+	knot/events/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/$(am__dirstamp):
+	@$(MKDIR_P) knot/events/handlers
+	@: > knot/events/handlers/$(am__dirstamp)
+knot/events/handlers/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/events/handlers/$(DEPDIR)
+	@: > knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/libknotd_la-dnssec.lo:  \
+	knot/events/handlers/$(am__dirstamp) \
+	knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/libknotd_la-expire.lo:  \
+	knot/events/handlers/$(am__dirstamp) \
+	knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/libknotd_la-flush.lo:  \
+	knot/events/handlers/$(am__dirstamp) \
+	knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/libknotd_la-load.lo:  \
+	knot/events/handlers/$(am__dirstamp) \
+	knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/libknotd_la-notify.lo:  \
+	knot/events/handlers/$(am__dirstamp) \
+	knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/libknotd_la-refresh.lo:  \
+	knot/events/handlers/$(am__dirstamp) \
+	knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/handlers/libknotd_la-update.lo:  \
+	knot/events/handlers/$(am__dirstamp) \
+	knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+knot/events/libknotd_la-replan.lo: knot/events/$(am__dirstamp) \
+	knot/events/$(DEPDIR)/$(am__dirstamp)
 knot/modules/$(am__dirstamp):
 	@$(MKDIR_P) knot/modules
 	@: > knot/modules/$(am__dirstamp)
@@ -1537,9 +1685,6 @@ knot/nameserver/$(DEPDIR)/$(am__dirstamp):
 	@: > knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/libknotd_la-axfr.lo: knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
-knot/nameserver/libknotd_la-capture.lo:  \
-	knot/nameserver/$(am__dirstamp) \
-	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/libknotd_la-chaos.lo: knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/libknotd_la-internet.lo:  \
@@ -1551,9 +1696,6 @@ knot/nameserver/libknotd_la-notify.lo:  \
 	knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/libknotd_la-nsec_proofs.lo:  \
-	knot/nameserver/$(am__dirstamp) \
-	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
-knot/nameserver/libknotd_la-process_answer.lo:  \
 	knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/libknotd_la-process_query.lo:  \
@@ -1568,6 +1710,20 @@ knot/nameserver/libknotd_la-tsig_ctx.lo:  \
 knot/nameserver/libknotd_la-update.lo:  \
 	knot/nameserver/$(am__dirstamp) \
 	knot/nameserver/$(DEPDIR)/$(am__dirstamp)
+knot/query/$(am__dirstamp):
+	@$(MKDIR_P) knot/query
+	@: > knot/query/$(am__dirstamp)
+knot/query/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) knot/query/$(DEPDIR)
+	@: > knot/query/$(DEPDIR)/$(am__dirstamp)
+knot/query/libknotd_la-capture.lo: knot/query/$(am__dirstamp) \
+	knot/query/$(DEPDIR)/$(am__dirstamp)
+knot/query/libknotd_la-layer.lo: knot/query/$(am__dirstamp) \
+	knot/query/$(DEPDIR)/$(am__dirstamp)
+knot/query/libknotd_la-query.lo: knot/query/$(am__dirstamp) \
+	knot/query/$(DEPDIR)/$(am__dirstamp)
+knot/query/libknotd_la-requestor.lo: knot/query/$(am__dirstamp) \
+	knot/query/$(DEPDIR)/$(am__dirstamp)
 knot/common/$(am__dirstamp):
 	@$(MKDIR_P) knot/common
 	@: > knot/common/$(am__dirstamp)
@@ -1638,21 +1794,6 @@ knot/zone/$(DEPDIR)/$(am__dirstamp):
 	@: > knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/libknotd_la-contents.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
-knot/zone/events/$(am__dirstamp):
-	@$(MKDIR_P) knot/zone/events
-	@: > knot/zone/events/$(am__dirstamp)
-knot/zone/events/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) knot/zone/events/$(DEPDIR)
-	@: > knot/zone/events/$(DEPDIR)/$(am__dirstamp)
-knot/zone/events/libknotd_la-events.lo:  \
-	knot/zone/events/$(am__dirstamp) \
-	knot/zone/events/$(DEPDIR)/$(am__dirstamp)
-knot/zone/events/libknotd_la-handlers.lo:  \
-	knot/zone/events/$(am__dirstamp) \
-	knot/zone/events/$(DEPDIR)/$(am__dirstamp)
-knot/zone/events/libknotd_la-replan.lo:  \
-	knot/zone/events/$(am__dirstamp) \
-	knot/zone/events/$(DEPDIR)/$(am__dirstamp)
 knot/zone/libknotd_la-node.lo: knot/zone/$(am__dirstamp) \
 	knot/zone/$(DEPDIR)/$(am__dirstamp)
 knot/zone/libknotd_la-semantic-check.lo: knot/zone/$(am__dirstamp) \
@@ -1690,6 +1831,8 @@ utils/common/$(am__dirstamp):
 utils/common/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) utils/common/$(DEPDIR)
 	@: > utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/libknotus_la-cert.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
 utils/common/libknotus_la-exec.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
 utils/common/libknotus_la-hex.lo: utils/common/$(am__dirstamp) \
@@ -1705,6 +1848,8 @@ utils/common/libknotus_la-params.lo: utils/common/$(am__dirstamp) \
 utils/common/libknotus_la-resolv.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
 utils/common/libknotus_la-sign.lo: utils/common/$(am__dirstamp) \
+	utils/common/$(DEPDIR)/$(am__dirstamp)
+utils/common/libknotus_la-tls.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
 utils/common/libknotus_la-token.lo: utils/common/$(am__dirstamp) \
 	utils/common/$(DEPDIR)/$(am__dirstamp)
@@ -1921,7 +2066,51 @@ utils/kdig/kdig-kdig_params.$(OBJEXT): utils/kdig/$(am__dirstamp) \
 
 kdig$(EXEEXT): $(kdig_OBJECTS) $(kdig_DEPENDENCIES) $(EXTRA_kdig_DEPENDENCIES) 
 	@rm -f kdig$(EXEEXT)
-	$(AM_V_CCLD)$(kdig_LINK) $(kdig_OBJECTS) $(kdig_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(kdig_OBJECTS) $(kdig_LDADD) $(LIBS)
+utils/keymgr/cmdparse/$(am__dirstamp):
+	@$(MKDIR_P) utils/keymgr/cmdparse
+	@: > utils/keymgr/cmdparse/$(am__dirstamp)
+utils/keymgr/cmdparse/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/keymgr/cmdparse/$(DEPDIR)
+	@: > utils/keymgr/cmdparse/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/cmdparse/keymgr-command.$(OBJEXT):  \
+	utils/keymgr/cmdparse/$(am__dirstamp) \
+	utils/keymgr/cmdparse/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/cmdparse/keymgr-parameter.$(OBJEXT):  \
+	utils/keymgr/cmdparse/$(am__dirstamp) \
+	utils/keymgr/cmdparse/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/cmdparse/keymgr-value.$(OBJEXT):  \
+	utils/keymgr/cmdparse/$(am__dirstamp) \
+	utils/keymgr/cmdparse/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/legacy/$(am__dirstamp):
+	@$(MKDIR_P) utils/keymgr/legacy
+	@: > utils/keymgr/legacy/$(am__dirstamp)
+utils/keymgr/legacy/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/keymgr/legacy/$(DEPDIR)
+	@: > utils/keymgr/legacy/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/legacy/keymgr-key.$(OBJEXT):  \
+	utils/keymgr/legacy/$(am__dirstamp) \
+	utils/keymgr/legacy/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/legacy/keymgr-privkey.$(OBJEXT):  \
+	utils/keymgr/legacy/$(am__dirstamp) \
+	utils/keymgr/legacy/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/legacy/keymgr-pubkey.$(OBJEXT):  \
+	utils/keymgr/legacy/$(am__dirstamp) \
+	utils/keymgr/legacy/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/$(am__dirstamp):
+	@$(MKDIR_P) utils/keymgr
+	@: > utils/keymgr/$(am__dirstamp)
+utils/keymgr/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/keymgr/$(DEPDIR)
+	@: > utils/keymgr/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/keymgr-options.$(OBJEXT): utils/keymgr/$(am__dirstamp) \
+	utils/keymgr/$(DEPDIR)/$(am__dirstamp)
+utils/keymgr/keymgr-keymgr.$(OBJEXT): utils/keymgr/$(am__dirstamp) \
+	utils/keymgr/$(DEPDIR)/$(am__dirstamp)
+
+keymgr$(EXEEXT): $(keymgr_OBJECTS) $(keymgr_DEPENDENCIES) $(EXTRA_keymgr_DEPENDENCIES) 
+	@rm -f keymgr$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(keymgr_OBJECTS) $(keymgr_LDADD) $(LIBS)
 utils/kdig/khost-kdig_exec.$(OBJEXT): utils/kdig/$(am__dirstamp) \
 	utils/kdig/$(DEPDIR)/$(am__dirstamp)
 utils/kdig/khost-kdig_params.$(OBJEXT): utils/kdig/$(am__dirstamp) \
@@ -1939,7 +2128,7 @@ utils/khost/khost-khost_params.$(OBJEXT): utils/khost/$(am__dirstamp) \
 
 khost$(EXEEXT): $(khost_OBJECTS) $(khost_DEPENDENCIES) $(EXTRA_khost_DEPENDENCIES) 
 	@rm -f khost$(EXEEXT)
-	$(AM_V_CCLD)$(khost_LINK) $(khost_OBJECTS) $(khost_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(khost_OBJECTS) $(khost_LDADD) $(LIBS)
 utils/knot1to2/$(am__dirstamp):
 	@$(MKDIR_P) utils/knot1to2
 	@: > utils/knot1to2/$(am__dirstamp)
@@ -1992,25 +2181,53 @@ utils/knotd/knotd-main.$(OBJEXT): utils/knotd/$(am__dirstamp) \
 knotd$(EXEEXT): $(knotd_OBJECTS) $(knotd_DEPENDENCIES) $(EXTRA_knotd_DEPENDENCIES) 
 	@rm -f knotd$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(knotd_OBJECTS) $(knotd_LDADD) $(LIBS)
+utils/knsec3hash/$(am__dirstamp):
+	@$(MKDIR_P) utils/knsec3hash
+	@: > utils/knsec3hash/$(am__dirstamp)
+utils/knsec3hash/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/knsec3hash/$(DEPDIR)
+	@: > utils/knsec3hash/$(DEPDIR)/$(am__dirstamp)
+utils/knsec3hash/knsec3hash-knsec3hash.$(OBJEXT):  \
+	utils/knsec3hash/$(am__dirstamp) \
+	utils/knsec3hash/$(DEPDIR)/$(am__dirstamp)
+
+knsec3hash$(EXEEXT): $(knsec3hash_OBJECTS) $(knsec3hash_DEPENDENCIES) $(EXTRA_knsec3hash_DEPENDENCIES) 
+	@rm -f knsec3hash$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(knsec3hash_OBJECTS) $(knsec3hash_LDADD) $(LIBS)
 utils/knsupdate/$(am__dirstamp):
 	@$(MKDIR_P) utils/knsupdate
 	@: > utils/knsupdate/$(am__dirstamp)
 utils/knsupdate/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) utils/knsupdate/$(DEPDIR)
 	@: > utils/knsupdate/$(DEPDIR)/$(am__dirstamp)
-utils/knsupdate/knsupdate_exec.$(OBJEXT):  \
+utils/knsupdate/knsupdate-knsupdate_exec.$(OBJEXT):  \
 	utils/knsupdate/$(am__dirstamp) \
 	utils/knsupdate/$(DEPDIR)/$(am__dirstamp)
-utils/knsupdate/knsupdate_main.$(OBJEXT):  \
+utils/knsupdate/knsupdate-knsupdate_main.$(OBJEXT):  \
 	utils/knsupdate/$(am__dirstamp) \
 	utils/knsupdate/$(DEPDIR)/$(am__dirstamp)
-utils/knsupdate/knsupdate_params.$(OBJEXT):  \
+utils/knsupdate/knsupdate-knsupdate_params.$(OBJEXT):  \
 	utils/knsupdate/$(am__dirstamp) \
 	utils/knsupdate/$(DEPDIR)/$(am__dirstamp)
 
 knsupdate$(EXEEXT): $(knsupdate_OBJECTS) $(knsupdate_DEPENDENCIES) $(EXTRA_knsupdate_DEPENDENCIES) 
 	@rm -f knsupdate$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(knsupdate_OBJECTS) $(knsupdate_LDADD) $(LIBS)
+utils/kzonecheck/$(am__dirstamp):
+	@$(MKDIR_P) utils/kzonecheck
+	@: > utils/kzonecheck/$(am__dirstamp)
+utils/kzonecheck/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) utils/kzonecheck/$(DEPDIR)
+	@: > utils/kzonecheck/$(DEPDIR)/$(am__dirstamp)
+utils/kzonecheck/main.$(OBJEXT): utils/kzonecheck/$(am__dirstamp) \
+	utils/kzonecheck/$(DEPDIR)/$(am__dirstamp)
+utils/kzonecheck/zone_check.$(OBJEXT):  \
+	utils/kzonecheck/$(am__dirstamp) \
+	utils/kzonecheck/$(DEPDIR)/$(am__dirstamp)
+
+kzonecheck$(EXEEXT): $(kzonecheck_OBJECTS) $(kzonecheck_DEPENDENCIES) $(EXTRA_kzonecheck_DEPENDENCIES) 
+	@rm -f kzonecheck$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(kzonecheck_OBJECTS) $(kzonecheck_LDADD) $(LIBS)
 knot/modules/rosedb_tool-rosedb_tool.$(OBJEXT):  \
 	knot/modules/$(am__dirstamp) \
 	knot/modules/$(DEPDIR)/$(am__dirstamp)
@@ -2023,6 +2240,8 @@ mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f contrib/*.$(OBJEXT)
 	-rm -f contrib/*.lo
+	-rm -f contrib/fnv/*.$(OBJEXT)
+	-rm -f contrib/fnv/*.lo
 	-rm -f contrib/hat-trie/*.$(OBJEXT)
 	-rm -f contrib/hat-trie/*.lo
 	-rm -f contrib/lmdb/*.$(OBJEXT)
@@ -2041,12 +2260,18 @@ mostlyclean-compile:
 	-rm -f knot/ctl/*.lo
 	-rm -f knot/dnssec/*.$(OBJEXT)
 	-rm -f knot/dnssec/*.lo
+	-rm -f knot/events/*.$(OBJEXT)
+	-rm -f knot/events/*.lo
+	-rm -f knot/events/handlers/*.$(OBJEXT)
+	-rm -f knot/events/handlers/*.lo
 	-rm -f knot/modules/*.$(OBJEXT)
 	-rm -f knot/modules/*.lo
 	-rm -f knot/modules/online_sign/*.$(OBJEXT)
 	-rm -f knot/modules/online_sign/*.lo
 	-rm -f knot/nameserver/*.$(OBJEXT)
 	-rm -f knot/nameserver/*.lo
+	-rm -f knot/query/*.$(OBJEXT)
+	-rm -f knot/query/*.lo
 	-rm -f knot/server/*.$(OBJEXT)
 	-rm -f knot/server/*.lo
 	-rm -f knot/updates/*.$(OBJEXT)
@@ -2055,18 +2280,16 @@ mostlyclean-compile:
 	-rm -f knot/worker/*.lo
 	-rm -f knot/zone/*.$(OBJEXT)
 	-rm -f knot/zone/*.lo
-	-rm -f knot/zone/events/*.$(OBJEXT)
-	-rm -f knot/zone/events/*.lo
 	-rm -f libknot/*.$(OBJEXT)
 	-rm -f libknot/*.lo
 	-rm -f libknot/control/*.$(OBJEXT)
 	-rm -f libknot/control/*.lo
+	-rm -f libknot/cookies/*.$(OBJEXT)
+	-rm -f libknot/cookies/*.lo
 	-rm -f libknot/db/*.$(OBJEXT)
 	-rm -f libknot/db/*.lo
 	-rm -f libknot/packet/*.$(OBJEXT)
 	-rm -f libknot/packet/*.lo
-	-rm -f libknot/processing/*.$(OBJEXT)
-	-rm -f libknot/processing/*.lo
 	-rm -f libknot/rrtype/*.$(OBJEXT)
 	-rm -f libknot/rrtype/*.lo
 	-rm -f libknot/yparser/*.$(OBJEXT)
@@ -2074,11 +2297,16 @@ mostlyclean-compile:
 	-rm -f utils/common/*.$(OBJEXT)
 	-rm -f utils/common/*.lo
 	-rm -f utils/kdig/*.$(OBJEXT)
+	-rm -f utils/keymgr/*.$(OBJEXT)
+	-rm -f utils/keymgr/cmdparse/*.$(OBJEXT)
+	-rm -f utils/keymgr/legacy/*.$(OBJEXT)
 	-rm -f utils/khost/*.$(OBJEXT)
 	-rm -f utils/knot1to2/*.$(OBJEXT)
 	-rm -f utils/knotc/*.$(OBJEXT)
 	-rm -f utils/knotd/*.$(OBJEXT)
+	-rm -f utils/knsec3hash/*.$(OBJEXT)
 	-rm -f utils/knsupdate/*.$(OBJEXT)
+	-rm -f utils/kzonecheck/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
@@ -2093,6 +2321,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/print.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/sockaddr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/string.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/fnv/$(DEPDIR)/hash_64a.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/hat-trie/$(DEPDIR)/hat-trie.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/lmdb/$(DEPDIR)/libknot_la-mdb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@contrib/lmdb/$(DEPDIR)/libknot_la-midl.Plo@am__quote@
@@ -2124,6 +2353,15 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-keys.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-nsec.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/dnssec/$(DEPDIR)/libknotd_la-zone-sign.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/$(DEPDIR)/libknotd_la-events.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/$(DEPDIR)/libknotd_la-replan.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-dnssec.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-expire.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-flush.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-load.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-notify.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-refresh.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-update.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-dnsproxy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-dnstap.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-rosedb.Plo@am__quote@
@@ -2132,17 +2370,19 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/online_sign/$(DEPDIR)/libknotd_la-module.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/online_sign/$(DEPDIR)/libknotd_la-nsec_next.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-axfr.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-capture.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-chaos.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-internet.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-ixfr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-notify.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-nsec_proofs.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-process_answer.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-process_query.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-query_module.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-tsig_ctx.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/nameserver/$(DEPDIR)/libknotd_la-update.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/query/$(DEPDIR)/libknotd_la-capture.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/query/$(DEPDIR)/libknotd_la-layer.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/query/$(DEPDIR)/libknotd_la-query.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/query/$(DEPDIR)/libknotd_la-requestor.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/libknotd_la-dthreads.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/libknotd_la-journal.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/server/$(DEPDIR)/libknotd_la-rrl.Plo@am__quote@
@@ -2170,9 +2410,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/libknotd_la-zonedb-load.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/libknotd_la-zonedb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/zone/$(DEPDIR)/libknotd_la-zonefile.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/events/$(DEPDIR)/libknotd_la-events.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/events/$(DEPDIR)/libknotd_la-handlers.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@knot/zone/events/$(DEPDIR)/libknotd_la-replan.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/libknot_la-binary.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/libknot_la-codes.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/libknot_la-descriptor.Plo@am__quote@
@@ -2185,21 +2422,22 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/libknot_la-tsig-op.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/libknot_la-tsig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/control/$(DEPDIR)/libknot_la-control.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/cookies/$(DEPDIR)/libknot_la-alg-fnv64.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/cookies/$(DEPDIR)/libknot_la-client.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/cookies/$(DEPDIR)/libknot_la-server.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/db/$(DEPDIR)/libknot_la-db_lmdb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/db/$(DEPDIR)/libknot_la-db_trie.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/libknot_la-compr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/libknot_la-pkt.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/libknot_la-rrset-wire.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/packet/$(DEPDIR)/libknot_la-wire.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/processing/$(DEPDIR)/libknot_la-layer.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/processing/$(DEPDIR)/libknot_la-overlay.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@libknot/processing/$(DEPDIR)/libknot_la-requestor.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-aaaa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-dnskey.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-ds.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-naptr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-nsec3.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-nsec3param.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-opt-cookie.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-opt.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-rrsig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/rrtype/$(DEPDIR)/libknot_la-soa.Plo@am__quote@
@@ -2209,6 +2447,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/yparser/$(DEPDIR)/ypformat.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/yparser/$(DEPDIR)/ypscheme.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/yparser/$(DEPDIR)/yptrafo.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-cert.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-exec.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-hex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-lookup.Plo@am__quote@
@@ -2217,12 +2456,21 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-params.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-resolv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-sign.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-tls.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/common/$(DEPDIR)/libknotus_la-token.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/kdig/$(DEPDIR)/kdig-kdig_exec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/kdig/$(DEPDIR)/kdig-kdig_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/kdig/$(DEPDIR)/kdig-kdig_params.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/kdig/$(DEPDIR)/khost-kdig_exec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/kdig/$(DEPDIR)/khost-kdig_params.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/$(DEPDIR)/keymgr-keymgr.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/$(DEPDIR)/keymgr-options.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/cmdparse/$(DEPDIR)/keymgr-command.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/cmdparse/$(DEPDIR)/keymgr-parameter.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/cmdparse/$(DEPDIR)/keymgr-value.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/legacy/$(DEPDIR)/keymgr-key.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/legacy/$(DEPDIR)/keymgr-privkey.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/keymgr/legacy/$(DEPDIR)/keymgr-pubkey.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/khost/$(DEPDIR)/khost-khost_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/khost/$(DEPDIR)/khost-khost_params.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knot1to2/$(DEPDIR)/cf-lex.Po@am__quote@
@@ -2236,9 +2484,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knotc/$(DEPDIR)/knotc-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knotc/$(DEPDIR)/knotc-process.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@utils/knotd/$(DEPDIR)/knotd-main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate_exec.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate_main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate_params.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/knsec3hash/$(DEPDIR)/knsec3hash-knsec3hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_exec.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_params.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/kzonecheck/$(DEPDIR)/main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/kzonecheck/$(DEPDIR)/zone_check.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -2284,6 +2535,27 @@ libknot/control/libknot_la-control.lo: libknot/control/control.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/control/control.c' object='libknot/control/libknot_la-control.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/control/libknot_la-control.lo `test -f 'libknot/control/control.c' || echo '$(srcdir)/'`libknot/control/control.c
+
+libknot/cookies/libknot_la-alg-fnv64.lo: libknot/cookies/alg-fnv64.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/cookies/libknot_la-alg-fnv64.lo -MD -MP -MF libknot/cookies/$(DEPDIR)/libknot_la-alg-fnv64.Tpo -c -o libknot/cookies/libknot_la-alg-fnv64.lo `test -f 'libknot/cookies/alg-fnv64.c' || echo '$(srcdir)/'`libknot/cookies/alg-fnv64.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/cookies/$(DEPDIR)/libknot_la-alg-fnv64.Tpo libknot/cookies/$(DEPDIR)/libknot_la-alg-fnv64.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/cookies/alg-fnv64.c' object='libknot/cookies/libknot_la-alg-fnv64.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/cookies/libknot_la-alg-fnv64.lo `test -f 'libknot/cookies/alg-fnv64.c' || echo '$(srcdir)/'`libknot/cookies/alg-fnv64.c
+
+libknot/cookies/libknot_la-client.lo: libknot/cookies/client.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/cookies/libknot_la-client.lo -MD -MP -MF libknot/cookies/$(DEPDIR)/libknot_la-client.Tpo -c -o libknot/cookies/libknot_la-client.lo `test -f 'libknot/cookies/client.c' || echo '$(srcdir)/'`libknot/cookies/client.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/cookies/$(DEPDIR)/libknot_la-client.Tpo libknot/cookies/$(DEPDIR)/libknot_la-client.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/cookies/client.c' object='libknot/cookies/libknot_la-client.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/cookies/libknot_la-client.lo `test -f 'libknot/cookies/client.c' || echo '$(srcdir)/'`libknot/cookies/client.c
+
+libknot/cookies/libknot_la-server.lo: libknot/cookies/server.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/cookies/libknot_la-server.lo -MD -MP -MF libknot/cookies/$(DEPDIR)/libknot_la-server.Tpo -c -o libknot/cookies/libknot_la-server.lo `test -f 'libknot/cookies/server.c' || echo '$(srcdir)/'`libknot/cookies/server.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/cookies/$(DEPDIR)/libknot_la-server.Tpo libknot/cookies/$(DEPDIR)/libknot_la-server.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/cookies/server.c' object='libknot/cookies/libknot_la-server.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/cookies/libknot_la-server.lo `test -f 'libknot/cookies/server.c' || echo '$(srcdir)/'`libknot/cookies/server.c
 
 libknot/libknot_la-descriptor.lo: libknot/descriptor.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/libknot_la-descriptor.lo -MD -MP -MF libknot/$(DEPDIR)/libknot_la-descriptor.Tpo -c -o libknot/libknot_la-descriptor.lo `test -f 'libknot/descriptor.c' || echo '$(srcdir)/'`libknot/descriptor.c
@@ -2347,27 +2619,6 @@ libknot/packet/libknot_la-wire.lo: libknot/packet/wire.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/packet/wire.c' object='libknot/packet/libknot_la-wire.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/packet/libknot_la-wire.lo `test -f 'libknot/packet/wire.c' || echo '$(srcdir)/'`libknot/packet/wire.c
-
-libknot/processing/libknot_la-layer.lo: libknot/processing/layer.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/processing/libknot_la-layer.lo -MD -MP -MF libknot/processing/$(DEPDIR)/libknot_la-layer.Tpo -c -o libknot/processing/libknot_la-layer.lo `test -f 'libknot/processing/layer.c' || echo '$(srcdir)/'`libknot/processing/layer.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/processing/$(DEPDIR)/libknot_la-layer.Tpo libknot/processing/$(DEPDIR)/libknot_la-layer.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/processing/layer.c' object='libknot/processing/libknot_la-layer.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/processing/libknot_la-layer.lo `test -f 'libknot/processing/layer.c' || echo '$(srcdir)/'`libknot/processing/layer.c
-
-libknot/processing/libknot_la-overlay.lo: libknot/processing/overlay.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/processing/libknot_la-overlay.lo -MD -MP -MF libknot/processing/$(DEPDIR)/libknot_la-overlay.Tpo -c -o libknot/processing/libknot_la-overlay.lo `test -f 'libknot/processing/overlay.c' || echo '$(srcdir)/'`libknot/processing/overlay.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/processing/$(DEPDIR)/libknot_la-overlay.Tpo libknot/processing/$(DEPDIR)/libknot_la-overlay.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/processing/overlay.c' object='libknot/processing/libknot_la-overlay.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/processing/libknot_la-overlay.lo `test -f 'libknot/processing/overlay.c' || echo '$(srcdir)/'`libknot/processing/overlay.c
-
-libknot/processing/libknot_la-requestor.lo: libknot/processing/requestor.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/processing/libknot_la-requestor.lo -MD -MP -MF libknot/processing/$(DEPDIR)/libknot_la-requestor.Tpo -c -o libknot/processing/libknot_la-requestor.lo `test -f 'libknot/processing/requestor.c' || echo '$(srcdir)/'`libknot/processing/requestor.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/processing/$(DEPDIR)/libknot_la-requestor.Tpo libknot/processing/$(DEPDIR)/libknot_la-requestor.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/processing/requestor.c' object='libknot/processing/libknot_la-requestor.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/processing/libknot_la-requestor.lo `test -f 'libknot/processing/requestor.c' || echo '$(srcdir)/'`libknot/processing/requestor.c
 
 libknot/libknot_la-rdata.lo: libknot/rdata.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/libknot_la-rdata.lo -MD -MP -MF libknot/$(DEPDIR)/libknot_la-rdata.Tpo -c -o libknot/libknot_la-rdata.lo `test -f 'libknot/rdata.c' || echo '$(srcdir)/'`libknot/rdata.c
@@ -2445,6 +2696,13 @@ libknot/rrtype/libknot_la-opt.lo: libknot/rrtype/opt.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/rrtype/opt.c' object='libknot/rrtype/libknot_la-opt.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/rrtype/libknot_la-opt.lo `test -f 'libknot/rrtype/opt.c' || echo '$(srcdir)/'`libknot/rrtype/opt.c
+
+libknot/rrtype/libknot_la-opt-cookie.lo: libknot/rrtype/opt-cookie.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/rrtype/libknot_la-opt-cookie.lo -MD -MP -MF libknot/rrtype/$(DEPDIR)/libknot_la-opt-cookie.Tpo -c -o libknot/rrtype/libknot_la-opt-cookie.lo `test -f 'libknot/rrtype/opt-cookie.c' || echo '$(srcdir)/'`libknot/rrtype/opt-cookie.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libknot/rrtype/$(DEPDIR)/libknot_la-opt-cookie.Tpo libknot/rrtype/$(DEPDIR)/libknot_la-opt-cookie.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libknot/rrtype/opt-cookie.c' object='libknot/rrtype/libknot_la-opt-cookie.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -c -o libknot/rrtype/libknot_la-opt-cookie.lo `test -f 'libknot/rrtype/opt-cookie.c' || echo '$(srcdir)/'`libknot/rrtype/opt-cookie.c
 
 libknot/rrtype/libknot_la-rrsig.lo: libknot/rrtype/rrsig.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknot_la_CPPFLAGS) $(CPPFLAGS) $(libknot_la_CFLAGS) $(CFLAGS) -MT libknot/rrtype/libknot_la-rrsig.lo -MD -MP -MF libknot/rrtype/$(DEPDIR)/libknot_la-rrsig.Tpo -c -o libknot/rrtype/libknot_la-rrsig.lo `test -f 'libknot/rrtype/rrsig.c' || echo '$(srcdir)/'`libknot/rrtype/rrsig.c
@@ -2614,6 +2872,69 @@ knot/dnssec/libknotd_la-zone-sign.lo: knot/dnssec/zone-sign.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/dnssec/libknotd_la-zone-sign.lo `test -f 'knot/dnssec/zone-sign.c' || echo '$(srcdir)/'`knot/dnssec/zone-sign.c
 
+knot/events/libknotd_la-events.lo: knot/events/events.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/libknotd_la-events.lo -MD -MP -MF knot/events/$(DEPDIR)/libknotd_la-events.Tpo -c -o knot/events/libknotd_la-events.lo `test -f 'knot/events/events.c' || echo '$(srcdir)/'`knot/events/events.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/$(DEPDIR)/libknotd_la-events.Tpo knot/events/$(DEPDIR)/libknotd_la-events.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/events.c' object='knot/events/libknotd_la-events.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/libknotd_la-events.lo `test -f 'knot/events/events.c' || echo '$(srcdir)/'`knot/events/events.c
+
+knot/events/handlers/libknotd_la-dnssec.lo: knot/events/handlers/dnssec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/handlers/libknotd_la-dnssec.lo -MD -MP -MF knot/events/handlers/$(DEPDIR)/libknotd_la-dnssec.Tpo -c -o knot/events/handlers/libknotd_la-dnssec.lo `test -f 'knot/events/handlers/dnssec.c' || echo '$(srcdir)/'`knot/events/handlers/dnssec.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/handlers/$(DEPDIR)/libknotd_la-dnssec.Tpo knot/events/handlers/$(DEPDIR)/libknotd_la-dnssec.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/handlers/dnssec.c' object='knot/events/handlers/libknotd_la-dnssec.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/handlers/libknotd_la-dnssec.lo `test -f 'knot/events/handlers/dnssec.c' || echo '$(srcdir)/'`knot/events/handlers/dnssec.c
+
+knot/events/handlers/libknotd_la-expire.lo: knot/events/handlers/expire.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/handlers/libknotd_la-expire.lo -MD -MP -MF knot/events/handlers/$(DEPDIR)/libknotd_la-expire.Tpo -c -o knot/events/handlers/libknotd_la-expire.lo `test -f 'knot/events/handlers/expire.c' || echo '$(srcdir)/'`knot/events/handlers/expire.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/handlers/$(DEPDIR)/libknotd_la-expire.Tpo knot/events/handlers/$(DEPDIR)/libknotd_la-expire.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/handlers/expire.c' object='knot/events/handlers/libknotd_la-expire.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/handlers/libknotd_la-expire.lo `test -f 'knot/events/handlers/expire.c' || echo '$(srcdir)/'`knot/events/handlers/expire.c
+
+knot/events/handlers/libknotd_la-flush.lo: knot/events/handlers/flush.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/handlers/libknotd_la-flush.lo -MD -MP -MF knot/events/handlers/$(DEPDIR)/libknotd_la-flush.Tpo -c -o knot/events/handlers/libknotd_la-flush.lo `test -f 'knot/events/handlers/flush.c' || echo '$(srcdir)/'`knot/events/handlers/flush.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/handlers/$(DEPDIR)/libknotd_la-flush.Tpo knot/events/handlers/$(DEPDIR)/libknotd_la-flush.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/handlers/flush.c' object='knot/events/handlers/libknotd_la-flush.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/handlers/libknotd_la-flush.lo `test -f 'knot/events/handlers/flush.c' || echo '$(srcdir)/'`knot/events/handlers/flush.c
+
+knot/events/handlers/libknotd_la-load.lo: knot/events/handlers/load.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/handlers/libknotd_la-load.lo -MD -MP -MF knot/events/handlers/$(DEPDIR)/libknotd_la-load.Tpo -c -o knot/events/handlers/libknotd_la-load.lo `test -f 'knot/events/handlers/load.c' || echo '$(srcdir)/'`knot/events/handlers/load.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/handlers/$(DEPDIR)/libknotd_la-load.Tpo knot/events/handlers/$(DEPDIR)/libknotd_la-load.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/handlers/load.c' object='knot/events/handlers/libknotd_la-load.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/handlers/libknotd_la-load.lo `test -f 'knot/events/handlers/load.c' || echo '$(srcdir)/'`knot/events/handlers/load.c
+
+knot/events/handlers/libknotd_la-notify.lo: knot/events/handlers/notify.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/handlers/libknotd_la-notify.lo -MD -MP -MF knot/events/handlers/$(DEPDIR)/libknotd_la-notify.Tpo -c -o knot/events/handlers/libknotd_la-notify.lo `test -f 'knot/events/handlers/notify.c' || echo '$(srcdir)/'`knot/events/handlers/notify.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/handlers/$(DEPDIR)/libknotd_la-notify.Tpo knot/events/handlers/$(DEPDIR)/libknotd_la-notify.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/handlers/notify.c' object='knot/events/handlers/libknotd_la-notify.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/handlers/libknotd_la-notify.lo `test -f 'knot/events/handlers/notify.c' || echo '$(srcdir)/'`knot/events/handlers/notify.c
+
+knot/events/handlers/libknotd_la-refresh.lo: knot/events/handlers/refresh.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/handlers/libknotd_la-refresh.lo -MD -MP -MF knot/events/handlers/$(DEPDIR)/libknotd_la-refresh.Tpo -c -o knot/events/handlers/libknotd_la-refresh.lo `test -f 'knot/events/handlers/refresh.c' || echo '$(srcdir)/'`knot/events/handlers/refresh.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/handlers/$(DEPDIR)/libknotd_la-refresh.Tpo knot/events/handlers/$(DEPDIR)/libknotd_la-refresh.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/handlers/refresh.c' object='knot/events/handlers/libknotd_la-refresh.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/handlers/libknotd_la-refresh.lo `test -f 'knot/events/handlers/refresh.c' || echo '$(srcdir)/'`knot/events/handlers/refresh.c
+
+knot/events/handlers/libknotd_la-update.lo: knot/events/handlers/update.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/handlers/libknotd_la-update.lo -MD -MP -MF knot/events/handlers/$(DEPDIR)/libknotd_la-update.Tpo -c -o knot/events/handlers/libknotd_la-update.lo `test -f 'knot/events/handlers/update.c' || echo '$(srcdir)/'`knot/events/handlers/update.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/handlers/$(DEPDIR)/libknotd_la-update.Tpo knot/events/handlers/$(DEPDIR)/libknotd_la-update.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/handlers/update.c' object='knot/events/handlers/libknotd_la-update.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/handlers/libknotd_la-update.lo `test -f 'knot/events/handlers/update.c' || echo '$(srcdir)/'`knot/events/handlers/update.c
+
+knot/events/libknotd_la-replan.lo: knot/events/replan.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/events/libknotd_la-replan.lo -MD -MP -MF knot/events/$(DEPDIR)/libknotd_la-replan.Tpo -c -o knot/events/libknotd_la-replan.lo `test -f 'knot/events/replan.c' || echo '$(srcdir)/'`knot/events/replan.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/events/$(DEPDIR)/libknotd_la-replan.Tpo knot/events/$(DEPDIR)/libknotd_la-replan.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/events/replan.c' object='knot/events/libknotd_la-replan.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/events/libknotd_la-replan.lo `test -f 'knot/events/replan.c' || echo '$(srcdir)/'`knot/events/replan.c
+
 knot/modules/libknotd_la-dnsproxy.lo: knot/modules/dnsproxy.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/modules/libknotd_la-dnsproxy.lo -MD -MP -MF knot/modules/$(DEPDIR)/libknotd_la-dnsproxy.Tpo -c -o knot/modules/libknotd_la-dnsproxy.lo `test -f 'knot/modules/dnsproxy.c' || echo '$(srcdir)/'`knot/modules/dnsproxy.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/modules/$(DEPDIR)/libknotd_la-dnsproxy.Tpo knot/modules/$(DEPDIR)/libknotd_la-dnsproxy.Plo
@@ -2648,13 +2969,6 @@ knot/nameserver/libknotd_la-axfr.lo: knot/nameserver/axfr.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/nameserver/axfr.c' object='knot/nameserver/libknotd_la-axfr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/nameserver/libknotd_la-axfr.lo `test -f 'knot/nameserver/axfr.c' || echo '$(srcdir)/'`knot/nameserver/axfr.c
-
-knot/nameserver/libknotd_la-capture.lo: knot/nameserver/capture.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/nameserver/libknotd_la-capture.lo -MD -MP -MF knot/nameserver/$(DEPDIR)/libknotd_la-capture.Tpo -c -o knot/nameserver/libknotd_la-capture.lo `test -f 'knot/nameserver/capture.c' || echo '$(srcdir)/'`knot/nameserver/capture.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/nameserver/$(DEPDIR)/libknotd_la-capture.Tpo knot/nameserver/$(DEPDIR)/libknotd_la-capture.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/nameserver/capture.c' object='knot/nameserver/libknotd_la-capture.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/nameserver/libknotd_la-capture.lo `test -f 'knot/nameserver/capture.c' || echo '$(srcdir)/'`knot/nameserver/capture.c
 
 knot/nameserver/libknotd_la-chaos.lo: knot/nameserver/chaos.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/nameserver/libknotd_la-chaos.lo -MD -MP -MF knot/nameserver/$(DEPDIR)/libknotd_la-chaos.Tpo -c -o knot/nameserver/libknotd_la-chaos.lo `test -f 'knot/nameserver/chaos.c' || echo '$(srcdir)/'`knot/nameserver/chaos.c
@@ -2691,13 +3005,6 @@ knot/nameserver/libknotd_la-nsec_proofs.lo: knot/nameserver/nsec_proofs.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/nameserver/libknotd_la-nsec_proofs.lo `test -f 'knot/nameserver/nsec_proofs.c' || echo '$(srcdir)/'`knot/nameserver/nsec_proofs.c
 
-knot/nameserver/libknotd_la-process_answer.lo: knot/nameserver/process_answer.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/nameserver/libknotd_la-process_answer.lo -MD -MP -MF knot/nameserver/$(DEPDIR)/libknotd_la-process_answer.Tpo -c -o knot/nameserver/libknotd_la-process_answer.lo `test -f 'knot/nameserver/process_answer.c' || echo '$(srcdir)/'`knot/nameserver/process_answer.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/nameserver/$(DEPDIR)/libknotd_la-process_answer.Tpo knot/nameserver/$(DEPDIR)/libknotd_la-process_answer.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/nameserver/process_answer.c' object='knot/nameserver/libknotd_la-process_answer.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/nameserver/libknotd_la-process_answer.lo `test -f 'knot/nameserver/process_answer.c' || echo '$(srcdir)/'`knot/nameserver/process_answer.c
-
 knot/nameserver/libknotd_la-process_query.lo: knot/nameserver/process_query.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/nameserver/libknotd_la-process_query.lo -MD -MP -MF knot/nameserver/$(DEPDIR)/libknotd_la-process_query.Tpo -c -o knot/nameserver/libknotd_la-process_query.lo `test -f 'knot/nameserver/process_query.c' || echo '$(srcdir)/'`knot/nameserver/process_query.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/nameserver/$(DEPDIR)/libknotd_la-process_query.Tpo knot/nameserver/$(DEPDIR)/libknotd_la-process_query.Plo
@@ -2725,6 +3032,34 @@ knot/nameserver/libknotd_la-update.lo: knot/nameserver/update.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/nameserver/update.c' object='knot/nameserver/libknotd_la-update.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/nameserver/libknotd_la-update.lo `test -f 'knot/nameserver/update.c' || echo '$(srcdir)/'`knot/nameserver/update.c
+
+knot/query/libknotd_la-capture.lo: knot/query/capture.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/query/libknotd_la-capture.lo -MD -MP -MF knot/query/$(DEPDIR)/libknotd_la-capture.Tpo -c -o knot/query/libknotd_la-capture.lo `test -f 'knot/query/capture.c' || echo '$(srcdir)/'`knot/query/capture.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/query/$(DEPDIR)/libknotd_la-capture.Tpo knot/query/$(DEPDIR)/libknotd_la-capture.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/query/capture.c' object='knot/query/libknotd_la-capture.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/query/libknotd_la-capture.lo `test -f 'knot/query/capture.c' || echo '$(srcdir)/'`knot/query/capture.c
+
+knot/query/libknotd_la-layer.lo: knot/query/layer.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/query/libknotd_la-layer.lo -MD -MP -MF knot/query/$(DEPDIR)/libknotd_la-layer.Tpo -c -o knot/query/libknotd_la-layer.lo `test -f 'knot/query/layer.c' || echo '$(srcdir)/'`knot/query/layer.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/query/$(DEPDIR)/libknotd_la-layer.Tpo knot/query/$(DEPDIR)/libknotd_la-layer.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/query/layer.c' object='knot/query/libknotd_la-layer.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/query/libknotd_la-layer.lo `test -f 'knot/query/layer.c' || echo '$(srcdir)/'`knot/query/layer.c
+
+knot/query/libknotd_la-query.lo: knot/query/query.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/query/libknotd_la-query.lo -MD -MP -MF knot/query/$(DEPDIR)/libknotd_la-query.Tpo -c -o knot/query/libknotd_la-query.lo `test -f 'knot/query/query.c' || echo '$(srcdir)/'`knot/query/query.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/query/$(DEPDIR)/libknotd_la-query.Tpo knot/query/$(DEPDIR)/libknotd_la-query.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/query/query.c' object='knot/query/libknotd_la-query.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/query/libknotd_la-query.lo `test -f 'knot/query/query.c' || echo '$(srcdir)/'`knot/query/query.c
+
+knot/query/libknotd_la-requestor.lo: knot/query/requestor.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/query/libknotd_la-requestor.lo -MD -MP -MF knot/query/$(DEPDIR)/libknotd_la-requestor.Tpo -c -o knot/query/libknotd_la-requestor.lo `test -f 'knot/query/requestor.c' || echo '$(srcdir)/'`knot/query/requestor.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/query/$(DEPDIR)/libknotd_la-requestor.Tpo knot/query/$(DEPDIR)/libknotd_la-requestor.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/query/requestor.c' object='knot/query/libknotd_la-requestor.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/query/libknotd_la-requestor.lo `test -f 'knot/query/requestor.c' || echo '$(srcdir)/'`knot/query/requestor.c
 
 knot/common/libknotd_la-evsched.lo: knot/common/evsched.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/common/libknotd_la-evsched.lo -MD -MP -MF knot/common/$(DEPDIR)/libknotd_la-evsched.Tpo -c -o knot/common/libknotd_la-evsched.lo `test -f 'knot/common/evsched.c' || echo '$(srcdir)/'`knot/common/evsched.c
@@ -2866,27 +3201,6 @@ knot/zone/libknotd_la-contents.lo: knot/zone/contents.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/zone/libknotd_la-contents.lo `test -f 'knot/zone/contents.c' || echo '$(srcdir)/'`knot/zone/contents.c
 
-knot/zone/events/libknotd_la-events.lo: knot/zone/events/events.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/zone/events/libknotd_la-events.lo -MD -MP -MF knot/zone/events/$(DEPDIR)/libknotd_la-events.Tpo -c -o knot/zone/events/libknotd_la-events.lo `test -f 'knot/zone/events/events.c' || echo '$(srcdir)/'`knot/zone/events/events.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/zone/events/$(DEPDIR)/libknotd_la-events.Tpo knot/zone/events/$(DEPDIR)/libknotd_la-events.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/zone/events/events.c' object='knot/zone/events/libknotd_la-events.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/zone/events/libknotd_la-events.lo `test -f 'knot/zone/events/events.c' || echo '$(srcdir)/'`knot/zone/events/events.c
-
-knot/zone/events/libknotd_la-handlers.lo: knot/zone/events/handlers.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/zone/events/libknotd_la-handlers.lo -MD -MP -MF knot/zone/events/$(DEPDIR)/libknotd_la-handlers.Tpo -c -o knot/zone/events/libknotd_la-handlers.lo `test -f 'knot/zone/events/handlers.c' || echo '$(srcdir)/'`knot/zone/events/handlers.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/zone/events/$(DEPDIR)/libknotd_la-handlers.Tpo knot/zone/events/$(DEPDIR)/libknotd_la-handlers.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/zone/events/handlers.c' object='knot/zone/events/libknotd_la-handlers.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/zone/events/libknotd_la-handlers.lo `test -f 'knot/zone/events/handlers.c' || echo '$(srcdir)/'`knot/zone/events/handlers.c
-
-knot/zone/events/libknotd_la-replan.lo: knot/zone/events/replan.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/zone/events/libknotd_la-replan.lo -MD -MP -MF knot/zone/events/$(DEPDIR)/libknotd_la-replan.Tpo -c -o knot/zone/events/libknotd_la-replan.lo `test -f 'knot/zone/events/replan.c' || echo '$(srcdir)/'`knot/zone/events/replan.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/zone/events/$(DEPDIR)/libknotd_la-replan.Tpo knot/zone/events/$(DEPDIR)/libknotd_la-replan.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/zone/events/replan.c' object='knot/zone/events/libknotd_la-replan.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/zone/events/libknotd_la-replan.lo `test -f 'knot/zone/events/replan.c' || echo '$(srcdir)/'`knot/zone/events/replan.c
-
 knot/zone/libknotd_la-node.lo: knot/zone/node.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/zone/libknotd_la-node.lo -MD -MP -MF knot/zone/$(DEPDIR)/libknotd_la-node.Tpo -c -o knot/zone/libknotd_la-node.lo `test -f 'knot/zone/node.c' || echo '$(srcdir)/'`knot/zone/node.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/zone/$(DEPDIR)/libknotd_la-node.Tpo knot/zone/$(DEPDIR)/libknotd_la-node.Plo
@@ -2985,6 +3299,13 @@ knot/modules/libknotd_la-rosedb.lo: knot/modules/rosedb.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/modules/libknotd_la-rosedb.lo `test -f 'knot/modules/rosedb.c' || echo '$(srcdir)/'`knot/modules/rosedb.c
 
+utils/common/libknotus_la-cert.lo: utils/common/cert.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-cert.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-cert.Tpo -c -o utils/common/libknotus_la-cert.lo `test -f 'utils/common/cert.c' || echo '$(srcdir)/'`utils/common/cert.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-cert.Tpo utils/common/$(DEPDIR)/libknotus_la-cert.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/cert.c' object='utils/common/libknotus_la-cert.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-cert.lo `test -f 'utils/common/cert.c' || echo '$(srcdir)/'`utils/common/cert.c
+
 utils/common/libknotus_la-exec.lo: utils/common/exec.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-exec.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-exec.Tpo -c -o utils/common/libknotus_la-exec.lo `test -f 'utils/common/exec.c' || echo '$(srcdir)/'`utils/common/exec.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-exec.Tpo utils/common/$(DEPDIR)/libknotus_la-exec.Plo
@@ -3041,6 +3362,13 @@ utils/common/libknotus_la-sign.lo: utils/common/sign.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-sign.lo `test -f 'utils/common/sign.c' || echo '$(srcdir)/'`utils/common/sign.c
 
+utils/common/libknotus_la-tls.lo: utils/common/tls.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-tls.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-tls.Tpo -c -o utils/common/libknotus_la-tls.lo `test -f 'utils/common/tls.c' || echo '$(srcdir)/'`utils/common/tls.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-tls.Tpo utils/common/$(DEPDIR)/libknotus_la-tls.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/common/tls.c' object='utils/common/libknotus_la-tls.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-tls.lo `test -f 'utils/common/tls.c' || echo '$(srcdir)/'`utils/common/tls.c
+
 utils/common/libknotus_la-token.lo: utils/common/token.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/common/libknotus_la-token.lo -MD -MP -MF utils/common/$(DEPDIR)/libknotus_la-token.Tpo -c -o utils/common/libknotus_la-token.lo `test -f 'utils/common/token.c' || echo '$(srcdir)/'`utils/common/token.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/common/$(DEPDIR)/libknotus_la-token.Tpo utils/common/$(DEPDIR)/libknotus_la-token.Plo
@@ -3049,102 +3377,214 @@ utils/common/libknotus_la-token.lo: utils/common/token.c
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotus_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/common/libknotus_la-token.lo `test -f 'utils/common/token.c' || echo '$(srcdir)/'`utils/common/token.c
 
 utils/kdig/kdig-kdig_exec.o: utils/kdig/kdig_exec.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_exec.o -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_exec.Tpo -c -o utils/kdig/kdig-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_exec.o -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_exec.Tpo -c -o utils/kdig/kdig-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/kdig-kdig_exec.Tpo utils/kdig/$(DEPDIR)/kdig-kdig_exec.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_exec.c' object='utils/kdig/kdig-kdig_exec.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
 
 utils/kdig/kdig-kdig_exec.obj: utils/kdig/kdig_exec.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_exec.obj -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_exec.Tpo -c -o utils/kdig/kdig-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_exec.obj -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_exec.Tpo -c -o utils/kdig/kdig-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/kdig-kdig_exec.Tpo utils/kdig/$(DEPDIR)/kdig-kdig_exec.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_exec.c' object='utils/kdig/kdig-kdig_exec.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
 
 utils/kdig/kdig-kdig_main.o: utils/kdig/kdig_main.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_main.o -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_main.Tpo -c -o utils/kdig/kdig-kdig_main.o `test -f 'utils/kdig/kdig_main.c' || echo '$(srcdir)/'`utils/kdig/kdig_main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_main.o -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_main.Tpo -c -o utils/kdig/kdig-kdig_main.o `test -f 'utils/kdig/kdig_main.c' || echo '$(srcdir)/'`utils/kdig/kdig_main.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/kdig-kdig_main.Tpo utils/kdig/$(DEPDIR)/kdig-kdig_main.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_main.c' object='utils/kdig/kdig-kdig_main.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_main.o `test -f 'utils/kdig/kdig_main.c' || echo '$(srcdir)/'`utils/kdig/kdig_main.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_main.o `test -f 'utils/kdig/kdig_main.c' || echo '$(srcdir)/'`utils/kdig/kdig_main.c
 
 utils/kdig/kdig-kdig_main.obj: utils/kdig/kdig_main.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_main.obj -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_main.Tpo -c -o utils/kdig/kdig-kdig_main.obj `if test -f 'utils/kdig/kdig_main.c'; then $(CYGPATH_W) 'utils/kdig/kdig_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_main.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_main.obj -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_main.Tpo -c -o utils/kdig/kdig-kdig_main.obj `if test -f 'utils/kdig/kdig_main.c'; then $(CYGPATH_W) 'utils/kdig/kdig_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_main.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/kdig-kdig_main.Tpo utils/kdig/$(DEPDIR)/kdig-kdig_main.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_main.c' object='utils/kdig/kdig-kdig_main.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_main.obj `if test -f 'utils/kdig/kdig_main.c'; then $(CYGPATH_W) 'utils/kdig/kdig_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_main.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_main.obj `if test -f 'utils/kdig/kdig_main.c'; then $(CYGPATH_W) 'utils/kdig/kdig_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_main.c'; fi`
 
 utils/kdig/kdig-kdig_params.o: utils/kdig/kdig_params.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_params.o -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_params.Tpo -c -o utils/kdig/kdig-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_params.o -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_params.Tpo -c -o utils/kdig/kdig-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/kdig-kdig_params.Tpo utils/kdig/$(DEPDIR)/kdig-kdig_params.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_params.c' object='utils/kdig/kdig-kdig_params.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
 
 utils/kdig/kdig-kdig_params.obj: utils/kdig/kdig_params.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_params.obj -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_params.Tpo -c -o utils/kdig/kdig-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/kdig-kdig_params.obj -MD -MP -MF utils/kdig/$(DEPDIR)/kdig-kdig_params.Tpo -c -o utils/kdig/kdig-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/kdig-kdig_params.Tpo utils/kdig/$(DEPDIR)/kdig-kdig_params.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_params.c' object='utils/kdig/kdig-kdig_params.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kdig_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(kdig_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/kdig-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
+
+utils/keymgr/cmdparse/keymgr-command.o: utils/keymgr/cmdparse/command.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/cmdparse/keymgr-command.o -MD -MP -MF utils/keymgr/cmdparse/$(DEPDIR)/keymgr-command.Tpo -c -o utils/keymgr/cmdparse/keymgr-command.o `test -f 'utils/keymgr/cmdparse/command.c' || echo '$(srcdir)/'`utils/keymgr/cmdparse/command.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/cmdparse/$(DEPDIR)/keymgr-command.Tpo utils/keymgr/cmdparse/$(DEPDIR)/keymgr-command.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/cmdparse/command.c' object='utils/keymgr/cmdparse/keymgr-command.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/cmdparse/keymgr-command.o `test -f 'utils/keymgr/cmdparse/command.c' || echo '$(srcdir)/'`utils/keymgr/cmdparse/command.c
+
+utils/keymgr/cmdparse/keymgr-command.obj: utils/keymgr/cmdparse/command.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/cmdparse/keymgr-command.obj -MD -MP -MF utils/keymgr/cmdparse/$(DEPDIR)/keymgr-command.Tpo -c -o utils/keymgr/cmdparse/keymgr-command.obj `if test -f 'utils/keymgr/cmdparse/command.c'; then $(CYGPATH_W) 'utils/keymgr/cmdparse/command.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/cmdparse/command.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/cmdparse/$(DEPDIR)/keymgr-command.Tpo utils/keymgr/cmdparse/$(DEPDIR)/keymgr-command.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/cmdparse/command.c' object='utils/keymgr/cmdparse/keymgr-command.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/cmdparse/keymgr-command.obj `if test -f 'utils/keymgr/cmdparse/command.c'; then $(CYGPATH_W) 'utils/keymgr/cmdparse/command.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/cmdparse/command.c'; fi`
+
+utils/keymgr/cmdparse/keymgr-parameter.o: utils/keymgr/cmdparse/parameter.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/cmdparse/keymgr-parameter.o -MD -MP -MF utils/keymgr/cmdparse/$(DEPDIR)/keymgr-parameter.Tpo -c -o utils/keymgr/cmdparse/keymgr-parameter.o `test -f 'utils/keymgr/cmdparse/parameter.c' || echo '$(srcdir)/'`utils/keymgr/cmdparse/parameter.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/cmdparse/$(DEPDIR)/keymgr-parameter.Tpo utils/keymgr/cmdparse/$(DEPDIR)/keymgr-parameter.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/cmdparse/parameter.c' object='utils/keymgr/cmdparse/keymgr-parameter.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/cmdparse/keymgr-parameter.o `test -f 'utils/keymgr/cmdparse/parameter.c' || echo '$(srcdir)/'`utils/keymgr/cmdparse/parameter.c
+
+utils/keymgr/cmdparse/keymgr-parameter.obj: utils/keymgr/cmdparse/parameter.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/cmdparse/keymgr-parameter.obj -MD -MP -MF utils/keymgr/cmdparse/$(DEPDIR)/keymgr-parameter.Tpo -c -o utils/keymgr/cmdparse/keymgr-parameter.obj `if test -f 'utils/keymgr/cmdparse/parameter.c'; then $(CYGPATH_W) 'utils/keymgr/cmdparse/parameter.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/cmdparse/parameter.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/cmdparse/$(DEPDIR)/keymgr-parameter.Tpo utils/keymgr/cmdparse/$(DEPDIR)/keymgr-parameter.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/cmdparse/parameter.c' object='utils/keymgr/cmdparse/keymgr-parameter.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/cmdparse/keymgr-parameter.obj `if test -f 'utils/keymgr/cmdparse/parameter.c'; then $(CYGPATH_W) 'utils/keymgr/cmdparse/parameter.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/cmdparse/parameter.c'; fi`
+
+utils/keymgr/cmdparse/keymgr-value.o: utils/keymgr/cmdparse/value.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/cmdparse/keymgr-value.o -MD -MP -MF utils/keymgr/cmdparse/$(DEPDIR)/keymgr-value.Tpo -c -o utils/keymgr/cmdparse/keymgr-value.o `test -f 'utils/keymgr/cmdparse/value.c' || echo '$(srcdir)/'`utils/keymgr/cmdparse/value.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/cmdparse/$(DEPDIR)/keymgr-value.Tpo utils/keymgr/cmdparse/$(DEPDIR)/keymgr-value.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/cmdparse/value.c' object='utils/keymgr/cmdparse/keymgr-value.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/cmdparse/keymgr-value.o `test -f 'utils/keymgr/cmdparse/value.c' || echo '$(srcdir)/'`utils/keymgr/cmdparse/value.c
+
+utils/keymgr/cmdparse/keymgr-value.obj: utils/keymgr/cmdparse/value.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/cmdparse/keymgr-value.obj -MD -MP -MF utils/keymgr/cmdparse/$(DEPDIR)/keymgr-value.Tpo -c -o utils/keymgr/cmdparse/keymgr-value.obj `if test -f 'utils/keymgr/cmdparse/value.c'; then $(CYGPATH_W) 'utils/keymgr/cmdparse/value.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/cmdparse/value.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/cmdparse/$(DEPDIR)/keymgr-value.Tpo utils/keymgr/cmdparse/$(DEPDIR)/keymgr-value.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/cmdparse/value.c' object='utils/keymgr/cmdparse/keymgr-value.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/cmdparse/keymgr-value.obj `if test -f 'utils/keymgr/cmdparse/value.c'; then $(CYGPATH_W) 'utils/keymgr/cmdparse/value.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/cmdparse/value.c'; fi`
+
+utils/keymgr/legacy/keymgr-key.o: utils/keymgr/legacy/key.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/legacy/keymgr-key.o -MD -MP -MF utils/keymgr/legacy/$(DEPDIR)/keymgr-key.Tpo -c -o utils/keymgr/legacy/keymgr-key.o `test -f 'utils/keymgr/legacy/key.c' || echo '$(srcdir)/'`utils/keymgr/legacy/key.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/legacy/$(DEPDIR)/keymgr-key.Tpo utils/keymgr/legacy/$(DEPDIR)/keymgr-key.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/legacy/key.c' object='utils/keymgr/legacy/keymgr-key.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/legacy/keymgr-key.o `test -f 'utils/keymgr/legacy/key.c' || echo '$(srcdir)/'`utils/keymgr/legacy/key.c
+
+utils/keymgr/legacy/keymgr-key.obj: utils/keymgr/legacy/key.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/legacy/keymgr-key.obj -MD -MP -MF utils/keymgr/legacy/$(DEPDIR)/keymgr-key.Tpo -c -o utils/keymgr/legacy/keymgr-key.obj `if test -f 'utils/keymgr/legacy/key.c'; then $(CYGPATH_W) 'utils/keymgr/legacy/key.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/legacy/key.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/legacy/$(DEPDIR)/keymgr-key.Tpo utils/keymgr/legacy/$(DEPDIR)/keymgr-key.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/legacy/key.c' object='utils/keymgr/legacy/keymgr-key.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/legacy/keymgr-key.obj `if test -f 'utils/keymgr/legacy/key.c'; then $(CYGPATH_W) 'utils/keymgr/legacy/key.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/legacy/key.c'; fi`
+
+utils/keymgr/legacy/keymgr-privkey.o: utils/keymgr/legacy/privkey.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/legacy/keymgr-privkey.o -MD -MP -MF utils/keymgr/legacy/$(DEPDIR)/keymgr-privkey.Tpo -c -o utils/keymgr/legacy/keymgr-privkey.o `test -f 'utils/keymgr/legacy/privkey.c' || echo '$(srcdir)/'`utils/keymgr/legacy/privkey.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/legacy/$(DEPDIR)/keymgr-privkey.Tpo utils/keymgr/legacy/$(DEPDIR)/keymgr-privkey.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/legacy/privkey.c' object='utils/keymgr/legacy/keymgr-privkey.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/legacy/keymgr-privkey.o `test -f 'utils/keymgr/legacy/privkey.c' || echo '$(srcdir)/'`utils/keymgr/legacy/privkey.c
+
+utils/keymgr/legacy/keymgr-privkey.obj: utils/keymgr/legacy/privkey.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/legacy/keymgr-privkey.obj -MD -MP -MF utils/keymgr/legacy/$(DEPDIR)/keymgr-privkey.Tpo -c -o utils/keymgr/legacy/keymgr-privkey.obj `if test -f 'utils/keymgr/legacy/privkey.c'; then $(CYGPATH_W) 'utils/keymgr/legacy/privkey.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/legacy/privkey.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/legacy/$(DEPDIR)/keymgr-privkey.Tpo utils/keymgr/legacy/$(DEPDIR)/keymgr-privkey.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/legacy/privkey.c' object='utils/keymgr/legacy/keymgr-privkey.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/legacy/keymgr-privkey.obj `if test -f 'utils/keymgr/legacy/privkey.c'; then $(CYGPATH_W) 'utils/keymgr/legacy/privkey.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/legacy/privkey.c'; fi`
+
+utils/keymgr/legacy/keymgr-pubkey.o: utils/keymgr/legacy/pubkey.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/legacy/keymgr-pubkey.o -MD -MP -MF utils/keymgr/legacy/$(DEPDIR)/keymgr-pubkey.Tpo -c -o utils/keymgr/legacy/keymgr-pubkey.o `test -f 'utils/keymgr/legacy/pubkey.c' || echo '$(srcdir)/'`utils/keymgr/legacy/pubkey.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/legacy/$(DEPDIR)/keymgr-pubkey.Tpo utils/keymgr/legacy/$(DEPDIR)/keymgr-pubkey.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/legacy/pubkey.c' object='utils/keymgr/legacy/keymgr-pubkey.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/legacy/keymgr-pubkey.o `test -f 'utils/keymgr/legacy/pubkey.c' || echo '$(srcdir)/'`utils/keymgr/legacy/pubkey.c
+
+utils/keymgr/legacy/keymgr-pubkey.obj: utils/keymgr/legacy/pubkey.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/legacy/keymgr-pubkey.obj -MD -MP -MF utils/keymgr/legacy/$(DEPDIR)/keymgr-pubkey.Tpo -c -o utils/keymgr/legacy/keymgr-pubkey.obj `if test -f 'utils/keymgr/legacy/pubkey.c'; then $(CYGPATH_W) 'utils/keymgr/legacy/pubkey.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/legacy/pubkey.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/legacy/$(DEPDIR)/keymgr-pubkey.Tpo utils/keymgr/legacy/$(DEPDIR)/keymgr-pubkey.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/legacy/pubkey.c' object='utils/keymgr/legacy/keymgr-pubkey.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/legacy/keymgr-pubkey.obj `if test -f 'utils/keymgr/legacy/pubkey.c'; then $(CYGPATH_W) 'utils/keymgr/legacy/pubkey.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/legacy/pubkey.c'; fi`
+
+utils/keymgr/keymgr-options.o: utils/keymgr/options.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/keymgr-options.o -MD -MP -MF utils/keymgr/$(DEPDIR)/keymgr-options.Tpo -c -o utils/keymgr/keymgr-options.o `test -f 'utils/keymgr/options.c' || echo '$(srcdir)/'`utils/keymgr/options.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/$(DEPDIR)/keymgr-options.Tpo utils/keymgr/$(DEPDIR)/keymgr-options.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/options.c' object='utils/keymgr/keymgr-options.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/keymgr-options.o `test -f 'utils/keymgr/options.c' || echo '$(srcdir)/'`utils/keymgr/options.c
+
+utils/keymgr/keymgr-options.obj: utils/keymgr/options.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/keymgr-options.obj -MD -MP -MF utils/keymgr/$(DEPDIR)/keymgr-options.Tpo -c -o utils/keymgr/keymgr-options.obj `if test -f 'utils/keymgr/options.c'; then $(CYGPATH_W) 'utils/keymgr/options.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/options.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/$(DEPDIR)/keymgr-options.Tpo utils/keymgr/$(DEPDIR)/keymgr-options.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/options.c' object='utils/keymgr/keymgr-options.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/keymgr-options.obj `if test -f 'utils/keymgr/options.c'; then $(CYGPATH_W) 'utils/keymgr/options.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/options.c'; fi`
+
+utils/keymgr/keymgr-keymgr.o: utils/keymgr/keymgr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/keymgr-keymgr.o -MD -MP -MF utils/keymgr/$(DEPDIR)/keymgr-keymgr.Tpo -c -o utils/keymgr/keymgr-keymgr.o `test -f 'utils/keymgr/keymgr.c' || echo '$(srcdir)/'`utils/keymgr/keymgr.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/$(DEPDIR)/keymgr-keymgr.Tpo utils/keymgr/$(DEPDIR)/keymgr-keymgr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/keymgr.c' object='utils/keymgr/keymgr-keymgr.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/keymgr-keymgr.o `test -f 'utils/keymgr/keymgr.c' || echo '$(srcdir)/'`utils/keymgr/keymgr.c
+
+utils/keymgr/keymgr-keymgr.obj: utils/keymgr/keymgr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/keymgr/keymgr-keymgr.obj -MD -MP -MF utils/keymgr/$(DEPDIR)/keymgr-keymgr.Tpo -c -o utils/keymgr/keymgr-keymgr.obj `if test -f 'utils/keymgr/keymgr.c'; then $(CYGPATH_W) 'utils/keymgr/keymgr.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/keymgr.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/keymgr/$(DEPDIR)/keymgr-keymgr.Tpo utils/keymgr/$(DEPDIR)/keymgr-keymgr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/keymgr/keymgr.c' object='utils/keymgr/keymgr-keymgr.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(keymgr_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/keymgr/keymgr-keymgr.obj `if test -f 'utils/keymgr/keymgr.c'; then $(CYGPATH_W) 'utils/keymgr/keymgr.c'; else $(CYGPATH_W) '$(srcdir)/utils/keymgr/keymgr.c'; fi`
 
 utils/kdig/khost-kdig_exec.o: utils/kdig/kdig_exec.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_exec.o -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_exec.Tpo -c -o utils/kdig/khost-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_exec.o -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_exec.Tpo -c -o utils/kdig/khost-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/khost-kdig_exec.Tpo utils/kdig/$(DEPDIR)/khost-kdig_exec.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_exec.c' object='utils/kdig/khost-kdig_exec.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_exec.o `test -f 'utils/kdig/kdig_exec.c' || echo '$(srcdir)/'`utils/kdig/kdig_exec.c
 
 utils/kdig/khost-kdig_exec.obj: utils/kdig/kdig_exec.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_exec.obj -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_exec.Tpo -c -o utils/kdig/khost-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_exec.obj -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_exec.Tpo -c -o utils/kdig/khost-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/khost-kdig_exec.Tpo utils/kdig/$(DEPDIR)/khost-kdig_exec.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_exec.c' object='utils/kdig/khost-kdig_exec.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_exec.obj `if test -f 'utils/kdig/kdig_exec.c'; then $(CYGPATH_W) 'utils/kdig/kdig_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_exec.c'; fi`
 
 utils/kdig/khost-kdig_params.o: utils/kdig/kdig_params.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_params.o -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_params.Tpo -c -o utils/kdig/khost-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_params.o -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_params.Tpo -c -o utils/kdig/khost-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/khost-kdig_params.Tpo utils/kdig/$(DEPDIR)/khost-kdig_params.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_params.c' object='utils/kdig/khost-kdig_params.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_params.o `test -f 'utils/kdig/kdig_params.c' || echo '$(srcdir)/'`utils/kdig/kdig_params.c
 
 utils/kdig/khost-kdig_params.obj: utils/kdig/kdig_params.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_params.obj -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_params.Tpo -c -o utils/kdig/khost-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/kdig/khost-kdig_params.obj -MD -MP -MF utils/kdig/$(DEPDIR)/khost-kdig_params.Tpo -c -o utils/kdig/khost-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/kdig/$(DEPDIR)/khost-kdig_params.Tpo utils/kdig/$(DEPDIR)/khost-kdig_params.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/kdig/kdig_params.c' object='utils/kdig/khost-kdig_params.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/kdig/khost-kdig_params.obj `if test -f 'utils/kdig/kdig_params.c'; then $(CYGPATH_W) 'utils/kdig/kdig_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/kdig/kdig_params.c'; fi`
 
 utils/khost/khost-khost_main.o: utils/khost/khost_main.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_main.o -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_main.Tpo -c -o utils/khost/khost-khost_main.o `test -f 'utils/khost/khost_main.c' || echo '$(srcdir)/'`utils/khost/khost_main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_main.o -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_main.Tpo -c -o utils/khost/khost-khost_main.o `test -f 'utils/khost/khost_main.c' || echo '$(srcdir)/'`utils/khost/khost_main.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/khost/$(DEPDIR)/khost-khost_main.Tpo utils/khost/$(DEPDIR)/khost-khost_main.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/khost/khost_main.c' object='utils/khost/khost-khost_main.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_main.o `test -f 'utils/khost/khost_main.c' || echo '$(srcdir)/'`utils/khost/khost_main.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_main.o `test -f 'utils/khost/khost_main.c' || echo '$(srcdir)/'`utils/khost/khost_main.c
 
 utils/khost/khost-khost_main.obj: utils/khost/khost_main.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_main.obj -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_main.Tpo -c -o utils/khost/khost-khost_main.obj `if test -f 'utils/khost/khost_main.c'; then $(CYGPATH_W) 'utils/khost/khost_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_main.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_main.obj -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_main.Tpo -c -o utils/khost/khost-khost_main.obj `if test -f 'utils/khost/khost_main.c'; then $(CYGPATH_W) 'utils/khost/khost_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_main.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/khost/$(DEPDIR)/khost-khost_main.Tpo utils/khost/$(DEPDIR)/khost-khost_main.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/khost/khost_main.c' object='utils/khost/khost-khost_main.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_main.obj `if test -f 'utils/khost/khost_main.c'; then $(CYGPATH_W) 'utils/khost/khost_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_main.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_main.obj `if test -f 'utils/khost/khost_main.c'; then $(CYGPATH_W) 'utils/khost/khost_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_main.c'; fi`
 
 utils/khost/khost-khost_params.o: utils/khost/khost_params.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_params.o -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_params.Tpo -c -o utils/khost/khost-khost_params.o `test -f 'utils/khost/khost_params.c' || echo '$(srcdir)/'`utils/khost/khost_params.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_params.o -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_params.Tpo -c -o utils/khost/khost-khost_params.o `test -f 'utils/khost/khost_params.c' || echo '$(srcdir)/'`utils/khost/khost_params.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/khost/$(DEPDIR)/khost-khost_params.Tpo utils/khost/$(DEPDIR)/khost-khost_params.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/khost/khost_params.c' object='utils/khost/khost-khost_params.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_params.o `test -f 'utils/khost/khost_params.c' || echo '$(srcdir)/'`utils/khost/khost_params.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_params.o `test -f 'utils/khost/khost_params.c' || echo '$(srcdir)/'`utils/khost/khost_params.c
 
 utils/khost/khost-khost_params.obj: utils/khost/khost_params.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_params.obj -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_params.Tpo -c -o utils/khost/khost-khost_params.obj `if test -f 'utils/khost/khost_params.c'; then $(CYGPATH_W) 'utils/khost/khost_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_params.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/khost/khost-khost_params.obj -MD -MP -MF utils/khost/$(DEPDIR)/khost-khost_params.Tpo -c -o utils/khost/khost-khost_params.obj `if test -f 'utils/khost/khost_params.c'; then $(CYGPATH_W) 'utils/khost/khost_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_params.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/khost/$(DEPDIR)/khost-khost_params.Tpo utils/khost/$(DEPDIR)/khost-khost_params.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/khost/khost_params.c' object='utils/khost/khost-khost_params.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(khost_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_params.obj `if test -f 'utils/khost/khost_params.c'; then $(CYGPATH_W) 'utils/khost/khost_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_params.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(khost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/khost/khost-khost_params.obj `if test -f 'utils/khost/khost_params.c'; then $(CYGPATH_W) 'utils/khost/khost_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/khost/khost_params.c'; fi`
 
 utils/knotc/knotc-commands.o: utils/knotc/commands.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotc_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knotc/knotc-commands.o -MD -MP -MF utils/knotc/$(DEPDIR)/knotc-commands.Tpo -c -o utils/knotc/knotc-commands.o `test -f 'utils/knotc/commands.c' || echo '$(srcdir)/'`utils/knotc/commands.c
@@ -3230,6 +3670,62 @@ utils/knotd/knotd-main.obj: utils/knotd/main.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knotd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knotd/knotd-main.obj `if test -f 'utils/knotd/main.c'; then $(CYGPATH_W) 'utils/knotd/main.c'; else $(CYGPATH_W) '$(srcdir)/utils/knotd/main.c'; fi`
 
+utils/knsec3hash/knsec3hash-knsec3hash.o: utils/knsec3hash/knsec3hash.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsec3hash_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsec3hash/knsec3hash-knsec3hash.o -MD -MP -MF utils/knsec3hash/$(DEPDIR)/knsec3hash-knsec3hash.Tpo -c -o utils/knsec3hash/knsec3hash-knsec3hash.o `test -f 'utils/knsec3hash/knsec3hash.c' || echo '$(srcdir)/'`utils/knsec3hash/knsec3hash.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsec3hash/$(DEPDIR)/knsec3hash-knsec3hash.Tpo utils/knsec3hash/$(DEPDIR)/knsec3hash-knsec3hash.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsec3hash/knsec3hash.c' object='utils/knsec3hash/knsec3hash-knsec3hash.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsec3hash_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsec3hash/knsec3hash-knsec3hash.o `test -f 'utils/knsec3hash/knsec3hash.c' || echo '$(srcdir)/'`utils/knsec3hash/knsec3hash.c
+
+utils/knsec3hash/knsec3hash-knsec3hash.obj: utils/knsec3hash/knsec3hash.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsec3hash_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsec3hash/knsec3hash-knsec3hash.obj -MD -MP -MF utils/knsec3hash/$(DEPDIR)/knsec3hash-knsec3hash.Tpo -c -o utils/knsec3hash/knsec3hash-knsec3hash.obj `if test -f 'utils/knsec3hash/knsec3hash.c'; then $(CYGPATH_W) 'utils/knsec3hash/knsec3hash.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsec3hash/knsec3hash.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsec3hash/$(DEPDIR)/knsec3hash-knsec3hash.Tpo utils/knsec3hash/$(DEPDIR)/knsec3hash-knsec3hash.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsec3hash/knsec3hash.c' object='utils/knsec3hash/knsec3hash-knsec3hash.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsec3hash_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsec3hash/knsec3hash-knsec3hash.obj `if test -f 'utils/knsec3hash/knsec3hash.c'; then $(CYGPATH_W) 'utils/knsec3hash/knsec3hash.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsec3hash/knsec3hash.c'; fi`
+
+utils/knsupdate/knsupdate-knsupdate_exec.o: utils/knsupdate/knsupdate_exec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsupdate/knsupdate-knsupdate_exec.o -MD -MP -MF utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_exec.Tpo -c -o utils/knsupdate/knsupdate-knsupdate_exec.o `test -f 'utils/knsupdate/knsupdate_exec.c' || echo '$(srcdir)/'`utils/knsupdate/knsupdate_exec.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_exec.Tpo utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_exec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsupdate/knsupdate_exec.c' object='utils/knsupdate/knsupdate-knsupdate_exec.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsupdate/knsupdate-knsupdate_exec.o `test -f 'utils/knsupdate/knsupdate_exec.c' || echo '$(srcdir)/'`utils/knsupdate/knsupdate_exec.c
+
+utils/knsupdate/knsupdate-knsupdate_exec.obj: utils/knsupdate/knsupdate_exec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsupdate/knsupdate-knsupdate_exec.obj -MD -MP -MF utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_exec.Tpo -c -o utils/knsupdate/knsupdate-knsupdate_exec.obj `if test -f 'utils/knsupdate/knsupdate_exec.c'; then $(CYGPATH_W) 'utils/knsupdate/knsupdate_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsupdate/knsupdate_exec.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_exec.Tpo utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_exec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsupdate/knsupdate_exec.c' object='utils/knsupdate/knsupdate-knsupdate_exec.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsupdate/knsupdate-knsupdate_exec.obj `if test -f 'utils/knsupdate/knsupdate_exec.c'; then $(CYGPATH_W) 'utils/knsupdate/knsupdate_exec.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsupdate/knsupdate_exec.c'; fi`
+
+utils/knsupdate/knsupdate-knsupdate_main.o: utils/knsupdate/knsupdate_main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsupdate/knsupdate-knsupdate_main.o -MD -MP -MF utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_main.Tpo -c -o utils/knsupdate/knsupdate-knsupdate_main.o `test -f 'utils/knsupdate/knsupdate_main.c' || echo '$(srcdir)/'`utils/knsupdate/knsupdate_main.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_main.Tpo utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsupdate/knsupdate_main.c' object='utils/knsupdate/knsupdate-knsupdate_main.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsupdate/knsupdate-knsupdate_main.o `test -f 'utils/knsupdate/knsupdate_main.c' || echo '$(srcdir)/'`utils/knsupdate/knsupdate_main.c
+
+utils/knsupdate/knsupdate-knsupdate_main.obj: utils/knsupdate/knsupdate_main.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsupdate/knsupdate-knsupdate_main.obj -MD -MP -MF utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_main.Tpo -c -o utils/knsupdate/knsupdate-knsupdate_main.obj `if test -f 'utils/knsupdate/knsupdate_main.c'; then $(CYGPATH_W) 'utils/knsupdate/knsupdate_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsupdate/knsupdate_main.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_main.Tpo utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsupdate/knsupdate_main.c' object='utils/knsupdate/knsupdate-knsupdate_main.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsupdate/knsupdate-knsupdate_main.obj `if test -f 'utils/knsupdate/knsupdate_main.c'; then $(CYGPATH_W) 'utils/knsupdate/knsupdate_main.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsupdate/knsupdate_main.c'; fi`
+
+utils/knsupdate/knsupdate-knsupdate_params.o: utils/knsupdate/knsupdate_params.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsupdate/knsupdate-knsupdate_params.o -MD -MP -MF utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_params.Tpo -c -o utils/knsupdate/knsupdate-knsupdate_params.o `test -f 'utils/knsupdate/knsupdate_params.c' || echo '$(srcdir)/'`utils/knsupdate/knsupdate_params.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_params.Tpo utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_params.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsupdate/knsupdate_params.c' object='utils/knsupdate/knsupdate-knsupdate_params.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsupdate/knsupdate-knsupdate_params.o `test -f 'utils/knsupdate/knsupdate_params.c' || echo '$(srcdir)/'`utils/knsupdate/knsupdate_params.c
+
+utils/knsupdate/knsupdate-knsupdate_params.obj: utils/knsupdate/knsupdate_params.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/knsupdate/knsupdate-knsupdate_params.obj -MD -MP -MF utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_params.Tpo -c -o utils/knsupdate/knsupdate-knsupdate_params.obj `if test -f 'utils/knsupdate/knsupdate_params.c'; then $(CYGPATH_W) 'utils/knsupdate/knsupdate_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsupdate/knsupdate_params.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_params.Tpo utils/knsupdate/$(DEPDIR)/knsupdate-knsupdate_params.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/knsupdate/knsupdate_params.c' object='utils/knsupdate/knsupdate-knsupdate_params.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(knsupdate_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/knsupdate/knsupdate-knsupdate_params.obj `if test -f 'utils/knsupdate/knsupdate_params.c'; then $(CYGPATH_W) 'utils/knsupdate/knsupdate_params.c'; else $(CYGPATH_W) '$(srcdir)/utils/knsupdate/knsupdate_params.c'; fi`
+
 knot/modules/rosedb_tool-rosedb_tool.o: knot/modules/rosedb_tool.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(rosedb_tool_CFLAGS) $(CFLAGS) -MT knot/modules/rosedb_tool-rosedb_tool.o -MD -MP -MF knot/modules/$(DEPDIR)/rosedb_tool-rosedb_tool.Tpo -c -o knot/modules/rosedb_tool-rosedb_tool.o `test -f 'knot/modules/rosedb_tool.c' || echo '$(srcdir)/'`knot/modules/rosedb_tool.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/modules/$(DEPDIR)/rosedb_tool-rosedb_tool.Tpo knot/modules/$(DEPDIR)/rosedb_tool-rosedb_tool.Po
@@ -3250,6 +3746,7 @@ mostlyclean-libtool:
 clean-libtool:
 	-rm -rf .libs _libs
 	-rm -rf contrib/.libs contrib/_libs
+	-rm -rf contrib/fnv/.libs contrib/fnv/_libs
 	-rm -rf contrib/hat-trie/.libs contrib/hat-trie/_libs
 	-rm -rf contrib/lmdb/.libs contrib/lmdb/_libs
 	-rm -rf contrib/murmurhash3/.libs contrib/murmurhash3/_libs
@@ -3259,19 +3756,21 @@ clean-libtool:
 	-rm -rf knot/conf/.libs knot/conf/_libs
 	-rm -rf knot/ctl/.libs knot/ctl/_libs
 	-rm -rf knot/dnssec/.libs knot/dnssec/_libs
+	-rm -rf knot/events/.libs knot/events/_libs
+	-rm -rf knot/events/handlers/.libs knot/events/handlers/_libs
 	-rm -rf knot/modules/.libs knot/modules/_libs
 	-rm -rf knot/modules/online_sign/.libs knot/modules/online_sign/_libs
 	-rm -rf knot/nameserver/.libs knot/nameserver/_libs
+	-rm -rf knot/query/.libs knot/query/_libs
 	-rm -rf knot/server/.libs knot/server/_libs
 	-rm -rf knot/updates/.libs knot/updates/_libs
 	-rm -rf knot/worker/.libs knot/worker/_libs
 	-rm -rf knot/zone/.libs knot/zone/_libs
-	-rm -rf knot/zone/events/.libs knot/zone/events/_libs
 	-rm -rf libknot/.libs libknot/_libs
 	-rm -rf libknot/control/.libs libknot/control/_libs
+	-rm -rf libknot/cookies/.libs libknot/cookies/_libs
 	-rm -rf libknot/db/.libs libknot/db/_libs
 	-rm -rf libknot/packet/.libs libknot/packet/_libs
-	-rm -rf libknot/processing/.libs libknot/processing/_libs
 	-rm -rf libknot/rrtype/.libs libknot/rrtype/_libs
 	-rm -rf libknot/yparser/.libs libknot/yparser/_libs
 	-rm -rf utils/common/.libs utils/common/_libs
@@ -3514,6 +4013,8 @@ distclean-generic:
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
 	-rm -f contrib/$(DEPDIR)/$(am__dirstamp)
 	-rm -f contrib/$(am__dirstamp)
+	-rm -f contrib/fnv/$(DEPDIR)/$(am__dirstamp)
+	-rm -f contrib/fnv/$(am__dirstamp)
 	-rm -f contrib/hat-trie/$(DEPDIR)/$(am__dirstamp)
 	-rm -f contrib/hat-trie/$(am__dirstamp)
 	-rm -f contrib/lmdb/$(DEPDIR)/$(am__dirstamp)
@@ -3532,12 +4033,18 @@ distclean-generic:
 	-rm -f knot/ctl/$(am__dirstamp)
 	-rm -f knot/dnssec/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/dnssec/$(am__dirstamp)
+	-rm -f knot/events/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/events/$(am__dirstamp)
+	-rm -f knot/events/handlers/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/events/handlers/$(am__dirstamp)
 	-rm -f knot/modules/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/modules/$(am__dirstamp)
 	-rm -f knot/modules/online_sign/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/modules/online_sign/$(am__dirstamp)
 	-rm -f knot/nameserver/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/nameserver/$(am__dirstamp)
+	-rm -f knot/query/$(DEPDIR)/$(am__dirstamp)
+	-rm -f knot/query/$(am__dirstamp)
 	-rm -f knot/server/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/server/$(am__dirstamp)
 	-rm -f knot/updates/$(DEPDIR)/$(am__dirstamp)
@@ -3546,18 +4053,16 @@ distclean-generic:
 	-rm -f knot/worker/$(am__dirstamp)
 	-rm -f knot/zone/$(DEPDIR)/$(am__dirstamp)
 	-rm -f knot/zone/$(am__dirstamp)
-	-rm -f knot/zone/events/$(DEPDIR)/$(am__dirstamp)
-	-rm -f knot/zone/events/$(am__dirstamp)
 	-rm -f libknot/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/$(am__dirstamp)
 	-rm -f libknot/control/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/control/$(am__dirstamp)
+	-rm -f libknot/cookies/$(DEPDIR)/$(am__dirstamp)
+	-rm -f libknot/cookies/$(am__dirstamp)
 	-rm -f libknot/db/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/db/$(am__dirstamp)
 	-rm -f libknot/packet/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/packet/$(am__dirstamp)
-	-rm -f libknot/processing/$(DEPDIR)/$(am__dirstamp)
-	-rm -f libknot/processing/$(am__dirstamp)
 	-rm -f libknot/rrtype/$(DEPDIR)/$(am__dirstamp)
 	-rm -f libknot/rrtype/$(am__dirstamp)
 	-rm -f libknot/yparser/$(DEPDIR)/$(am__dirstamp)
@@ -3566,6 +4071,12 @@ distclean-generic:
 	-rm -f utils/common/$(am__dirstamp)
 	-rm -f utils/kdig/$(DEPDIR)/$(am__dirstamp)
 	-rm -f utils/kdig/$(am__dirstamp)
+	-rm -f utils/keymgr/$(DEPDIR)/$(am__dirstamp)
+	-rm -f utils/keymgr/$(am__dirstamp)
+	-rm -f utils/keymgr/cmdparse/$(DEPDIR)/$(am__dirstamp)
+	-rm -f utils/keymgr/cmdparse/$(am__dirstamp)
+	-rm -f utils/keymgr/legacy/$(DEPDIR)/$(am__dirstamp)
+	-rm -f utils/keymgr/legacy/$(am__dirstamp)
 	-rm -f utils/khost/$(DEPDIR)/$(am__dirstamp)
 	-rm -f utils/khost/$(am__dirstamp)
 	-rm -f utils/knot1to2/$(DEPDIR)/$(am__dirstamp)
@@ -3574,8 +4085,12 @@ distclean-generic:
 	-rm -f utils/knotc/$(am__dirstamp)
 	-rm -f utils/knotd/$(DEPDIR)/$(am__dirstamp)
 	-rm -f utils/knotd/$(am__dirstamp)
+	-rm -f utils/knsec3hash/$(DEPDIR)/$(am__dirstamp)
+	-rm -f utils/knsec3hash/$(am__dirstamp)
 	-rm -f utils/knsupdate/$(DEPDIR)/$(am__dirstamp)
 	-rm -f utils/knsupdate/$(am__dirstamp)
+	-rm -f utils/kzonecheck/$(DEPDIR)/$(am__dirstamp)
+	-rm -f utils/kzonecheck/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -3588,7 +4103,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libLTLIBRARIES \
 	clean-sbinPROGRAMS mostlyclean-am
 
 distclean: distclean-recursive
-	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/db/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
+	-rm -rf contrib/$(DEPDIR) contrib/fnv/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/events/$(DEPDIR) knot/events/handlers/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/query/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/cookies/$(DEPDIR) libknot/db/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/keymgr/$(DEPDIR) utils/keymgr/cmdparse/$(DEPDIR) utils/keymgr/legacy/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsec3hash/$(DEPDIR) utils/knsupdate/$(DEPDIR) utils/kzonecheck/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -3638,7 +4153,7 @@ installcheck-am: installcheck-binPROGRAMS installcheck-libexecPROGRAMS \
 	installcheck-sbinPROGRAMS
 
 maintainer-clean: maintainer-clean-recursive
-	-rm -rf contrib/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) knot/zone/events/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/db/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/processing/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsupdate/$(DEPDIR)
+	-rm -rf contrib/$(DEPDIR) contrib/fnv/$(DEPDIR) contrib/hat-trie/$(DEPDIR) contrib/lmdb/$(DEPDIR) contrib/murmurhash3/$(DEPDIR) contrib/openbsd/$(DEPDIR) contrib/ucw/$(DEPDIR) knot/common/$(DEPDIR) knot/conf/$(DEPDIR) knot/ctl/$(DEPDIR) knot/dnssec/$(DEPDIR) knot/events/$(DEPDIR) knot/events/handlers/$(DEPDIR) knot/modules/$(DEPDIR) knot/modules/online_sign/$(DEPDIR) knot/nameserver/$(DEPDIR) knot/query/$(DEPDIR) knot/server/$(DEPDIR) knot/updates/$(DEPDIR) knot/worker/$(DEPDIR) knot/zone/$(DEPDIR) libknot/$(DEPDIR) libknot/control/$(DEPDIR) libknot/cookies/$(DEPDIR) libknot/db/$(DEPDIR) libknot/packet/$(DEPDIR) libknot/rrtype/$(DEPDIR) libknot/yparser/$(DEPDIR) utils/common/$(DEPDIR) utils/kdig/$(DEPDIR) utils/keymgr/$(DEPDIR) utils/keymgr/cmdparse/$(DEPDIR) utils/keymgr/legacy/$(DEPDIR) utils/khost/$(DEPDIR) utils/knot1to2/$(DEPDIR) utils/knotc/$(DEPDIR) utils/knotd/$(DEPDIR) utils/knsec3hash/$(DEPDIR) utils/knsupdate/$(DEPDIR) utils/kzonecheck/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

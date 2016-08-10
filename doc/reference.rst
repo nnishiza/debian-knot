@@ -31,10 +31,10 @@ the following symbols:
 - [ ] – Optional value
 - \| – Choice
 
-There are 8 main sections (``server``, ``key``, ``acl``, ``control``,
-``remote``, ``template``, ``zone`` and ``log``) and module sections with the
-``mod-`` prefix. The most of the sections (excluding ``server`` and
-``control``) are sequences of settings blocks. Each settings block
+There are 10 main sections (``server``, ``control``, ``log``, ``keystore``,
+``policy``, ``key``, ``acl``, ``remote``, ``template``, and ``zone``) and
+module sections with the ``mod-`` prefix. Most of the sections (excluding
+``server`` and ``control``) are sequences of settings blocks. Each settings block
 begins with a unique identifier, which can be used as a reference from other
 sections (such identifier must be defined in advance).
 
@@ -100,6 +100,8 @@ General options related to the server.
      tcp-reply-timeout: TIME
      max-tcp-clients: INT
      max-udp-payload: SIZE
+     max-ipv4-udp-payload: SIZE
+     max-ipv6-udp-payload: SIZE
      rate-limit: INT
      rate-limit-slip: INT
      rate-limit-table-size: INT
@@ -171,7 +173,8 @@ A PID file location.
 udp-workers
 -----------
 
-A number of quering UDP workers (threads).
+A number of UDP workers (threads) used to process incoming queries
+over UDP.
 
 *Default:* auto-estimated optimal value based on the number of online CPUs
 
@@ -180,7 +183,8 @@ A number of quering UDP workers (threads).
 tcp-workers
 -----------
 
-A number of quering TCP workers (threads).
+A number of TCP workers (threads) used to process incoming queries
+over TCP.
 
 *Default:* auto-estimated optimal value based on the number of online CPUs
 
@@ -231,8 +235,7 @@ tcp-reply-timeout
 -----------------
 
 Maximum time to wait for an outgoing connection or for a reply to an issued
-request (SOA, NOTIFY, AXFR...). This limit also applies to knotc remote
-operation over an internet socket.
+request (SOA, NOTIFY, AXFR...).
 
 *Default:* 10
 
@@ -328,7 +331,25 @@ white-listed.
 max-udp-payload
 ---------------
 
-Maximum EDNS0 UDP payload size.
+Maximum EDNS0 UDP payload size default for both IPv4 and IPv6.
+
+*Default:* 4096
+
+.. _server_max-ipv4-udp-payload:
+
+max-ipv4-udp-payload
+--------------------
+
+Maximum EDNS0 UDP payload size for IPv4.
+
+*Default:* 4096
+
+.. _server_max-ipv6-udp-payload:
+
+max-ipv6-udp-payload
+--------------------
+
+Maximum EDNS0 UDP payload size for IPv6.
 
 *Default:* 4096
 
@@ -485,6 +506,215 @@ Maximum time the control socket operations can take. Set 0 for infinity.
 
 *Default:* 5
 
+.. _Keystore section:
+
+Keystore section
+================
+
+DNSSEC keystore configuration.
+
+::
+
+ keystore:
+   - id: STR
+     backend: pem | pkcs11
+     config: STR
+
+.. _keystore_id:
+
+id
+--
+
+A keystore identifier.
+
+
+.. _keystore_backend:
+
+backend
+-------
+
+A key storage backend type. A directory with PEM files or a PKCS #11 storage.
+
+*Default:* pem
+
+.. _keystore_config:
+
+config
+------
+
+A backend specific configuration. A directory with PEM files (the path can
+be specified as a relative path to :ref:`kasp-db<zone_kasp-db>`) or
+a configuration string for PKCS #11 storage.
+
+.. NOTE::
+   Example configuration string for PKCS #11::
+
+     "pkcs11:token=knot;pin-value=1234 /usr/lib64/pkcs11/libsofthsm2.so"
+
+*Default:* :ref:`kasp-db<zone_kasp-db>`/keys
+
+.. _Policy section:
+
+Policy section
+==============
+
+DNSSEC policy configuration.
+
+::
+
+ policy:
+   - id: STR
+     keystore: STR
+     manual: BOOL
+     algorithm: dsa | rsasha1 | dsa-nsec3-sha1 | rsasha1-nsec3-sha1 | rsasha256 | rsasha512 | ecdsap256sha256 | ecdsap384sha384
+     ksk-size: SIZE
+     zsk-size: SIZE
+     dnskey-ttl: TIME
+     zsk-lifetime: TIME
+     rrsig-lifetime: TIME
+     rrsig-refresh: TIME
+     nsec3: BOOL
+     nsec3-iterations: INT
+     nsec3-salt-length: INT
+     nsec3-resalt: TIME
+     propagation-delay: TIME
+
+.. _policy_id:
+
+id
+--
+
+A policy identifier.
+
+.. _policy_keystore:
+
+keystore
+--------
+
+A :ref:`reference<keystore_id>` to a keystore holding private key material
+for zones. A special *default* value can be used for the default keystore settings.
+
+*Default:* default
+
+.. _policy_manual:
+
+manual
+------
+
+If enabled, automatic key management is not used.
+
+*Default:* off
+
+.. _policy_algorithm:
+
+algorithm
+---------
+
+An algorithm of signing keys and issued signatures.
+
+*Default:* ecdsap256sha256
+
+.. _policy_ksk-size:
+
+ksk-size
+--------
+
+A length of newly generated :abbr:`KSK (Key Signing Key)` keys.
+
+*Default:* 1024 (dsa*), 2048 (rsa*), 256 (ecdsap256*), 384 (ecdsap384*)
+
+.. _policy_zsk-size:
+
+zsk-size
+--------
+
+A length of newly generated :abbr:`ZSK (Zone Signing Key)` keys.
+
+*Default:* see default for :ref:`ksk-size<policy_ksk-size>`
+
+.. _policy_dnskey-ttl:
+
+dnskey-ttl
+----------
+
+A TTL value for DNSKEY records added into zone apex.
+
+*Default:* zone SOA TTL
+
+.. _policy_zsk-lifetime:
+
+zsk-lifetime
+------------
+
+A period between ZSK publication and the next rollover initiation.
+
+*Default:* 30 days
+
+.. _policy_rrsig-lifetime:
+
+rrsig-lifetime
+--------------
+
+A validity period of newly issued signatures.
+
+*Default:* 14 days
+
+.. _policy_rrsig-refresh:
+
+rrsig-refresh
+-------------
+
+A period how long before a signature expiration the signature will be refreshed.
+
+*Default:* 7 days
+
+.. _policy_nsec:
+
+nsec3
+-----
+
+Specifies if NSEC3 will be used instead of NSEC.
+
+*Default:* off
+
+.. _policy_nsec3-iterations:
+
+nsec3-iterations
+----------------
+
+A number of additional times the hashing is performed.
+
+*Default:* 5
+
+.. _policy_nsec3-salt-length:
+
+nsec3-salt-length
+-----------------
+
+A length of a salt field in octets, which is appended to the original owner
+name before hashing.
+
+*Default:* 8
+
+.. _policy_nsec3-resalt:
+
+nsec3-resalt
+------------
+
+A validity period of newly issued salt field.
+
+*Default:* 30 days
+
+.. _policy_propagation-delay:
+
+propagation-delay
+-----------------
+
+An extra delay added for each key rollover step. This value should be high
+enough to cover propagation of data from the master server to all slaves.
+
+*Default:* 1 day
+
 .. _Remote section:
 
 Remote section
@@ -615,7 +845,9 @@ Definition of zones served by the server.
      zonefile-sync: TIME
      ixfr-from-differences: BOOL
      max-journal-size: SIZE
+     max-zone-size : SIZE
      dnssec-signing: BOOL
+     dnssec-policy: STR
      kasp-db: STR
      request-edns-option: INT:[HEXSTR]
      serial-policy: increment | unixtime
@@ -723,9 +955,6 @@ logged only.
 Mandatory checks:
 
 - An extra record together with CNAME record (except for RRSIG and DS)
-- CNAME link chain length greater than 10 (including infinite cycles)
-- DNAME and CNAME records under the same owner (RFC 2672)
-- CNAME and DNAME wildcards pointing to themselves
 - SOA record missing in the zone (RFC 1034)
 - DNAME records having records under it (DNAME children) (RFC 2672)
 
@@ -737,14 +966,11 @@ Extra checks:
 - Wrong NSEC(3) type bitmap
 - Multiple NSEC records at the same node
 - Missing NSEC records at authoritative nodes
-- Extra record types under the same name as NSEC3 record (this is RFC-valid, but
-  Knot will not serve such a zone correctly)
-- NSEC3-unsecured delegation that is not part of Opt-out span
+- NSEC3 insecure delegation that is not part of Opt-out span
 - Wrong original TTL value in NSEC3 records
 - Wrong RDATA TTL value in RRSIG record
 - Signer name in RRSIG RR not the same as in DNSKEY
 - Signed RRSIG
-- Not all RRs in the node are signed
 - Wrong key flags or wrong key in RRSIG record (not the same as ZSK)
 
 *Default:* off
@@ -803,6 +1029,21 @@ Maximum size of the zone journal file.
 
 *Default:* 2^64
 
+.. _zone_max_zone_size:
+
+max-zone-size
+----------------
+
+Maximum size of the zone. The size is measured as size of the zone records
+in wire format without compression. The limit is enforced for incoming zone
+transfers and dynamic updates.
+
+For incremental transfers (IXFR), the effective limit for the total size of
+the records in the transfer is twice the configured value. However the final
+size of the zone must satisfy the configured value.
+
+*Default:* 2^64
+
 .. _zone_dnssec-signing:
 
 dnssec-signing
@@ -815,7 +1056,17 @@ If enabled, automatic DNSSEC signing for the zone is turned on.
 
 *Default:* off
 
-.. _zone_kasp_db:
+.. _zone_dnssec-policy:
+
+dnssec-policy
+-------------
+
+A :ref:`reference<policy_id>` to DNSSEC signing policy. A special *default*
+value can be used for the default policy settings.
+
+*Required*
+
+.. _zone_kasp-db:
 
 kasp-db
 -------

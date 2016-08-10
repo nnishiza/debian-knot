@@ -88,10 +88,10 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 @HAVE_DAEMON_TRUE@am__append_1 = man/knot.conf.5 man/knotc.8 man/knotd.8
-@HAVE_UTILS_TRUE@am__append_2 = man/kdig.1 man/khost.1 man/knsupdate.1 man/knot1to2.1 man/knsec3hash.1 man/keymgr.8
+@HAVE_UTILS_TRUE@am__append_2 = man/kdig.1 man/khost.1 man/knsupdate.1 man/knot1to2.1 man/knsec3hash.1 man/keymgr.8 man/kzonecheck.1
 subdir = doc
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_clang.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
@@ -171,7 +171,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
-CC_LLVM = @CC_LLVM@
+CC_CLANG_VERSION = @CC_CLANG_VERSION@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
@@ -212,6 +212,7 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -322,8 +323,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-MANPAGES_IN = man/knot.conf.5in man/knotc.8in man/knotd.8in man/kdig.1in man/khost.1in man/knsupdate.1in man/knot1to2.1in man/knsec3hash.1in man/keymgr.8in
-MANPAGES_RST = reference.rst man_knotc.rst man_knotd.rst man_kdig.rst man_khost.rst man_knsupdate.rst man_knot1to2.rst man_knsec3hash.rst man_keymgr.rst
+MANPAGES_IN = man/knot.conf.5in man/knotc.8in man/knotd.8in man/kdig.1in man/khost.1in man/knsupdate.1in man/knot1to2.1in man/knsec3hash.1in man/keymgr.8in man/kzonecheck.1in
+MANPAGES_RST = reference.rst man_knotc.rst man_knotd.rst man_kdig.rst man_khost.rst man_knsupdate.rst man_knot1to2.rst man_knsec3hash.rst man_keymgr.rst man_kzonecheck.rst
 EXTRA_DIST = \
 	conf.py		\
 	\
@@ -616,22 +617,22 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@HAVE_DOCS_FALSE@install-info-local:
-@HAVE_MAKEINFO_FALSE@install-info-local:
-@HAVE_SPHINXBUILD_FALSE@install-info-local:
+@HAVE_DOCS_FALSE@pdf-local:
+@HAVE_PDFLATEX_FALSE@pdf-local:
+@HAVE_SPHINXBUILD_FALSE@pdf-local:
 @HAVE_DOCS_FALSE@html-local:
 @HAVE_SPHINXBUILD_FALSE@html-local:
 @HAVE_DOCS_FALSE@info-local:
 @HAVE_MAKEINFO_FALSE@info-local:
 @HAVE_SPHINXBUILD_FALSE@info-local:
+@HAVE_DOCS_FALSE@install-info-local:
+@HAVE_MAKEINFO_FALSE@install-info-local:
+@HAVE_SPHINXBUILD_FALSE@install-info-local:
 @HAVE_DOCS_FALSE@install-pdf-local:
 @HAVE_PDFLATEX_FALSE@install-pdf-local:
 @HAVE_SPHINXBUILD_FALSE@install-pdf-local:
 @HAVE_DOCS_FALSE@install-html-local:
 @HAVE_SPHINXBUILD_FALSE@install-html-local:
-@HAVE_DOCS_FALSE@pdf-local:
-@HAVE_PDFLATEX_FALSE@pdf-local:
-@HAVE_SPHINXBUILD_FALSE@pdf-local:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-local mostlyclean-am
@@ -732,6 +733,7 @@ man/knsupdate.1: man/knsupdate.1in
 man/knot1to2.1: man/knot1to2.1in
 man/knsec3hash.1: man/knsec3hash.1in
 man/keymgr.8: man/keymgr.8in
+man/kzonecheck.1: man/kzonecheck.1in
 
 .1in.1:
 	$(man_SUBST)
