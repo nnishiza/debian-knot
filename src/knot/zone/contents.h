@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include "dnssec/nsec.h"
 #include "libknot/rrtype/nsec3param.h"
 #include "knot/zone/node.h"
 #include "knot/zone/zone-tree.h"
@@ -39,7 +40,8 @@ typedef struct zone_contents {
 	zone_tree_t *nodes;
 	zone_tree_t *nsec3_nodes;
 
-	knot_nsec3_params_t nsec3_params;
+	dnssec_nsec3_params_t nsec3_params;
+	size_t size;
 } zone_contents_t;
 
 /*!
@@ -66,6 +68,17 @@ zone_contents_t *zone_contents_new(const knot_dname_t *apex_name);
  * \return KNOT_E*
  */
 int zone_contents_add_rr(zone_contents_t *z, const knot_rrset_t *rr, zone_node_t **n);
+
+/*!
+ * \brief Remove an RR from contents.
+ *
+ * \param z   Contents to remove from.
+ * \param rr  The RR to remove.
+ * \param n   Node from which the RR to be removed from on success, unchanged otherwise.
+ *
+ * \return KNOT_E*
+ */
+int zone_contents_remove_rr(zone_contents_t *z, const knot_rrset_t *rr, zone_node_t **n);
 
 /*!
  * \brief Get the node with this RR (the RR's owner).
@@ -95,12 +108,16 @@ zone_node_t *zone_contents_find_node_for_rr(zone_contents_t *contents, const kno
 /*!
  * \brief Tries to find a node by owner in the zone contents.
  *
- * \param[in] zone Zone to search for the name.
- * \param[in] name Domain name to search for.
- * \param[out] node The found node (if it was found, otherwise it may contain
- *                  arbitrary node).
- * \param[out] closest_encloser Closest encloser of the given name in the zone.
- * \param[out] previous Previous domain name in canonical order.
+ * \param[in]  contents  Zone to search for the name.
+ * \param[in]  name      Domain name to search for.
+ * \param[out] match     Matching node or NULL.
+ * \param[out] closest   Closest matching name in the zone.
+ *                       May match \a match if found exactly.
+ * \param[out] previous  Previous domain name in canonical order.
+ *                       Always previous, won't match \a match.
+ *
+ * \note The encloser and previous mustn't be used directly for DNSSEC proofs.
+ *       These nodes may be empty non-terminals or not authoritative.
  *
  * \retval ZONE_NAME_FOUND if node with owner \a name was found.
  * \retval ZONE_NAME_NOT_FOUND if it was not found.
@@ -109,20 +126,9 @@ zone_node_t *zone_contents_find_node_for_rr(zone_contents_t *contents, const kno
  */
 int zone_contents_find_dname(const zone_contents_t *contents,
                              const knot_dname_t *name,
-                             const zone_node_t **node,
-                             const zone_node_t **closest_encloser,
+                             const zone_node_t **match,
+                             const zone_node_t **closest,
                              const zone_node_t **previous);
-
-/*!
- * \brief Finds previous name in canonical order to the given name in the zone.
- *
- * \param zone Zone to search for the name.
- * \param name Domain name to find the previous domain name of.
- *
- * \return Previous node in canonical order, or NULL if some parameter is wrong.
- */
-const zone_node_t *zone_contents_find_previous(const zone_contents_t *contents,
-                                               const knot_dname_t *name);
 
 /*!
  * \brief Tries to find a node with the specified name among the NSEC3 nodes
@@ -171,6 +177,8 @@ const zone_node_t *zone_contents_find_wildcard_child(const zone_contents_t *cont
 /*!
  * \brief Sets parent and previous pointers and node flags. (cheap operation)
  *        For both normal and NSEC3 tree
+ *
+ * \param contents Zone contents to be adjusted.
  */
 int zone_contents_adjust_pointers(zone_contents_t *contents);
 
@@ -178,45 +186,9 @@ int zone_contents_adjust_pointers(zone_contents_t *contents);
  * \brief Sets parent and previous pointers, sets node flags and NSEC3 links.
  *        This has to be called before the zone can be served.
  *
- * \param first_nsec3_node First node in NSEC3 tree - needed in sem. checks.
- *        Will not be saved if set to NULL.
- * \param last_nsec3_node Last node in NSEC3 tree - needed in sem. checks.
- *        Will not be saved if set to NULL.
- * \param zone Zone to adjust domain names in.
+ * \param contents Zone contents to be adjusted.
  */
-int zone_contents_adjust_full(zone_contents_t *contents,
-                              zone_node_t **first_nsec3_node,
-                              zone_node_t **last_nsec3_node);
-
-/*!
- * \brief Parses the NSEC3PARAM record stored in the zone.
- *
- * This function properly fills in the nsec3_params field of the zone structure
- * according to data stored in the NSEC3PARAM record. This is necessary to do
- * before any NSEC3 operations on the zone are requested, otherwise they will
- * fail (error KNOT_ENSEC3PAR).
- *
- * \note If there is no NSEC3PARAM record in the zone, this function clears
- *       the nsec3_params field of the zone structure (fills it with zeros).
- *
- * \param zone Zone to get the NSEC3PARAM record from.
- */
-int zone_contents_load_nsec3param(zone_contents_t *contents);
-
-/*!
- * \brief Returns the parsed NSEC3PARAM record of the zone.
- *
- * \note You must parse the NSEC3PARAM record prior to calling this function
- *       (zone_contents_load_nsec3param()).
- *
- * \param zone Zone to get the NSEC3PARAM record from.
- *
- * \return Parsed NSEC3PARAM from the zone or NULL if the zone does not use
- *         NSEC3 or the record was not parsed before.
- *
- * \see zone_contents_load_nsec3param()
- */
-const knot_nsec3_params_t *zone_contents_nsec3params(const zone_contents_t *contents);
+int zone_contents_adjust_full(zone_contents_t *contents);
 
 /*!
  * \brief Applies the given function to each regular node in the zone.
@@ -303,5 +275,14 @@ bool zone_contents_is_signed(const zone_contents_t *zone);
  * \brief Return true if zone is empty.
  */
 bool zone_contents_is_empty(const zone_contents_t *zone);
+
+/*!
+ * \brief Measure zone contents size.
+ *
+ * Size is measured in uncompressed wire format. Measured size is saved into
+ * zone contents structure.
+ * \return Measured size
+ */
+size_t zone_contents_measure_size(zone_contents_t *zone);
 
 /*! @} */

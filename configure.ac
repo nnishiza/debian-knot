@@ -3,8 +3,8 @@
 AC_PREREQ([2.60])
 
 m4_define([knot_VERSION_MAJOR],2)dnl
-m4_define([knot_VERSION_MINOR],2)dnl
-m4_define([knot_VERSION_PATCH],1)dnl
+m4_define([knot_VERSION_MINOR],3)dnl
+m4_define([knot_VERSION_PATCH],0)dnl
 m4_define([knot_VERSION_EXTRA],)dnl
 m4_define([knot_PKG_VERSION],[knot_VERSION_MAJOR.knot_VERSION_MINOR.knot_VERSION_PATCH]knot_VERSION_EXTRA)dnl
 
@@ -26,30 +26,10 @@ AC_CONFIG_FILES([src/libknot/version.h
                  src/zscanner/version.h
                  src/dnssec/lib/dnssec/version.h])
 
-# Here are a set of rules to help you update your library version
-# information:
-#
-# 1. Start with version information of ‘0:0:0’ for each libtool library.
-#
-# 2. Update the version information only immediately before a public
-#    release of your software. More frequent updates are unnecessary,
-#    and only guarantee that the current interface number gets larger
-#    faster.
-#
-# 3. If the library source code has changed at all since the last
-#    update, then increment revision (‘c:r:a’ becomes ‘c:r+1:a’).
-#
-# 4. If any interfaces have been added, removed, or changed since the
-#    last update, increment current, and set revision to 0.
-#
-# 5. If any interfaces have been added since the last public release,
-#    then increment age.
-#
-# 6. If any interfaces have been removed or changed since the last
-#    public release, then set age to 0.
-
-AC_SUBST([libknot_VERSION_INFO],["-version-info 2:0:0"])
-AC_SUBST([libdnssec_VERSION_INFO],["-version-info 1:0:0"])
+# Updating version info
+# https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
+AC_SUBST([libknot_VERSION_INFO],["-version-info 3:0:0"])
+AC_SUBST([libdnssec_VERSION_INFO],["-version-info 2:0:0"])
 AC_SUBST([libzscanner_VERSION_INFO],["-version-info 1:0:0"])
 
 # Automatically update release date based on configure.ac date
@@ -69,7 +49,6 @@ CFLAGS="$CFLAGS -Wall -Werror=format-security -Werror=implicit"
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR]) # call AM_PROG_AR only if available
 
 # Initialize libtool
-AC_PROG_LIBTOOL
 LT_INIT
 
 # Use pkg-config
@@ -101,8 +80,6 @@ AM_CONDITIONAL([HAVE_DOCS], [test "$enable_documentation" = "yes"])
 
 AC_PROG_INSTALL
 
-AX_CC_LLVM
-
 AC_ARG_ENABLE([fastparser],
     AS_HELP_STRING([--disable-fastparser], [Disable use of fastest zone parser]),[],[
     # Set zone parser type - fastest on release build, slowest on dev build
@@ -113,17 +90,22 @@ AC_ARG_ENABLE([fastparser],
         ])
     ])
 
+AX_CC_CLANG
 AS_IF([test "$enable_fastparser" = "yes"],[
-    AS_IF([test "${CC_LLVM}" = "yes"],[
-        AC_MSG_WARN([LLVM based compiler detected; disabling fastest zone parser, see https://gitlab.labs.nic.cz/labs/knot/issues/351])
-        enable_fastparser=no
-        ])
+    AS_IF([test -n "$CC_CLANG_VERSION"],[
+      enable_fastparser=no
+      AC_MSG_WARN([Fast zone parser disabled due to possible compiler bug.])
+      AC_MSG_WARN([See https://llvm.org/bugs/show_bug.cgi?id=23490 for details.])
+      AC_MSG_WARN([Use --enable-fastparser=force if your know your clang is fixed.])
     ])
+])
+
+AS_IF([test "$enable_fastparser" = "force"],[enable_fastparser=yes])
 
 AM_CONDITIONAL([FAST_PARSER], [test "$enable_fastparser" = "yes"])
 
 # GnuTLS crypto backend
-PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle], [
+PKG_CHECK_MODULES([gnutls], [gnutls >= 3.3 nettle], [
     save_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS $gnutls_CFLAGS"
     AC_CHECK_HEADERS([nettle/version.h])
@@ -133,7 +115,7 @@ PKG_CHECK_MODULES([gnutls], [gnutls >= 3.0 nettle], [
     LIBS="$LIBS $gnutls_LIBS"
     AC_CHECK_FUNC([gnutls_pkcs11_copy_pubkey], [enable_pkcs11=yes], [enable_pkcs11=no])
     AS_IF([test "$enable_pkcs11" = yes],
-        [AC_DEFINE([ENABLE_PKCS11], [1], [PKCS 11 support available])])
+        [AC_DEFINE([ENABLE_PKCS11], [1], [PKCS #11 support available])])
 
     LIBS=$save_LIBS
 ])
@@ -556,7 +538,6 @@ AC_CONFIG_FILES([Makefile
                  src/contrib/dnstap/Makefile
                  src/dnssec/Makefile
                  src/dnssec/tests/Makefile
-                 src/dnssec/utils/Makefile
                  src/zscanner/Makefile
                  ])
 
@@ -598,7 +579,7 @@ AC_MSG_RESULT([
     Dnstap support:      ${opt_dnstap}
     Code coverage:       ${enable_code_coverage}
     Bash completions:    ${bash_completions_output}
-    PKCS 11 support:     ${enable_pkcs11}
+    PKCS #11 support:    ${enable_pkcs11}
 
   Continue with 'make' command
 ])

@@ -20,11 +20,13 @@
 #include <urcu.h>
 
 #include "knot/common/log.h"
+#include "knot/nameserver/process_query.h"
+#include "knot/query/requestor.h"
+#include "knot/updates/zone-update.h"
+#include "knot/zone/contents.h"
 #include "knot/zone/serial.h"
 #include "knot/zone/zone.h"
 #include "knot/zone/zonefile.h"
-#include "knot/zone/contents.h"
-#include "knot/nameserver/process_query.h"
 #include "libknot/libknot.h"
 #include "contrib/trim.h"
 #include "contrib/mempattern.h"
@@ -76,6 +78,17 @@ zone_t* zone_new(const knot_dname_t *name)
 	return zone;
 }
 
+void zone_control_clear(zone_t *zone)
+{
+	if (zone == NULL) {
+		return;
+	}
+
+	zone_update_clear(zone->control_update);
+	free(zone->control_update);
+	zone->control_update = NULL;
+}
+
 void zone_free(zone_t **zone_ptr)
 {
 	if (zone_ptr == NULL || *zone_ptr == NULL) {
@@ -91,6 +104,9 @@ void zone_free(zone_t **zone_ptr)
 	free_ddns_queue(zone);
 	pthread_mutex_destroy(&zone->ddns_lock);
 	pthread_mutex_destroy(&zone->journal_lock);
+
+	/* Control update. */
+	zone_control_clear(zone);
 
 	/* Free preferred master. */
 	pthread_mutex_destroy(&zone->preferred_lock);
@@ -229,7 +245,9 @@ int static preferred_master(conf_t *conf, zone_t *zone, conf_remote_t *master)
 
 		for (size_t i = 0; i < addr_count; i++) {
 			conf_remote_t remote = conf_remote(conf, &masters, i);
-			if (sockaddr_net_match(&remote.addr, zone->preferred_master, -1)) {
+			if (sockaddr_net_match((struct sockaddr *)&remote.addr,
+			                       (struct sockaddr *)zone->preferred_master,
+			                       -1)) {
 				*master = remote;
 				pthread_mutex_unlock(&zone->preferred_lock);
 				return KNOT_EOK;
@@ -273,7 +291,9 @@ int zone_master_try(conf_t *conf, zone_t *zone, zone_master_cb callback,
 		for (size_t i = 0; i < addr_count; i++) {
 			conf_remote_t master = conf_remote(conf, &masters, i);
 			if (preferred.addr.ss_family != AF_UNSPEC &&
-			    sockaddr_net_match(&master.addr, &preferred.addr, -1)) {
+			    sockaddr_net_match((struct sockaddr *)&master.addr,
+			                       (struct sockaddr *)&preferred.addr,
+			                       -1)) {
 				preferred.addr.ss_family = AF_UNSPEC;
 				continue;
 			}
@@ -301,17 +321,19 @@ int zone_flush_journal(conf_t *conf, zone_t *zone)
 		return KNOT_EINVAL;
 	}
 
+	bool force = zone->flags & ZONE_FORCE_FLUSH;
+	zone->flags &= ~ZONE_FORCE_FLUSH;
+
 	/* Check for disabled zonefile synchronization. */
 	conf_val_t val = conf_zone_get(conf, C_ZONEFILE_SYNC, zone->name);
-	if (conf_int(&val) < 0 && (zone->flags & ZONE_FORCE_FLUSH) == 0) {
+	if (conf_int(&val) < 0 && !force) {
 		return KNOT_EOK;
 	}
-	zone->flags &= ~ZONE_FORCE_FLUSH;
 
 	/* Check for difference against zonefile serial. */
 	zone_contents_t *contents = zone->contents;
 	uint32_t serial_to = zone_contents_serial(contents);
-	if (zone->zonefile.exists && zone->zonefile.serial == serial_to) {
+	if (!force && zone->zonefile.exists && zone->zonefile.serial == serial_to) {
 		return KNOT_EOK; /* No differences. */
 	}
 

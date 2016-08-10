@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,11 +31,12 @@
 #include "libknot/libknot.h"
 #include "contrib/mempattern.h"
 #include "contrib/openbsd/strlcpy.h"
+#include "contrib/strtonum.h"
 
 #define IPV4_REVERSE_DOMAIN	"in-addr.arpa."
 #define IPV6_REVERSE_DOMAIN	"ip6.arpa."
 
-char* name_from_idn(const char *idn_name) {
+char *name_from_idn(const char *idn_name) {
 #ifdef LIBIDN
 	char *name = NULL;
 
@@ -118,10 +119,8 @@ int best_param(const char *str, const size_t str_len, const param_t *tbl,
 		case -1:
 			continue;
 		case 0:
-			best_pos = i;
-			best_match = 0;
-			matches = 1;
-			break;
+			*unique = true;
+			return i;
 		default:
 			if (ret < best_match) {
 				best_pos = i;
@@ -143,7 +142,7 @@ int best_param(const char *str, const size_t str_len, const param_t *tbl,
 	}
 }
 
-char* get_reverse_name(const char *name)
+char *get_reverse_name(const char *name)
 {
 	struct in_addr	addr4;
 	struct in6_addr	addr6;
@@ -200,7 +199,7 @@ char* get_reverse_name(const char *name)
 	}
 }
 
-char* get_fqd_name(const char *name)
+char *get_fqd_name(const char *name)
 {
 	char *fqd_name = NULL;
 
@@ -287,15 +286,14 @@ int params_parse_type(const char *value, uint16_t *rtype, int64_t *serial,
 			unsigned long long num = strtoull(param_str, &end, 10);
 
 			// Check for bad serial string.
-			if (end == param_str || *end != '\0' ||
-			    num > UINT32_MAX) {
-				DBG("bad SOA serial %s\n", param_str);
+			if (end == param_str || *end != '\0' || num > UINT32_MAX) {
+				DBG("bad SOA serial '%s'\n", param_str);
 				return KNOT_EINVAL;
 			}
 
 			*serial = num;
 		} else {
-			DBG("unsupported parameter in query type '%s'\n", value);
+			DBG("unsupported parameter '%s'\n", value);
 			return KNOT_EINVAL;
 		}
 	}
@@ -313,7 +311,6 @@ int params_parse_server(const char *value, list_t *servers, const char *def_port
 	// Add specified nameserver.
 	srv_info_t *server = parse_nameserver(value, def_port);
 	if (server == NULL) {
-		ERR("bad nameserver %s\n", value);
 		return KNOT_EINVAL;
 	}
 	add_tail(servers, (node_t *)server);
@@ -323,58 +320,23 @@ int params_parse_server(const char *value, list_t *servers, const char *def_port
 
 int params_parse_wait(const char *value, int32_t *dst)
 {
-	char *end;
-
 	if (value == NULL || dst == NULL) {
 		DBG_NULL;
 		return KNOT_EINVAL;
 	}
 
-	/* Convert string to number. */
-	long long num = strtoll(value, &end, 10);
+	uint32_t num;
+	int ret = str_to_u32(value, &num);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
 
-	/* Check for bad string (empty or incorrect). */
-	if (end == value || *end != '\0') {
-		ERR("bad time value %s\n", value);
-		return KNOT_EINVAL;
-	} else if (num < 1) {
+	// Check for minimal value.
+	if (num < 1) {
 		num = 1;
-		WARN("time %s is too short, using %lld instead\n", value, num);
-	/* Reduce maximal value. Poll takes signed int in milliseconds. */
-	} else if (num > INT32_MAX) {
+	// Reduce maximal value. Poll takes signed int in milliseconds.
+	} else if (num > INT32_MAX / 1000) {
 		num = INT32_MAX / 1000;
-		WARN("time %s is too big, using %lld instead\n", value, num);
-	}
-
-	*dst = num;
-
-	return KNOT_EOK;
-}
-
-int params_parse_num(const char *value, uint32_t *dst)
-{
-	char *end;
-
-	if (value == NULL || dst == NULL) {
-		DBG_NULL;
-		return KNOT_EINVAL;
-	}
-
-	// Convert string to number.
-	long long num = strtoll(value, &end, 10);
-
-	// Check for bad string.
-	if (end == value || *end != '\0') {
-		ERR("bad number %s\n", value);
-		return KNOT_EINVAL;
-	}
-
-	if (num > UINT32_MAX) {
-		num = UINT32_MAX;
-		WARN("number %s is too big, using %lld instead\n", value, num);
-	} else if (num < 0) {
-		num = 0;
-		WARN("number %s is too small, using %lld instead\n", value, num);
 	}
 
 	*dst = num;

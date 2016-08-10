@@ -23,12 +23,18 @@
 #include "knot/nameserver/internet.h"
 #include "knot/nameserver/nsec_proofs.h"
 #include "knot/nameserver/process_query.h"
-#include "knot/nameserver/process_answer.h"
+#include "knot/query/query.h"
 #include "knot/nameserver/query_module.h"
 #include "knot/zone/serial.h"
 #include "knot/zone/zonedb.h"
 #include "contrib/mempattern.h"
 #include "contrib/sockaddr.h"
+
+/*! \brief Kind of additional record. */
+enum additional_kind {
+	ADDITIONAL_OPTIONAL = 0,
+	ADDITIONAL_MANDATORY,
+};
 
 /*! \brief Check if given node was already visited. */
 static int wildcard_has_visited(struct query_data *qdata, const zone_node_t *node)
@@ -43,7 +49,8 @@ static int wildcard_has_visited(struct query_data *qdata, const zone_node_t *nod
 }
 
 /*! \brief Mark given node as visited. */
-static int wildcard_visit(struct query_data *qdata, const zone_node_t *node, const knot_dname_t *sname)
+static int wildcard_visit(struct query_data *qdata, const zone_node_t *node,
+                          const zone_node_t *prev, const knot_dname_t *sname)
 {
 	assert(qdata);
 	assert(node);
@@ -56,6 +63,7 @@ static int wildcard_visit(struct query_data *qdata, const zone_node_t *node, con
 	knot_mm_t *mm = qdata->mm;
 	struct wildcard_hit *item = mm_alloc(mm, sizeof(struct wildcard_hit));
 	item->node = node;
+	item->prev = prev;
 	item->sname = sname;
 	add_tail(&qdata->wildcards, (node_t *)item);
 	return KNOT_EOK;
@@ -274,7 +282,7 @@ static int put_delegation(knot_pkt_t *pkt, struct query_data *qdata)
 /*! \brief Put additional records for given RR. */
 static int put_additional(knot_pkt_t *pkt, const knot_rrset_t *rr,
                           struct query_data *qdata, knot_rrinfo_t *info,
-                          bool is_deleg)
+                          int state, enum additional_kind kind)
 {
 	/* Valid types for ADDITIONALS insertion. */
 	/* \note Not resolving CNAMEs as MX/NS name must not be an alias. (RFC2181/10.3) */
@@ -284,17 +292,28 @@ static int put_additional(knot_pkt_t *pkt, const knot_rrset_t *rr,
 	int ret = KNOT_EOK;
 
 	/* All RRs should have additional node cached or NULL. */
-	uint16_t rr_rdata_count = rr->rrs.rr_count;
-	for (uint16_t i = 0; i < rr_rdata_count; i++) {
+	for (uint16_t i = 0; i < rr->rrs.rr_count; i++) {
 		const zone_node_t *node = rr->additional[i];
 		if (node == NULL) {
 			continue;
 		}
 
-		/* Glue is required as per RFC 1034 Section 4.3.2 step 3b. */
-		bool is_glue = is_deleg && (node->flags & NODE_FLAGS_NONAUTH);
-		uint32_t flags = KNOT_PF_CHECKDUP | (is_glue ? 0 : KNOT_PF_NOTRUNC);
+		bool is_notauth = (node->flags & (NODE_FLAGS_DELEG | NODE_FLAGS_NONAUTH));
+		bool is_glue = is_notauth &&
+		               state == DELEG && rr->type == KNOT_RRTYPE_NS &&
+		               knot_dname_in(rr->owner, node->owner);
 
+		/* Non-authoritative node allowed only as a glue. */
+		if (is_notauth && !is_glue) {
+			continue;
+		}
+
+		/* Glue is required as per RFC 1034 Section 4.3.2 step 3b. */
+		if (kind != (is_glue ? ADDITIONAL_MANDATORY : ADDITIONAL_OPTIONAL)) {
+			continue;
+		}
+
+		uint32_t flags = KNOT_PF_CHECKDUP | (is_glue ? 0 : KNOT_PF_NOTRUNC);
 		uint16_t hint = knot_pkt_compr_hint(info, KNOT_COMPR_HINT_RDATA + i);
 		knot_rrset_t rrsigs = node_rrset(node, KNOT_RRTYPE_RRSIG);
 		for (int k = 0; k < ar_type_count; ++k) {
@@ -371,7 +390,7 @@ static int follow_cname(knot_pkt_t *pkt, uint16_t rrtype, struct query_data *qda
 		}
 
 		/* Put to wildcard node list. */
-		if (wildcard_visit(qdata, cname_node, qdata->name) != KNOT_EOK) {
+		if (wildcard_visit(qdata, cname_node, qdata->previous, qdata->name) != KNOT_EOK) {
 			return ERROR;
 		}
 	}
@@ -431,14 +450,11 @@ static int name_not_found(knot_pkt_t *pkt, struct query_data *qdata)
 		qdata->node = wildcard_node;
 		assert(qdata->node != NULL);
 
-		/* keep encloser */
-		qdata->previous = NULL;
-
 		/* Follow expanded wildcard. */
 		int next_state = name_found(pkt, qdata);
 
 		/* Put to wildcard node list. */
-		if (wildcard_visit(qdata, wildcard_node, qdata->name) != KNOT_EOK) {
+		if (wildcard_visit(qdata, wildcard_node, qdata->previous, qdata->name) != KNOT_EOK) {
 			next_state = ERROR;
 		}
 
@@ -593,10 +609,15 @@ static int solve_authority_dnssec(int state, knot_pkt_t *pkt, struct query_data 
 	}
 }
 
-static int solve_additional(int state, knot_pkt_t *pkt,
-                            struct query_data *qdata, void *ctx)
+static int solve_additional_kind(int state, knot_pkt_t *pkt, struct query_data *qdata,
+                                 enum additional_kind kind)
 {
 	int ret = KNOT_EOK;
+
+	/* Only glue can be mandatory. */
+	if (kind == ADDITIONAL_MANDATORY && state != DELEG) {
+		return ret;
+	}
 
 	/* Scan all RRs in ANSWER/AUTHORITY. */
 	for (uint16_t i = 0; i < pkt->rrset_count; ++i) {
@@ -607,12 +628,26 @@ static int solve_additional(int state, knot_pkt_t *pkt,
 		if (!knot_rrtype_additional_needed(pkt->rr[i].type)) {
 			continue;
 		}
+
 		/* Put additional records for given type. */
-		bool is_deleg = (rr->type == KNOT_RRTYPE_NS && state == DELEG);
-		ret = put_additional(pkt, rr, qdata, info, is_deleg);
+		ret = put_additional(pkt, rr, qdata, info, state, kind);
 		if (ret != KNOT_EOK) {
 			break;
 		}
+	}
+
+	return ret;
+}
+
+static int solve_additional(int state, knot_pkt_t *pkt,
+                            struct query_data *qdata, void *ctx)
+{
+	int ret = KNOT_EOK;
+
+	/* First mandatory, then optional. */
+	ret = solve_additional_kind(state, pkt, qdata, ADDITIONAL_MANDATORY);
+	if (ret == KNOT_EOK) {
+		ret = solve_additional_kind(state, pkt, qdata, ADDITIONAL_OPTIONAL);
 	}
 
 	/* Evaluate final state. */
@@ -701,11 +736,18 @@ int ns_put_rr(knot_pkt_t *pkt, const knot_rrset_t *rr,
 		return KNOT_STATE_FAIL; \
 	}
 
-static int default_answer(knot_pkt_t *response, struct query_data *qdata)
+static int answer_query(struct query_plan *plan, knot_pkt_t *response, struct query_data *qdata)
 {
 	int state = BEGIN;
 	struct query_plan *global_plan = conf()->query_plan;
 	struct query_step *step = NULL;
+
+	/* Before query processing code. */
+	if (plan != NULL) {
+		WALK_LIST(step, plan->stage[QPLAN_BEGIN]) {
+			SOLVE_STEP(step->process, state, step->ctx);
+		}
+	}
 
 	/* Resolve ANSWER. */
 	knot_pkt_begin(response, KNOT_ANSWER);
@@ -716,6 +758,11 @@ static int default_answer(knot_pkt_t *response, struct query_data *qdata)
 	}
 	SOLVE_STEP(solve_answer, state, NULL);
 	SOLVE_STEP(solve_answer_dnssec, state, NULL);
+	if (plan != NULL) {
+		WALK_LIST(step, plan->stage[QPLAN_ANSWER]) {
+			SOLVE_STEP(step->process, state, step->ctx);
+		}
+	}
 
 	/* Resolve AUTHORITY. */
 	knot_pkt_begin(response, KNOT_AUTHORITY);
@@ -726,6 +773,11 @@ static int default_answer(knot_pkt_t *response, struct query_data *qdata)
 	}
 	SOLVE_STEP(solve_authority, state, NULL);
 	SOLVE_STEP(solve_authority_dnssec, state, NULL);
+	if (plan != NULL) {
+		WALK_LIST(step, plan->stage[QPLAN_AUTHORITY]) {
+			SOLVE_STEP(step->process, state, step->ctx);
+		}
+	}
 
 	/* Resolve ADDITIONAL. */
 	knot_pkt_begin(response, KNOT_ADDITIONAL);
@@ -736,40 +788,17 @@ static int default_answer(knot_pkt_t *response, struct query_data *qdata)
 	}
 	SOLVE_STEP(solve_additional, state, NULL);
 	SOLVE_STEP(solve_additional_dnssec, state, NULL);
-
-	/* Write resulting RCODE. */
-	knot_wire_set_rcode(response->wire, qdata->rcode);
-
-	return KNOT_STATE_DONE;
-}
-
-static int planned_answer(struct query_plan *plan, knot_pkt_t *response, struct query_data *qdata)
-{
-	int state = BEGIN;
-	struct query_plan *global_plan = conf()->query_plan;
-	struct query_step *step = NULL;
-
-	/* Before query processing code. */
-	WALK_LIST(step, plan->stage[QPLAN_BEGIN]) {
-		SOLVE_STEP(step->process, state, step->ctx);
-	}
-
-	/* Begin processing. */
-	for (int section = KNOT_ANSWER; section <= KNOT_ADDITIONAL; ++section) {
-		knot_pkt_begin(response, section);
-		if (global_plan != NULL) {
-			WALK_LIST(step, global_plan->stage[QPLAN_STAGE + section]) {
-				SOLVE_STEP(step->process, state, step->ctx);
-			}
-		}
-		WALK_LIST(step, plan->stage[QPLAN_STAGE + section]) {
+	if (plan != NULL) {
+		WALK_LIST(step, plan->stage[QPLAN_ADDITIONAL]) {
 			SOLVE_STEP(step->process, state, step->ctx);
 		}
 	}
 
 	/* After query processing code. */
-	WALK_LIST(step, plan->stage[QPLAN_END]) {
-		SOLVE_STEP(step->process, state, step->ctx);
+	if (plan != NULL) {
+		WALK_LIST(step, plan->stage[QPLAN_END]) {
+			SOLVE_STEP(step->process, state, step->ctx);
+		}
 	}
 
 	/* Write resulting RCODE. */
@@ -803,25 +832,13 @@ int internet_process_query(knot_pkt_t *response, struct query_data *qdata)
 	/* Get answer to QNAME. */
 	qdata->name = knot_pkt_qname(qdata->query);
 
-	/* If the zone doesn't have a query plan, go for fast default. */
-	if (qdata->zone->query_plan == NULL) {
-		return default_answer(response, qdata);
-	}
-
-	return planned_answer(qdata->zone->query_plan, response, qdata);
+	return answer_query(qdata->zone->query_plan, response, qdata);
 }
 
-int internet_query_plan(struct query_plan *plan)
-{
-	query_plan_step(plan, QPLAN_ANSWER, solve_answer, NULL);
-	query_plan_step(plan, QPLAN_ANSWER, solve_answer_dnssec, NULL);
-	query_plan_step(plan, QPLAN_AUTHORITY, solve_authority, NULL);
-	query_plan_step(plan, QPLAN_AUTHORITY, solve_authority_dnssec, NULL);
-	query_plan_step(plan, QPLAN_ADDITIONAL, solve_additional, NULL);
-	query_plan_step(plan, QPLAN_ADDITIONAL, solve_additional_dnssec, NULL);
-
-	return KNOT_EOK;
-}
+#include "knot/nameserver/log.h"
+#define REFRESH_LOG(priority, msg, ...) \
+	NS_PROC_LOG(priority, (data)->param->zone->name, (data)->param->remote, \
+	            "refresh, outgoing", msg, ##__VA_ARGS__)
 
 /*! \brief Process answer to SOA query. */
 static int process_soa_answer(knot_pkt_t *pkt, struct answer_data *data)
@@ -833,8 +850,7 @@ static int process_soa_answer(knot_pkt_t *pkt, struct answer_data *data)
 	if (rcode != KNOT_RCODE_NOERROR) {
 		const knot_lookup_t *lut = knot_lookup_by_id(knot_rcode_names, rcode);
 		if (lut != NULL) {
-			ANSWER_LOG(LOG_WARNING, data, "refresh, outgoing",
-			           "server responded with %s", lut->name);
+			REFRESH_LOG(LOG_WARNING, "server responded with %s", lut->name);
 		}
 		return KNOT_STATE_FAIL;
 	}
@@ -843,7 +859,7 @@ static int process_soa_answer(knot_pkt_t *pkt, struct answer_data *data)
 	const knot_pktsection_t *answer = knot_pkt_section(pkt, KNOT_ANSWER);
 	const knot_rrset_t *first_rr = knot_pkt_rr(answer, 0);
 	if (answer->count < 1 || first_rr->type != KNOT_RRTYPE_SOA) {
-		ANSWER_LOG(LOG_WARNING, data, "refresh, outgoing", "malformed message");
+		REFRESH_LOG(LOG_WARNING, "malformed message");
 		return KNOT_STATE_FAIL;
 	}
 
@@ -858,15 +874,14 @@ static int process_soa_answer(knot_pkt_t *pkt, struct answer_data *data)
 	uint32_t our_serial = knot_soa_serial(soa);
 	uint32_t their_serial =	knot_soa_serial(&first_rr->rrs);
 	if (serial_compare(our_serial, their_serial) >= 0) {
-		ANSWER_LOG(LOG_INFO, data, "refresh, outgoing", "zone is up-to-date");
+		REFRESH_LOG(LOG_INFO, "zone is up-to-date");
 		zone_events_cancel(zone, ZONE_EVENT_EXPIRE);
 		zone_clear_preferred_master(zone);
 		return KNOT_STATE_DONE; /* Our zone is up to date. */
 	}
 
 	/* Our zone is outdated, schedule zone transfer. */
-	ANSWER_LOG(LOG_INFO, data, "refresh, outgoing", "master has newer serial %u -> %u",
-	           our_serial, their_serial);
+	REFRESH_LOG(LOG_INFO, "master has newer serial %u -> %u", our_serial, their_serial);
 	zone_set_preferred_master(zone, data->param->remote);
 	zone_events_schedule(zone, ZONE_EVENT_XFER, ZONE_EVENT_NOW);
 	return KNOT_STATE_DONE;

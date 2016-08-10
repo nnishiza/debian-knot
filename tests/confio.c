@@ -177,7 +177,7 @@ static int format_item(conf_io_t *io)
 
 static void test_conf_io_begin()
 {
-	ok(conf_io_begin(true) == KNOT_CONF_ENOTXN, "begin child txn with no parent");
+	ok(conf_io_begin(true) == KNOT_TXN_ENOTEXISTS, "begin child txn with no parent");
 	ok(conf()->io.txn == NULL, "check txn depth");
 
 #if defined(__OpenBSD__)
@@ -186,14 +186,14 @@ static void test_conf_io_begin()
 	ok(conf_io_begin(false) == KNOT_EOK, "begin parent txn");
 	ok(conf()->io.txn == &(conf()->io.txn_stack[0]), "check txn depth");
 
-	ok(conf_io_begin(false) == KNOT_CONF_ETXN, "begin another parent txn");
+	ok(conf_io_begin(false) == KNOT_TXN_EEXISTS, "begin another parent txn");
 	ok(conf()->io.txn == &(conf()->io.txn_stack[0]), "check txn depth");
 
 	for (int i = 1; i < CONF_MAX_TXN_DEPTH; i++) {
 		ok(conf_io_begin(true) == KNOT_EOK, "begin child txn");
 		ok(conf()->io.txn == &(conf()->io.txn_stack[i]), "check txn depth");
 	}
-	ok(conf_io_begin(true) == KNOT_CONF_EMANYTXN, "begin another child txn");
+	ok(conf_io_begin(true) == KNOT_TXN_EEXISTS, "begin another child txn");
 	ok(conf()->io.txn == &(conf()->io.txn_stack[CONF_MAX_TXN_DEPTH - 1]),
 	   "check txn depth");
 
@@ -259,8 +259,8 @@ static void test_conf_io_abort()
 
 static void test_conf_io_commit()
 {
-	ok(conf_io_commit(false) == KNOT_CONF_ENOTXN, "commit no txt txn");
-	ok(conf_io_commit(true) == KNOT_CONF_ENOTXN, "commit no txt txn");
+	ok(conf_io_commit(false) == KNOT_TXN_ENOTEXISTS, "commit no txt txn");
+	ok(conf_io_commit(true) == KNOT_TXN_ENOTEXISTS, "commit no txt txn");
 
 #if defined(__OpenBSD__)
 	SKIP_OPENBSD
@@ -314,7 +314,7 @@ static void test_conf_io_check()
 
 	// ERR no txn.
 	ok(conf_io_check(&io) ==
-	   KNOT_CONF_ENOTXN, "check without active txn");
+	   KNOT_TXN_ENOTEXISTS, "check without active txn");
 
 	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
 
@@ -356,7 +356,7 @@ static void test_conf_io_set()
 
 	// ERR no txn.
 	ok(conf_io_set("server", "version", NULL, "text", &io) ==
-	   KNOT_CONF_ENOTXN, "set without active txn");
+	   KNOT_TXN_ENOTEXISTS, "set without active txn");
 
 	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
 
@@ -454,7 +454,7 @@ static void test_conf_io_unset()
 {
 	// ERR no txn.
 	ok(conf_io_unset("server", "version", NULL, "text") ==
-	   KNOT_CONF_ENOTXN, "unset without active txn");
+	   KNOT_TXN_ENOTEXISTS, "unset without active txn");
 
 	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
 
@@ -645,7 +645,7 @@ static void test_conf_io_get()
 
 	// ERR no txn.
 	ok(conf_io_get("server", "version", NULL, false, &io) ==
-	   KNOT_CONF_ENOTXN, "get without active txn");
+	   KNOT_TXN_ENOTEXISTS, "get without active txn");
 
 	// Get current, no active txn.
 	*out = '\0';
@@ -773,7 +773,7 @@ static void test_conf_io_diff()
 
 	// ERR no txn.
 	ok(conf_io_diff("server", "version", NULL, &io) ==
-	   KNOT_CONF_ENOTXN, "diff without active txn");
+	   KNOT_TXN_ENOTEXISTS, "diff without active txn");
 
 	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
 
@@ -893,14 +893,31 @@ static void test_conf_io_list()
 	   KNOT_EOK, "list group");
 	ref = "server.version\n"
 	      "server.rate-limit\n"
-	      "server.listen";
+	      "server.listen\n"
+	      "server.tcp-handshake-timeout\n"
+	      "server.tcp-idle-timeout\n"
+	      "server.tcp-reply-timeout\n"
+	      "server.max-tcp-clients\n"
+	      "server.max-udp-payload\n"
+	      "server.max-ipv4-udp-payload\n"
+	      "server.max-ipv6-udp-payload\n"
+	      "server.rate-limit-slip";
 	ok(strcmp(ref, out) == 0, "compare result");
 }
 
 static const yp_item_t desc_server[] = {
-	{ C_VERSION,    YP_TSTR,  YP_VNONE },
-	{ C_RATE_LIMIT, YP_TINT,  YP_VNONE },
-	{ C_LISTEN,     YP_TADDR, YP_VNONE, YP_FMULTI },
+	{ C_VERSION,              YP_TSTR,  YP_VNONE },
+	{ C_RATE_LIMIT,           YP_TINT,  YP_VNONE },
+	{ C_LISTEN,               YP_TADDR, YP_VNONE, YP_FMULTI },
+	// Required config cache items - assert fix.
+	{ C_TCP_HSHAKE_TIMEOUT,   YP_TINT,  YP_VNONE },
+	{ C_TCP_IDLE_TIMEOUT,	  YP_TINT,  YP_VNONE },
+	{ C_TCP_REPLY_TIMEOUT,	  YP_TINT,  YP_VNONE },
+	{ C_MAX_TCP_CLIENTS,	  YP_TINT,  YP_VNONE },
+	{ C_MAX_UDP_PAYLOAD,      YP_TINT,  YP_VNONE },
+	{ C_MAX_IPV4_UDP_PAYLOAD, YP_TINT,  YP_VNONE },
+	{ C_MAX_IPV6_UDP_PAYLOAD, YP_TINT,  YP_VNONE },
+	{ C_RATE_LIMIT_SLIP,	  YP_TINT,  YP_VNONE },
 	{ NULL }
 };
 

@@ -90,7 +90,7 @@ static int replace_rdataset_with_copy(zone_node_t *node, uint16_t type)
 	return KNOT_EOK;
 }
 
-/*! \brief Stores RR data for update cleanup. */
+/*! \brief Frees RR dataset. For use when a copy was made. */
 static void clear_new_rrs(zone_node_t *node, uint16_t type)
 {
 	knot_rdataset_t *new_rrs = node_rdataset(node, type);
@@ -182,7 +182,7 @@ static int remove_rr(apply_ctx_t *ctx, zone_tree_t *tree, zone_node_t *node,
 		// RRSet is empty now, remove it from node, all data freed.
 		node_remove_rdataset(node, rr->type);
 		// If node is empty now, delete it from zone tree.
-		if (node->rrset_count == 0) {
+		if (node->rrset_count == 0 && node != ctx->apex) {
 			zone_tree_delete_empty_node(tree, node);
 		}
 	}
@@ -201,7 +201,13 @@ static int apply_remove(apply_ctx_t *ctx, zone_contents_t *contents, changeset_t
 		// Find node for this owner
 		zone_node_t *node = zone_contents_find_node_for_rr(contents, &rr);
 		if (!can_remove(node, &rr)) {
-			// Nothing to remove from, skip.
+			// Cannot be removed, either no node or nonexistent RR
+			if (ctx->flags & APPLY_STRICT) {
+				// Don't ignore missing RR if strict. Required for IXFR.
+				changeset_iter_clear(&itt);
+				return KNOT_ENORECORD;
+			}
+
 			rr = changeset_iter_next(&itt);
 			continue;
 		}
@@ -300,7 +306,10 @@ static int apply_replace_soa(apply_ctx_t *ctx, zone_contents_t *contents, change
 		return ret;
 	}
 
-	assert(!node_rrtype_exists(contents->apex, KNOT_RRTYPE_SOA));
+	// Check for SOA with proper serial but different rdata.
+	if (node_rrtype_exists(contents->apex, KNOT_RRTYPE_SOA)) {
+		return KNOT_EINVAL;
+	}
 
 	return add_rr(ctx, contents, contents->apex, chset->soa_to, chset);
 }
@@ -319,6 +328,8 @@ static int apply_single(apply_ctx_t *ctx, zone_contents_t *contents, changeset_t
 	if (soa == NULL || knot_soa_serial(soa) != knot_soa_serial(&chset->soa_from->rrs)) {
 		return KNOT_EINVAL;
 	}
+
+	ctx->apex = contents->apex;
 
 	int ret = apply_remove(ctx, contents, chset);
 	if (ret != KNOT_EOK) {
@@ -362,29 +373,16 @@ static int prepare_zone_copy(zone_contents_t *old_contents,
 	return KNOT_EOK;
 }
 
-/*! \brief Removes empty nodes from updated zone a does zone adjusting. */
-static int finalize_updated_zone(zone_contents_t *contents_copy,
-                                 bool set_nsec3_names)
-{
-	if (contents_copy == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	if (set_nsec3_names) {
-		return zone_contents_adjust_full(contents_copy, NULL, NULL);
-	} else {
-		return zone_contents_adjust_pointers(contents_copy);
-	}
-}
-
 /* ------------------------------- API -------------------------------------- */
 
-void apply_init_ctx(apply_ctx_t *ctx)
+void apply_init_ctx(apply_ctx_t *ctx, uint32_t flags)
 {
 	assert(ctx);
 
 	init_list(&ctx->old_data);
 	init_list(&ctx->new_data);
+
+	ctx->flags = flags;
 }
 
 int apply_changesets(apply_ctx_t *ctx, zone_t *zone, list_t *chsets, zone_contents_t **new_contents)
@@ -419,7 +417,7 @@ int apply_changesets(apply_ctx_t *ctx, zone_t *zone, list_t *chsets, zone_conten
 
 	assert(contents_copy->apex != NULL);
 
-	ret = finalize_updated_zone(contents_copy, true);
+	ret = zone_contents_adjust_full(contents_copy);
 	if (ret != KNOT_EOK) {
 		update_rollback(ctx);
 		update_free_zone(&contents_copy);
@@ -455,7 +453,7 @@ int apply_changeset(apply_ctx_t *ctx, zone_t *zone, changeset_t *change, zone_co
 		return ret;
 	}
 
-	ret = finalize_updated_zone(contents_copy, true);
+	ret = zone_contents_adjust_full(contents_copy);
 	if (ret != KNOT_EOK) {
 		update_rollback(ctx);
 		update_free_zone(&contents_copy);
@@ -482,7 +480,7 @@ int apply_changesets_directly(apply_ctx_t *ctx, zone_contents_t *contents, list_
 		}
 	}
 
-	int ret = finalize_updated_zone(contents, true);
+	int ret = zone_contents_adjust_full(contents);
 	if (ret != KNOT_EOK) {
 		update_cleanup(ctx);
 	}
@@ -502,7 +500,7 @@ int apply_changeset_directly(apply_ctx_t *ctx, zone_contents_t *contents, change
 		return ret;
 	}
 
-	ret = finalize_updated_zone(contents, true);
+	ret = zone_contents_adjust_full(contents);
 	if (ret != KNOT_EOK) {
 		update_cleanup(ctx);
 		return ret;
@@ -541,7 +539,7 @@ void update_free_zone(zone_contents_t **contents)
 	zone_tree_deep_free(&(*contents)->nodes);
 	zone_tree_deep_free(&(*contents)->nsec3_nodes);
 
-	knot_nsec3param_free(&(*contents)->nsec3_params);
+	dnssec_nsec3_params_free(&(*contents)->nsec3_params);
 
 	free(*contents);
 	*contents = NULL;

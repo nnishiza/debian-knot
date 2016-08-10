@@ -1,4 +1,4 @@
-/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,12 @@ int zone_load_contents(conf_t *conf, const knot_dname_t *zone_name,
 	char *zonefile = conf_zonefile(conf, zone_name);
 	conf_val_t val = conf_zone_get(conf, C_SEM_CHECKS, zone_name);
 	int ret = zonefile_open(&zl, zonefile, zone_name, conf_bool(&val));
+
+	err_handler_logger_t handler;
+	memset(&handler, 0, sizeof(handler));
+	handler._cb.cb = err_handler_logger;
+
+	zl.err_handler = (err_handler_t *) &handler;
 	free(zonefile);
 	if (ret != KNOT_EOK) {
 		return ret;
@@ -45,6 +51,7 @@ int zone_load_contents(conf_t *conf, const knot_dname_t *zone_name,
 	zl.creator->master = !zone_load_can_bootstrap(conf, zone_name);
 
 	*contents = zonefile_load(&zl);
+
 	zonefile_close(&zl);
 	if (*contents == NULL) {
 		return KNOT_ERROR;
@@ -64,25 +71,20 @@ int zone_load_check(conf_t *conf, zone_contents_t *contents)
 		return KNOT_EOK;
 	}
 
-	const knot_dname_t *zone_name = contents->apex->owner;
-
 	/* Check minimum EDNS0 payload if signed. (RFC4035/sec. 3) */
 	if (zone_contents_is_signed(contents)) {
-		conf_val_t *max_payload = &conf->cache.srv_max_udp_payload;
-		if (conf_int(max_payload) < KNOT_EDNS_MIN_DNSSEC_PAYLOAD) {
-			log_zone_error(zone_name, "EDNS payload size is "
-			               "lower than %u bytes for DNSSEC zone",
+		if (conf->cache.srv_max_ipv4_udp_payload < KNOT_EDNS_MIN_DNSSEC_PAYLOAD) {
+			log_zone_error(contents->apex->owner, "EDNS payload size "
+			               "for IPv4 is lower than %u bytes for DNSSEC zone",
 			               KNOT_EDNS_MIN_DNSSEC_PAYLOAD);
 			return KNOT_EPAYLOAD;
 		}
-	}
-
-	/* Check NSEC3PARAM state if present. */
-	int result = zone_contents_load_nsec3param(contents);
-	if (result != KNOT_EOK) {
-		log_zone_error(zone_name, "NSEC3 signed zone has invalid or no "
-		               "NSEC3PARAM record");
-		return result;
+		if (conf->cache.srv_max_ipv6_udp_payload < KNOT_EDNS_MIN_DNSSEC_PAYLOAD) {
+			log_zone_error(contents->apex->owner, "EDNS payload size "
+			               "for IPv6 is lower than %u bytes for DNSSEC zone",
+			               KNOT_EDNS_MIN_DNSSEC_PAYLOAD);
+			return KNOT_EPAYLOAD;
+		}
 	}
 
 	return KNOT_EOK;
@@ -127,7 +129,7 @@ int zone_load_journal(conf_t *conf, zone_t *zone, zone_contents_t *contents)
 
 	/* Apply changesets. */
 	apply_ctx_t a_ctx = { { 0 } };
-	apply_init_ctx(&a_ctx);
+	apply_init_ctx(&a_ctx, 0);
 
 	ret = apply_changesets_directly(&a_ctx, contents, &chgs);
 	if (ret == KNOT_EOK) {
@@ -173,7 +175,7 @@ int zone_load_post(conf_t *conf, zone_t *zone, zone_contents_t *contents,
 		/* Apply DNSSEC changes. */
 		if (!changeset_empty(&change)) {
 			apply_ctx_t a_ctx = { { 0 } };
-			apply_init_ctx(&a_ctx);
+			apply_init_ctx(&a_ctx, APPLY_STRICT);
 
 			ret = apply_changeset_directly(&a_ctx, contents, &change);
 			update_cleanup(&a_ctx);
@@ -217,6 +219,13 @@ int zone_load_post(conf_t *conf, zone_t *zone, zone_contents_t *contents,
 	/* Write changes (DNSSEC, diff, or both) to journal if all went well. */
 	if (!changeset_empty(&change)) {
 		ret = zone_change_store(conf, zone, &change);
+		if (ret == KNOT_ESPACE) {
+			log_zone_error(zone->name, "journal size is too small "
+			               "to fit the changes");
+		} else if (ret != KNOT_EOK) {
+			log_zone_error(zone->name, "failed to store changes into "
+			               "journal (%s)", knot_strerror(ret));
+		}
 	}
 
 	changeset_clear(&change);

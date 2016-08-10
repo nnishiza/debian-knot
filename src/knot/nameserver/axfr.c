@@ -16,14 +16,15 @@
 
 #include <urcu.h>
 
+#include "contrib/mempattern.h"
+#include "contrib/print.h"
+#include "contrib/sockaddr.h"
 #include "knot/common/log.h"
+#include "knot/conf/conf.h"
 #include "knot/nameserver/axfr.h"
 #include "knot/nameserver/internet.h"
 #include "knot/zone/zonefile.h"
 #include "libknot/libknot.h"
-#include "contrib/mempattern.h"
-#include "contrib/print.h"
-#include "contrib/sockaddr.h"
 
 /* AXFR context. @note aliasing the generic xfr_proc */
 struct axfr_proc {
@@ -206,10 +207,6 @@ int xfr_process_list(knot_pkt_t *pkt, xfr_put_cb process_item,
 	return ret;
 }
 
-/* AXFR-specific logging (internal, expects 'qdata' variable set). */
-#define AXFROUT_LOG(severity, msg, ...) \
-	QUERY_LOG(severity, qdata, "AXFR, outgoing", msg, ##__VA_ARGS__)
-
 int axfr_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 {
 	if (pkt == NULL || qdata == NULL) {
@@ -261,7 +258,6 @@ int axfr_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 		return KNOT_STATE_FAIL;
 	}
 }
-#undef AXFROUT_LOG
 
 static void axfr_answer_cleanup(struct answer_data *data)
 {
@@ -304,10 +300,6 @@ static int axfr_answer_init(struct answer_data *data)
 	return KNOT_EOK;
 }
 
-/* AXFR-specific logging (internal, expects 'adata' variable set). */
-#define AXFRIN_LOG(severity, msg, ...) \
-	ANSWER_LOG(severity, adata, "AXFR, incoming", msg, ##__VA_ARGS__)
-
 static int axfr_answer_finalize(struct answer_data *adata)
 {
 	struct timeval now;
@@ -318,9 +310,26 @@ static int axfr_answer_finalize(struct answer_data *adata)
 	 * marked authoritative / delegation point.
 	 */
 	struct xfr_proc *proc = adata->ext;
-	int rc = zone_contents_adjust_full(proc->contents, NULL, NULL);
+	int rc = zone_contents_adjust_full(proc->contents);
 	if (rc != KNOT_EOK) {
 		return rc;
+	}
+
+	err_handler_logger_t handler;
+	handler._cb.cb = err_handler_logger;
+	rc = zone_do_sem_checks(proc->contents, false, &handler._cb);
+
+	if (rc != KNOT_EOK) {
+		return rc;
+	}
+
+	conf_val_t val = conf_zone_get(adata->param->conf, C_MAX_ZONE_SIZE,
+	                               proc->contents->apex->owner);
+	int64_t size_limit = conf_int(&val);
+
+	if (proc->contents->size > size_limit) {
+		AXFRIN_LOG(LOG_WARNING, "zone size exceeded");
+		return KNOT_STATE_FAIL;
 	}
 
 	/* Switch contents. */
@@ -352,14 +361,20 @@ static int axfr_answer_finalize(struct answer_data *adata)
 	return KNOT_EOK;
 }
 
-static int axfr_answer_packet(knot_pkt_t *pkt, struct xfr_proc *proc)
+static int axfr_answer_packet(knot_pkt_t *pkt, struct answer_data *adata)
 {
+	assert(adata != NULL);
+	struct xfr_proc *proc = adata->ext;
 	assert(pkt != NULL);
 	assert(proc != NULL);
 
 	/* Update counters. */
 	proc->npkts  += 1;
 	proc->nbytes += pkt->size;
+
+	conf_val_t val = conf_zone_get(adata->param->conf, C_MAX_ZONE_SIZE,
+	                               proc->contents->apex->owner);
+	int64_t size_limit = conf_int(&val);
 
 	/* Init zone creator. */
 	zcreator_t zc = {.z = proc->contents, .master = false, .ret = KNOT_EOK };
@@ -375,6 +390,11 @@ static int axfr_answer_packet(knot_pkt_t *pkt, struct xfr_proc *proc)
 			if (ret != KNOT_EOK) {
 				return KNOT_STATE_FAIL;
 			}
+		}
+		proc->contents->size += knot_rrset_size(&answer_rr[i]);
+		if (proc->contents->size > size_limit) {
+			AXFRIN_LOG(LOG_WARNING, "zone size exceeded");
+			return KNOT_STATE_FAIL;
 		}
 	}
 
@@ -412,7 +432,7 @@ int axfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 	}
 
 	/* Process answer packet. */
-	int ret = axfr_answer_packet(pkt, (struct xfr_proc *)adata->ext);
+	int ret = axfr_answer_packet(pkt, adata);
 	if (ret == KNOT_STATE_DONE) {
 		NS_NEED_TSIG_SIGNED(&adata->param->tsig_ctx, 0);
 		/* This was the last packet, finalize zone and publish it. */
@@ -424,5 +444,3 @@ int axfr_process_answer(knot_pkt_t *pkt, struct answer_data *adata)
 
 	return ret;
 }
-
-#undef AXFRIN_LOG

@@ -30,12 +30,13 @@
 
 #include "knot/conf/conf.h"
 #include "knot/server/journal.h"
-#include "knot/zone/events/events.h"
+#include "knot/events/events.h"
 #include "knot/zone/contents.h"
 #include "libknot/dname.h"
 #include "libknot/packet/pkt.h"
 
 struct process_query_param;
+struct zone_update;
 
 /*!
  * \brief Zone flags.
@@ -72,6 +73,9 @@ typedef struct zone
 	size_t ddns_queue_size;
 	list_t ddns_queue;
 
+	/*! \brief Control update context. */
+	struct zone_update *control_update;
+
 	/*! \brief Journal access lock. */
 	pthread_mutex_t journal_lock;
 
@@ -102,6 +106,13 @@ zone_t* zone_new(const knot_dname_t *name);
  * \param zone Zone to be freed.
  */
 void zone_free(zone_t **zone_ptr);
+
+/*!
+ * \brief Clears possible control update transaction.
+ *
+ * \param zone Zone to be cleared.
+ */
+void zone_control_clear(zone_t *zone);
 
 /*!
  * \note Zone change API below, subject to change.

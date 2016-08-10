@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "libknot/libknot.h"
 #include "contrib/macros.h"
 #include "contrib/string.h"
+#include "contrib/strtonum.h"
 #include "contrib/openbsd/strlcpy.h"
 
 /* Declarations of cmd parse functions. */
@@ -433,6 +434,7 @@ static int pkt_sendrecv(knsupdate_params_t *params)
 	               get_iptype(params->ip),
 	               get_socktype(params->protocol, KNOT_RRTYPE_SOA),
 	               params->wait,
+	               NULL,
 	               &net);
 	if (ret != KNOT_EOK) {
 		return -1;
@@ -667,7 +669,7 @@ int cmd_ttl(const char* lp, knsupdate_params_t *params)
 
 	uint32_t ttl = 0;
 
-	if (params_parse_num(lp, &ttl) != KNOT_EOK) {
+	if (str_to_u32(lp, &ttl) != KNOT_EOK) {
 		ERR("failed to parse ttl '%s'\n", lp);
 		return KNOT_EPARSEFAIL;
 	}

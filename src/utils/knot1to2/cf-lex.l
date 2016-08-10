@@ -16,7 +16,6 @@
 %{
 
 #include <arpa/inet.h>
-#include <config.h>
 #include <dirent.h>
 #include <netinet/in.h>
 #include <stdlib.h>
@@ -96,6 +95,7 @@ notify-retries        { lval.t = yytext; return NOTIFY_RETRIES; }
 notify-timeout        { lval.t = yytext; return NOTIFY_TIMEOUT; }
 zonefile-sync         { lval.t = yytext; return DBSYNC_TIMEOUT; }
 ixfr-fslimit          { lval.t = yytext; return IXFR_FSLIMIT; }
+max-zone-size         { lval.t = yytext; return MAX_ZONE_SIZE; }
 xfr-in                { lval.t = yytext; return XFR_IN; }
 xfr-out               { lval.t = yytext; return XFR_OUT; }
 update-in             { lval.t = yytext; return UPDATE_IN; }

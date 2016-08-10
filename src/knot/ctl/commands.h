@@ -27,6 +27,10 @@
 #include "libknot/libknot.h"
 #include "knot/server/server.h"
 
+#define CTL_FLAG_FORCE	"F"
+#define CTL_FLAG_ADD	"+"
+#define CTL_FLAG_REM	"-"
+
 /*! Control commands. */
 typedef enum {
 	CTL_NONE,
@@ -42,6 +46,15 @@ typedef enum {
 	CTL_ZONE_FLUSH,
 	CTL_ZONE_SIGN,
 
+	CTL_ZONE_READ,
+	CTL_ZONE_BEGIN,
+	CTL_ZONE_COMMIT,
+	CTL_ZONE_ABORT,
+	CTL_ZONE_DIFF,
+	CTL_ZONE_GET,
+	CTL_ZONE_SET,
+	CTL_ZONE_UNSET,
+
 	CTL_CONF_LIST,
 	CTL_CONF_READ,
 	CTL_CONF_BEGIN,
@@ -55,6 +68,7 @@ typedef enum {
 
 /*! Control command parameters. */
 typedef struct {
+	knot_mm_t mm;
 	knot_ctl_t *ctl;
 	knot_ctl_type_t type;
 	knot_ctl_data_t data;
@@ -68,7 +82,7 @@ typedef struct {
  *
  * \return Command string or NULL.
  */
-const char* ctl_cmd_to_str(ctl_cmd_t cmd);
+const char *ctl_cmd_to_str(ctl_cmd_t cmd);
 
 /*!
  * Returns a command corresponding to the string.
@@ -95,5 +109,15 @@ int ctl_exec(ctl_cmd_t cmd, ctl_args_t *args);
  * \param[in] data  Control data.
  */
 void ctl_log_data(knot_ctl_data_t *data);
+
+/*!
+ * Checks flag presence in flags.
+ *
+ * \param[in] flags  Flags to check presence in.
+ * \param[in] flag   Checked flag.
+ *
+ * \return True if presented.
+ */
+bool ctl_has_flag(const char *flags, const char *flag);
 
 /*! @} */

@@ -87,27 +87,36 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = acl$(EXEEXT) base32hex$(EXEEXT) base64$(EXEEXT) \
-	changeset$(EXEEXT) conf$(EXEEXT) conf_tools$(EXEEXT) \
-	confdb$(EXEEXT) confio$(EXEEXT) control$(EXEEXT) db$(EXEEXT) \
-	descriptor$(EXEEXT) dname$(EXEEXT) dthreads$(EXEEXT) \
-	edns$(EXEEXT) endian$(EXEEXT) fdset$(EXEEXT) hattrie$(EXEEXT) \
-	heap$(EXEEXT) hhash$(EXEEXT) internal_mem$(EXEEXT) \
-	journal$(EXEEXT) lookup$(EXEEXT) net$(EXEEXT) \
-	net_shortwrite$(EXEEXT) node$(EXEEXT) overlay$(EXEEXT) \
-	pkt$(EXEEXT) process_answer$(EXEEXT) process_query$(EXEEXT) \
-	query_module$(EXEEXT) rdata$(EXEEXT) rdataset$(EXEEXT) \
-	requestor$(EXEEXT) rrl$(EXEEXT) rrset$(EXEEXT) \
-	rrset_wire$(EXEEXT) server$(EXEEXT) sockaddr$(EXEEXT) \
-	tsig_key$(EXEEXT) wire$(EXEEXT) wire_ctx$(EXEEXT) \
-	worker_pool$(EXEEXT) worker_queue$(EXEEXT) yparser$(EXEEXT) \
-	ypscheme$(EXEEXT) yptrafo$(EXEEXT) zone_events$(EXEEXT) \
-	zone_serial$(EXEEXT) zone_timers$(EXEEXT) zone_update$(EXEEXT) \
-	zonedb$(EXEEXT) ztree$(EXEEXT) modules/online_sign$(EXEEXT) \
-	utils/test_lookup$(EXEEXT)
+check_PROGRAMS = contrib/test_base32hex$(EXEEXT) \
+	contrib/test_base64$(EXEEXT) contrib/test_endian$(EXEEXT) \
+	contrib/test_hat-trie$(EXEEXT) contrib/test_heap$(EXEEXT) \
+	contrib/test_hhash$(EXEEXT) contrib/test_net$(EXEEXT) \
+	contrib/test_net_shortwrite$(EXEEXT) \
+	contrib/test_sockaddr$(EXEEXT) contrib/test_string$(EXEEXT) \
+	contrib/test_strtonum$(EXEEXT) contrib/test_wire$(EXEEXT) \
+	contrib/test_wire_ctx$(EXEEXT) libknot/test_control$(EXEEXT) \
+	libknot/test_cookies-client$(EXEEXT) \
+	libknot/test_cookies-opt$(EXEEXT) \
+	libknot/test_cookies-server$(EXEEXT) libknot/test_db$(EXEEXT) \
+	libknot/test_descriptor$(EXEEXT) libknot/test_dname$(EXEEXT) \
+	libknot/test_edns$(EXEEXT) libknot/test_lookup$(EXEEXT) \
+	libknot/test_pkt$(EXEEXT) libknot/test_rdata$(EXEEXT) \
+	libknot/test_rdataset$(EXEEXT) libknot/test_rrset$(EXEEXT) \
+	libknot/test_rrset-wire$(EXEEXT) libknot/test_tsig$(EXEEXT) \
+	libknot/test_yparser$(EXEEXT) libknot/test_ypscheme$(EXEEXT) \
+	libknot/test_yptrafo$(EXEEXT) modules/online_sign$(EXEEXT) \
+	utils/test_cert$(EXEEXT) utils/test_lookup$(EXEEXT) \
+	acl$(EXEEXT) changeset$(EXEEXT) conf$(EXEEXT) \
+	conf_tools$(EXEEXT) confdb$(EXEEXT) confio$(EXEEXT) \
+	dthreads$(EXEEXT) fdset$(EXEEXT) journal$(EXEEXT) \
+	node$(EXEEXT) process_answer$(EXEEXT) process_query$(EXEEXT) \
+	query_module$(EXEEXT) requestor$(EXEEXT) rrl$(EXEEXT) \
+	server$(EXEEXT) worker_pool$(EXEEXT) worker_queue$(EXEEXT) \
+	zone_events$(EXEEXT) zone_serial$(EXEEXT) zone_timers$(EXEEXT) \
+	zone_update$(EXEEXT) zonedb$(EXEEXT) ztree$(EXEEXT)
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_llvm.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cc_clang.m4 \
 	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/code-coverage.m4 $(top_srcdir)/m4/dnstap.m4 \
 	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
@@ -130,16 +139,6 @@ AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-base32hex_SOURCES = base32hex.c
-base32hex_OBJECTS = base32hex.$(OBJEXT)
-base32hex_LDADD = $(LDADD)
-base32hex_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-base64_SOURCES = base64.c
-base64_OBJECTS = base64.$(OBJEXT)
-base64_LDADD = $(LDADD)
-base64_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 changeset_SOURCES = changeset.c
 changeset_OBJECTS = changeset.$(OBJEXT)
 changeset_LDADD = $(LDADD)
@@ -165,106 +164,196 @@ confio_OBJECTS = $(am_confio_OBJECTS)
 confio_LDADD = $(LDADD)
 confio_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-control_SOURCES = control.c
-control_OBJECTS = control.$(OBJEXT)
-control_LDADD = $(LDADD)
-control_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+contrib_test_base32hex_SOURCES = contrib/test_base32hex.c
+am__dirstamp = $(am__leading_dot)dirstamp
+contrib_test_base32hex_OBJECTS = contrib/test_base32hex.$(OBJEXT)
+contrib_test_base32hex_LDADD = $(LDADD)
+contrib_test_base32hex_DEPENDENCIES =  \
+	$(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-db_SOURCES = db.c
-db_OBJECTS = db.$(OBJEXT)
-db_LDADD = $(LDADD)
-db_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+contrib_test_base64_SOURCES = contrib/test_base64.c
+contrib_test_base64_OBJECTS = contrib/test_base64.$(OBJEXT)
+contrib_test_base64_LDADD = $(LDADD)
+contrib_test_base64_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-descriptor_SOURCES = descriptor.c
-descriptor_OBJECTS = descriptor.$(OBJEXT)
-descriptor_LDADD = $(LDADD)
-descriptor_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+contrib_test_endian_SOURCES = contrib/test_endian.c
+contrib_test_endian_OBJECTS = contrib/test_endian.$(OBJEXT)
+contrib_test_endian_LDADD = $(LDADD)
+contrib_test_endian_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-dname_SOURCES = dname.c
-dname_OBJECTS = dname.$(OBJEXT)
-dname_LDADD = $(LDADD)
-dname_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+contrib_test_hat_trie_SOURCES = contrib/test_hat-trie.c
+contrib_test_hat_trie_OBJECTS = contrib/test_hat-trie.$(OBJEXT)
+contrib_test_hat_trie_LDADD = $(LDADD)
+contrib_test_hat_trie_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_heap_SOURCES = contrib/test_heap.c
+contrib_test_heap_OBJECTS = contrib/test_heap.$(OBJEXT)
+contrib_test_heap_LDADD = $(LDADD)
+contrib_test_heap_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_hhash_SOURCES = contrib/test_hhash.c
+contrib_test_hhash_OBJECTS = contrib/test_hhash.$(OBJEXT)
+contrib_test_hhash_LDADD = $(LDADD)
+contrib_test_hhash_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_net_SOURCES = contrib/test_net.c
+contrib_test_net_OBJECTS = contrib/test_net.$(OBJEXT)
+contrib_test_net_LDADD = $(LDADD)
+contrib_test_net_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_net_shortwrite_SOURCES = contrib/test_net_shortwrite.c
+contrib_test_net_shortwrite_OBJECTS =  \
+	contrib/test_net_shortwrite.$(OBJEXT)
+contrib_test_net_shortwrite_LDADD = $(LDADD)
+contrib_test_net_shortwrite_DEPENDENCIES =  \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_sockaddr_SOURCES = contrib/test_sockaddr.c
+contrib_test_sockaddr_OBJECTS = contrib/test_sockaddr.$(OBJEXT)
+contrib_test_sockaddr_LDADD = $(LDADD)
+contrib_test_sockaddr_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_string_SOURCES = contrib/test_string.c
+contrib_test_string_OBJECTS = contrib/test_string.$(OBJEXT)
+contrib_test_string_LDADD = $(LDADD)
+contrib_test_string_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_strtonum_SOURCES = contrib/test_strtonum.c
+contrib_test_strtonum_OBJECTS = contrib/test_strtonum.$(OBJEXT)
+contrib_test_strtonum_LDADD = $(LDADD)
+contrib_test_strtonum_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_wire_SOURCES = contrib/test_wire.c
+contrib_test_wire_OBJECTS = contrib/test_wire.$(OBJEXT)
+contrib_test_wire_LDADD = $(LDADD)
+contrib_test_wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+contrib_test_wire_ctx_SOURCES = contrib/test_wire_ctx.c
+contrib_test_wire_ctx_OBJECTS = contrib/test_wire_ctx.$(OBJEXT)
+contrib_test_wire_ctx_LDADD = $(LDADD)
+contrib_test_wire_ctx_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 dthreads_SOURCES = dthreads.c
 dthreads_OBJECTS = dthreads.$(OBJEXT)
 dthreads_LDADD = $(LDADD)
 dthreads_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-edns_SOURCES = edns.c
-edns_OBJECTS = edns.$(OBJEXT)
-edns_LDADD = $(LDADD)
-edns_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-endian_SOURCES = endian.c
-endian_OBJECTS = endian.$(OBJEXT)
-endian_LDADD = $(LDADD)
-endian_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 fdset_SOURCES = fdset.c
 fdset_OBJECTS = fdset.$(OBJEXT)
 fdset_LDADD = $(LDADD)
 fdset_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-hattrie_SOURCES = hattrie.c
-hattrie_OBJECTS = hattrie.$(OBJEXT)
-hattrie_LDADD = $(LDADD)
-hattrie_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-heap_SOURCES = heap.c
-heap_OBJECTS = heap.$(OBJEXT)
-heap_LDADD = $(LDADD)
-heap_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-hhash_SOURCES = hhash.c
-hhash_OBJECTS = hhash.$(OBJEXT)
-hhash_LDADD = $(LDADD)
-hhash_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-internal_mem_SOURCES = internal_mem.c
-internal_mem_OBJECTS = internal_mem.$(OBJEXT)
-internal_mem_LDADD = $(LDADD)
-internal_mem_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 journal_SOURCES = journal.c
 journal_OBJECTS = journal.$(OBJEXT)
 journal_LDADD = $(LDADD)
 journal_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-lookup_SOURCES = lookup.c
-lookup_OBJECTS = lookup.$(OBJEXT)
-lookup_LDADD = $(LDADD)
-lookup_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+libknot_test_control_SOURCES = libknot/test_control.c
+libknot_test_control_OBJECTS = libknot/test_control.$(OBJEXT)
+libknot_test_control_LDADD = $(LDADD)
+libknot_test_control_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_cookies_client_SOURCES = libknot/test_cookies-client.c
+libknot_test_cookies_client_OBJECTS =  \
+	libknot/test_cookies-client.$(OBJEXT)
+libknot_test_cookies_client_LDADD = $(LDADD)
+libknot_test_cookies_client_DEPENDENCIES =  \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_cookies_opt_SOURCES = libknot/test_cookies-opt.c
+libknot_test_cookies_opt_OBJECTS = libknot/test_cookies-opt.$(OBJEXT)
+libknot_test_cookies_opt_LDADD = $(LDADD)
+libknot_test_cookies_opt_DEPENDENCIES =  \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_cookies_server_SOURCES = libknot/test_cookies-server.c
+libknot_test_cookies_server_OBJECTS =  \
+	libknot/test_cookies-server.$(OBJEXT)
+libknot_test_cookies_server_LDADD = $(LDADD)
+libknot_test_cookies_server_DEPENDENCIES =  \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_db_SOURCES = libknot/test_db.c
+libknot_test_db_OBJECTS = libknot/test_db.$(OBJEXT)
+libknot_test_db_LDADD = $(LDADD)
+libknot_test_db_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_descriptor_SOURCES = libknot/test_descriptor.c
+libknot_test_descriptor_OBJECTS = libknot/test_descriptor.$(OBJEXT)
+libknot_test_descriptor_LDADD = $(LDADD)
+libknot_test_descriptor_DEPENDENCIES =  \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_dname_SOURCES = libknot/test_dname.c
+libknot_test_dname_OBJECTS = libknot/test_dname.$(OBJEXT)
+libknot_test_dname_LDADD = $(LDADD)
+libknot_test_dname_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_edns_SOURCES = libknot/test_edns.c
+libknot_test_edns_OBJECTS = libknot/test_edns.$(OBJEXT)
+libknot_test_edns_LDADD = $(LDADD)
+libknot_test_edns_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_lookup_SOURCES = libknot/test_lookup.c
+libknot_test_lookup_OBJECTS = libknot/test_lookup.$(OBJEXT)
+libknot_test_lookup_LDADD = $(LDADD)
+libknot_test_lookup_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_pkt_SOURCES = libknot/test_pkt.c
+libknot_test_pkt_OBJECTS = libknot/test_pkt.$(OBJEXT)
+libknot_test_pkt_LDADD = $(LDADD)
+libknot_test_pkt_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_rdata_SOURCES = libknot/test_rdata.c
+libknot_test_rdata_OBJECTS = libknot/test_rdata.$(OBJEXT)
+libknot_test_rdata_LDADD = $(LDADD)
+libknot_test_rdata_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_rdataset_SOURCES = libknot/test_rdataset.c
+libknot_test_rdataset_OBJECTS = libknot/test_rdataset.$(OBJEXT)
+libknot_test_rdataset_LDADD = $(LDADD)
+libknot_test_rdataset_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_rrset_SOURCES = libknot/test_rrset.c
+libknot_test_rrset_OBJECTS = libknot/test_rrset.$(OBJEXT)
+libknot_test_rrset_LDADD = $(LDADD)
+libknot_test_rrset_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_rrset_wire_SOURCES = libknot/test_rrset-wire.c
+libknot_test_rrset_wire_OBJECTS = libknot/test_rrset-wire.$(OBJEXT)
+libknot_test_rrset_wire_LDADD = $(LDADD)
+libknot_test_rrset_wire_DEPENDENCIES =  \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_tsig_SOURCES = libknot/test_tsig.c
+libknot_test_tsig_OBJECTS = libknot/test_tsig.$(OBJEXT)
+libknot_test_tsig_LDADD = $(LDADD)
+libknot_test_tsig_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_yparser_SOURCES = libknot/test_yparser.c
+libknot_test_yparser_OBJECTS = libknot/test_yparser.$(OBJEXT)
+libknot_test_yparser_LDADD = $(LDADD)
+libknot_test_yparser_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_ypscheme_SOURCES = libknot/test_ypscheme.c
+libknot_test_ypscheme_OBJECTS = libknot/test_ypscheme.$(OBJEXT)
+libknot_test_ypscheme_LDADD = $(LDADD)
+libknot_test_ypscheme_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_yptrafo_SOURCES = libknot/test_yptrafo.c
+libknot_test_yptrafo_OBJECTS = libknot/test_yptrafo.$(OBJEXT)
+libknot_test_yptrafo_LDADD = $(LDADD)
+libknot_test_yptrafo_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 modules_online_sign_SOURCES = modules/online_sign.c
-am__dirstamp = $(am__leading_dot)dirstamp
 modules_online_sign_OBJECTS = modules/online_sign.$(OBJEXT)
 modules_online_sign_LDADD = $(LDADD)
 modules_online_sign_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-net_SOURCES = net.c
-net_OBJECTS = net.$(OBJEXT)
-net_LDADD = $(LDADD)
-net_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-net_shortwrite_SOURCES = net_shortwrite.c
-net_shortwrite_OBJECTS = net_shortwrite.$(OBJEXT)
-net_shortwrite_LDADD = $(LDADD)
-net_shortwrite_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 node_SOURCES = node.c
 node_OBJECTS = node.$(OBJEXT)
 node_LDADD = $(LDADD)
 node_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-overlay_SOURCES = overlay.c
-overlay_OBJECTS = overlay.$(OBJEXT)
-overlay_LDADD = $(LDADD)
-overlay_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-pkt_SOURCES = pkt.c
-pkt_OBJECTS = pkt.$(OBJEXT)
-pkt_LDADD = $(LDADD)
-pkt_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 am_process_answer_OBJECTS = process_answer.$(OBJEXT)
 process_answer_OBJECTS = $(am_process_answer_OBJECTS)
@@ -281,16 +370,6 @@ query_module_OBJECTS = query_module.$(OBJEXT)
 query_module_LDADD = $(LDADD)
 query_module_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-rdata_SOURCES = rdata.c
-rdata_OBJECTS = rdata.$(OBJEXT)
-rdata_LDADD = $(LDADD)
-rdata_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-rdataset_SOURCES = rdataset.c
-rdataset_OBJECTS = rdataset.$(OBJEXT)
-rdataset_LDADD = $(LDADD)
-rdataset_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 requestor_SOURCES = requestor.c
 requestor_OBJECTS = requestor.$(OBJEXT)
 requestor_LDADD = $(LDADD)
@@ -301,46 +380,21 @@ rrl_OBJECTS = rrl.$(OBJEXT)
 rrl_LDADD = $(LDADD)
 rrl_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-rrset_SOURCES = rrset.c
-rrset_OBJECTS = rrset.$(OBJEXT)
-rrset_LDADD = $(LDADD)
-rrset_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-rrset_wire_SOURCES = rrset_wire.c
-rrset_wire_OBJECTS = rrset_wire.$(OBJEXT)
-rrset_wire_LDADD = $(LDADD)
-rrset_wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 server_SOURCES = server.c
 server_OBJECTS = server.$(OBJEXT)
 server_LDADD = $(LDADD)
 server_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-sockaddr_SOURCES = sockaddr.c
-sockaddr_OBJECTS = sockaddr.$(OBJEXT)
-sockaddr_LDADD = $(LDADD)
-sockaddr_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-tsig_key_SOURCES = tsig_key.c
-tsig_key_OBJECTS = tsig_key.$(OBJEXT)
-tsig_key_LDADD = $(LDADD)
-tsig_key_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-utils_test_lookup_SOURCES = utils/test_lookup.c
-utils_test_lookup_OBJECTS = utils/test_lookup.$(OBJEXT)
+utils_test_cert_SOURCES = utils/test_cert.c
+utils_test_cert_OBJECTS = utils/utils_test_cert-test_cert.$(OBJEXT)
 am__DEPENDENCIES_1 =
+utils_test_cert_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknotus.la $(am__DEPENDENCIES_1)
+utils_test_lookup_SOURCES = utils/test_lookup.c
+utils_test_lookup_OBJECTS =  \
+	utils/utils_test_lookup-test_lookup.$(OBJEXT)
 utils_test_lookup_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknotus.la $(am__DEPENDENCIES_1)
-wire_SOURCES = wire.c
-wire_OBJECTS = wire.$(OBJEXT)
-wire_LDADD = $(LDADD)
-wire_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-wire_ctx_SOURCES = wire_ctx.c
-wire_ctx_OBJECTS = wire_ctx.$(OBJEXT)
-wire_ctx_LDADD = $(LDADD)
-wire_ctx_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 worker_pool_SOURCES = worker_pool.c
 worker_pool_OBJECTS = worker_pool.$(OBJEXT)
 worker_pool_LDADD = $(LDADD)
@@ -350,21 +404,6 @@ worker_queue_SOURCES = worker_queue.c
 worker_queue_OBJECTS = worker_queue.$(OBJEXT)
 worker_queue_LDADD = $(LDADD)
 worker_queue_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-yparser_SOURCES = yparser.c
-yparser_OBJECTS = yparser.$(OBJEXT)
-yparser_LDADD = $(LDADD)
-yparser_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-ypscheme_SOURCES = ypscheme.c
-ypscheme_OBJECTS = ypscheme.$(OBJEXT)
-ypscheme_LDADD = $(LDADD)
-ypscheme_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
-	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
-yptrafo_SOURCES = yptrafo.c
-yptrafo_OBJECTS = yptrafo.$(OBJEXT)
-yptrafo_LDADD = $(LDADD)
-yptrafo_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 zone_events_SOURCES = zone_events.c
 zone_events_OBJECTS = zone_events.$(OBJEXT)
@@ -430,29 +469,47 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
-	$(conf_SOURCES) conf_tools.c $(confdb_SOURCES) \
-	$(confio_SOURCES) control.c db.c descriptor.c dname.c \
-	dthreads.c edns.c endian.c fdset.c hattrie.c heap.c hhash.c \
-	internal_mem.c journal.c lookup.c modules/online_sign.c net.c \
-	net_shortwrite.c node.c overlay.c pkt.c \
+SOURCES = $(acl_SOURCES) changeset.c $(conf_SOURCES) conf_tools.c \
+	$(confdb_SOURCES) $(confio_SOURCES) contrib/test_base32hex.c \
+	contrib/test_base64.c contrib/test_endian.c \
+	contrib/test_hat-trie.c contrib/test_heap.c \
+	contrib/test_hhash.c contrib/test_net.c \
+	contrib/test_net_shortwrite.c contrib/test_sockaddr.c \
+	contrib/test_string.c contrib/test_strtonum.c \
+	contrib/test_wire.c contrib/test_wire_ctx.c dthreads.c fdset.c \
+	journal.c libknot/test_control.c libknot/test_cookies-client.c \
+	libknot/test_cookies-opt.c libknot/test_cookies-server.c \
+	libknot/test_db.c libknot/test_descriptor.c \
+	libknot/test_dname.c libknot/test_edns.c libknot/test_lookup.c \
+	libknot/test_pkt.c libknot/test_rdata.c \
+	libknot/test_rdataset.c libknot/test_rrset.c \
+	libknot/test_rrset-wire.c libknot/test_tsig.c \
+	libknot/test_yparser.c libknot/test_ypscheme.c \
+	libknot/test_yptrafo.c modules/online_sign.c node.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
-	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	rrset_wire.c server.c sockaddr.c tsig_key.c \
-	utils/test_lookup.c wire.c wire_ctx.c worker_pool.c \
-	worker_queue.c yparser.c ypscheme.c yptrafo.c zone_events.c \
+	query_module.c requestor.c rrl.c server.c utils/test_cert.c \
+	utils/test_lookup.c worker_pool.c worker_queue.c zone_events.c \
 	zone_serial.c zone_timers.c zone_update.c zonedb.c ztree.c
-DIST_SOURCES = $(acl_SOURCES) base32hex.c base64.c changeset.c \
-	$(conf_SOURCES) conf_tools.c $(confdb_SOURCES) \
-	$(confio_SOURCES) control.c db.c descriptor.c dname.c \
-	dthreads.c edns.c endian.c fdset.c hattrie.c heap.c hhash.c \
-	internal_mem.c journal.c lookup.c modules/online_sign.c net.c \
-	net_shortwrite.c node.c overlay.c pkt.c \
+DIST_SOURCES = $(acl_SOURCES) changeset.c $(conf_SOURCES) conf_tools.c \
+	$(confdb_SOURCES) $(confio_SOURCES) contrib/test_base32hex.c \
+	contrib/test_base64.c contrib/test_endian.c \
+	contrib/test_hat-trie.c contrib/test_heap.c \
+	contrib/test_hhash.c contrib/test_net.c \
+	contrib/test_net_shortwrite.c contrib/test_sockaddr.c \
+	contrib/test_string.c contrib/test_strtonum.c \
+	contrib/test_wire.c contrib/test_wire_ctx.c dthreads.c fdset.c \
+	journal.c libknot/test_control.c libknot/test_cookies-client.c \
+	libknot/test_cookies-opt.c libknot/test_cookies-server.c \
+	libknot/test_db.c libknot/test_descriptor.c \
+	libknot/test_dname.c libknot/test_edns.c libknot/test_lookup.c \
+	libknot/test_pkt.c libknot/test_rdata.c \
+	libknot/test_rdataset.c libknot/test_rrset.c \
+	libknot/test_rrset-wire.c libknot/test_tsig.c \
+	libknot/test_yparser.c libknot/test_ypscheme.c \
+	libknot/test_yptrafo.c modules/online_sign.c node.c \
 	$(process_answer_SOURCES) $(process_query_SOURCES) \
-	query_module.c rdata.c rdataset.c requestor.c rrl.c rrset.c \
-	rrset_wire.c server.c sockaddr.c tsig_key.c \
-	utils/test_lookup.c wire.c wire_ctx.c worker_pool.c \
-	worker_queue.c yparser.c ypscheme.c yptrafo.c zone_events.c \
+	query_module.c requestor.c rrl.c server.c utils/test_cert.c \
+	utils/test_lookup.c worker_pool.c worker_queue.c zone_events.c \
 	zone_serial.c zone_timers.c zone_update.c zonedb.c ztree.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
@@ -478,8 +535,9 @@ am__define_uniq_tagged_files = \
   done | $(am__uniquify_input)`
 ETAGS = etags
 CTAGS = ctags
-am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/depcomp README \
-	TODO
+am__DIST_COMMON = $(srcdir)/Makefile.in \
+	$(srcdir)/semantic_check_data/Makefile.inc \
+	$(top_srcdir)/depcomp README TODO
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -491,7 +549,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
-CC_LLVM = @CC_LLVM@
+CC_CLANG_VERSION = @CC_CLANG_VERSION@
 CFLAGS = @CFLAGS@
 CFLAG_VISIBILITY = @CFLAG_VISIBILITY@
 CODE_COVERAGE_ENABLED = @CODE_COVERAGE_ENABLED@
@@ -532,6 +590,7 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
@@ -654,10 +713,36 @@ LDADD = \
 	$(top_builddir)/src/libknotd.la \
 	$(libcrypto_LIBS)
 
+utils_test_lookup_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(libedit_CFLAGS)
+
 utils_test_lookup_LDADD = \
 	$(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknotus.la \
 	$(libedit_LIBS)
+
+utils_test_cert_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(libedit_CFLAGS) \
+	$(gnutls_CFLAGS)
+
+utils_test_cert_LDADD = \
+	$(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknotus.la \
+	$(libedit_LIBS)
+
+CLEANFILES = runtests.log $(check_SCRIPTS)
+check_SCRIPTS = \
+	semantic_check
+
+edit = $(SED) \
+	-e 's|@top_srcdir[@]|$(abs_top_srcdir)|g' \
+	-e 's|@top_builddir[@]|$(abs_top_builddir)|g'
+
+EXTRA_DIST = \
+	semantic_check.in \
+	semantic_check_data
 
 acl_SOURCES = acl.c test_conf.h
 conf_SOURCES = conf.c test_conf.h
@@ -665,12 +750,11 @@ confdb_SOURCES = confdb.c test_conf.h
 confio_SOURCES = confio.c test_conf.h
 process_query_SOURCES = process_query.c fake_server.h test_conf.h
 process_answer_SOURCES = process_answer.c fake_server.h test_conf.h
-CLEANFILES = runtests.log
 all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .lo .o .obj
-$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
+$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/semantic_check_data/Makefile.inc $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -690,6 +774,7 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)'; \
 	    cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe);; \
 	esac;
+$(srcdir)/semantic_check_data/Makefile.inc $(am__empty):
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
@@ -713,14 +798,6 @@ acl$(EXEEXT): $(acl_OBJECTS) $(acl_DEPENDENCIES) $(EXTRA_acl_DEPENDENCIES)
 	@rm -f acl$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(acl_OBJECTS) $(acl_LDADD) $(LIBS)
 
-base32hex$(EXEEXT): $(base32hex_OBJECTS) $(base32hex_DEPENDENCIES) $(EXTRA_base32hex_DEPENDENCIES) 
-	@rm -f base32hex$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(base32hex_OBJECTS) $(base32hex_LDADD) $(LIBS)
-
-base64$(EXEEXT): $(base64_OBJECTS) $(base64_DEPENDENCIES) $(EXTRA_base64_DEPENDENCIES) 
-	@rm -f base64$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(base64_OBJECTS) $(base64_LDADD) $(LIBS)
-
 changeset$(EXEEXT): $(changeset_OBJECTS) $(changeset_DEPENDENCIES) $(EXTRA_changeset_DEPENDENCIES) 
 	@rm -f changeset$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(changeset_OBJECTS) $(changeset_LDADD) $(LIBS)
@@ -740,62 +817,216 @@ confdb$(EXEEXT): $(confdb_OBJECTS) $(confdb_DEPENDENCIES) $(EXTRA_confdb_DEPENDE
 confio$(EXEEXT): $(confio_OBJECTS) $(confio_DEPENDENCIES) $(EXTRA_confio_DEPENDENCIES) 
 	@rm -f confio$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(confio_OBJECTS) $(confio_LDADD) $(LIBS)
+contrib/$(am__dirstamp):
+	@$(MKDIR_P) contrib
+	@: > contrib/$(am__dirstamp)
+contrib/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) contrib/$(DEPDIR)
+	@: > contrib/$(DEPDIR)/$(am__dirstamp)
+contrib/test_base32hex.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
 
-control$(EXEEXT): $(control_OBJECTS) $(control_DEPENDENCIES) $(EXTRA_control_DEPENDENCIES) 
-	@rm -f control$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(control_OBJECTS) $(control_LDADD) $(LIBS)
+contrib/test_base32hex$(EXEEXT): $(contrib_test_base32hex_OBJECTS) $(contrib_test_base32hex_DEPENDENCIES) $(EXTRA_contrib_test_base32hex_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_base32hex$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_base32hex_OBJECTS) $(contrib_test_base32hex_LDADD) $(LIBS)
+contrib/test_base64.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
 
-db$(EXEEXT): $(db_OBJECTS) $(db_DEPENDENCIES) $(EXTRA_db_DEPENDENCIES) 
-	@rm -f db$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(db_OBJECTS) $(db_LDADD) $(LIBS)
+contrib/test_base64$(EXEEXT): $(contrib_test_base64_OBJECTS) $(contrib_test_base64_DEPENDENCIES) $(EXTRA_contrib_test_base64_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_base64$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_base64_OBJECTS) $(contrib_test_base64_LDADD) $(LIBS)
+contrib/test_endian.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
 
-descriptor$(EXEEXT): $(descriptor_OBJECTS) $(descriptor_DEPENDENCIES) $(EXTRA_descriptor_DEPENDENCIES) 
-	@rm -f descriptor$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(descriptor_OBJECTS) $(descriptor_LDADD) $(LIBS)
+contrib/test_endian$(EXEEXT): $(contrib_test_endian_OBJECTS) $(contrib_test_endian_DEPENDENCIES) $(EXTRA_contrib_test_endian_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_endian$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_endian_OBJECTS) $(contrib_test_endian_LDADD) $(LIBS)
+contrib/test_hat-trie.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
 
-dname$(EXEEXT): $(dname_OBJECTS) $(dname_DEPENDENCIES) $(EXTRA_dname_DEPENDENCIES) 
-	@rm -f dname$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(dname_OBJECTS) $(dname_LDADD) $(LIBS)
+contrib/test_hat-trie$(EXEEXT): $(contrib_test_hat_trie_OBJECTS) $(contrib_test_hat_trie_DEPENDENCIES) $(EXTRA_contrib_test_hat_trie_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_hat-trie$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_hat_trie_OBJECTS) $(contrib_test_hat_trie_LDADD) $(LIBS)
+contrib/test_heap.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_heap$(EXEEXT): $(contrib_test_heap_OBJECTS) $(contrib_test_heap_DEPENDENCIES) $(EXTRA_contrib_test_heap_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_heap$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_heap_OBJECTS) $(contrib_test_heap_LDADD) $(LIBS)
+contrib/test_hhash.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_hhash$(EXEEXT): $(contrib_test_hhash_OBJECTS) $(contrib_test_hhash_DEPENDENCIES) $(EXTRA_contrib_test_hhash_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_hhash$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_hhash_OBJECTS) $(contrib_test_hhash_LDADD) $(LIBS)
+contrib/test_net.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_net$(EXEEXT): $(contrib_test_net_OBJECTS) $(contrib_test_net_DEPENDENCIES) $(EXTRA_contrib_test_net_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_net$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_net_OBJECTS) $(contrib_test_net_LDADD) $(LIBS)
+contrib/test_net_shortwrite.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_net_shortwrite$(EXEEXT): $(contrib_test_net_shortwrite_OBJECTS) $(contrib_test_net_shortwrite_DEPENDENCIES) $(EXTRA_contrib_test_net_shortwrite_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_net_shortwrite$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_net_shortwrite_OBJECTS) $(contrib_test_net_shortwrite_LDADD) $(LIBS)
+contrib/test_sockaddr.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_sockaddr$(EXEEXT): $(contrib_test_sockaddr_OBJECTS) $(contrib_test_sockaddr_DEPENDENCIES) $(EXTRA_contrib_test_sockaddr_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_sockaddr$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_sockaddr_OBJECTS) $(contrib_test_sockaddr_LDADD) $(LIBS)
+contrib/test_string.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_string$(EXEEXT): $(contrib_test_string_OBJECTS) $(contrib_test_string_DEPENDENCIES) $(EXTRA_contrib_test_string_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_string$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_string_OBJECTS) $(contrib_test_string_LDADD) $(LIBS)
+contrib/test_strtonum.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_strtonum$(EXEEXT): $(contrib_test_strtonum_OBJECTS) $(contrib_test_strtonum_DEPENDENCIES) $(EXTRA_contrib_test_strtonum_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_strtonum$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_strtonum_OBJECTS) $(contrib_test_strtonum_LDADD) $(LIBS)
+contrib/test_wire.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_wire$(EXEEXT): $(contrib_test_wire_OBJECTS) $(contrib_test_wire_DEPENDENCIES) $(EXTRA_contrib_test_wire_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_wire$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_wire_OBJECTS) $(contrib_test_wire_LDADD) $(LIBS)
+contrib/test_wire_ctx.$(OBJEXT): contrib/$(am__dirstamp) \
+	contrib/$(DEPDIR)/$(am__dirstamp)
+
+contrib/test_wire_ctx$(EXEEXT): $(contrib_test_wire_ctx_OBJECTS) $(contrib_test_wire_ctx_DEPENDENCIES) $(EXTRA_contrib_test_wire_ctx_DEPENDENCIES) contrib/$(am__dirstamp)
+	@rm -f contrib/test_wire_ctx$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(contrib_test_wire_ctx_OBJECTS) $(contrib_test_wire_ctx_LDADD) $(LIBS)
 
 dthreads$(EXEEXT): $(dthreads_OBJECTS) $(dthreads_DEPENDENCIES) $(EXTRA_dthreads_DEPENDENCIES) 
 	@rm -f dthreads$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(dthreads_OBJECTS) $(dthreads_LDADD) $(LIBS)
 
-edns$(EXEEXT): $(edns_OBJECTS) $(edns_DEPENDENCIES) $(EXTRA_edns_DEPENDENCIES) 
-	@rm -f edns$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(edns_OBJECTS) $(edns_LDADD) $(LIBS)
-
-endian$(EXEEXT): $(endian_OBJECTS) $(endian_DEPENDENCIES) $(EXTRA_endian_DEPENDENCIES) 
-	@rm -f endian$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(endian_OBJECTS) $(endian_LDADD) $(LIBS)
-
 fdset$(EXEEXT): $(fdset_OBJECTS) $(fdset_DEPENDENCIES) $(EXTRA_fdset_DEPENDENCIES) 
 	@rm -f fdset$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(fdset_OBJECTS) $(fdset_LDADD) $(LIBS)
 
-hattrie$(EXEEXT): $(hattrie_OBJECTS) $(hattrie_DEPENDENCIES) $(EXTRA_hattrie_DEPENDENCIES) 
-	@rm -f hattrie$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(hattrie_OBJECTS) $(hattrie_LDADD) $(LIBS)
-
-heap$(EXEEXT): $(heap_OBJECTS) $(heap_DEPENDENCIES) $(EXTRA_heap_DEPENDENCIES) 
-	@rm -f heap$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(heap_OBJECTS) $(heap_LDADD) $(LIBS)
-
-hhash$(EXEEXT): $(hhash_OBJECTS) $(hhash_DEPENDENCIES) $(EXTRA_hhash_DEPENDENCIES) 
-	@rm -f hhash$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(hhash_OBJECTS) $(hhash_LDADD) $(LIBS)
-
-internal_mem$(EXEEXT): $(internal_mem_OBJECTS) $(internal_mem_DEPENDENCIES) $(EXTRA_internal_mem_DEPENDENCIES) 
-	@rm -f internal_mem$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(internal_mem_OBJECTS) $(internal_mem_LDADD) $(LIBS)
-
 journal$(EXEEXT): $(journal_OBJECTS) $(journal_DEPENDENCIES) $(EXTRA_journal_DEPENDENCIES) 
 	@rm -f journal$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(journal_OBJECTS) $(journal_LDADD) $(LIBS)
+libknot/$(am__dirstamp):
+	@$(MKDIR_P) libknot
+	@: > libknot/$(am__dirstamp)
+libknot/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) libknot/$(DEPDIR)
+	@: > libknot/$(DEPDIR)/$(am__dirstamp)
+libknot/test_control.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
 
-lookup$(EXEEXT): $(lookup_OBJECTS) $(lookup_DEPENDENCIES) $(EXTRA_lookup_DEPENDENCIES) 
-	@rm -f lookup$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(lookup_OBJECTS) $(lookup_LDADD) $(LIBS)
+libknot/test_control$(EXEEXT): $(libknot_test_control_OBJECTS) $(libknot_test_control_DEPENDENCIES) $(EXTRA_libknot_test_control_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_control$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_control_OBJECTS) $(libknot_test_control_LDADD) $(LIBS)
+libknot/test_cookies-client.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_cookies-client$(EXEEXT): $(libknot_test_cookies_client_OBJECTS) $(libknot_test_cookies_client_DEPENDENCIES) $(EXTRA_libknot_test_cookies_client_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_cookies-client$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_cookies_client_OBJECTS) $(libknot_test_cookies_client_LDADD) $(LIBS)
+libknot/test_cookies-opt.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_cookies-opt$(EXEEXT): $(libknot_test_cookies_opt_OBJECTS) $(libknot_test_cookies_opt_DEPENDENCIES) $(EXTRA_libknot_test_cookies_opt_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_cookies-opt$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_cookies_opt_OBJECTS) $(libknot_test_cookies_opt_LDADD) $(LIBS)
+libknot/test_cookies-server.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_cookies-server$(EXEEXT): $(libknot_test_cookies_server_OBJECTS) $(libknot_test_cookies_server_DEPENDENCIES) $(EXTRA_libknot_test_cookies_server_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_cookies-server$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_cookies_server_OBJECTS) $(libknot_test_cookies_server_LDADD) $(LIBS)
+libknot/test_db.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_db$(EXEEXT): $(libknot_test_db_OBJECTS) $(libknot_test_db_DEPENDENCIES) $(EXTRA_libknot_test_db_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_db$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_db_OBJECTS) $(libknot_test_db_LDADD) $(LIBS)
+libknot/test_descriptor.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_descriptor$(EXEEXT): $(libknot_test_descriptor_OBJECTS) $(libknot_test_descriptor_DEPENDENCIES) $(EXTRA_libknot_test_descriptor_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_descriptor$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_descriptor_OBJECTS) $(libknot_test_descriptor_LDADD) $(LIBS)
+libknot/test_dname.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_dname$(EXEEXT): $(libknot_test_dname_OBJECTS) $(libknot_test_dname_DEPENDENCIES) $(EXTRA_libknot_test_dname_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_dname$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_dname_OBJECTS) $(libknot_test_dname_LDADD) $(LIBS)
+libknot/test_edns.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_edns$(EXEEXT): $(libknot_test_edns_OBJECTS) $(libknot_test_edns_DEPENDENCIES) $(EXTRA_libknot_test_edns_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_edns$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_edns_OBJECTS) $(libknot_test_edns_LDADD) $(LIBS)
+libknot/test_lookup.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_lookup$(EXEEXT): $(libknot_test_lookup_OBJECTS) $(libknot_test_lookup_DEPENDENCIES) $(EXTRA_libknot_test_lookup_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_lookup$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_lookup_OBJECTS) $(libknot_test_lookup_LDADD) $(LIBS)
+libknot/test_pkt.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_pkt$(EXEEXT): $(libknot_test_pkt_OBJECTS) $(libknot_test_pkt_DEPENDENCIES) $(EXTRA_libknot_test_pkt_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_pkt$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_pkt_OBJECTS) $(libknot_test_pkt_LDADD) $(LIBS)
+libknot/test_rdata.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_rdata$(EXEEXT): $(libknot_test_rdata_OBJECTS) $(libknot_test_rdata_DEPENDENCIES) $(EXTRA_libknot_test_rdata_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_rdata$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_rdata_OBJECTS) $(libknot_test_rdata_LDADD) $(LIBS)
+libknot/test_rdataset.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_rdataset$(EXEEXT): $(libknot_test_rdataset_OBJECTS) $(libknot_test_rdataset_DEPENDENCIES) $(EXTRA_libknot_test_rdataset_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_rdataset$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_rdataset_OBJECTS) $(libknot_test_rdataset_LDADD) $(LIBS)
+libknot/test_rrset.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_rrset$(EXEEXT): $(libknot_test_rrset_OBJECTS) $(libknot_test_rrset_DEPENDENCIES) $(EXTRA_libknot_test_rrset_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_rrset$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_rrset_OBJECTS) $(libknot_test_rrset_LDADD) $(LIBS)
+libknot/test_rrset-wire.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_rrset-wire$(EXEEXT): $(libknot_test_rrset_wire_OBJECTS) $(libknot_test_rrset_wire_DEPENDENCIES) $(EXTRA_libknot_test_rrset_wire_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_rrset-wire$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_rrset_wire_OBJECTS) $(libknot_test_rrset_wire_LDADD) $(LIBS)
+libknot/test_tsig.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_tsig$(EXEEXT): $(libknot_test_tsig_OBJECTS) $(libknot_test_tsig_DEPENDENCIES) $(EXTRA_libknot_test_tsig_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_tsig$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_tsig_OBJECTS) $(libknot_test_tsig_LDADD) $(LIBS)
+libknot/test_yparser.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_yparser$(EXEEXT): $(libknot_test_yparser_OBJECTS) $(libknot_test_yparser_DEPENDENCIES) $(EXTRA_libknot_test_yparser_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_yparser$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_yparser_OBJECTS) $(libknot_test_yparser_LDADD) $(LIBS)
+libknot/test_ypscheme.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_ypscheme$(EXEEXT): $(libknot_test_ypscheme_OBJECTS) $(libknot_test_ypscheme_DEPENDENCIES) $(EXTRA_libknot_test_ypscheme_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_ypscheme$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_ypscheme_OBJECTS) $(libknot_test_ypscheme_LDADD) $(LIBS)
+libknot/test_yptrafo.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_yptrafo$(EXEEXT): $(libknot_test_yptrafo_OBJECTS) $(libknot_test_yptrafo_DEPENDENCIES) $(EXTRA_libknot_test_yptrafo_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_yptrafo$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_yptrafo_OBJECTS) $(libknot_test_yptrafo_LDADD) $(LIBS)
 modules/$(am__dirstamp):
 	@$(MKDIR_P) modules
 	@: > modules/$(am__dirstamp)
@@ -809,25 +1040,9 @@ modules/online_sign$(EXEEXT): $(modules_online_sign_OBJECTS) $(modules_online_si
 	@rm -f modules/online_sign$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(modules_online_sign_OBJECTS) $(modules_online_sign_LDADD) $(LIBS)
 
-net$(EXEEXT): $(net_OBJECTS) $(net_DEPENDENCIES) $(EXTRA_net_DEPENDENCIES) 
-	@rm -f net$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(net_OBJECTS) $(net_LDADD) $(LIBS)
-
-net_shortwrite$(EXEEXT): $(net_shortwrite_OBJECTS) $(net_shortwrite_DEPENDENCIES) $(EXTRA_net_shortwrite_DEPENDENCIES) 
-	@rm -f net_shortwrite$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(net_shortwrite_OBJECTS) $(net_shortwrite_LDADD) $(LIBS)
-
 node$(EXEEXT): $(node_OBJECTS) $(node_DEPENDENCIES) $(EXTRA_node_DEPENDENCIES) 
 	@rm -f node$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(node_OBJECTS) $(node_LDADD) $(LIBS)
-
-overlay$(EXEEXT): $(overlay_OBJECTS) $(overlay_DEPENDENCIES) $(EXTRA_overlay_DEPENDENCIES) 
-	@rm -f overlay$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(overlay_OBJECTS) $(overlay_LDADD) $(LIBS)
-
-pkt$(EXEEXT): $(pkt_OBJECTS) $(pkt_DEPENDENCIES) $(EXTRA_pkt_DEPENDENCIES) 
-	@rm -f pkt$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(pkt_OBJECTS) $(pkt_LDADD) $(LIBS)
 
 process_answer$(EXEEXT): $(process_answer_OBJECTS) $(process_answer_DEPENDENCIES) $(EXTRA_process_answer_DEPENDENCIES) 
 	@rm -f process_answer$(EXEEXT)
@@ -841,14 +1056,6 @@ query_module$(EXEEXT): $(query_module_OBJECTS) $(query_module_DEPENDENCIES) $(EX
 	@rm -f query_module$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(query_module_OBJECTS) $(query_module_LDADD) $(LIBS)
 
-rdata$(EXEEXT): $(rdata_OBJECTS) $(rdata_DEPENDENCIES) $(EXTRA_rdata_DEPENDENCIES) 
-	@rm -f rdata$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(rdata_OBJECTS) $(rdata_LDADD) $(LIBS)
-
-rdataset$(EXEEXT): $(rdataset_OBJECTS) $(rdataset_DEPENDENCIES) $(EXTRA_rdataset_DEPENDENCIES) 
-	@rm -f rdataset$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(rdataset_OBJECTS) $(rdataset_LDADD) $(LIBS)
-
 requestor$(EXEEXT): $(requestor_OBJECTS) $(requestor_DEPENDENCIES) $(EXTRA_requestor_DEPENDENCIES) 
 	@rm -f requestor$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(requestor_OBJECTS) $(requestor_LDADD) $(LIBS)
@@ -857,45 +1064,27 @@ rrl$(EXEEXT): $(rrl_OBJECTS) $(rrl_DEPENDENCIES) $(EXTRA_rrl_DEPENDENCIES)
 	@rm -f rrl$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(rrl_OBJECTS) $(rrl_LDADD) $(LIBS)
 
-rrset$(EXEEXT): $(rrset_OBJECTS) $(rrset_DEPENDENCIES) $(EXTRA_rrset_DEPENDENCIES) 
-	@rm -f rrset$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(rrset_OBJECTS) $(rrset_LDADD) $(LIBS)
-
-rrset_wire$(EXEEXT): $(rrset_wire_OBJECTS) $(rrset_wire_DEPENDENCIES) $(EXTRA_rrset_wire_DEPENDENCIES) 
-	@rm -f rrset_wire$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(rrset_wire_OBJECTS) $(rrset_wire_LDADD) $(LIBS)
-
 server$(EXEEXT): $(server_OBJECTS) $(server_DEPENDENCIES) $(EXTRA_server_DEPENDENCIES) 
 	@rm -f server$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(server_OBJECTS) $(server_LDADD) $(LIBS)
-
-sockaddr$(EXEEXT): $(sockaddr_OBJECTS) $(sockaddr_DEPENDENCIES) $(EXTRA_sockaddr_DEPENDENCIES) 
-	@rm -f sockaddr$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sockaddr_OBJECTS) $(sockaddr_LDADD) $(LIBS)
-
-tsig_key$(EXEEXT): $(tsig_key_OBJECTS) $(tsig_key_DEPENDENCIES) $(EXTRA_tsig_key_DEPENDENCIES) 
-	@rm -f tsig_key$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(tsig_key_OBJECTS) $(tsig_key_LDADD) $(LIBS)
 utils/$(am__dirstamp):
 	@$(MKDIR_P) utils
 	@: > utils/$(am__dirstamp)
 utils/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) utils/$(DEPDIR)
 	@: > utils/$(DEPDIR)/$(am__dirstamp)
-utils/test_lookup.$(OBJEXT): utils/$(am__dirstamp) \
+utils/utils_test_cert-test_cert.$(OBJEXT): utils/$(am__dirstamp) \
+	utils/$(DEPDIR)/$(am__dirstamp)
+
+utils/test_cert$(EXEEXT): $(utils_test_cert_OBJECTS) $(utils_test_cert_DEPENDENCIES) $(EXTRA_utils_test_cert_DEPENDENCIES) utils/$(am__dirstamp)
+	@rm -f utils/test_cert$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(utils_test_cert_OBJECTS) $(utils_test_cert_LDADD) $(LIBS)
+utils/utils_test_lookup-test_lookup.$(OBJEXT): utils/$(am__dirstamp) \
 	utils/$(DEPDIR)/$(am__dirstamp)
 
 utils/test_lookup$(EXEEXT): $(utils_test_lookup_OBJECTS) $(utils_test_lookup_DEPENDENCIES) $(EXTRA_utils_test_lookup_DEPENDENCIES) utils/$(am__dirstamp)
 	@rm -f utils/test_lookup$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(utils_test_lookup_OBJECTS) $(utils_test_lookup_LDADD) $(LIBS)
-
-wire$(EXEEXT): $(wire_OBJECTS) $(wire_DEPENDENCIES) $(EXTRA_wire_DEPENDENCIES) 
-	@rm -f wire$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(wire_OBJECTS) $(wire_LDADD) $(LIBS)
-
-wire_ctx$(EXEEXT): $(wire_ctx_OBJECTS) $(wire_ctx_DEPENDENCIES) $(EXTRA_wire_ctx_DEPENDENCIES) 
-	@rm -f wire_ctx$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(wire_ctx_OBJECTS) $(wire_ctx_LDADD) $(LIBS)
 
 worker_pool$(EXEEXT): $(worker_pool_OBJECTS) $(worker_pool_DEPENDENCIES) $(EXTRA_worker_pool_DEPENDENCIES) 
 	@rm -f worker_pool$(EXEEXT)
@@ -904,18 +1093,6 @@ worker_pool$(EXEEXT): $(worker_pool_OBJECTS) $(worker_pool_DEPENDENCIES) $(EXTRA
 worker_queue$(EXEEXT): $(worker_queue_OBJECTS) $(worker_queue_DEPENDENCIES) $(EXTRA_worker_queue_DEPENDENCIES) 
 	@rm -f worker_queue$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(worker_queue_OBJECTS) $(worker_queue_LDADD) $(LIBS)
-
-yparser$(EXEEXT): $(yparser_OBJECTS) $(yparser_DEPENDENCIES) $(EXTRA_yparser_DEPENDENCIES) 
-	@rm -f yparser$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(yparser_OBJECTS) $(yparser_LDADD) $(LIBS)
-
-ypscheme$(EXEEXT): $(ypscheme_OBJECTS) $(ypscheme_DEPENDENCIES) $(EXTRA_ypscheme_DEPENDENCIES) 
-	@rm -f ypscheme$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(ypscheme_OBJECTS) $(ypscheme_LDADD) $(LIBS)
-
-yptrafo$(EXEEXT): $(yptrafo_OBJECTS) $(yptrafo_DEPENDENCIES) $(EXTRA_yptrafo_DEPENDENCIES) 
-	@rm -f yptrafo$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(yptrafo_OBJECTS) $(yptrafo_LDADD) $(LIBS)
 
 zone_events$(EXEEXT): $(zone_events_OBJECTS) $(zone_events_DEPENDENCIES) $(EXTRA_zone_events_DEPENDENCIES) 
 	@rm -f zone_events$(EXEEXT)
@@ -943,6 +1120,8 @@ ztree$(EXEEXT): $(ztree_OBJECTS) $(ztree_DEPENDENCIES) $(EXTRA_ztree_DEPENDENCIE
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f contrib/*.$(OBJEXT)
+	-rm -f libknot/*.$(OBJEXT)
 	-rm -f modules/*.$(OBJEXT)
 	-rm -f utils/*.$(OBJEXT)
 
@@ -950,59 +1129,63 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/acl.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base32hex.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/changeset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conf_tools.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/confdb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/confio.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/control.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/db.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/descriptor.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dname.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dthreads.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/edns.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/endian.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fdset.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hattrie.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/heap.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hhash.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/internal_mem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/journal.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lookup.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/net.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/net_shortwrite.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/node.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/overlay.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pkt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process_answer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process_query.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/query_module.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rdata.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rdataset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/requestor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrl.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rrset_wire.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sockaddr.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsig_key.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wire.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wire_ctx.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_pool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker_queue.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/yparser.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ypscheme.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/yptrafo.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_events.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_serial.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_timers.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zone_update.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zonedb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ztree.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_base32hex.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_base64.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_endian.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_hat-trie.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_heap.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_hhash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_net.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_net_shortwrite.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_sockaddr.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_string.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_strtonum.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_wire.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@contrib/$(DEPDIR)/test_wire_ctx.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_control.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_cookies-client.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_cookies-opt.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_cookies-server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_db.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_descriptor.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_dname.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_edns.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_lookup.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_pkt.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_rdata.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_rdataset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_rrset-wire.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_rrset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_tsig.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_yparser.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_ypscheme.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_yptrafo.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@modules/$(DEPDIR)/online_sign.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/test_lookup.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/utils_test_cert-test_cert.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/utils_test_lookup-test_lookup.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -1028,11 +1211,41 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
+utils/utils_test_cert-test_cert.o: utils/test_cert.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_cert_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/utils_test_cert-test_cert.o -MD -MP -MF utils/$(DEPDIR)/utils_test_cert-test_cert.Tpo -c -o utils/utils_test_cert-test_cert.o `test -f 'utils/test_cert.c' || echo '$(srcdir)/'`utils/test_cert.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/$(DEPDIR)/utils_test_cert-test_cert.Tpo utils/$(DEPDIR)/utils_test_cert-test_cert.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/test_cert.c' object='utils/utils_test_cert-test_cert.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_cert_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/utils_test_cert-test_cert.o `test -f 'utils/test_cert.c' || echo '$(srcdir)/'`utils/test_cert.c
+
+utils/utils_test_cert-test_cert.obj: utils/test_cert.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_cert_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/utils_test_cert-test_cert.obj -MD -MP -MF utils/$(DEPDIR)/utils_test_cert-test_cert.Tpo -c -o utils/utils_test_cert-test_cert.obj `if test -f 'utils/test_cert.c'; then $(CYGPATH_W) 'utils/test_cert.c'; else $(CYGPATH_W) '$(srcdir)/utils/test_cert.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/$(DEPDIR)/utils_test_cert-test_cert.Tpo utils/$(DEPDIR)/utils_test_cert-test_cert.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/test_cert.c' object='utils/utils_test_cert-test_cert.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_cert_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/utils_test_cert-test_cert.obj `if test -f 'utils/test_cert.c'; then $(CYGPATH_W) 'utils/test_cert.c'; else $(CYGPATH_W) '$(srcdir)/utils/test_cert.c'; fi`
+
+utils/utils_test_lookup-test_lookup.o: utils/test_lookup.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_lookup_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/utils_test_lookup-test_lookup.o -MD -MP -MF utils/$(DEPDIR)/utils_test_lookup-test_lookup.Tpo -c -o utils/utils_test_lookup-test_lookup.o `test -f 'utils/test_lookup.c' || echo '$(srcdir)/'`utils/test_lookup.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/$(DEPDIR)/utils_test_lookup-test_lookup.Tpo utils/$(DEPDIR)/utils_test_lookup-test_lookup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/test_lookup.c' object='utils/utils_test_lookup-test_lookup.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_lookup_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/utils_test_lookup-test_lookup.o `test -f 'utils/test_lookup.c' || echo '$(srcdir)/'`utils/test_lookup.c
+
+utils/utils_test_lookup-test_lookup.obj: utils/test_lookup.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_lookup_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT utils/utils_test_lookup-test_lookup.obj -MD -MP -MF utils/$(DEPDIR)/utils_test_lookup-test_lookup.Tpo -c -o utils/utils_test_lookup-test_lookup.obj `if test -f 'utils/test_lookup.c'; then $(CYGPATH_W) 'utils/test_lookup.c'; else $(CYGPATH_W) '$(srcdir)/utils/test_lookup.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) utils/$(DEPDIR)/utils_test_lookup-test_lookup.Tpo utils/$(DEPDIR)/utils_test_lookup-test_lookup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils/test_lookup.c' object='utils/utils_test_lookup-test_lookup.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(utils_test_lookup_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o utils/utils_test_lookup-test_lookup.obj `if test -f 'utils/test_lookup.c'; then $(CYGPATH_W) 'utils/test_lookup.c'; else $(CYGPATH_W) '$(srcdir)/utils/test_lookup.c'; fi`
+
 mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
 	-rm -rf .libs _libs
+	-rm -rf contrib/.libs contrib/_libs
+	-rm -rf libknot/.libs libknot/_libs
 	-rm -rf modules/.libs modules/_libs
 	-rm -rf utils/.libs utils/_libs
 
@@ -1119,7 +1332,7 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS) $(check_SCRIPTS)
 	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: check-am
 all-am: Makefile
@@ -1151,6 +1364,10 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f contrib/$(DEPDIR)/$(am__dirstamp)
+	-rm -f contrib/$(am__dirstamp)
+	-rm -f libknot/$(DEPDIR)/$(am__dirstamp)
+	-rm -f libknot/$(am__dirstamp)
 	-rm -f modules/$(DEPDIR)/$(am__dirstamp)
 	-rm -f modules/$(am__dirstamp)
 	-rm -f utils/$(DEPDIR)/$(am__dirstamp)
@@ -1165,7 +1382,7 @@ clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR) modules/$(DEPDIR) utils/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) contrib/$(DEPDIR) libknot/$(DEPDIR) modules/$(DEPDIR) utils/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -1211,7 +1428,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR) modules/$(DEPDIR) utils/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) contrib/$(DEPDIR) libknot/$(DEPDIR) modules/$(DEPDIR) utils/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -1249,13 +1466,17 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-check-compile: $(check_PROGRAMS)
+semantic_check: $(top_srcdir)/tests/semantic_check.in
+	$(edit) < $(top_srcdir)/tests/semantic_check.in > $(top_builddir)/tests/semantic_check
+	chmod +x $(top_builddir)/tests/semantic_check
 
-check-local: $(check_PROGRAMS)
+check-compile: $(check_PROGRAMS) $(check_SCRIPTS)
+
+check-local: $(check_PROGRAMS) $(check_SCRIPTS)
 	$(top_builddir)/libtap/runtests -s $(top_srcdir)/tests \
 					-b $(top_builddir)/tests \
 					-L $(top_builddir)/tests/runtests.log \
-					$(check_PROGRAMS)
+					$(check_PROGRAMS) $(check_SCRIPTS)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -18,6 +18,7 @@
 
 #include "dnssec/error.h"
 #include "dnssec/event.h"
+#include "dnssec/random.h"
 #include "contrib/macros.h"
 #include "libknot/libknot.h"
 #include "knot/conf/conf.h"
@@ -37,21 +38,7 @@ static int sign_init(const zone_contents_t *zone, int flags, kdnssec_ctx_t *ctx)
 
 	const knot_dname_t *zone_name = zone->apex->owner;
 
-	conf_val_t val = conf_zone_get(conf(), C_STORAGE, zone_name);
-	char *storage = conf_abs_path(&val, NULL);
-	val = conf_zone_get(conf(), C_KASP_DB, zone_name);
-	char *kasp_db = conf_abs_path(&val, storage);
-	free(storage);
-
-	char *zone_name_str = knot_dname_to_str_alloc(zone_name);
-	if (zone_name_str == NULL) {
-		free(kasp_db);
-		return KNOT_ENOMEM;
-	}
-
-	int r = kdnssec_ctx_init(ctx, kasp_db, zone_name_str);
-	free(zone_name_str);
-	free(kasp_db);
+	int r = kdnssec_ctx_init(ctx, zone_name);
 	if (r != KNOT_EOK) {
 		return r;
 	}
@@ -70,7 +57,7 @@ static int sign_init(const zone_contents_t *zone, int flags, kdnssec_ctx_t *ctx)
 	if (flags & ZONE_SIGN_KEEP_SOA_SERIAL) {
 		ctx->new_serial = ctx->old_serial;
 	} else {
-		val = conf_zone_get(conf(), C_SERIAL_POLICY, zone_name);
+		conf_val_t val = conf_zone_get(conf(), C_SERIAL_POLICY, zone_name);
 		ctx->new_serial = serial_next(ctx->old_serial, conf_opt(&val));
 	}
 
@@ -96,28 +83,28 @@ static int sign_process_events(const knot_dname_t *zone_name,
 	dnssec_event_t event = { 0 };
 	dnssec_event_ctx_t ctx = kctx2ctx(kctx);
 
-	int r = dnssec_event_get_next(&ctx, &event);
-	if (r != DNSSEC_EOK) {
-		log_zone_error(zone_name, "DNSSEC, failed to get next event (%s)",
-		               dnssec_strerror(r));
-		return r;
+	for (;;) {
+		int r = dnssec_event_get_next(&ctx, &event);
+		if (r != DNSSEC_EOK) {
+			log_zone_error(zone_name, "DNSSEC, failed to get next event (%s)",
+			               dnssec_strerror(r));
+			return r;
+		}
+
+		if (event.type == DNSSEC_EVENT_NONE || kctx->now < event.time) {
+			return KNOT_EOK;
+		}
+
+		log_zone_info(zone_name, "DNSSEC, executing event '%s'",
+		              dnssec_event_name(event.type));
+
+		r = dnssec_event_execute(&ctx, &event);
+		if (r != DNSSEC_EOK) {
+			log_zone_error(zone_name, "DNSSEC, failed to execute event (%s)",
+			               dnssec_strerror(r));
+			return r;
+		}
 	}
-
-	if (event.type == DNSSEC_EVENT_NONE || kctx->now < event.time) {
-		return DNSSEC_EOK;
-	}
-
-	log_zone_info(zone_name, "DNSSEC, executing event '%s'",
-	              dnssec_event_name(event.type));
-
-	r = dnssec_event_execute(&ctx, &event);
-	if (r != DNSSEC_EOK) {
-		log_zone_error(zone_name, "DNSSEC, failed to execute event (%s)",
-		               dnssec_strerror(r));
-		return r;
-	}
-
-	return KNOT_EOK;
 }
 
 static int sign_update_soa(const zone_contents_t *zone, changeset_t *chset,
@@ -139,7 +126,8 @@ static uint32_t schedule_next(kdnssec_ctx_t *kctx, const zone_keyset_t *keyset,
 
 	// DNSKEY modification
 
-	uint32_t dnskey_update = MIN(MAX(knot_get_next_zone_key_event(keyset), 0), UINT32_MAX);
+	uint32_t dnskey_update = MIN(MAX(knot_get_next_zone_key_event(keyset), 0),
+	                             UINT32_MAX);
 
 	// zone events
 
@@ -174,14 +162,14 @@ int knot_dnssec_zone_sign(zone_contents_t *zone, changeset_t *out_ch,
 	result = sign_init(zone, flags, &ctx);
 	if (result != KNOT_EOK) {
 		log_zone_error(zone_name, "DNSSEC, failed to initialize (%s)",
-		knot_strerror(result));
+		               knot_strerror(result));
 		goto done;
 	}
 
 	result = sign_process_events(zone_name, &ctx);
 	if (result != KNOT_EOK) {
 		log_zone_error(zone_name, "DNSSEC, failed to process events (%s)",
-		knot_strerror(result));
+		               knot_strerror(result));
 		goto done;
 	}
 
@@ -197,7 +185,8 @@ int knot_dnssec_zone_sign(zone_contents_t *zone, changeset_t *out_ch,
 
 	result = knot_zone_create_nsec_chain(zone, out_ch, &keyset, &ctx);
 	if (result != KNOT_EOK) {
-		log_zone_error(zone_name, "DNSSEC, failed to create NSEC chain (%s)",
+		log_zone_error(zone_name, "DNSSEC, failed to create NSEC%s chain (%s)",
+		               ctx.policy->nsec3_enabled ? "3" : "",
 		               knot_strerror(result));
 		goto done;
 	}
@@ -257,7 +246,7 @@ int knot_dnssec_sign_changeset(const zone_contents_t *zone,
 	result = sign_init(zone, ZONE_SIGN_KEEP_SOA_SERIAL, &ctx);
 	if (result != KNOT_EOK) {
 		log_zone_error(zone_name, "DNSSEC, failed to initialize (%s)",
-		knot_strerror(result));
+		               knot_strerror(result));
 		goto done;
 	}
 
@@ -278,7 +267,8 @@ int knot_dnssec_sign_changeset(const zone_contents_t *zone,
 
 	result = knot_zone_create_nsec_chain(zone, out_ch, &keyset, &ctx);
 	if (result != KNOT_EOK) {
-		log_zone_error(zone_name, "DNSSEC, failed to create NSEC chain (%s)",
+		log_zone_error(zone_name, "DNSSEC, failed to create NSEC%s chain (%s)",
+		               ctx.policy->nsec3_enabled ? "3" : "",
 		               knot_strerror(result));
 		goto done;
 	}

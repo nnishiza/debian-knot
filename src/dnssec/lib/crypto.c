@@ -18,14 +18,13 @@
 #include <gnutls/pkcs11.h>
 
 #include "crypto.h"
+#include "p11/p11.h"
 #include "shared.h"
 
 _public_
 void dnssec_crypto_init(void)
 {
-#ifdef ENABLE_PKCS11
-	gnutls_pkcs11_init(GNUTLS_PKCS11_FLAG_MANUAL, NULL);
-#endif
+	p11_init();
 	gnutls_global_init();
 }
 
@@ -33,15 +32,11 @@ _public_
 void dnssec_crypto_cleanup(void)
 {
 	gnutls_global_deinit();
-#ifdef ENABLE_PKCS11
-	gnutls_pkcs11_deinit();
-#endif
+	p11_cleanup();
 }
 
 _public_
 void dnssec_crypto_reinit(void)
 {
-#ifdef ENABLE_PKCS11
-	gnutls_pkcs11_reinit();
-#endif
+	p11_reinit();
 }

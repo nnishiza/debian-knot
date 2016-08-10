@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "utils/common/params.h"
 #include "utils/common/resolv.h"
 #include "libknot/libknot.h"
+#include "contrib/strtonum.h"
 #include "contrib/ucw/lists.h"
 
 #define PROGRAM_NAME "khost"
@@ -94,6 +95,16 @@ void khost_clean(kdig_params_t *params)
 	kdig_clean(params);
 }
 
+static int parse_server(const char *value, list_t *servers, const char *def_port)
+{
+	if (params_parse_server(value, servers, def_port) != KNOT_EOK) {
+		ERR("invalid server '%s'\n", value);
+		return KNOT_EINVAL;
+	}
+
+	return KNOT_EOK;
+}
+
 static int parse_name(const char *value, list_t *queries, const query_t *conf)
 {
 	char	*reverse = get_reverse_name(value);
@@ -122,7 +133,7 @@ static int parse_name(const char *value, list_t *queries, const query_t *conf)
 
 			// Check for correct address.
 			if (reverse == NULL) {
-				ERR("invalid IPv4 or IPv6 address %s\n", value);
+				ERR("invalid IPv4/IPv6 address '%s'\n", value);
 				return KNOT_EINVAL;
 			}
 
@@ -245,8 +256,8 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 	};
 
 	// Command line options processing.
-	int opt = 0, li = 0;
-	while ((opt = getopt_long(argc, argv, "46adhrsTvVwc:t:R:W:", opts, &li))
+	int opt = 0;
+	while ((opt = getopt_long(argc, argv, "46adhrsTvVwc:t:R:W:", opts, NULL))
 	       != -1) {
 		switch (opt) {
 		case '4':
@@ -289,9 +300,8 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 			conf->wait = -1;
 			break;
 		case 'c':
-			if (params_parse_class(optarg, &rclass)
-			    != KNOT_EOK) {
-				ERR("bad class %s\n", optarg);
+			if (params_parse_class(optarg, &rclass) != KNOT_EOK) {
+				ERR("invalid class '%s'\n", optarg);
 				return KNOT_EINVAL;
 			}
 			conf->class_num = rclass;
@@ -299,7 +309,7 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 		case 't':
 			if (params_parse_type(optarg, &rtype, &serial, &notify)
 			    != KNOT_EOK) {
-				ERR("bad type %s\n", optarg);
+				ERR("invalid type '%s'\n", optarg);
 				return KNOT_EINVAL;
 			}
 			conf->type_num = rtype;
@@ -312,14 +322,14 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 			}
 			break;
 		case 'R':
-			if (params_parse_num(optarg, &conf->retries)
-			    != KNOT_EOK) {
+			if (str_to_u32(optarg, &conf->retries) != KNOT_EOK) {
+				ERR("invalid retries '%s'\n", optarg);
 				return KNOT_EINVAL;
 			}
 			break;
 		case 'W':
-			if (params_parse_wait(optarg, &conf->wait)
-			    != KNOT_EOK) {
+			if (params_parse_wait(optarg, &conf->wait) != KNOT_EOK) {
+				ERR("invalid wait '%s'\n", optarg);
 				return KNOT_EINVAL;
 			}
 			break;
@@ -332,8 +342,7 @@ int khost_parse(kdig_params_t *params, int argc, char *argv[])
 	// Process non-option parameters.
 	switch (argc - optind) {
 	case 2:
-		if (params_parse_server(argv[optind + 1], &conf->servers,
-		                        conf->port)
+		if (parse_server(argv[optind + 1], &conf->servers, conf->port)
 		    != KNOT_EOK) {
 			return KNOT_EINVAL;
 		}

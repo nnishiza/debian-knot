@@ -44,6 +44,9 @@ libcontrib_la_SOURCES = 			\
 	contrib/endian.h			\
 	contrib/files.c				\
 	contrib/files.h				\
+	contrib/fnv/fnv.h			\
+	contrib/fnv/hash_64a.c			\
+	contrib/fnv/longlong.h			\
 	contrib/getline.c			\
 	contrib/getline.h			\
 	contrib/hhash.c				\
@@ -59,6 +62,7 @@ libcontrib_la_SOURCES = 			\
 	contrib/sockaddr.h			\
 	contrib/string.c			\
 	contrib/string.h			\
+	contrib/strtonum.h			\
 	contrib/time.h				\
 	contrib/tolower.h			\
 	contrib/trim.h				\
@@ -101,6 +105,9 @@ nobase_libknot_la_HEADERS =			\
 	libknot/codes.h				\
 	libknot/consts.h			\
 	libknot/control/control.h		\
+	libknot/cookies/alg-fnv64.h		\
+	libknot/cookies/client.h		\
+	libknot/cookies/server.h		\
 	libknot/descriptor.h			\
 	libknot/dname.h				\
 	libknot/errcode.h			\
@@ -115,9 +122,6 @@ nobase_libknot_la_HEADERS =			\
 	libknot/packet/pkt.h			\
 	libknot/packet/rrset-wire.h		\
 	libknot/packet/wire.h			\
-	libknot/processing/layer.h		\
-	libknot/processing/overlay.h		\
-	libknot/processing/requestor.h		\
 	libknot/rdata.h				\
 	libknot/rdataset.h			\
 	libknot/rrset-dump.h			\
@@ -130,6 +134,7 @@ nobase_libknot_la_HEADERS =			\
 	libknot/rrtype/nsec3.h			\
 	libknot/rrtype/nsec3param.h		\
 	libknot/rrtype/opt.h			\
+	libknot/rrtype/opt-cookie.h		\
 	libknot/rrtype/rdname.h			\
 	libknot/rrtype/rrsig.h			\
 	libknot/rrtype/soa.h			\
@@ -144,6 +149,9 @@ libknot_la_SOURCES =				\
 	libknot/binary.c			\
 	libknot/codes.c				\
 	libknot/control/control.c		\
+	libknot/cookies/alg-fnv64.c		\
+	libknot/cookies/client.c		\
+	libknot/cookies/server.c		\
 	libknot/descriptor.c			\
 	libknot/dname.c				\
 	libknot/error.c				\
@@ -153,9 +161,6 @@ libknot_la_SOURCES =				\
 	libknot/packet/pkt.c			\
 	libknot/packet/rrset-wire.c		\
 	libknot/packet/wire.c			\
-	libknot/processing/layer.c		\
-	libknot/processing/overlay.c		\
-	libknot/processing/requestor.c		\
 	libknot/rdata.c				\
 	libknot/rdataset.c			\
 	libknot/rrset-dump.c			\
@@ -167,6 +172,7 @@ libknot_la_SOURCES =				\
 	libknot/rrtype/nsec3.c			\
 	libknot/rrtype/nsec3param.c		\
 	libknot/rrtype/opt.c			\
+	libknot/rrtype/opt-cookie.c		\
 	libknot/rrtype/rrsig.c			\
 	libknot/rrtype/soa.c			\
 	libknot/rrtype/tsig.c			\
@@ -194,6 +200,8 @@ endif
 
 # static: utilities shared
 libknotus_la_SOURCES =				\
+	utils/common/cert.c			\
+	utils/common/cert.h			\
 	utils/common/exec.c			\
 	utils/common/exec.h			\
 	utils/common/hex.c			\
@@ -210,11 +218,12 @@ libknotus_la_SOURCES =				\
 	utils/common/resolv.h			\
 	utils/common/sign.c			\
 	utils/common/sign.h			\
-	utils/common/strtonum.h			\
+	utils/common/tls.c			\
+	utils/common/tls.h			\
 	utils/common/token.c			\
 	utils/common/token.h
 
-libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS) $(libedit_CFLAGS)
+libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS) $(libedit_CFLAGS) $(gnutls_CFLAGS)
 libknotus_la_LDFLAGS = $(AM_LDFLAGS) $(libidn_LIBS)
 libknotus_la_LIBADD = libcontrib.la libknot.la
 
@@ -224,13 +233,31 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 
 if HAVE_DAEMON
 
-sbin_PROGRAMS = knotc knotd
+sbin_PROGRAMS = keymgr knotc knotd kzonecheck
 libexec_PROGRAMS = knot1to2
 noinst_LTLIBRARIES += libknotd.la libknotus.la
 
 EXTRA_DIST += 					\
 	utils/knot1to2/cf-lex.l			\
 	utils/knot1to2/cf-parse.y
+
+keymgr_SOURCES =				\
+	utils/keymgr/cmdparse/command.c		\
+	utils/keymgr/cmdparse/command.h		\
+	utils/keymgr/cmdparse/match.h		\
+	utils/keymgr/cmdparse/parameter.c	\
+	utils/keymgr/cmdparse/parameter.h	\
+	utils/keymgr/cmdparse/value.c		\
+	utils/keymgr/cmdparse/value.h		\
+	utils/keymgr/legacy/key.c		\
+	utils/keymgr/legacy/key.h		\
+	utils/keymgr/legacy/privkey.c		\
+	utils/keymgr/legacy/privkey.h		\
+	utils/keymgr/legacy/pubkey.c		\
+	utils/keymgr/legacy/pubkey.h		\
+	utils/keymgr/options.c			\
+	utils/keymgr/options.h			\
+	utils/keymgr/keymgr.c
 
 knotc_SOURCES =					\
 	utils/knotc/commands.c			\
@@ -256,6 +283,11 @@ knot1to2_SOURCES =				\
 	utils/knot1to2/includes.h		\
 	utils/knot1to2/main.c			\
 	utils/knot1to2/scheme.h
+
+kzonecheck_SOURCES =				\
+	utils/kzonecheck/main.c			\
+	utils/kzonecheck/zone_check.c		\
+	utils/kzonecheck/zone_check.h
 
 # static: server shared
 libknotd_la_SOURCES =				\
@@ -293,6 +325,18 @@ libknotd_la_SOURCES =				\
 	knot/dnssec/zone-nsec.h			\
 	knot/dnssec/zone-sign.c			\
 	knot/dnssec/zone-sign.h			\
+	knot/events/events.c			\
+	knot/events/events.h			\
+	knot/events/handlers.h			\
+	knot/events/handlers/dnssec.c		\
+	knot/events/handlers/expire.c		\
+	knot/events/handlers/flush.c		\
+	knot/events/handlers/load.c		\
+	knot/events/handlers/notify.c		\
+	knot/events/handlers/refresh.c		\
+	knot/events/handlers/update.c		\
+	knot/events/replan.c			\
+	knot/events/replan.h			\
 	knot/modules/dnsproxy.c			\
 	knot/modules/dnsproxy.h			\
 	knot/modules/online_sign/module.c	\
@@ -303,20 +347,17 @@ libknotd_la_SOURCES =				\
 	knot/modules/synth_record.h		\
 	knot/nameserver/axfr.c			\
 	knot/nameserver/axfr.h			\
-	knot/nameserver/capture.c		\
-	knot/nameserver/capture.h		\
 	knot/nameserver/chaos.c			\
 	knot/nameserver/chaos.h			\
 	knot/nameserver/internet.c		\
 	knot/nameserver/internet.h		\
 	knot/nameserver/ixfr.c			\
 	knot/nameserver/ixfr.h			\
+	knot/nameserver/log.h			\
 	knot/nameserver/notify.c		\
 	knot/nameserver/notify.h		\
 	knot/nameserver/nsec_proofs.c		\
 	knot/nameserver/nsec_proofs.h		\
-	knot/nameserver/process_answer.c	\
-	knot/nameserver/process_answer.h	\
 	knot/nameserver/process_query.c		\
 	knot/nameserver/process_query.h		\
 	knot/nameserver/query_module.c		\
@@ -325,6 +366,14 @@ libknotd_la_SOURCES =				\
 	knot/nameserver/tsig_ctx.h		\
 	knot/nameserver/update.c		\
 	knot/nameserver/update.h		\
+	knot/query/capture.c			\
+	knot/query/capture.h			\
+	knot/query/layer.c			\
+	knot/query/layer.h			\
+	knot/query/query.c			\
+	knot/query/query.h			\
+	knot/query/requestor.c			\
+	knot/query/requestor.h			\
 	knot/common/evsched.c			\
 	knot/common/evsched.h			\
 	knot/common/fdset.c			\
@@ -365,12 +414,6 @@ libknotd_la_SOURCES =				\
 	knot/worker/queue.h			\
 	knot/zone/contents.c			\
 	knot/zone/contents.h			\
-	knot/zone/events/events.c		\
-	knot/zone/events/events.h		\
-	knot/zone/events/handlers.c		\
-	knot/zone/events/handlers.h		\
-	knot/zone/events/replan.c		\
-	knot/zone/events/replan.h		\
 	knot/zone/node.c			\
 	knot/zone/node.h			\
 	knot/zone/semantic-check.c		\
@@ -400,11 +443,15 @@ libknotd_la_CPPFLAGS  = $(AM_CPPFLAGS) $(systemd_CFLAGS) $(liburcu_CFLAGS)
 libknotd_la_LDFLAGS = $(AM_LDFLAGS) $(systemd_LIBS) $(liburcu_LIBS)
 libknotd_la_LIBADD = libknot.la libknot-yparser.la zscanner/libzscanner.la $(liburcu_LIBS)
 
+keymgr_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/dnssec/lib/dnssec -I$(srcdir)/dnssec $(gnutls_CFLAGS)
+keymgr_LDADD = libknotd.la libknotus.la dnssec/libdnssec.la dnssec/libshared.la \
+               zscanner/libzscanner.la $(gnutls_LIBS)
 knotd_CPPFLAGS = $(AM_CPPFLAGS) $(liburcu_CFLAGS)
 knotd_LDADD = libknotd.la $(liburcu_LIBS)
 knotc_CPPFLAGS = $(AM_CPPFLAGS) $(libedit_CFLAGS)
 knotc_LDADD = libknotd.la libknotus.la $(libedit_LIBS)
 knot1to2_LDADD = libcontrib.la
+kzonecheck_LDADD = libknotd.la
 
 ####################################
 # Optional Knot DNS Daemon modules #
@@ -438,7 +485,7 @@ endif # HAVE_DAEMON
 
 if HAVE_UTILS
 
-bin_PROGRAMS = kdig khost knsupdate
+bin_PROGRAMS = kdig khost knsec3hash knsupdate
 noinst_LTLIBRARIES += libknotus.la
 
 kdig_SOURCES =					\
@@ -457,6 +504,10 @@ khost_SOURCES =					\
 	utils/khost/khost_params.c		\
 	utils/khost/khost_params.h
 
+knsec3hash_SOURCES =				\
+	dnssec/shared/print.h			\
+	utils/knsec3hash/knsec3hash.c
+
 knsupdate_SOURCES =				\
 	utils/knsupdate/knsupdate_exec.c	\
 	utils/knsupdate/knsupdate_exec.h	\
@@ -465,19 +516,24 @@ knsupdate_SOURCES =				\
 	utils/knsupdate/knsupdate_params.h
 
 # bin programs
-kdig_LDADD       = $(libidn_LIBS) libknotus.la
-khost_LDADD      = $(libidn_LIBS) libknotus.la
-knsupdate_LDADD  = zscanner/libzscanner.la libknotus.la
+kdig_CPPFLAGS       = $(AM_CPPFLAGS) $(gnutls_CFLAGS)
+kdig_LDADD          = $(libidn_LIBS) libknotus.la
+khost_CPPFLAGS      = $(AM_CPPFLAGS) $(gnutls_CFLAGS)
+khost_LDADD         = $(libidn_LIBS) libknotus.la
+knsupdate_CPPFLAGS  = $(AM_CPPFLAGS) $(gnutls_CFLAGS)
+knsupdate_LDADD     = zscanner/libzscanner.la libknotus.la
+knsec3hash_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/dnssec/lib/dnssec -I$(srcdir)/dnssec
+knsec3hash_LDADD    = dnssec/libdnssec.la dnssec/libshared.la
 
 #######################################
 # Optional Knot DNS Utilities modules #
 #######################################
 
 if HAVE_DNSTAP
-kdig_LDADD         += $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
-khost_LDADD        += $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
-kdig_CFLAGS = $(AM_CFLAGS) $(DNSTAP_CFLAGS)
-khost_CFLAGS = $(AM_CFLAGS) $(DNSTAP_CFLAGS)
+kdig_LDADD     += $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
+khost_LDADD    += $(DNSTAP_LIBS) contrib/dnstap/libdnstap.la
+kdig_CPPFLAGS  += $(DNSTAP_CFLAGS)
+khost_CPPFLAGS += $(DNSTAP_CFLAGS)
 endif # HAVE_DNSTAP
 
 if HAVE_ROSEDB

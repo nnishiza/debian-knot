@@ -18,20 +18,23 @@
 
 #include "dnssec/random.h"
 #include "knot/common/log.h"
+#include "knot/query/capture.h"
+#include "knot/query/requestor.h"
 #include "knot/nameserver/update.h"
-#include "knot/nameserver/capture.h"
 #include "knot/nameserver/internet.h"
 #include "knot/nameserver/process_query.h"
+#include "knot/nameserver/log.h"
 #include "knot/updates/ddns.h"
 #include "knot/updates/apply.h"
-#include "knot/zone/events/events.h"
+#include "knot/events/events.h"
 #include "libknot/libknot.h"
 #include "contrib/net.h"
 #include "contrib/print.h"
 
 /* UPDATE-specific logging (internal, expects 'qdata' variable set). */
 #define UPDATE_LOG(severity, msg, ...) \
-	QUERY_LOG(severity, qdata, "DDNS", msg, ##__VA_ARGS__)
+	NS_PROC_LOG(severity, knot_pkt_qname(qdata->query), qdata->param->remote, \
+	            "DDNS", msg, ##__VA_ARGS__)
 
 static void init_qdata_from_request(struct query_data *qdata,
                                     const zone_t *zone,
@@ -150,16 +153,15 @@ static int process_normal(conf_t *conf, zone_t *zone, list_t *requests)
 
 	// Apply changes.
 	ret = zone_update_commit(conf, &up);
+	zone_update_clear(&up);
 	if (ret != KNOT_EOK) {
-		if (ret == KNOT_ETTL) {
+		if (ret == KNOT_ETTL || ret == KNOT_EZONESIZE) {
 			set_rcodes(requests, KNOT_RCODE_REFUSED);
 		} else {
 			set_rcodes(requests, KNOT_RCODE_SERVFAIL);
 		}
 		return ret;
 	}
-
-	zone_update_clear(&up);
 
 	/* Sync zonefile immediately if configured. */
 	conf_val_t val = conf_zone_get(conf, C_ZONEFILE_SYNC, zone->name);
@@ -215,22 +217,16 @@ static int remote_forward(conf_t *conf, struct knot_request *request, conf_remot
 	knot_wire_set_id(query->wire, dnssec_random_uint16_t());
 	knot_tsig_append(query->wire, &query->size, query->max_size, query->tsig_rr);
 
-	/* Create requestor instance. */
-	struct knot_requestor re;
-	ret = knot_requestor_init(&re, NULL);
-	if (ret != KNOT_EOK) {
-		knot_pkt_free(&query);
-		return ret;
-	}
-
 	/* Prepare packet capture layer. */
-	struct capture_param param = {
+	const knot_layer_api_t *capture = query_capture_api();
+	struct capture_param capture_param = {
 		.sink = request->resp
 	};
 
-	ret = knot_requestor_overlay(&re, LAYER_CAPTURE, &param);
+	/* Create requestor instance. */
+	struct knot_requestor re;
+	ret = knot_requestor_init(&re, capture, &capture_param, NULL);
 	if (ret != KNOT_EOK) {
-		knot_requestor_clear(&re);
 		knot_pkt_free(&query);
 		return ret;
 	}
@@ -245,17 +241,11 @@ static int remote_forward(conf_t *conf, struct knot_request *request, conf_remot
 		return KNOT_ENOMEM;
 	}
 
-	/* Enqueue the request. */
-	ret = knot_requestor_enqueue(&re, req);
-	if (ret == KNOT_EOK) {
-		conf_val_t *val = &conf->cache.srv_tcp_reply_timeout;
-		int timeout = conf_int(val) * 1000;
-		ret = knot_requestor_exec(&re, timeout);
-	} else {
-		knot_request_free(req, re.mm);
-	}
+	/* Execute the request. */
+	int timeout = 1000 * conf->cache.srv_tcp_reply_timeout;
+	ret = knot_requestor_exec(&re, req, timeout);
 
-
+	knot_request_free(req, re.mm);
 	knot_requestor_clear(&re);
 
 	return ret;
@@ -336,8 +326,6 @@ static bool update_tsig_check(conf_t *conf, struct query_data *qdata, struct kno
 	return true;
 }
 
-#undef UPDATE_LOG
-
 static void send_update_response(conf_t *conf, const zone_t *zone, struct knot_request *req)
 {
 	if (req->resp) {
@@ -350,13 +338,12 @@ static void send_update_response(conf_t *conf, const zone_t *zone, struct knot_r
 		}
 
 		if (net_is_stream(req->fd)) {
-			conf_val_t *val = &conf->cache.srv_tcp_reply_timeout;
-			int timeout = conf_int(val) * 1000;
+			int timeout = 1000 * conf->cache.srv_tcp_reply_timeout;
 			net_dns_tcp_send(req->fd, req->resp->wire, req->resp->size,
 			                 timeout);
 		} else {
 			net_dgram_send(req->fd, req->resp->wire, req->resp->size,
-			               &req->remote);
+			               (struct sockaddr *)&req->remote);
 		}
 	}
 }

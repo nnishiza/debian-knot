@@ -21,7 +21,6 @@
 #include "knot/conf/tools.h"
 #include "knot/common/log.h"
 #include "knot/nameserver/query_module.h"
-#include "knot/nameserver/internet.h"
 #include "libknot/libknot.h"
 #include "libknot/yparser/ypformat.h"
 #include "libknot/yparser/yptrafo.h"
@@ -110,13 +109,35 @@ void conf_refresh_hostname(
 static void init_cache(
 	conf_t *conf)
 {
+	conf_val_t val = conf_get(conf, C_SRV, C_MAX_IPV4_UDP_PAYLOAD);
+	if (val.code != KNOT_EOK) {
+		val = conf_get(conf, C_SRV, C_MAX_UDP_PAYLOAD);
+	}
+	conf->cache.srv_max_ipv4_udp_payload = conf_int(&val);
+
+	val = conf_get(conf, C_SRV, C_MAX_IPV6_UDP_PAYLOAD);
+	if (val.code != KNOT_EOK) {
+		val = conf_get(conf, C_SRV, C_MAX_UDP_PAYLOAD);
+	}
+	conf->cache.srv_max_ipv6_udp_payload = conf_int(&val);
+
+	val = conf_get(conf, C_SRV, C_TCP_HSHAKE_TIMEOUT);
+	conf->cache.srv_tcp_hshake_timeout = conf_int(&val);
+
+	val = conf_get(conf, C_SRV, C_TCP_IDLE_TIMEOUT);
+	conf->cache.srv_tcp_idle_timeout = conf_int(&val);
+
+	val = conf_get(conf, C_SRV, C_TCP_REPLY_TIMEOUT);
+	conf->cache.srv_tcp_reply_timeout = conf_int(&val);
+
+	val = conf_get(conf, C_SRV, C_MAX_TCP_CLIENTS);
+	conf->cache.srv_max_tcp_clients = conf_int(&val);
+
+	val = conf_get(conf, C_SRV, C_RATE_LIMIT_SLIP);
+	conf->cache.srv_rate_limit_slip = conf_int(&val);
+
 	conf->cache.srv_nsid = conf_get(conf, C_SRV, C_NSID);
-	conf->cache.srv_max_udp_payload = conf_get(conf, C_SRV, C_MAX_UDP_PAYLOAD);
-	conf->cache.srv_max_tcp_clients = conf_get(conf, C_SRV, C_MAX_TCP_CLIENTS);
-	conf->cache.srv_tcp_hshake_timeout = conf_get(conf, C_SRV, C_TCP_HSHAKE_TIMEOUT);
-	conf->cache.srv_tcp_idle_timeout = conf_get(conf, C_SRV, C_TCP_IDLE_TIMEOUT);
-	conf->cache.srv_tcp_reply_timeout = conf_get(conf, C_SRV, C_TCP_REPLY_TIMEOUT);
-	conf->cache.srv_rate_limit_slip = conf_get(conf, C_SRV, C_RATE_LIMIT_SLIP);
+
 	conf->cache.srv_rate_limit_whitelist = conf_get(conf, C_SRV, C_RATE_LIMIT_WHITELIST);
 }
 
@@ -353,10 +374,12 @@ void conf_activate_modules(
 		val = conf_default_get(conf, C_GLOBAL_MODULE);
 	}
 
-	// Check if a module is configured at all.
-	if (val.code == KNOT_ENOENT) {
+	switch (val.code) {
+	case KNOT_EOK:
+		break;
+	case KNOT_ENOENT: // Check if a module is configured at all.
 		return;
-	} else if (val.code != KNOT_EOK) {
+	default:
 		ret = val.code;
 		goto activate_error;
 	}
@@ -366,11 +389,6 @@ void conf_activate_modules(
 	if (*query_plan == NULL) {
 		ret = KNOT_ENOMEM;
 		goto activate_error;
-	}
-
-	if (zone_name != NULL) {
-		// Only supported zone class is now IN.
-		internet_query_plan(*query_plan);
 	}
 
 	// Initialize query modules list.
