@@ -1,2 +1,4 @@
+etc/knot/example.com.zone usr/share/doc/knot-doc/examples/
+etc/knot/knot.sample.conf usr/share/doc/knot-doc/examples/
 usr/share/doc/knot/* /usr/share/doc/knot-doc/
 usr/share/info
