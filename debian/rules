@@ -46,6 +46,19 @@ override_dh_auto_build-indep:
 override_dh_auto_install-arch:
 	dh_auto_install
 
+	# Install sample conf as /etc/knot/knot.conf
+	mv $(CURDIR)/debian/tmp/etc/knot/knot.sample.conf $(CURDIR)/debian/tmp/etc/knot/knot.conf
+	# Remove useless example zone from /etc/knot
+	rm $(CURDIR)/debian/tmp/etc/knot/example.com.zone
+
+	# Install helper utilities
+	install -m 755 debian/get_user   $(CURDIR)/debian/tmp/usr/lib/knot/
+	install -m 755 debian/get_kaspdb $(CURDIR)/debian/tmp/usr/lib/knot/
+
+	# Install UFW DNS rules
+	install -m 755 -d $(CURDIR)/debian/tmp/etc/ufw/applications.d/
+	install -m 644 $(CURDIR)/debian/knot.ufw $(CURDIR)/debian/tmp/etc/ufw/applications.d/knot
+
 override_dh_auto_install-indep:
 	dh_auto_install -- install-info install-pdf install-html
 
@@ -55,25 +68,5 @@ override_dh_auto_test:
 override_dh_strip:
 	dh_strip --dbgsym-migration='knot-dbg (<< 2.2.0-2~)' || dh_strip
 
-override_dh_install-arch:
-	# Install sample conf as /etc/knot/knot.conf
-	mv $(CURDIR)/debian/tmp/etc/knot/knot.sample.conf $(CURDIR)/debian/tmp/etc/knot/knot.conf
-	# Remove useless example zone from /etc/knot
-	rm $(CURDIR)/debian/tmp/etc/knot/example.com.zone
-
-	# Remove .la and .so
-	rm $(CURDIR)/debian/tmp/usr/lib/*/*.la
-
-	install -m 755 debian/get_user   $(CURDIR)/debian/tmp/usr/lib/knot/
-	install -m 755 debian/get_kaspdb $(CURDIR)/debian/tmp/usr/lib/knot/
-
-	dh_install -Nknot-doc --list-missing
-
-	install -m 755 -d $(CURDIR)/debian/knot/etc/ufw/applications.d/
-	install -m 644 $(CURDIR)/debian/knot.ufw $(CURDIR)/debian/knot/etc/ufw/applications.d/knot
-
-override_dh_install-indep:
-	dh_install -pknot-doc --list-missing
-
-override_dh_installchangelogs:
-	dh_installchangelogs NEWS
+override_dh_install:
+	dh_install --fail-missing -X.la

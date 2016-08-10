@@ -1,10 +1,12 @@
 etc/knot/knot.conf
+etc/ufw/applications.d/knot
 usr/bin/knsec3hash
 usr/lib/knot/get_*
 usr/lib/knot/knot1to2
 usr/sbin/keymgr
 usr/sbin/knotc
 usr/sbin/knotd
+usr/sbin/kzonecheck
 usr/share/bash-completion/completions/keymgr
 usr/share/man/man1/knot1to2.1
 usr/share/man/man1/knsec3hash.1
@@ -12,3 +14,6 @@ usr/share/man/man5/knot.conf.5
 usr/share/man/man8/keymgr.8
 usr/share/man/man8/knotc.8
 usr/share/man/man8/knotd.8
+usr/share/man/man1/kzonecheck.1
+etc/knot/knot.sample.conf usr/share/doc/knot/examples/
+etc/knot/example.com.zone usr/share/doc/knot/examples/
