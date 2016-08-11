@@ -1,3 +1,10 @@
+knot (2.3.0-3) unstable; urgency=medium
+
+  * Ignore the test results if they don't finish within 5 minutes
+  * Correctly break/replace libzscanner0 that contained libzscanner.so.1
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 11 Aug 2016 08:49:25 +0200
+
 knot (2.3.0-2) unstable; urgency=medium
 
   * Move examples to knot-doc package (fix arch-only FTBFS)
