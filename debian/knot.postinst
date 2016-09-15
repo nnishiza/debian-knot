@@ -30,10 +30,10 @@ fi
 # since we need to read the runtime configuration when upgrading
 # from 2.0.x to 2.1.x
 if [ "$1" = "configure" -a -n "$2" ] && dpkg --compare-versions "$2" lt "2.1.0-3~"; then
-    KNOT_USER=$(/usr/lib/knot/get_user)
+    KNOT_USER=$(/usr/lib/knot/get_user 2>/dev/null || echo "knot")
 
     /usr/lib/knot/get_kaspdb | while read KASPDB; do 
-	su --shell /bin/bash --command "/usr/sbin/keymgr --dir '$KASPDB' init" ${KNOT_USER:-knot};
+	su --shell /bin/bash --command "/usr/sbin/keymgr --legacy --dir '${KASPDB}' init" ${KNOT_USER};
     done
 fi
 
