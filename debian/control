@@ -35,7 +35,7 @@ Package: knot
 Architecture: any
 Depends: adduser,
          libdnssec2 (= ${binary:Version}),
-         libknot3 (= ${binary:Version}),
+         libknot4 (= ${binary:Version}),
          libzscanner1 (= ${binary:Version}),
          python,
          python-yaml,
@@ -50,7 +50,7 @@ Description: authoritative domain name server
  registry and hence is well suited to run anything from the root
  zone, the top-level domain, to many smaller standard domain names.
 
-Package: libknot3
+Package: libknot4
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends}
@@ -111,7 +111,7 @@ Architecture: any
 Depends: libdnssec2 (= ${binary:Version}),
          libgnutls28-dev,
          libjansson-dev,
-         libknot3 (= ${binary:Version}),
+         libknot4 (= ${binary:Version}),
          libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
@@ -132,7 +132,7 @@ Description: authoritative domain name server
 Package: knot-dnsutils
 Architecture: any
 Depends: libdnssec2 (= ${binary:Version}),
-         libknot3 (= ${binary:Version}),
+         libknot4 (= ${binary:Version}),
          libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
@@ -163,7 +163,7 @@ Description: Clients provided with Knot DNS (kdig, knslookup, knsupdate)
 Package: knot-host
 Architecture: any
 Depends: libdnssec2 (= ${binary:Version}),
-         libknot3 (= ${binary:Version}),
+         libknot4 (= ${binary:Version}),
          libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
