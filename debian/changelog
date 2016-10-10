@@ -1,10 +1,10 @@
 knot (2.3.1-1) unstable; urgency=medium
 
   * Imported Upstream version 2.3.1
+  * Bump libknot3 to libknot4
   * kzonecheck was moved to /usr/bin
-  * Update symbols to Knot DNS 2.3.1
 
- -- Ondřej Surý <ondrej@debian.org>  Mon, 10 Oct 2016 11:43:46 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 10 Oct 2016 12:01:41 +0200
 
 knot (2.3.0-4) unstable; urgency=medium
 
