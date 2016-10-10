@@ -121,8 +121,11 @@ libknot.so.3 libknot3 #MINVER#
  knot_ds_key_tag@Base 2.3.0
  knot_edns_add_option@Base 2.3.0
  knot_edns_check_record@Base 2.3.0
- knot_edns_client_subnet_create@Base 2.3.0
+ knot_edns_client_subnet_get_addr@Base 2.3.1-1
  knot_edns_client_subnet_parse@Base 2.3.0
+ knot_edns_client_subnet_set_addr@Base 2.3.1-1
+ knot_edns_client_subnet_size@Base 2.3.1-1
+ knot_edns_client_subnet_write@Base 2.3.1-1
  knot_edns_do@Base 2.3.0
  knot_edns_get_ext_rcode@Base 2.3.0
  knot_edns_get_option@Base 2.3.0
@@ -194,6 +197,7 @@ libknot.so.3 libknot3 #MINVER#
  knot_rdataset_clear@Base 2.3.0
  knot_rdataset_copy@Base 2.3.0
  knot_rdataset_eq@Base 2.3.0
+ knot_rdataset_gather@Base 2.3.1-1
  knot_rdataset_init@Base 2.3.0
  knot_rdataset_intersect@Base 2.3.0
  knot_rdataset_member@Base 2.3.0
