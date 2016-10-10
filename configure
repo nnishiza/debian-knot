@@ -4873,7 +4873,7 @@ ac_config_files="$ac_config_files src/libknot/version.h src/zscanner/version.h s
 
 # Updating version info
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-libknot_VERSION_INFO="-version-info 3:0:0"
+libknot_VERSION_INFO="-version-info 4:0:0"
 
 libdnssec_VERSION_INFO="-version-info 2:0:0"
 
