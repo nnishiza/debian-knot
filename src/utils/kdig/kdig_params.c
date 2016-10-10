@@ -759,20 +759,19 @@ static int opt_noalignment(const char *arg, void *query)
 	return KNOT_EOK;
 }
 
-static int opt_client(const char *arg, void *query)
+static int opt_subnet(const char *arg, void *query)
 {
 	query_t *q = query;
-
-	struct in_addr  addr4;
-	struct in6_addr addr6;
 
 	char         *sep = NULL;
 	const size_t arg_len = strlen(arg);
 	const char   *arg_end = arg + arg_len;
-	char         *addr = NULL;
 	size_t       addr_len = 0;
 
-	subnet_t *subnet = calloc(sizeof(subnet_t), 1);
+	knot_edns_client_subnet_t *subnet = calloc(1, sizeof(*subnet));
+	if (subnet == NULL) {
+		return KNOT_ENOMEM;
+	}
 
 	// Separate address and network mask.
 	if ((sep = index(arg, '/')) != NULL) {
@@ -782,35 +781,40 @@ static int opt_client(const char *arg, void *query)
 	}
 
 	// Check IP address.
-	addr = strndup(arg, addr_len);
-	if (inet_pton(AF_INET, addr, &addr4) == 1) {
-		subnet->family = KNOT_ADDR_FAMILY_IPV4;
-		memcpy(subnet->addr, &(addr4.s_addr), IPV4_PREFIXLEN / 8);
-		subnet->addr_len = IPV4_PREFIXLEN / 8;
-		subnet->netmask = IPV4_PREFIXLEN;
-	} else if (inet_pton(AF_INET6, addr, &addr6) == 1) {
-		subnet->family = KNOT_ADDR_FAMILY_IPV6;
-		memcpy(subnet->addr, &(addr6.s6_addr), IPV6_PREFIXLEN / 8);
-		subnet->addr_len = IPV6_PREFIXLEN / 8;
-		subnet->netmask = IPV6_PREFIXLEN;
-	} else {
-		free(addr);
+
+	struct sockaddr_storage ss = { 0 };
+	struct addrinfo hints = { .ai_flags = AI_NUMERICHOST };
+	struct addrinfo *ai = NULL;
+
+	char *addr_str = strndup(arg, addr_len);
+	if (getaddrinfo(addr_str, NULL, &hints, &ai) != 0) {
+		free(addr_str);
 		free(subnet);
-		ERR("invalid address +client=%s\n", arg);
+		ERR("invalid address +subnet=%s\n", arg);
 		return KNOT_EINVAL;
 	}
-	free(addr);
+
+	memcpy(&ss, ai->ai_addr, ai->ai_addrlen);
+	freeaddrinfo(ai);
+	free(addr_str);
+
+	if (knot_edns_client_subnet_set_addr(subnet, &ss) != KNOT_EOK) {
+		free(subnet);
+		ERR("invalid address +subnet=%s\n", arg);
+		return KNOT_EINVAL;
+	}
 
 	// Parse network mask.
-	if (arg + addr_len < arg_end) {
-		arg += addr_len + 1;
-		uint8_t num;
-		if (str_to_u8(arg, &num) != KNOT_EOK || num > subnet->netmask) {
+	const char *mask = arg;
+	if (mask + addr_len < arg_end) {
+		mask += addr_len + 1;
+		uint8_t num = 0;
+		if (str_to_u8(mask, &num) != KNOT_EOK || num > subnet->source_len) {
 			free(subnet);
-			ERR("invalid network mask +client=%s\n", arg);
+			ERR("invalid network mask +subnet=%s\n", arg);
 			return KNOT_EINVAL;
 		}
-		subnet->netmask = num;
+		subnet->source_len = num;
 	}
 
 	free(q->subnet);
@@ -819,7 +823,7 @@ static int opt_client(const char *arg, void *query)
 	return KNOT_EOK;
 }
 
-static int opt_noclient(const char *arg, void *query)
+static int opt_nosubnet(const char *arg, void *query)
 {
 	query_t *q = query;
 
@@ -858,7 +862,7 @@ static int opt_noedns(const char *arg, void *query)
 	opt_nobufsize(arg, query);
 	opt_nopadding(arg, query);
 	opt_noalignment(arg, query);
-	opt_noclient(arg, query);
+	opt_nosubnet(arg, query);
 
 	return KNOT_EOK;
 }
@@ -1018,8 +1022,12 @@ static const param_t kdig_opts2[] = {
 	{ "alignment",      ARG_OPTIONAL, opt_alignment },
 	{ "noalignment",    ARG_NONE,     opt_noalignment },
 
-	{ "client",         ARG_REQUIRED, opt_client },
-	{ "noclient",       ARG_NONE,     opt_noclient },
+	{ "subnet",         ARG_REQUIRED, opt_subnet },
+	{ "nosubnet",       ARG_NONE,     opt_nosubnet },
+
+	// Obsolete aliases.
+	{ "client",         ARG_REQUIRED, opt_subnet },
+	{ "noclient",       ARG_NONE,     opt_nosubnet },
 
 	{ "edns",           ARG_OPTIONAL, opt_edns },
 	{ "noedns",         ARG_NONE,     opt_noedns },
@@ -1128,7 +1136,7 @@ query_t *query_create(const char *owner, const query_t *conf)
 			}
 		}
 		if (conf->subnet != NULL) {
-			query->subnet = malloc(sizeof(subnet_t));
+			query->subnet = malloc(sizeof(*query->subnet));
 			if (query->subnet == NULL) {
 				query_free(query);
 				return NULL;
@@ -1609,8 +1617,8 @@ static void print_help(void)
 	       "       +[no]bufsize=B        Set EDNS buffer size.\n"
 	       "       +[no]padding=N        Padding block size EDNS(0) padding.\n"
 	       "       +[no]alignment[=N]    Set packet alignment with EDNS(0) padding.\n"
-	       "       +[no]client=SUBN      Set EDNS(0) client subnet IP/prefix.\n"
-	       "       +[no]edns[=N]         Use EDNS (=version).\n"
+	       "       +[no]subnet=SUBN      Set EDNS(0) client subnet addr/prefix.\n"
+	       "       +[no]edns[=N]         Use EDNS(=version).\n"
 	       "       +[no]time=T           Set wait for reply interval in seconds.\n"
 	       "       +[no]retry=N          Set number of retries.\n"
 	       "       +noidn                Disable IDN transformation.\n"

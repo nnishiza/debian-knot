@@ -136,6 +136,9 @@ static void init_cache(
 	val = conf_get(conf, C_SRV, C_RATE_LIMIT_SLIP);
 	conf->cache.srv_rate_limit_slip = conf_int(&val);
 
+	val = conf_get(conf, C_CTL, C_TIMEOUT);
+	conf->cache.ctl_timeout = conf_int(&val) * 1000;
+
 	conf->cache.srv_nsid = conf_get(conf, C_SRV, C_NSID);
 
 	conf->cache.srv_rate_limit_whitelist = conf_get(conf, C_SRV, C_RATE_LIMIT_WHITELIST);
@@ -306,11 +309,22 @@ int conf_clone(
 }
 
 void conf_update(
-	conf_t *conf)
+	conf_t *conf,
+	conf_update_flag_t flags)
 {
 	// Remove the clone flag for new master configuration.
 	if (conf != NULL) {
 		conf->is_clone = false;
+
+		if ((flags & CONF_UPD_FCONFIO) && s_conf != NULL) {
+			conf->io.flags = s_conf->io.flags;
+			conf->io.zones = s_conf->io.zones;
+		}
+		if ((flags & CONF_UPD_FMODULES) && s_conf != NULL) {
+			list_dup(&conf->query_modules, &s_conf->query_modules,
+			         sizeof(struct query_module));
+			conf->query_plan = s_conf->query_plan;
+		}
 	}
 
 	conf_t **current_conf = &s_conf;
@@ -321,6 +335,15 @@ void conf_update(
 	if (old_conf != NULL) {
 		// Remove the clone flag if a single configuration.
 		old_conf->is_clone = (conf != NULL) ? true : false;
+
+		if (flags & CONF_UPD_FCONFIO) {
+			old_conf->io.zones = NULL;
+		}
+		if (flags & CONF_UPD_FMODULES) {
+			init_list(&old_conf->query_modules);
+			old_conf->query_plan = NULL;
+		}
+
 		conf_free(old_conf);
 	}
 }
@@ -339,6 +362,10 @@ void conf_free(
 
 	if (conf->io.txn != NULL) {
 		conf->api->txn_abort(conf->io.txn_stack);
+	}
+	if (conf->io.zones != NULL) {
+		hattrie_free(conf->io.zones);
+		mm_free(conf->mm, conf->io.zones);
 	}
 
 	conf_deactivate_modules(&conf->query_modules, &conf->query_plan);
@@ -554,7 +581,7 @@ static int parser_calls(
 				.line = prev_line
 			};
 
-			int ret = conf_exec_callbacks(prev_item, &args);
+			int ret = conf_exec_callbacks(&args);
 			if (ret != KNOT_EOK) {
 				log_prev_err(&args, ret);
 				return ret;
@@ -603,8 +630,7 @@ static int parser_calls(
 		.line = parser->line_count
 	};
 
-	int ret = conf_exec_callbacks(is_id ? node->item->var.g.id : node->item,
-	                              &args);
+	int ret = conf_exec_callbacks(&args);
 	if (ret != KNOT_EOK) {
 		log_call_err(parser, &args, ret);
 	}
@@ -616,10 +642,9 @@ int conf_parse(
 	conf_t *conf,
 	knot_db_txn_t *txn,
 	const char *input,
-	bool is_file,
-	void *data)
+	bool is_file)
 {
-	if (conf == NULL || txn == NULL || input == NULL || data == NULL) {
+	if (conf == NULL || txn == NULL || input == NULL) {
 		return KNOT_EINVAL;
 	}
 
@@ -725,10 +750,8 @@ int conf_import(
 		goto import_error;
 	}
 
-	conf_check_t args = { NULL };
-
 	// Parse and import given file.
-	ret = conf_parse(conf, &txn, input, is_file, &args);
+	ret = conf_parse(conf, &txn, input, is_file);
 	if (ret != KNOT_EOK) {
 		conf->api->txn_abort(&txn);
 		goto import_error;

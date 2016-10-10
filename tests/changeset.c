@@ -23,7 +23,7 @@
 
 int main(int argc, char *argv[])
 {
-	plan(23);
+	plan_lazy();
 
 	// Test with NULL changeset
 	ok(changeset_size(NULL) == 0, "changeset: NULL size");
@@ -35,6 +35,9 @@ int main(int argc, char *argv[])
 	changeset_t *ch = changeset_new(d);
 	knot_dname_free(&d, NULL);
 	ok(ch != NULL, "changeset: new");
+	if (!ch) {
+		return 1;
+	}
 	ok(changeset_empty(ch), "changeset: empty");
 	ch->soa_to = (knot_rrset_t *)0xdeadbeef;
 	ok(!changeset_empty(ch), "changseset: empty SOA");
@@ -49,20 +52,20 @@ int main(int argc, char *argv[])
 	uint8_t data[8] = "\7teststr";
 	knot_rrset_add_rdata(apex_txt_rr, data, sizeof(data), 3600, NULL);
 
-	int ret = changeset_add_rrset(ch, apex_txt_rr, CHANGESET_CHECK);
+	int ret = changeset_add_addition(ch, apex_txt_rr, CHANGESET_CHECK);
 	ok(ret == KNOT_EOK, "changeset: add RRSet");
 	ok(changeset_size(ch) == 1, "changeset: size add");
-	ret = changeset_rem_rrset(ch, apex_txt_rr, CHANGESET_CHECK);
+	ret = changeset_add_removal(ch, apex_txt_rr, CHANGESET_CHECK);
 	ok(ret == KNOT_EOK, "changeset: rem RRSet");
 	ok(changeset_size(ch) == 1, "changeset: size remove");
 	ok(!changeset_empty(ch), "changeset: empty");
-	changeset_add_rrset(ch, apex_txt_rr, CHANGESET_CHECK);
+	changeset_add_addition(ch, apex_txt_rr, CHANGESET_CHECK);
 
 	// Add another RR to node.
 	knot_rrset_t *apex_spf_rr = knot_rrset_new(d, KNOT_RRTYPE_SPF, KNOT_CLASS_IN, NULL);
 	assert(apex_spf_rr);
 	knot_rrset_add_rdata(apex_spf_rr, data, sizeof(data), 3600, NULL);
-	ret = changeset_add_rrset(ch, apex_spf_rr, CHANGESET_CHECK);
+	ret = changeset_add_addition(ch, apex_spf_rr, CHANGESET_CHECK);
 	ok(ret == KNOT_EOK, "changeset: add multiple");
 
 	// Add another node.
@@ -72,7 +75,7 @@ int main(int argc, char *argv[])
 	knot_rrset_t *other_rr = knot_rrset_new(d, KNOT_RRTYPE_TXT, KNOT_CLASS_IN, NULL);
 	assert(other_rr);
 	knot_rrset_add_rdata(other_rr, data, sizeof(data), 3600, NULL);
-	ret = changeset_add_rrset(ch, other_rr, CHANGESET_CHECK);
+	ret = changeset_add_addition(ch, other_rr, CHANGESET_CHECK);
 	ok(ret == KNOT_EOK, "changeset: remove multiple");
 
 	// Test add traversal.
@@ -93,8 +96,8 @@ int main(int argc, char *argv[])
 	changeset_iter_clear(&it);
 	ok(knot_rrset_empty(&iter), "changeset: traversal: skip non-terminals");
 
-	changeset_rem_rrset(ch, apex_txt_rr, CHANGESET_CHECK);
-	changeset_rem_rrset(ch, apex_txt_rr, CHANGESET_CHECK);
+	changeset_add_removal(ch, apex_txt_rr, CHANGESET_CHECK);
+	changeset_add_removal(ch, apex_txt_rr, CHANGESET_CHECK);
 
 	// Test remove traversal.
 	ret = changeset_iter_rem(&it, ch, false);
@@ -127,7 +130,7 @@ int main(int argc, char *argv[])
 	knot_dname_free(&apex_txt_rr->owner, NULL);
 	apex_txt_rr->owner = knot_dname_from_str_alloc("something.test.");
 	assert(apex_txt_rr->owner);
-	ret = changeset_add_rrset(ch2, apex_txt_rr, CHANGESET_CHECK);
+	ret = changeset_add_addition(ch2, apex_txt_rr, CHANGESET_CHECK);
 	assert(ret == KNOT_EOK);
 
 	// Add something to remove section.
@@ -135,7 +138,7 @@ int main(int argc, char *argv[])
 	apex_txt_rr->owner =
 		knot_dname_from_str_alloc("and.now.for.something.completely.different.test.");
 	assert(apex_txt_rr->owner);
-	ret = changeset_rem_rrset(ch2, apex_txt_rr, CHANGESET_CHECK);
+	ret = changeset_add_removal(ch2, apex_txt_rr, CHANGESET_CHECK);
 	assert(ret == KNOT_EOK);
 
 	// Test merge.

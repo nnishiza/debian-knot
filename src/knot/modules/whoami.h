@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 Fastly, Inc.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,13 +14,26 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*!
+ * \file
+ *
+ * \brief whoami module
+ *
+ * \addtogroup query_processing
+ * @{
+ */
+
 #pragma once
 
-#define KNOT_VERSION_MAJOR 2
-#define KNOT_VERSION_MINOR 3
-#define KNOT_VERSION_PATCH 1
-#define KNOT_VERSION_EXTRA ""
+#include "knot/nameserver/query_module.h"
 
-#define KNOT_VERSION_HEX ((KNOT_VERSION_MAJOR << 16) | \
-                          (KNOT_VERSION_MINOR <<  8) | \
-                          (KNOT_VERSION_PATCH))
+/*! \brief Module scheme. */
+#define C_MOD_WHOAMI "\x0A""mod-whoami"
+extern const yp_item_t scheme_mod_whoami[];
+
+/*! \brief Module interface. */
+int whoami_load(struct query_plan *plan, struct query_module *self,
+                const knot_dname_t *zone);
+int whoami_unload(struct query_module *self);
+
+/*! @} */

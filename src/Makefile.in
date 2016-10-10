@@ -101,7 +101,7 @@ host_triplet = @host@
 @HAVE_LMDB_FALSE@	-I$(srcdir)/contrib/lmdb/
 
 @HAVE_DAEMON_TRUE@sbin_PROGRAMS = keymgr$(EXEEXT) knotc$(EXEEXT) \
-@HAVE_DAEMON_TRUE@	knotd$(EXEEXT) kzonecheck$(EXEEXT)
+@HAVE_DAEMON_TRUE@	knotd$(EXEEXT)
 @HAVE_DAEMON_TRUE@libexec_PROGRAMS = knot1to2$(EXEEXT)
 @HAVE_DAEMON_TRUE@am__append_3 = libknotd.la libknotus.la
 @HAVE_DAEMON_TRUE@am__append_4 = \
@@ -124,8 +124,8 @@ host_triplet = @host@
 
 @HAVE_UTILS_TRUE@bin_PROGRAMS = kdig$(EXEEXT) khost$(EXEEXT) \
 @HAVE_UTILS_TRUE@	knsec3hash$(EXEEXT) knsupdate$(EXEEXT) \
-@HAVE_UTILS_TRUE@	$(am__EXEEXT_1)
-@HAVE_UTILS_TRUE@am__append_9 = libknotus.la
+@HAVE_UTILS_TRUE@	kzonecheck$(EXEEXT) $(am__EXEEXT_1)
+@HAVE_DAEMON_FALSE@@HAVE_UTILS_TRUE@am__append_9 = libknotd.la
 
 #######################################
 # Optional Knot DNS Utilities modules #
@@ -276,9 +276,9 @@ am__DEPENDENCIES_1 =
 @HAVE_DAEMON_TRUE@@HAVE_DNSTAP_TRUE@am__DEPENDENCIES_2 =  \
 @HAVE_DAEMON_TRUE@@HAVE_DNSTAP_TRUE@	$(am__DEPENDENCIES_1) \
 @HAVE_DAEMON_TRUE@@HAVE_DNSTAP_TRUE@	contrib/dnstap/libdnstap.la
-@HAVE_DAEMON_TRUE@libknotd_la_DEPENDENCIES = libknot.la \
-@HAVE_DAEMON_TRUE@	libknot-yparser.la zscanner/libzscanner.la \
-@HAVE_DAEMON_TRUE@	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
+libknotd_la_DEPENDENCIES = libknot.la libknot-yparser.la \
+	zscanner/libzscanner.la $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_2)
 am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 	knot/conf/conf.c knot/conf/conf.h knot/conf/confdb.c \
 	knot/conf/confdb.h knot/conf/confio.c knot/conf/confio.h \
@@ -300,11 +300,13 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 	knot/events/handlers/notify.c knot/events/handlers/refresh.c \
 	knot/events/handlers/update.c knot/events/replan.c \
 	knot/events/replan.h knot/modules/dnsproxy.c \
-	knot/modules/dnsproxy.h knot/modules/online_sign/module.c \
+	knot/modules/dnsproxy.h knot/modules/noudp.c \
+	knot/modules/noudp.h knot/modules/online_sign/module.c \
 	knot/modules/online_sign/module.h \
 	knot/modules/online_sign/nsec_next.c \
 	knot/modules/online_sign/nsec_next.h \
 	knot/modules/synth_record.c knot/modules/synth_record.h \
+	knot/modules/whoami.c knot/modules/whoami.h \
 	knot/nameserver/axfr.c knot/nameserver/axfr.h \
 	knot/nameserver/chaos.c knot/nameserver/chaos.h \
 	knot/nameserver/internet.c knot/nameserver/internet.h \
@@ -349,88 +351,88 @@ am__libknotd_la_SOURCES_DIST = knot/conf/base.c knot/conf/base.h \
 	knot/modules/rosedb.c knot/modules/rosedb.h
 @HAVE_DAEMON_TRUE@@HAVE_DNSTAP_TRUE@am__objects_3 = knot/modules/libknotd_la-dnstap.lo
 @HAVE_DAEMON_TRUE@@HAVE_ROSEDB_TRUE@am__objects_4 = knot/modules/libknotd_la-rosedb.lo
-@HAVE_DAEMON_TRUE@am_libknotd_la_OBJECTS =  \
-@HAVE_DAEMON_TRUE@	knot/conf/libknotd_la-base.lo \
-@HAVE_DAEMON_TRUE@	knot/conf/libknotd_la-conf.lo \
-@HAVE_DAEMON_TRUE@	knot/conf/libknotd_la-confdb.lo \
-@HAVE_DAEMON_TRUE@	knot/conf/libknotd_la-confio.lo \
-@HAVE_DAEMON_TRUE@	knot/conf/libknotd_la-scheme.lo \
-@HAVE_DAEMON_TRUE@	knot/conf/libknotd_la-tools.lo \
-@HAVE_DAEMON_TRUE@	knot/ctl/libknotd_la-commands.lo \
-@HAVE_DAEMON_TRUE@	knot/ctl/libknotd_la-process.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-context.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-nsec-chain.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-nsec3-chain.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-policy.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-rrset-sign.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-events.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-keys.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-nsec.lo \
-@HAVE_DAEMON_TRUE@	knot/dnssec/libknotd_la-zone-sign.lo \
-@HAVE_DAEMON_TRUE@	knot/events/libknotd_la-events.lo \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-dnssec.lo \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-expire.lo \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-flush.lo \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-load.lo \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-notify.lo \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-refresh.lo \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/libknotd_la-update.lo \
-@HAVE_DAEMON_TRUE@	knot/events/libknotd_la-replan.lo \
-@HAVE_DAEMON_TRUE@	knot/modules/libknotd_la-dnsproxy.lo \
-@HAVE_DAEMON_TRUE@	knot/modules/online_sign/libknotd_la-module.lo \
-@HAVE_DAEMON_TRUE@	knot/modules/online_sign/libknotd_la-nsec_next.lo \
-@HAVE_DAEMON_TRUE@	knot/modules/libknotd_la-synth_record.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-axfr.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-chaos.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-internet.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-ixfr.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-notify.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-nsec_proofs.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-process_query.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-query_module.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-tsig_ctx.lo \
-@HAVE_DAEMON_TRUE@	knot/nameserver/libknotd_la-update.lo \
-@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-capture.lo \
-@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-layer.lo \
-@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-query.lo \
-@HAVE_DAEMON_TRUE@	knot/query/libknotd_la-requestor.lo \
-@HAVE_DAEMON_TRUE@	knot/common/libknotd_la-evsched.lo \
-@HAVE_DAEMON_TRUE@	knot/common/libknotd_la-fdset.lo \
-@HAVE_DAEMON_TRUE@	knot/common/libknotd_la-log.lo \
-@HAVE_DAEMON_TRUE@	knot/common/libknotd_la-process.lo \
-@HAVE_DAEMON_TRUE@	knot/common/libknotd_la-ref.lo \
-@HAVE_DAEMON_TRUE@	knot/server/libknotd_la-dthreads.lo \
-@HAVE_DAEMON_TRUE@	knot/server/libknotd_la-journal.lo \
-@HAVE_DAEMON_TRUE@	knot/server/libknotd_la-rrl.lo \
-@HAVE_DAEMON_TRUE@	knot/server/libknotd_la-serialization.lo \
-@HAVE_DAEMON_TRUE@	knot/server/libknotd_la-server.lo \
-@HAVE_DAEMON_TRUE@	knot/server/libknotd_la-tcp-handler.lo \
-@HAVE_DAEMON_TRUE@	knot/server/libknotd_la-udp-handler.lo \
-@HAVE_DAEMON_TRUE@	knot/updates/libknotd_la-acl.lo \
-@HAVE_DAEMON_TRUE@	knot/updates/libknotd_la-apply.lo \
-@HAVE_DAEMON_TRUE@	knot/updates/libknotd_la-changesets.lo \
-@HAVE_DAEMON_TRUE@	knot/updates/libknotd_la-ddns.lo \
-@HAVE_DAEMON_TRUE@	knot/updates/libknotd_la-zone-update.lo \
-@HAVE_DAEMON_TRUE@	knot/worker/libknotd_la-pool.lo \
-@HAVE_DAEMON_TRUE@	knot/worker/libknotd_la-queue.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-contents.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-node.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-semantic-check.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-serial.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-timers.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zone-diff.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zone-dump.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zone-load.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zone-tree.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zone.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zonedb-load.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zonedb.lo \
-@HAVE_DAEMON_TRUE@	knot/zone/libknotd_la-zonefile.lo \
-@HAVE_DAEMON_TRUE@	$(am__objects_3) $(am__objects_4)
+am_libknotd_la_OBJECTS = knot/conf/libknotd_la-base.lo \
+	knot/conf/libknotd_la-conf.lo knot/conf/libknotd_la-confdb.lo \
+	knot/conf/libknotd_la-confio.lo \
+	knot/conf/libknotd_la-scheme.lo knot/conf/libknotd_la-tools.lo \
+	knot/ctl/libknotd_la-commands.lo \
+	knot/ctl/libknotd_la-process.lo \
+	knot/dnssec/libknotd_la-context.lo \
+	knot/dnssec/libknotd_la-nsec-chain.lo \
+	knot/dnssec/libknotd_la-nsec3-chain.lo \
+	knot/dnssec/libknotd_la-policy.lo \
+	knot/dnssec/libknotd_la-rrset-sign.lo \
+	knot/dnssec/libknotd_la-zone-events.lo \
+	knot/dnssec/libknotd_la-zone-keys.lo \
+	knot/dnssec/libknotd_la-zone-nsec.lo \
+	knot/dnssec/libknotd_la-zone-sign.lo \
+	knot/events/libknotd_la-events.lo \
+	knot/events/handlers/libknotd_la-dnssec.lo \
+	knot/events/handlers/libknotd_la-expire.lo \
+	knot/events/handlers/libknotd_la-flush.lo \
+	knot/events/handlers/libknotd_la-load.lo \
+	knot/events/handlers/libknotd_la-notify.lo \
+	knot/events/handlers/libknotd_la-refresh.lo \
+	knot/events/handlers/libknotd_la-update.lo \
+	knot/events/libknotd_la-replan.lo \
+	knot/modules/libknotd_la-dnsproxy.lo \
+	knot/modules/libknotd_la-noudp.lo \
+	knot/modules/online_sign/libknotd_la-module.lo \
+	knot/modules/online_sign/libknotd_la-nsec_next.lo \
+	knot/modules/libknotd_la-synth_record.lo \
+	knot/modules/libknotd_la-whoami.lo \
+	knot/nameserver/libknotd_la-axfr.lo \
+	knot/nameserver/libknotd_la-chaos.lo \
+	knot/nameserver/libknotd_la-internet.lo \
+	knot/nameserver/libknotd_la-ixfr.lo \
+	knot/nameserver/libknotd_la-notify.lo \
+	knot/nameserver/libknotd_la-nsec_proofs.lo \
+	knot/nameserver/libknotd_la-process_query.lo \
+	knot/nameserver/libknotd_la-query_module.lo \
+	knot/nameserver/libknotd_la-tsig_ctx.lo \
+	knot/nameserver/libknotd_la-update.lo \
+	knot/query/libknotd_la-capture.lo \
+	knot/query/libknotd_la-layer.lo \
+	knot/query/libknotd_la-query.lo \
+	knot/query/libknotd_la-requestor.lo \
+	knot/common/libknotd_la-evsched.lo \
+	knot/common/libknotd_la-fdset.lo \
+	knot/common/libknotd_la-log.lo \
+	knot/common/libknotd_la-process.lo \
+	knot/common/libknotd_la-ref.lo \
+	knot/server/libknotd_la-dthreads.lo \
+	knot/server/libknotd_la-journal.lo \
+	knot/server/libknotd_la-rrl.lo \
+	knot/server/libknotd_la-serialization.lo \
+	knot/server/libknotd_la-server.lo \
+	knot/server/libknotd_la-tcp-handler.lo \
+	knot/server/libknotd_la-udp-handler.lo \
+	knot/updates/libknotd_la-acl.lo \
+	knot/updates/libknotd_la-apply.lo \
+	knot/updates/libknotd_la-changesets.lo \
+	knot/updates/libknotd_la-ddns.lo \
+	knot/updates/libknotd_la-zone-update.lo \
+	knot/worker/libknotd_la-pool.lo \
+	knot/worker/libknotd_la-queue.lo \
+	knot/zone/libknotd_la-contents.lo \
+	knot/zone/libknotd_la-node.lo \
+	knot/zone/libknotd_la-semantic-check.lo \
+	knot/zone/libknotd_la-serial.lo \
+	knot/zone/libknotd_la-timers.lo \
+	knot/zone/libknotd_la-zone-diff.lo \
+	knot/zone/libknotd_la-zone-dump.lo \
+	knot/zone/libknotd_la-zone-load.lo \
+	knot/zone/libknotd_la-zone-tree.lo \
+	knot/zone/libknotd_la-zone.lo \
+	knot/zone/libknotd_la-zonedb-load.lo \
+	knot/zone/libknotd_la-zonedb.lo \
+	knot/zone/libknotd_la-zonefile.lo $(am__objects_3) \
+	$(am__objects_4)
 libknotd_la_OBJECTS = $(am_libknotd_la_OBJECTS)
 libknotd_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libknotd_la_LDFLAGS) $(LDFLAGS) -o $@
+@HAVE_DAEMON_FALSE@@HAVE_UTILS_TRUE@am_libknotd_la_rpath =
 @HAVE_DAEMON_TRUE@am_libknotd_la_rpath =
 libknotus_la_DEPENDENCIES = libcontrib.la libknot.la
 am_libknotus_la_OBJECTS = utils/common/libknotus_la-cert.lo \
@@ -449,7 +451,6 @@ libknotus_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libknotus_la_LDFLAGS) $(LDFLAGS) -o $@
 @HAVE_DAEMON_TRUE@am_libknotus_la_rpath =
-@HAVE_UTILS_TRUE@am_libknotus_la_rpath =
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@am__EXEEXT_1 =  \
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@	rosedb_tool$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(libexec_PROGRAMS) $(sbin_PROGRAMS)
@@ -551,11 +552,11 @@ knsupdate_OBJECTS = $(am_knsupdate_OBJECTS)
 @HAVE_UTILS_TRUE@	libknotus.la
 am__kzonecheck_SOURCES_DIST = utils/kzonecheck/main.c \
 	utils/kzonecheck/zone_check.c utils/kzonecheck/zone_check.h
-@HAVE_DAEMON_TRUE@am_kzonecheck_OBJECTS =  \
-@HAVE_DAEMON_TRUE@	utils/kzonecheck/main.$(OBJEXT) \
-@HAVE_DAEMON_TRUE@	utils/kzonecheck/zone_check.$(OBJEXT)
+@HAVE_UTILS_TRUE@am_kzonecheck_OBJECTS =  \
+@HAVE_UTILS_TRUE@	utils/kzonecheck/main.$(OBJEXT) \
+@HAVE_UTILS_TRUE@	utils/kzonecheck/zone_check.$(OBJEXT)
 kzonecheck_OBJECTS = $(am_kzonecheck_OBJECTS)
-@HAVE_DAEMON_TRUE@kzonecheck_DEPENDENCIES = libknotd.la
+@HAVE_UTILS_TRUE@kzonecheck_DEPENDENCIES = libknotd.la
 am__rosedb_tool_SOURCES_DIST = knot/modules/rosedb_tool.c
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@am_rosedb_tool_OBJECTS = knot/modules/rosedb_tool-rosedb_tool.$(OBJEXT)
 rosedb_tool_OBJECTS = $(am_rosedb_tool_OBJECTS)
@@ -1036,6 +1037,80 @@ libknotus_la_SOURCES = \
 libknotus_la_CPPFLAGS = $(AM_CPPFLAGS) $(libidn_CFLAGS) $(libedit_CFLAGS) $(gnutls_CFLAGS)
 libknotus_la_LDFLAGS = $(AM_LDFLAGS) $(libidn_LIBS)
 libknotus_la_LIBADD = libcontrib.la libknot.la
+libknotd_la_SOURCES = knot/conf/base.c knot/conf/base.h \
+	knot/conf/conf.c knot/conf/conf.h knot/conf/confdb.c \
+	knot/conf/confdb.h knot/conf/confio.c knot/conf/confio.h \
+	knot/conf/scheme.c knot/conf/scheme.h knot/conf/tools.c \
+	knot/conf/tools.h knot/ctl/commands.c knot/ctl/commands.h \
+	knot/ctl/process.c knot/ctl/process.h knot/dnssec/context.c \
+	knot/dnssec/context.h knot/dnssec/nsec-chain.c \
+	knot/dnssec/nsec-chain.h knot/dnssec/nsec3-chain.c \
+	knot/dnssec/nsec3-chain.h knot/dnssec/policy.c \
+	knot/dnssec/policy.h knot/dnssec/rrset-sign.c \
+	knot/dnssec/rrset-sign.h knot/dnssec/zone-events.c \
+	knot/dnssec/zone-events.h knot/dnssec/zone-keys.c \
+	knot/dnssec/zone-keys.h knot/dnssec/zone-nsec.c \
+	knot/dnssec/zone-nsec.h knot/dnssec/zone-sign.c \
+	knot/dnssec/zone-sign.h knot/events/events.c \
+	knot/events/events.h knot/events/handlers.h \
+	knot/events/handlers/dnssec.c knot/events/handlers/expire.c \
+	knot/events/handlers/flush.c knot/events/handlers/load.c \
+	knot/events/handlers/notify.c knot/events/handlers/refresh.c \
+	knot/events/handlers/update.c knot/events/replan.c \
+	knot/events/replan.h knot/modules/dnsproxy.c \
+	knot/modules/dnsproxy.h knot/modules/noudp.c \
+	knot/modules/noudp.h knot/modules/online_sign/module.c \
+	knot/modules/online_sign/module.h \
+	knot/modules/online_sign/nsec_next.c \
+	knot/modules/online_sign/nsec_next.h \
+	knot/modules/synth_record.c knot/modules/synth_record.h \
+	knot/modules/whoami.c knot/modules/whoami.h \
+	knot/nameserver/axfr.c knot/nameserver/axfr.h \
+	knot/nameserver/chaos.c knot/nameserver/chaos.h \
+	knot/nameserver/internet.c knot/nameserver/internet.h \
+	knot/nameserver/ixfr.c knot/nameserver/ixfr.h \
+	knot/nameserver/log.h knot/nameserver/notify.c \
+	knot/nameserver/notify.h knot/nameserver/nsec_proofs.c \
+	knot/nameserver/nsec_proofs.h knot/nameserver/process_query.c \
+	knot/nameserver/process_query.h knot/nameserver/query_module.c \
+	knot/nameserver/query_module.h knot/nameserver/tsig_ctx.c \
+	knot/nameserver/tsig_ctx.h knot/nameserver/update.c \
+	knot/nameserver/update.h knot/query/capture.c \
+	knot/query/capture.h knot/query/layer.c knot/query/layer.h \
+	knot/query/query.c knot/query/query.h knot/query/requestor.c \
+	knot/query/requestor.h knot/common/evsched.c \
+	knot/common/evsched.h knot/common/fdset.c knot/common/fdset.h \
+	knot/common/log.c knot/common/log.h knot/common/process.c \
+	knot/common/process.h knot/common/ref.c knot/common/ref.h \
+	knot/server/dthreads.c knot/server/dthreads.h \
+	knot/server/journal.c knot/server/journal.h knot/server/rrl.c \
+	knot/server/rrl.h knot/server/serialization.c \
+	knot/server/serialization.h knot/server/server.c \
+	knot/server/server.h knot/server/tcp-handler.c \
+	knot/server/tcp-handler.h knot/server/udp-handler.c \
+	knot/server/udp-handler.h knot/updates/acl.c \
+	knot/updates/acl.h knot/updates/apply.c knot/updates/apply.h \
+	knot/updates/changesets.c knot/updates/changesets.h \
+	knot/updates/ddns.c knot/updates/ddns.h \
+	knot/updates/zone-update.c knot/updates/zone-update.h \
+	knot/worker/pool.c knot/worker/pool.h knot/worker/queue.c \
+	knot/worker/queue.h knot/zone/contents.c knot/zone/contents.h \
+	knot/zone/node.c knot/zone/node.h knot/zone/semantic-check.c \
+	knot/zone/semantic-check.h knot/zone/serial.c \
+	knot/zone/serial.h knot/zone/timers.c knot/zone/timers.h \
+	knot/zone/zone-diff.c knot/zone/zone-diff.h \
+	knot/zone/zone-dump.c knot/zone/zone-dump.h \
+	knot/zone/zone-load.c knot/zone/zone-load.h \
+	knot/zone/zone-tree.c knot/zone/zone-tree.h knot/zone/zone.c \
+	knot/zone/zone.h knot/zone/zonedb-load.c \
+	knot/zone/zonedb-load.h knot/zone/zonedb.c knot/zone/zonedb.h \
+	knot/zone/zonefile.c knot/zone/zonefile.h $(am__append_5) \
+	$(am__append_8)
+libknotd_la_CPPFLAGS = $(AM_CPPFLAGS) $(systemd_CFLAGS) \
+	$(liburcu_CFLAGS) $(am__append_6)
+libknotd_la_LDFLAGS = $(AM_LDFLAGS) $(systemd_LIBS) $(liburcu_LIBS)
+libknotd_la_LIBADD = libknot.la libknot-yparser.la \
+	zscanner/libzscanner.la $(liburcu_LIBS) $(am__append_7)
 @HAVE_DAEMON_TRUE@keymgr_SOURCES = \
 @HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/command.c		\
 @HAVE_DAEMON_TRUE@	utils/keymgr/cmdparse/command.h		\
@@ -1079,127 +1154,6 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@	utils/knot1to2/main.c			\
 @HAVE_DAEMON_TRUE@	utils/knot1to2/scheme.h
 
-@HAVE_DAEMON_TRUE@kzonecheck_SOURCES = \
-@HAVE_DAEMON_TRUE@	utils/kzonecheck/main.c			\
-@HAVE_DAEMON_TRUE@	utils/kzonecheck/zone_check.c		\
-@HAVE_DAEMON_TRUE@	utils/kzonecheck/zone_check.h
-
-
-# static: server shared
-@HAVE_DAEMON_TRUE@libknotd_la_SOURCES = knot/conf/base.c \
-@HAVE_DAEMON_TRUE@	knot/conf/base.h knot/conf/conf.c \
-@HAVE_DAEMON_TRUE@	knot/conf/conf.h knot/conf/confdb.c \
-@HAVE_DAEMON_TRUE@	knot/conf/confdb.h knot/conf/confio.c \
-@HAVE_DAEMON_TRUE@	knot/conf/confio.h knot/conf/scheme.c \
-@HAVE_DAEMON_TRUE@	knot/conf/scheme.h knot/conf/tools.c \
-@HAVE_DAEMON_TRUE@	knot/conf/tools.h knot/ctl/commands.c \
-@HAVE_DAEMON_TRUE@	knot/ctl/commands.h knot/ctl/process.c \
-@HAVE_DAEMON_TRUE@	knot/ctl/process.h knot/dnssec/context.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/context.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/nsec-chain.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/nsec-chain.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/nsec3-chain.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/nsec3-chain.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/policy.c knot/dnssec/policy.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/rrset-sign.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/rrset-sign.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-events.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-events.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-keys.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-keys.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-nsec.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-nsec.h \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-sign.c \
-@HAVE_DAEMON_TRUE@	knot/dnssec/zone-sign.h knot/events/events.c \
-@HAVE_DAEMON_TRUE@	knot/events/events.h knot/events/handlers.h \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/dnssec.c \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/expire.c \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/flush.c \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/load.c \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/notify.c \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/refresh.c \
-@HAVE_DAEMON_TRUE@	knot/events/handlers/update.c \
-@HAVE_DAEMON_TRUE@	knot/events/replan.c knot/events/replan.h \
-@HAVE_DAEMON_TRUE@	knot/modules/dnsproxy.c \
-@HAVE_DAEMON_TRUE@	knot/modules/dnsproxy.h \
-@HAVE_DAEMON_TRUE@	knot/modules/online_sign/module.c \
-@HAVE_DAEMON_TRUE@	knot/modules/online_sign/module.h \
-@HAVE_DAEMON_TRUE@	knot/modules/online_sign/nsec_next.c \
-@HAVE_DAEMON_TRUE@	knot/modules/online_sign/nsec_next.h \
-@HAVE_DAEMON_TRUE@	knot/modules/synth_record.c \
-@HAVE_DAEMON_TRUE@	knot/modules/synth_record.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/axfr.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/axfr.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/chaos.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/chaos.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/internet.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/internet.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/ixfr.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/ixfr.h knot/nameserver/log.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/notify.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/notify.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/nsec_proofs.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/nsec_proofs.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/process_query.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/process_query.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/query_module.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/query_module.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/tsig_ctx.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/tsig_ctx.h \
-@HAVE_DAEMON_TRUE@	knot/nameserver/update.c \
-@HAVE_DAEMON_TRUE@	knot/nameserver/update.h \
-@HAVE_DAEMON_TRUE@	knot/query/capture.c knot/query/capture.h \
-@HAVE_DAEMON_TRUE@	knot/query/layer.c knot/query/layer.h \
-@HAVE_DAEMON_TRUE@	knot/query/query.c knot/query/query.h \
-@HAVE_DAEMON_TRUE@	knot/query/requestor.c \
-@HAVE_DAEMON_TRUE@	knot/query/requestor.h knot/common/evsched.c \
-@HAVE_DAEMON_TRUE@	knot/common/evsched.h knot/common/fdset.c \
-@HAVE_DAEMON_TRUE@	knot/common/fdset.h knot/common/log.c \
-@HAVE_DAEMON_TRUE@	knot/common/log.h knot/common/process.c \
-@HAVE_DAEMON_TRUE@	knot/common/process.h knot/common/ref.c \
-@HAVE_DAEMON_TRUE@	knot/common/ref.h knot/server/dthreads.c \
-@HAVE_DAEMON_TRUE@	knot/server/dthreads.h knot/server/journal.c \
-@HAVE_DAEMON_TRUE@	knot/server/journal.h knot/server/rrl.c \
-@HAVE_DAEMON_TRUE@	knot/server/rrl.h \
-@HAVE_DAEMON_TRUE@	knot/server/serialization.c \
-@HAVE_DAEMON_TRUE@	knot/server/serialization.h \
-@HAVE_DAEMON_TRUE@	knot/server/server.c knot/server/server.h \
-@HAVE_DAEMON_TRUE@	knot/server/tcp-handler.c \
-@HAVE_DAEMON_TRUE@	knot/server/tcp-handler.h \
-@HAVE_DAEMON_TRUE@	knot/server/udp-handler.c \
-@HAVE_DAEMON_TRUE@	knot/server/udp-handler.h knot/updates/acl.c \
-@HAVE_DAEMON_TRUE@	knot/updates/acl.h knot/updates/apply.c \
-@HAVE_DAEMON_TRUE@	knot/updates/apply.h \
-@HAVE_DAEMON_TRUE@	knot/updates/changesets.c \
-@HAVE_DAEMON_TRUE@	knot/updates/changesets.h \
-@HAVE_DAEMON_TRUE@	knot/updates/ddns.c knot/updates/ddns.h \
-@HAVE_DAEMON_TRUE@	knot/updates/zone-update.c \
-@HAVE_DAEMON_TRUE@	knot/updates/zone-update.h \
-@HAVE_DAEMON_TRUE@	knot/worker/pool.c knot/worker/pool.h \
-@HAVE_DAEMON_TRUE@	knot/worker/queue.c knot/worker/queue.h \
-@HAVE_DAEMON_TRUE@	knot/zone/contents.c knot/zone/contents.h \
-@HAVE_DAEMON_TRUE@	knot/zone/node.c knot/zone/node.h \
-@HAVE_DAEMON_TRUE@	knot/zone/semantic-check.c \
-@HAVE_DAEMON_TRUE@	knot/zone/semantic-check.h \
-@HAVE_DAEMON_TRUE@	knot/zone/serial.c knot/zone/serial.h \
-@HAVE_DAEMON_TRUE@	knot/zone/timers.c knot/zone/timers.h \
-@HAVE_DAEMON_TRUE@	knot/zone/zone-diff.c knot/zone/zone-diff.h \
-@HAVE_DAEMON_TRUE@	knot/zone/zone-dump.c knot/zone/zone-dump.h \
-@HAVE_DAEMON_TRUE@	knot/zone/zone-load.c knot/zone/zone-load.h \
-@HAVE_DAEMON_TRUE@	knot/zone/zone-tree.c knot/zone/zone-tree.h \
-@HAVE_DAEMON_TRUE@	knot/zone/zone.c knot/zone/zone.h \
-@HAVE_DAEMON_TRUE@	knot/zone/zonedb-load.c \
-@HAVE_DAEMON_TRUE@	knot/zone/zonedb-load.h knot/zone/zonedb.c \
-@HAVE_DAEMON_TRUE@	knot/zone/zonedb.h knot/zone/zonefile.c \
-@HAVE_DAEMON_TRUE@	knot/zone/zonefile.h $(am__append_5) \
-@HAVE_DAEMON_TRUE@	$(am__append_8)
-@HAVE_DAEMON_TRUE@libknotd_la_CPPFLAGS = $(AM_CPPFLAGS) \
-@HAVE_DAEMON_TRUE@	$(systemd_CFLAGS) $(liburcu_CFLAGS) \
-@HAVE_DAEMON_TRUE@	$(am__append_6)
-@HAVE_DAEMON_TRUE@libknotd_la_LDFLAGS = $(AM_LDFLAGS) $(systemd_LIBS) $(liburcu_LIBS)
-@HAVE_DAEMON_TRUE@libknotd_la_LIBADD = libknot.la libknot-yparser.la \
-@HAVE_DAEMON_TRUE@	zscanner/libzscanner.la $(liburcu_LIBS) \
-@HAVE_DAEMON_TRUE@	$(am__append_7)
 @HAVE_DAEMON_TRUE@keymgr_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/dnssec/lib/dnssec -I$(srcdir)/dnssec $(gnutls_CFLAGS)
 @HAVE_DAEMON_TRUE@keymgr_LDADD = libknotd.la libknotus.la dnssec/libdnssec.la dnssec/libshared.la \
 @HAVE_DAEMON_TRUE@               zscanner/libzscanner.la $(gnutls_LIBS)
@@ -1209,7 +1163,6 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_DAEMON_TRUE@knotc_CPPFLAGS = $(AM_CPPFLAGS) $(libedit_CFLAGS)
 @HAVE_DAEMON_TRUE@knotc_LDADD = libknotd.la libknotus.la $(libedit_LIBS)
 @HAVE_DAEMON_TRUE@knot1to2_LDADD = libcontrib.la
-@HAVE_DAEMON_TRUE@kzonecheck_LDADD = libknotd.la
 @HAVE_UTILS_TRUE@kdig_SOURCES = \
 @HAVE_UTILS_TRUE@	utils/kdig/kdig_exec.c			\
 @HAVE_UTILS_TRUE@	utils/kdig/kdig_exec.h			\
@@ -1237,6 +1190,11 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate_params.c	\
 @HAVE_UTILS_TRUE@	utils/knsupdate/knsupdate_params.h
 
+@HAVE_UTILS_TRUE@kzonecheck_SOURCES = \
+@HAVE_UTILS_TRUE@	utils/kzonecheck/main.c			\
+@HAVE_UTILS_TRUE@	utils/kzonecheck/zone_check.c		\
+@HAVE_UTILS_TRUE@	utils/kzonecheck/zone_check.h
+
 
 # bin programs
 @HAVE_UTILS_TRUE@kdig_CPPFLAGS = $(AM_CPPFLAGS) $(gnutls_CFLAGS) \
@@ -1251,6 +1209,7 @@ libknotus_la_LIBADD = libcontrib.la libknot.la
 @HAVE_UTILS_TRUE@knsupdate_LDADD = zscanner/libzscanner.la libknotus.la
 @HAVE_UTILS_TRUE@knsec3hash_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/dnssec/lib/dnssec -I$(srcdir)/dnssec
 @HAVE_UTILS_TRUE@knsec3hash_LDADD = dnssec/libdnssec.la dnssec/libshared.la
+@HAVE_UTILS_TRUE@kzonecheck_LDADD = libknotd.la
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@rosedb_tool_SOURCES = knot/modules/rosedb_tool.c
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@rosedb_tool_LDADD = libknotd.la
 @HAVE_ROSEDB_TRUE@@HAVE_UTILS_TRUE@rosedb_tool_CFLAGS = $(AM_CFLAGS) $(lmdb_CFLAGS) $(DNSTAP_CFLAGS)
@@ -1662,6 +1621,8 @@ knot/modules/$(DEPDIR)/$(am__dirstamp):
 	@: > knot/modules/$(DEPDIR)/$(am__dirstamp)
 knot/modules/libknotd_la-dnsproxy.lo: knot/modules/$(am__dirstamp) \
 	knot/modules/$(DEPDIR)/$(am__dirstamp)
+knot/modules/libknotd_la-noudp.lo: knot/modules/$(am__dirstamp) \
+	knot/modules/$(DEPDIR)/$(am__dirstamp)
 knot/modules/online_sign/$(am__dirstamp):
 	@$(MKDIR_P) knot/modules/online_sign
 	@: > knot/modules/online_sign/$(am__dirstamp)
@@ -1676,6 +1637,8 @@ knot/modules/online_sign/libknotd_la-nsec_next.lo:  \
 	knot/modules/online_sign/$(DEPDIR)/$(am__dirstamp)
 knot/modules/libknotd_la-synth_record.lo:  \
 	knot/modules/$(am__dirstamp) \
+	knot/modules/$(DEPDIR)/$(am__dirstamp)
+knot/modules/libknotd_la-whoami.lo: knot/modules/$(am__dirstamp) \
 	knot/modules/$(DEPDIR)/$(am__dirstamp)
 knot/nameserver/$(am__dirstamp):
 	@$(MKDIR_P) knot/nameserver
@@ -2364,8 +2327,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@knot/events/handlers/$(DEPDIR)/libknotd_la-update.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-dnsproxy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-dnstap.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-noudp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-rosedb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-synth_record.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/libknotd_la-whoami.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/$(DEPDIR)/rosedb_tool-rosedb_tool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/online_sign/$(DEPDIR)/libknotd_la-module.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@knot/modules/online_sign/$(DEPDIR)/libknotd_la-nsec_next.Plo@am__quote@
@@ -2942,6 +2907,13 @@ knot/modules/libknotd_la-dnsproxy.lo: knot/modules/dnsproxy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/modules/libknotd_la-dnsproxy.lo `test -f 'knot/modules/dnsproxy.c' || echo '$(srcdir)/'`knot/modules/dnsproxy.c
 
+knot/modules/libknotd_la-noudp.lo: knot/modules/noudp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/modules/libknotd_la-noudp.lo -MD -MP -MF knot/modules/$(DEPDIR)/libknotd_la-noudp.Tpo -c -o knot/modules/libknotd_la-noudp.lo `test -f 'knot/modules/noudp.c' || echo '$(srcdir)/'`knot/modules/noudp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/modules/$(DEPDIR)/libknotd_la-noudp.Tpo knot/modules/$(DEPDIR)/libknotd_la-noudp.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/modules/noudp.c' object='knot/modules/libknotd_la-noudp.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/modules/libknotd_la-noudp.lo `test -f 'knot/modules/noudp.c' || echo '$(srcdir)/'`knot/modules/noudp.c
+
 knot/modules/online_sign/libknotd_la-module.lo: knot/modules/online_sign/module.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/modules/online_sign/libknotd_la-module.lo -MD -MP -MF knot/modules/online_sign/$(DEPDIR)/libknotd_la-module.Tpo -c -o knot/modules/online_sign/libknotd_la-module.lo `test -f 'knot/modules/online_sign/module.c' || echo '$(srcdir)/'`knot/modules/online_sign/module.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/modules/online_sign/$(DEPDIR)/libknotd_la-module.Tpo knot/modules/online_sign/$(DEPDIR)/libknotd_la-module.Plo
@@ -2962,6 +2934,13 @@ knot/modules/libknotd_la-synth_record.lo: knot/modules/synth_record.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/modules/synth_record.c' object='knot/modules/libknotd_la-synth_record.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/modules/libknotd_la-synth_record.lo `test -f 'knot/modules/synth_record.c' || echo '$(srcdir)/'`knot/modules/synth_record.c
+
+knot/modules/libknotd_la-whoami.lo: knot/modules/whoami.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/modules/libknotd_la-whoami.lo -MD -MP -MF knot/modules/$(DEPDIR)/libknotd_la-whoami.Tpo -c -o knot/modules/libknotd_la-whoami.lo `test -f 'knot/modules/whoami.c' || echo '$(srcdir)/'`knot/modules/whoami.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) knot/modules/$(DEPDIR)/libknotd_la-whoami.Tpo knot/modules/$(DEPDIR)/libknotd_la-whoami.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='knot/modules/whoami.c' object='knot/modules/libknotd_la-whoami.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o knot/modules/libknotd_la-whoami.lo `test -f 'knot/modules/whoami.c' || echo '$(srcdir)/'`knot/modules/whoami.c
 
 knot/nameserver/libknotd_la-axfr.lo: knot/nameserver/axfr.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libknotd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT knot/nameserver/libknotd_la-axfr.lo -MD -MP -MF knot/nameserver/$(DEPDIR)/libknotd_la-axfr.Tpo -c -o knot/nameserver/libknotd_la-axfr.lo `test -f 'knot/nameserver/axfr.c' || echo '$(srcdir)/'`knot/nameserver/axfr.c

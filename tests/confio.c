@@ -175,7 +175,7 @@ static int format_item(conf_io_t *io)
 	return KNOT_EOK;
 }
 
-static void test_conf_io_begin()
+static void test_conf_io_begin(void)
 {
 	ok(conf_io_begin(true) == KNOT_TXN_ENOTEXISTS, "begin child txn with no parent");
 	ok(conf()->io.txn == NULL, "check txn depth");
@@ -202,24 +202,22 @@ static void test_conf_io_begin()
 #endif
 }
 
-static void test_conf_io_abort()
+static void test_conf_io_abort(void)
 {
 #if defined(__OpenBSD__)
 	SKIP_OPENBSD
 #else
-	conf_io_t io = { NULL };
-
 	// Test child persistence after subchild abort.
 
 	ok(conf_io_begin(false) == KNOT_EOK, "begin parent txn");
 	char idx[2] = { '0' };
-	ok(conf_io_set("server", "version", NULL, idx, &io) ==
+	ok(conf_io_set("server", "version", NULL, idx) ==
 	   KNOT_EOK, "set single value '%s'", idx);
 
 	for (int i = 1; i < CONF_MAX_TXN_DEPTH; i++) {
 		char idx[2] = { '0' + i };
 		ok(conf_io_begin(true) == KNOT_EOK, "begin child txn %s", idx);
-		ok(conf_io_set("server", "version", NULL, idx, &io) ==
+		ok(conf_io_set("server", "version", NULL, idx) ==
 		   KNOT_EOK, "set single value '%s'", idx);
 	}
 
@@ -239,7 +237,7 @@ static void test_conf_io_abort()
 	ok(conf_io_begin(false) == KNOT_EOK, "begin new parent txn");
 	ok(conf_io_begin(true) == KNOT_EOK, "begin child txn");
 	ok(conf_io_begin(true) == KNOT_EOK, "begin subchild txn");
-	ok(conf_io_set("server", "version", NULL, "text", &io) ==
+	ok(conf_io_set("server", "version", NULL, "text") ==
 	   KNOT_EOK, "set single value");
 	ok(conf_io_commit(true) == KNOT_EOK, "commit subchild txn");
 	conf_val_t val = conf_get_txn(conf(), conf()->io.txn, C_SERVER, C_VERSION);
@@ -257,7 +255,7 @@ static void test_conf_io_abort()
 #endif
 }
 
-static void test_conf_io_commit()
+static void test_conf_io_commit(void)
 {
 	ok(conf_io_commit(false) == KNOT_TXN_ENOTEXISTS, "commit no txt txn");
 	ok(conf_io_commit(true) == KNOT_TXN_ENOTEXISTS, "commit no txt txn");
@@ -265,19 +263,17 @@ static void test_conf_io_commit()
 #if defined(__OpenBSD__)
 	SKIP_OPENBSD
 #else
-	conf_io_t io = { NULL };
-
 	// Test subchild persistence after commit.
 
 	ok(conf_io_begin(false) == KNOT_EOK, "begin parent txn");
 	char idx[2] = { '0' };
-	ok(conf_io_set("server", "version", NULL, idx, &io) ==
+	ok(conf_io_set("server", "version", NULL, idx) ==
 	   KNOT_EOK, "set single value '%s'", idx);
 
 	for (int i = 1; i < CONF_MAX_TXN_DEPTH; i++) {
 		char idx[2] = { '0' + i };
 		ok(conf_io_begin(true) == KNOT_EOK, "begin child txn %s", idx);
-		ok(conf_io_set("server", "version", NULL, idx, &io) ==
+		ok(conf_io_set("server", "version", NULL, idx) ==
 		   KNOT_EOK, "set single value '%s'", idx);
 	}
 
@@ -308,7 +304,7 @@ static void test_conf_io_commit()
 #endif
 }
 
-static void test_conf_io_check()
+static void test_conf_io_check(void)
 {
 	conf_io_t io = { NULL };
 
@@ -319,22 +315,22 @@ static void test_conf_io_check()
 	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
 
 	// Section check.
-	ok(conf_io_set("remote", "id", NULL, "remote1", &io) ==
+	ok(conf_io_set("remote", "id", NULL, "remote1") ==
 	   KNOT_EOK, "set remote id");
 	ok(conf_io_check(&io) ==
 	   KNOT_EINVAL, "check missing remote address");
 	ok(io.error.code == KNOT_EINVAL, "compare error code");
 
-	ok(conf_io_set("remote", "address", "remote1", "1.1.1.1", &io) ==
+	ok(conf_io_set("remote", "address", "remote1", "1.1.1.1") ==
 	   KNOT_EOK, "set remote address");
 	ok(conf_io_check(&io) ==
 	   KNOT_EOK, "check remote address");
 	ok(io.error.code == KNOT_EOK, "compare error code");
 
 	// Item check.
-	ok(conf_io_set("zone", "domain", NULL, ZONE1, &io) ==
+	ok(conf_io_set("zone", "domain", NULL, ZONE1) ==
 	   KNOT_EOK, "set zone domain "ZONE1);
-	ok(conf_io_set("zone", "master", ZONE1, "remote1", &io) ==
+	ok(conf_io_set("zone", "master", ZONE1, "remote1") ==
 	   KNOT_EOK, "set zone master");
 
 	ok(conf_io_check(&io) ==
@@ -350,47 +346,43 @@ static void test_conf_io_check()
 	conf_io_abort(false);
 }
 
-static void test_conf_io_set()
+static void test_conf_io_set(void)
 {
-	conf_io_t io = { NULL };
-
 	// ERR no txn.
-	ok(conf_io_set("server", "version", NULL, "text", &io) ==
+	ok(conf_io_set("server", "version", NULL, "text") ==
 	   KNOT_TXN_ENOTEXISTS, "set without active txn");
 
 	ok(conf_io_begin(false) == KNOT_EOK, "begin txn");
 
 	// ERR.
-	ok(conf_io_set(NULL, NULL, NULL, NULL, &io) ==
+	ok(conf_io_set(NULL, NULL, NULL, NULL) ==
 	   KNOT_EINVAL, "set NULL key0");
-	ok(conf_io_set("", NULL, NULL, NULL, &io) ==
+	ok(conf_io_set("", NULL, NULL, NULL) ==
 	   KNOT_YP_EINVAL_ITEM, "set empty key0");
-	ok(conf_io_set("uknown", NULL, NULL, NULL, &io) ==
+	ok(conf_io_set("uknown", NULL, NULL, NULL) ==
 	   KNOT_YP_EINVAL_ITEM, "set unknown key0");
-	ok(conf_io_set("server", "unknown", NULL, NULL, &io) ==
+	ok(conf_io_set("server", "unknown", NULL, NULL) ==
 	   KNOT_YP_EINVAL_ITEM, "set unknown key1");
-	ok(conf_io_set("include", NULL, NULL, NULL, &io) ==
+	ok(conf_io_set("include", NULL, NULL, NULL) ==
 	   KNOT_YP_ENODATA, "set non-group without data");
-	ok(conf_io_set("server", "rate-limit", NULL, "x", &io) ==
+	ok(conf_io_set("server", "rate-limit", NULL, "x") ==
 	   KNOT_EINVAL, "set invalid data");
 
 	// ERR callback
-	ok(io.error.code == KNOT_EOK, "io error check before");
-	ok(conf_io_set("include", NULL, NULL, "invalid", &io) ==
+	ok(conf_io_set("include", NULL, NULL, "invalid") ==
 	   KNOT_EFILE, "set invalid callback value");
-	ok(io.error.code == KNOT_EFILE, "io error check after");
 
 	// Single group, single value.
-	ok(conf_io_set("server", "version", NULL, "text", &io) ==
+	ok(conf_io_set("server", "version", NULL, "text") ==
 	   KNOT_EOK, "set single value");
 	conf_val_t val = conf_get_txn(conf(), conf()->io.txn, C_SERVER, C_VERSION);
 	ok(val.code == KNOT_EOK, "check entry");
 	ok(strcmp(conf_str(&val), "text") == 0, "check entry value");
 
 	// Single group, multi value.
-	ok(conf_io_set("server", "listen", NULL, "1.1.1.1", &io) ==
+	ok(conf_io_set("server", "listen", NULL, "1.1.1.1") ==
 	   KNOT_EOK, "set multivalue 1");
-	ok(conf_io_set("server", "listen", NULL, "1.1.1.2", &io) ==
+	ok(conf_io_set("server", "listen", NULL, "1.1.1.2") ==
 	   KNOT_EOK, "set multivalue 2");
 	val = conf_get_txn(conf(), conf()->io.txn, C_SERVER, C_LISTEN);
 	ok(val.code == KNOT_EOK, "check entry");
@@ -405,24 +397,24 @@ static void test_conf_io_set()
 	ok(zone3 != NULL, "create dname "ZONE3);
 
 	// Multi group ids.
-	ok(conf_io_set("zone", "domain", NULL, ZONE1, &io) ==
+	ok(conf_io_set("zone", "domain", NULL, ZONE1) ==
 	   KNOT_EOK, "set zone domain "ZONE1);
-	ok(conf_io_set("zone", NULL, ZONE2, NULL, &io) ==
+	ok(conf_io_set("zone", NULL, ZONE2, NULL) ==
 	   KNOT_EOK, "set zone domain "ZONE2);
 
 	// Multi group, single value.
-	ok(conf_io_set("zone", "file", ZONE1, "name", &io) ==
+	ok(conf_io_set("zone", "file", ZONE1, "name") ==
 	   KNOT_EOK, "set zone file");
 	val = conf_zone_get_txn(conf(), conf()->io.txn, C_FILE, zone1);
 	ok(val.code == KNOT_EOK, "check entry");
 	ok(strcmp(conf_str(&val), "name") == 0, "check entry value");
 
 	// Multi group, single value, bad id.
-	ok(conf_io_set("zone", "file", ZONE3, "name", &io) ==
+	ok(conf_io_set("zone", "file", ZONE3, "name") ==
 	   KNOT_YP_EINVAL_ID, "set zone file");
 
 	// Multi group, single value, all ids.
-	ok(conf_io_set("zone", "comment", NULL, "abc", &io) ==
+	ok(conf_io_set("zone", "comment", NULL, "abc") ==
 	   KNOT_EOK, "set zones comment");
 	val = conf_zone_get_txn(conf(), conf()->io.txn, C_COMMENT, zone1);
 	ok(val.code == KNOT_EOK, "check entry");
@@ -432,9 +424,9 @@ static void test_conf_io_set()
 	ok(strcmp(conf_str(&val), "abc") == 0, "check entry value");
 
 	// Prepare different comment.
-	ok(conf_io_set("zone", "domain", NULL, ZONE3, &io) ==
+	ok(conf_io_set("zone", "domain", NULL, ZONE3) ==
 	   KNOT_EOK, "set zone domain "ZONE3);
-	ok(conf_io_set("zone", "comment", ZONE3, "xyz", &io) ==
+	ok(conf_io_set("zone", "comment", ZONE3, "xyz") ==
 	   KNOT_EOK, "set zone comment");
 	val = conf_zone_get_txn(conf(), conf()->io.txn, C_COMMENT, zone3);
 	ok(val.code == KNOT_EOK, "check entry");
@@ -450,7 +442,7 @@ static void test_conf_io_set()
 	ok(conf_refresh_txn(conf()) == KNOT_EOK, "update read-only txn");
 }
 
-static void test_conf_io_unset()
+static void test_conf_io_unset(void)
 {
 	// ERR no txn.
 	ok(conf_io_unset("server", "version", NULL, "text") ==
@@ -633,7 +625,7 @@ static void test_conf_io_unset()
 	conf_io_abort(false);
 }
 
-static void test_conf_io_get()
+static void test_conf_io_get(void)
 {
 	const char *ref;
 	char out[OUT_LEN];
@@ -667,7 +659,7 @@ static void test_conf_io_get()
 	   KNOT_ENOTSUP, "get non-group item");
 
 	// Update item in the active txn.
-	ok(conf_io_set("server", "version", NULL, "new text", &io) ==
+	ok(conf_io_set("server", "version", NULL, "new text") ==
 	   KNOT_EOK, "set single value");
 
 	// Get new, active txn.
@@ -761,7 +753,7 @@ static void test_conf_io_get()
 	conf_io_abort(false);
 }
 
-static void test_conf_io_diff()
+static void test_conf_io_diff(void)
 {
 	const char *ref;
 	char out[OUT_LEN];
@@ -793,7 +785,7 @@ static void test_conf_io_diff()
 	ok(strcmp(ref, out) == 0, "compare result");
 
 	// Update singlevalued item.
-	ok(conf_io_set("server", "version", NULL, "new text", &io) ==
+	ok(conf_io_set("server", "version", NULL, "new text") ==
 	   KNOT_EOK, "set single value");
 
 	*out = '\0';
@@ -805,7 +797,7 @@ static void test_conf_io_diff()
 	// Update multivalued item.
 	ok(conf_io_unset("server", "listen", NULL, "1.1.1.1") ==
 	   KNOT_EOK, "unset multivalue");
-	ok(conf_io_set("server", "listen", NULL, "1.1.1.3", &io) ==
+	ok(conf_io_set("server", "listen", NULL, "1.1.1.3") ==
 	   KNOT_EOK, "set multivalue");
 
 	*out = '\0';
@@ -858,7 +850,7 @@ static void test_conf_io_diff()
 	conf_io_abort(false);
 }
 
-static void test_conf_io_list()
+static void test_conf_io_list(void)
 {
 	const char *ref;
 	char out[OUT_LEN];
@@ -881,6 +873,7 @@ static void test_conf_io_list()
 	ok(conf_io_list(NULL, &io) ==
 	   KNOT_EOK, "list schema");
 	ref = "server\n"
+	      "control\n"
 	      "remote\n"
 	      "template\n"
 	      "zone\n"
@@ -921,6 +914,11 @@ static const yp_item_t desc_server[] = {
 	{ NULL }
 };
 
+static const yp_item_t desc_control[] = {
+	{ C_TIMEOUT, YP_TINT, YP_VNONE },
+	{ NULL }
+};
+
 static const yp_item_t desc_remote[] = {
 	{ C_ID,   YP_TSTR,  YP_VNONE },
 	{ C_ADDR, YP_TADDR, YP_VNONE, YP_FMULTI },
@@ -947,6 +945,7 @@ static const yp_item_t desc_zone[] = {
 
 const yp_item_t test_scheme[] = {
 	{ C_SRV,  YP_TGRP, YP_VGRP = { desc_server } },
+	{ C_CTL,  YP_TGRP, YP_VGRP = { desc_control } },
 	{ C_RMT,  YP_TGRP, YP_VGRP = { desc_remote }, YP_FMULTI, { check_remote } },
 	{ C_TPL,  YP_TGRP, YP_VGRP = { desc_template }, YP_FMULTI, { check_template } },
 	{ C_ZONE, YP_TGRP, YP_VGRP = { desc_zone }, YP_FMULTI, { check_zone } },

@@ -576,7 +576,7 @@ DNSSEC policy configuration.
      nsec3: BOOL
      nsec3-iterations: INT
      nsec3-salt-length: INT
-     nsec3-resalt: TIME
+     nsec3-salt-lifetime: TIME
      propagation-delay: TIME
 
 .. _policy_id:
@@ -696,10 +696,10 @@ name before hashing.
 
 *Default:* 8
 
-.. _policy_nsec3-resalt:
+.. _policy_nsec3-salt-lifetime:
 
-nsec3-resalt
-------------
+nsec3-salt-lifetime
+-------------------
 
 A validity period of newly issued salt field.
 
@@ -1212,6 +1212,8 @@ zone-specific logging, use this module in the proper zone configuration.
      sink: STR
      identity: STR
      version: STR
+     log-queries: BOOL
+     log-responses: BOOL
 
 .. _mod-dnstap_id:
 
@@ -1247,6 +1249,24 @@ version
 A DNS server version. Set empty value to disable.
 
 *Default:* server version
+
+.. _mod-dnstap_log-queries:
+
+log-queries
+-----------
+
+If enabled, query messages will be logged.
+
+*Default:* on
+
+.. _mod-dnstap_log-responses:
+
+log-responses
+-------------
+
+If enabled, response messages will be logged.
+
+*Default:* on
 
 .. _Module synth-record:
 
@@ -1412,6 +1432,45 @@ The module provides online DNSSEC signing.
    - id: STR
 
 .. _mod-online-sign_id:
+
+id
+--
+
+A module identifier.
+
+.. _mod-whoami:
+
+Module whoami
+=============
+
+The module synthesizes an A or AAAA record containing the query source IP address, 
+at the apex of the zone being served.
+
+::
+
+ mod-whoami:
+   - id: STR
+
+.. _mod-whoami_id:
+
+id
+--
+
+A module identifier.
+
+.. _mod-noudp:
+
+Module noudp
+============
+
+The module sends empty truncated response to any UDP query.
+
+::
+
+ mod-noudp:
+   - id: STR
+
+.. _mod-noudp_id:
 
 id
 --

@@ -54,6 +54,7 @@
 #define CMD_ZONE_GET		"zone-get"
 #define CMD_ZONE_SET		"zone-set"
 #define CMD_ZONE_UNSET		"zone-unset"
+#define CMD_ZONE_PURGE		"zone-purge"
 
 #define CMD_CONF_INIT		"conf-init"
 #define CMD_CONF_CHECK		"conf-check"
@@ -203,7 +204,6 @@ static void format_data(ctl_cmd_t cmd, knot_ctl_type_t data_type,
 	case CTL_STOP:
 	case CTL_RELOAD:
 	case CTL_CONF_BEGIN:
-	case CTL_CONF_COMMIT:
 	case CTL_CONF_ABORT:
 		// Only error message is expected here.
 		if (error != NULL) {
@@ -219,6 +219,7 @@ static void format_data(ctl_cmd_t cmd, knot_ctl_type_t data_type,
 	case CTL_ZONE_BEGIN:
 	case CTL_ZONE_COMMIT:
 	case CTL_ZONE_ABORT:
+	case CTL_ZONE_PURGE:
 		if (data_type == KNOT_CTL_TYPE_DATA) {
 			printf("%s%s%s%s%s%s%s%s",
 			       (!(*empty)     ? "\n"      : ""),
@@ -237,6 +238,7 @@ static void format_data(ctl_cmd_t cmd, knot_ctl_type_t data_type,
 			       type, value);
 		}
 		break;
+	case CTL_CONF_COMMIT: // Can return a check error context.
 	case CTL_CONF_LIST:
 	case CTL_CONF_READ:
 	case CTL_CONF_DIFF:
@@ -321,6 +323,7 @@ static void format_block(ctl_cmd_t cmd, bool failed, bool empty)
 	case CTL_ZONE_ABORT:
 	case CTL_ZONE_SET:
 	case CTL_ZONE_UNSET:
+	case CTL_ZONE_PURGE:
 		printf("%s\n", failed ? "" : "OK");
 		break;
 	case CTL_ZONE_STATUS:
@@ -557,6 +560,11 @@ static int cmd_zone_ctl(cmd_args_t *args)
 	int ret = check_args(args, (args->desc->flags & CMD_FREQ_ZONE) ? 1 : 0, -1);
 	if (ret != KNOT_EOK) {
 		return ret;
+	}
+
+	if (args->desc->cmd == CTL_ZONE_PURGE && !args->force) {
+		log_error("force option required!");
+		return KNOT_EDENIED;
 	}
 
 	// Ignore all zones argument.
@@ -884,6 +892,7 @@ const cmd_desc_t cmd_table[] = {
 	{ CMD_ZONE_GET,        cmd_zone_node_ctl, CTL_ZONE_GET,        CMD_FREQ_ZONE },
 	{ CMD_ZONE_SET,        cmd_zone_node_ctl, CTL_ZONE_SET,        CMD_FREQ_ZONE },
 	{ CMD_ZONE_UNSET,      cmd_zone_node_ctl, CTL_ZONE_UNSET,      CMD_FREQ_ZONE },
+	{ CMD_ZONE_PURGE,      cmd_zone_ctl,      CTL_ZONE_PURGE,      CMD_FREQ_ZONE },
 
 	{ CMD_CONF_INIT,       cmd_conf_init,     CTL_NONE,            CMD_FWRITE },
 	{ CMD_CONF_CHECK,      cmd_conf_check,    CTL_NONE,            CMD_FREAD },
@@ -925,6 +934,7 @@ static const cmd_help_t cmd_help_table[] = {
 	{ CMD_ZONE_GET,        "<zone> [<owner> [<type>]]",              "Get zone data within the transaction." },
 	{ CMD_ZONE_SET,        "<zone>  <owner> [<ttl>] <type> <rdata>", "Add zone record within the transaction." },
 	{ CMD_ZONE_UNSET,      "<zone>  <owner> [<type> [<rdata>]]",     "Remove zone data within the transaction." },
+	{ CMD_ZONE_PURGE,      "<zone>...",                              "Purge zone data, zone file, and zone journal." },
 	{ "",                  "",                                       "" },
 	{ CMD_CONF_INIT,       "",                                       "Initialize the confdb. (*)" },
 	{ CMD_CONF_CHECK,      "",                                       "Check the server configuration. (*)" },

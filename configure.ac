@@ -4,7 +4,7 @@ AC_PREREQ([2.60])
 
 m4_define([knot_VERSION_MAJOR],2)dnl
 m4_define([knot_VERSION_MINOR],3)dnl
-m4_define([knot_VERSION_PATCH],0)dnl
+m4_define([knot_VERSION_PATCH],1)dnl
 m4_define([knot_VERSION_EXTRA],)dnl
 m4_define([knot_PKG_VERSION],[knot_VERSION_MAJOR.knot_VERSION_MINOR.knot_VERSION_PATCH]knot_VERSION_EXTRA)dnl
 
@@ -14,7 +14,7 @@ AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([src/knot])
 AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_MACRO_DIR([m4])
-AC_USE_SYSTEM_EXTENSIONS([_GNU_SOURCE])
+AC_USE_SYSTEM_EXTENSIONS
 AC_CANONICAL_HOST
 
 AC_SUBST([KNOT_VERSION_MAJOR], knot_VERSION_MAJOR)
@@ -43,7 +43,7 @@ AM_PROG_CC_C_O
 AC_PROG_CPP_WERROR
 
 # Default compiler flags
-CFLAGS="$CFLAGS -Wall -Werror=format-security -Werror=implicit"
+CFLAGS="$CFLAGS -Wall -Werror=format-security -Werror=implicit -Wstrict-prototypes"
 
 # Checks for programs.
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR]) # call AM_PROG_AR only if available

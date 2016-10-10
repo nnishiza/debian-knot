@@ -27,6 +27,7 @@
 
 #include "libknot/libknot.h"
 #include "libknot/yparser/ypscheme.h"
+#include "contrib/hat-trie/hat-trie.h"
 #include "contrib/ucw/lists.h"
 
 /*! Default template identifier. */
@@ -81,6 +82,10 @@ typedef struct {
 		knot_db_txn_t *txn;
 		/*! Stack of nested writing transactions. */
 		knot_db_txn_t txn_stack[CONF_MAX_TXN_DEPTH];
+		/*! Master transaction flags. */
+		yp_flag_t flags;
+		/*! Changed zones. */
+		hattrie_t *zones;
 	} io;
 
 	/*! Current config file (for reload if started with config file). */
@@ -98,6 +103,7 @@ typedef struct {
 		int32_t srv_tcp_reply_timeout;
 		int32_t srv_max_tcp_clients;
 		int32_t srv_rate_limit_slip;
+		int32_t ctl_timeout;
 		conf_val_t srv_nsid;
 		conf_val_t srv_rate_limit_whitelist;
 	} cache;
@@ -117,6 +123,15 @@ typedef enum {
 	CONF_FNOCHECK     = 1 << 1, /*!< Disabled confdb check. */
 	CONF_FNOHOSTNAME  = 1 << 2, /*!< Don't set the hostname. */
 } conf_flag_t;
+
+/*!
+ * Configuration update flags.
+ */
+typedef enum {
+	CONF_UPD_FNONE    = 0,      /*!< Empty flag. */
+	CONF_UPD_FMODULES = 1 << 0, /*!< Reuse previous global modules. */
+	CONF_UPD_FCONFIO  = 1 << 1, /*!< Reuse previous cofio reload context. */
+} conf_update_flag_t;
 
 /*!
  * Returns the active configuration.
@@ -176,10 +191,12 @@ int conf_clone(
 /*!
  * Replaces the active configuration with the specified one.
  *
- * \param[in] conf  New configuration.
+ * \param[in] conf   New configuration.
+ * \param[in] flags  Update flags.
  */
 void conf_update(
-	conf_t *conf
+	conf_t *conf,
+	conf_update_flag_t flags
 );
 
 /*!
@@ -226,7 +243,6 @@ void conf_deactivate_modules(
  * \param[in] txn      Transaction.
  * \param[in] input    Configuration string or filename.
  * \param[in] is_file  Specifies if the input is string or input filename.
- * \param[in] data     Internal data.
  *
  * \return Error code, KNOT_EOK if success.
  */
@@ -234,8 +250,7 @@ int conf_parse(
 	conf_t *conf,
 	knot_db_txn_t *txn,
 	const char *input,
-	bool is_file,
-	void *data
+	bool is_file
 );
 
 /*!
