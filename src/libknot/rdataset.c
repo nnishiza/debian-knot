@@ -22,6 +22,7 @@
 #include "libknot/attribute.h"
 #include "libknot/rdataset.h"
 #include "libknot/errcode.h"
+#include "contrib/macros.h"
 #include "contrib/mempattern.h"
 
 static knot_rdata_t *rr_seek(knot_rdata_t *d, size_t pos)
@@ -192,14 +193,8 @@ size_t knot_rdataset_size(const knot_rdataset_t *rrs)
 		return 0;
 	}
 
-	size_t total_size = 0;
-	for (size_t i = 0; i < rrs->rr_count; ++i) {
-		const knot_rdata_t *rr = knot_rdataset_at(rrs, i);
-		assert(rr);
-		total_size += knot_rdata_array_size(knot_rdata_rdlen(rr));
-	}
-
-	return total_size;
+	const knot_rdata_t *rr_end = rr_seek(rrs->data, rrs->rr_count);
+	return rr_end - rrs->data;
 }
 
 _public_
@@ -238,6 +233,37 @@ int knot_rdataset_add(knot_rdataset_t *rrs, const knot_rdata_t *rr, knot_mm_t *m
 
 	// If flow gets here, it means that we should insert at the last position
 	return add_rr_at(rrs, rr, rrs->rr_count, mm);
+}
+
+_public_
+int knot_rdataset_gather(knot_rdataset_t *dst, knot_rdata_t **src, uint16_t count,
+                         knot_mm_t *mm)
+{
+	if (dst == NULL || src == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	size_t size = 0;
+	for (int i = 0; i < count; ++i) {
+		size += knot_rdata_array_size(knot_rdata_rdlen(src[i]));
+	}
+
+	knot_rdata_t *data = mm_alloc(mm, size);
+	if (data == NULL) {
+		return KNOT_ENOMEM;
+	}
+
+	mm_free(mm, dst->data);
+	dst->rr_count = count;
+	dst->data = data;
+
+	for (int i = 0; i < count; ++i) {
+		size_t len = knot_rdata_array_size(knot_rdata_rdlen(src[i]));
+		memcpy(data, src[i], len);
+		data += len;
+	}
+
+	return KNOT_EOK;
 }
 
 _public_
@@ -292,7 +318,7 @@ bool knot_rdataset_eq(const knot_rdataset_t *rrs1, const knot_rdataset_t *rrs2)
 
 _public_
 bool knot_rdataset_member(const knot_rdataset_t *rrs, const knot_rdata_t *rr,
-			  bool cmp_ttl)
+                          bool cmp_ttl)
 {
 	for (uint16_t i = 0; i < rrs->rr_count; ++i) {
 		const knot_rdata_t *cmp_rr = knot_rdataset_at(rrs, i);
@@ -334,7 +360,7 @@ int knot_rdataset_merge(knot_rdataset_t *rrs1, const knot_rdataset_t *rrs2, knot
 
 _public_
 int knot_rdataset_intersect(const knot_rdataset_t *a, const knot_rdataset_t *b,
-                       knot_rdataset_t *out, knot_mm_t *mm)
+                            knot_rdataset_t *out, knot_mm_t *mm)
 {
 	if (a == NULL || b == NULL || out == NULL) {
 		return KNOT_EINVAL;
@@ -359,10 +385,16 @@ int knot_rdataset_intersect(const knot_rdataset_t *a, const knot_rdataset_t *b,
 
 _public_
 int knot_rdataset_subtract(knot_rdataset_t *from, const knot_rdataset_t *what,
-			   knot_mm_t *mm)
+                           knot_mm_t *mm)
 {
-	if (from == NULL || what == NULL || from->data == what->data) {
+	if (from == NULL || what == NULL) {
 		return KNOT_EINVAL;
+	}
+
+	if (from->data == what->data) {
+		knot_rdataset_clear(from, mm);
+		knot_rdataset_init((knot_rdataset_t *) what);
+		return KNOT_EOK;
 	}
 
 	for (uint16_t i = 0; i < what->rr_count; ++i) {

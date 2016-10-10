@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -12,15 +12,17 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#define KNOT_VERSION_MAJOR 2
-#define KNOT_VERSION_MINOR 3
-#define KNOT_VERSION_PATCH 1
-#define KNOT_VERSION_EXTRA ""
+#include "knot/nameserver/query_module.h"
 
-#define KNOT_VERSION_HEX ((KNOT_VERSION_MAJOR << 16) | \
-                          (KNOT_VERSION_MINOR <<  8) | \
-                          (KNOT_VERSION_PATCH))
+#define C_MOD_NOUDP "\x9""mod-noudp"
+
+extern const yp_item_t scheme_mod_noudp[];
+
+int noudp_load(struct query_plan *plan, struct query_module *self,
+               const knot_dname_t *zone);
+
+int noudp_unload(struct query_module *self);

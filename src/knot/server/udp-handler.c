@@ -143,7 +143,7 @@ static void udp_pktinfo_handle(const struct msghdr *rx, struct msghdr *tx)
 	 * will be ignored. We need to use correct one.
 	 */
 	struct cmsghdr *cmsg = CMSG_FIRSTHDR(tx);
-	if (cmsg->cmsg_type == IP_PKTINFO) {
+	if (cmsg != NULL && cmsg->cmsg_type == IP_PKTINFO) {
 		struct in_pktinfo *info = (struct in_pktinfo *)CMSG_DATA(cmsg);
 		info->ipi_spec_dst = info->ipi_addr;
 		info->ipi_ifindex = 0;
@@ -392,7 +392,7 @@ static int udp_recvmmsg_send(void *d)
 #endif /* HAVE_RECVMMSG */
 
 /*! \brief Initialize UDP master routine on run-time. */
-void __attribute__ ((constructor)) udp_master_init()
+void __attribute__ ((constructor)) udp_master_init(void)
 {
 	/* Initialize defaults. */
 	_udp_init = udp_recvfrom_init;

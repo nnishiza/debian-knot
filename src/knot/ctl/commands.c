@@ -15,11 +15,12 @@
  */
 
 #include <string.h>
-#include <urcu.h>
+#include <unistd.h>
 
 #include "knot/common/log.h"
 #include "knot/conf/confio.h"
 #include "knot/ctl/commands.h"
+#include "knot/events/handlers.h"
 #include "knot/updates/zone-update.h"
 #include "libknot/libknot.h"
 #include "libknot/yparser/yptrafo.h"
@@ -93,15 +94,11 @@ static int zones_apply(ctl_args_t *args, int (*fcn)(zone_t *, ctl_args_t *))
 {
 	// Process all configured zones if none is specified.
 	if (args->data[KNOT_CTL_IDX_ZONE] == NULL) {
-		rcu_read_lock();
 		knot_zonedb_foreach(args->server->zone_db, fcn, args);
-		rcu_read_unlock();
 		return KNOT_EOK;
 	}
 
 	int ret = KNOT_EOK;
-
-	rcu_read_lock();
 
 	while (true) {
 		zone_t *zone;
@@ -122,8 +119,6 @@ static int zones_apply(ctl_args_t *args, int (*fcn)(zone_t *, ctl_args_t *))
 		}
 		ctl_log_data(&args->data);
 	}
-
-	rcu_read_unlock();
 
 	return ret;
 }
@@ -323,7 +318,7 @@ static int zone_txn_begin(zone_t *zone, ctl_args_t *args)
 	}
 
 	zone_update_flags_t type = (zone->contents == NULL) ? UPDATE_FULL : UPDATE_INCREMENTAL;
-	int ret = zone_update_init(zone->control_update, zone, type | UPDATE_SIGN);
+	int ret = zone_update_init(zone->control_update, zone, type | UPDATE_SIGN | UPDATE_STRICT);
 	if (ret != KNOT_EOK) {
 		free(zone->control_update);
 		zone->control_update = NULL;
@@ -341,9 +336,7 @@ static int zone_txn_commit(zone_t *zone, ctl_args_t *args)
 		return KNOT_TXN_ENOTEXISTS;
 	}
 
-	rcu_read_unlock();
 	int ret = zone_update_commit(conf(), zone->control_update);
-	rcu_read_lock();
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -903,6 +896,31 @@ static int zone_txn_unset(zone_t *zone, ctl_args_t *args)
 
 }
 
+static int zone_purge(zone_t *zone, ctl_args_t *args)
+{
+	UNUSED(args);
+
+	// Abort possible editing transaction.
+	(void)zone_txn_abort(zone, args);
+
+	// Expire the zone.
+	event_expire(conf(), zone);
+
+	// Purge the zone file.
+	char *zonefile = conf_zonefile(conf(), zone->name);
+	(void)unlink(zonefile);
+	free(zonefile);
+
+	// Purge the zone journal.
+	char *journalfile = conf_journalfile(conf(), zone->name);
+	(void)unlink(journalfile);
+	free(journalfile);
+
+	// TODO: Purge the zone timers (after zone events refactoring).
+
+	return KNOT_EOK;
+}
+
 static int ctl_zone(ctl_args_t *args, ctl_cmd_t cmd)
 {
 	switch (cmd) {
@@ -934,6 +952,8 @@ static int ctl_zone(ctl_args_t *args, ctl_cmd_t cmd)
 		return zones_apply(args, zone_txn_set);
 	case CTL_ZONE_UNSET:
 		return zones_apply(args, zone_txn_unset);
+	case CTL_ZONE_PURGE:
+		return zones_apply(args, zone_purge);
 	default:
 		assert(0);
 		return KNOT_EINVAL;
@@ -952,7 +972,7 @@ static int ctl_server(ctl_args_t *args, ctl_cmd_t cmd)
 		ret = KNOT_CTL_ESTOP;
 		break;
 	case CTL_RELOAD:
-		ret = server_reload(args->server, conf()->filename, true);
+		ret = server_reload(args->server);
 		if (ret != KNOT_EOK) {
 			send_error(args, knot_strerror(ret));
 		}
@@ -1094,8 +1114,9 @@ static int ctl_conf_txn(ctl_args_t *args, ctl_cmd_t cmd)
 		// First check the database.
 		ret = conf_io_check(&io);
 		if (ret != KNOT_EOK) {
+			// Error response is already sent by the check function.
 			// No transaction abort!
-			break;
+			return KNOT_EOK;
 		}
 
 		ret = conf_io_commit(false);
@@ -1104,7 +1125,7 @@ static int ctl_conf_txn(ctl_args_t *args, ctl_cmd_t cmd)
 			break;
 		}
 
-		ret = server_reload(args->server, NULL, false);
+		ret = server_reload(args->server);
 		break;
 	default:
 		assert(0);
@@ -1167,11 +1188,6 @@ static int ctl_conf_read(ctl_args_t *args, ctl_cmd_t cmd)
 
 static int ctl_conf_modify(ctl_args_t *args, ctl_cmd_t cmd)
 {
-	conf_io_t io = {
-		.fcn = send_block,
-		.misc = args->ctl
-	};
-
 	// Start child transaction.
 	int ret = conf_io_begin(true);
 	if (ret != KNOT_EOK) {
@@ -1187,7 +1203,7 @@ static int ctl_conf_modify(ctl_args_t *args, ctl_cmd_t cmd)
 
 		switch (cmd) {
 		case CTL_CONF_SET:
-			ret = conf_io_set(key0, key1, id, data, &io);
+			ret = conf_io_set(key0, key1, id, data);
 			break;
 		case CTL_CONF_UNSET:
 			ret = conf_io_unset(key0, key1, id, data);
@@ -1249,6 +1265,7 @@ static const desc_t cmd_table[] = {
 	[CTL_ZONE_GET]        = { "zone-get",        ctl_zone },
 	[CTL_ZONE_SET]        = { "zone-set",        ctl_zone },
 	[CTL_ZONE_UNSET]      = { "zone-unset",      ctl_zone },
+	[CTL_ZONE_PURGE]      = { "zone-purge",      ctl_zone },
 
 	[CTL_CONF_LIST]       = { "conf-list",       ctl_conf_read },
 	[CTL_CONF_READ]       = { "conf-read",       ctl_conf_read },

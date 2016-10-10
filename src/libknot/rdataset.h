@@ -72,6 +72,16 @@ int knot_rdataset_copy(knot_rdataset_t *dst, const knot_rdataset_t *src, knot_mm
 knot_rdata_t *knot_rdataset_at(const knot_rdataset_t *rrs, size_t pos);
 
 /*!
+ * \brief Makes RRS structure from a list of resource records (in the given order).
+ * \param dst    RRS structure to write into.
+ * \param src    Array of records to copy from.
+ * \param count  The number of records to copy.
+ * \param mm     Memory context.
+ */
+int knot_rdataset_gather(knot_rdataset_t *dst, knot_rdata_t **src, uint16_t count,
+                         knot_mm_t *mm);
+
+/*!
  * \brief Returns size of the structures holding the RR set.
  * \param rrs  RR array.
  * \return Array size.
@@ -166,8 +176,7 @@ int knot_rdataset_intersect(const knot_rdataset_t *a, const knot_rdataset_t *b,
                             knot_rdataset_t *out, knot_mm_t *mm);
 
 /*!
- * \brief Does set-like RRS subtraction. \a from RRS is changed. Both sets must
-          be unique, i.e. data point to different locations.
+ * \brief Does set-like RRS subtraction. \a from RRS is changed.
  * \param from  RRS to subtract from.
  * \param what  RRS to subtract.
  * \param mm    Memory context use to reallocated \a from data.

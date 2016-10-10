@@ -30,13 +30,17 @@
 #define MOD_SINK	"\x04""sink"
 #define MOD_IDENTITY	"\x08""identity"
 #define MOD_VERSION	"\x07""version"
+#define MOD_QUERIES	"\x0B""log-queries"
+#define MOD_RESPONSES	"\x0D""log-responses"
 
 const yp_item_t scheme_mod_dnstap[] = {
-	{ C_ID,         YP_TSTR, YP_VNONE },
-	{ MOD_SINK,     YP_TSTR, YP_VNONE },
-	{ MOD_IDENTITY, YP_TSTR, YP_VNONE },
-	{ MOD_VERSION,  YP_TSTR, YP_VSTR = { "Knot DNS " PACKAGE_VERSION } },
-	{ C_COMMENT,    YP_TSTR, YP_VNONE },
+	{ C_ID,          YP_TSTR,  YP_VNONE },
+	{ MOD_SINK,      YP_TSTR,  YP_VNONE },
+	{ MOD_IDENTITY,  YP_TSTR,  YP_VNONE },
+	{ MOD_VERSION,   YP_TSTR,  YP_VSTR = { "Knot DNS " PACKAGE_VERSION } },
+	{ MOD_QUERIES,   YP_TBOOL, YP_VBOOL = { true } },
+	{ MOD_RESPONSES, YP_TBOOL, YP_VBOOL = { true } },
+	{ C_COMMENT,     YP_TSTR,  YP_VNONE },
 	{ NULL }
 };
 
@@ -234,7 +238,7 @@ int dnstap_load(struct query_plan *plan, struct query_module *self,
 
 	conf_val_t val;
 
-	// Set identity.
+	/* Set identity. */
 	val = conf_mod_get(self->config, MOD_IDENTITY, self->id);
 	if (val.code == KNOT_EOK) {
 		ctx->identity = strdup(conf_str(&val));
@@ -243,13 +247,21 @@ int dnstap_load(struct query_plan *plan, struct query_module *self,
 	}
 	ctx->identity_len = (ctx->identity != NULL) ? strlen(ctx->identity) : 0;
 
-	// Set version.
+	/* Set version. */
 	val = conf_mod_get(self->config, MOD_VERSION, self->id);
 	ctx->version = strdup(conf_str(&val));
 	ctx->version_len = strlen(ctx->version);
 
 	val = conf_mod_get(self->config, MOD_SINK, self->id);
 	const char *sink = conf_str(&val);
+
+	/* Set log_queries. */
+	val = conf_mod_get(self->config, MOD_QUERIES, self->id);
+	const bool log_queries = conf_bool(&val);
+
+	/* Set log_responses. */
+	val = conf_mod_get(self->config, MOD_RESPONSES, self->id);
+	const bool log_responses = conf_bool(&val);
 
 	/* Initialize the writer and the options. */
 	struct fstrm_writer *writer = dnstap_writer(sink);
@@ -279,8 +291,12 @@ int dnstap_load(struct query_plan *plan, struct query_module *self,
 	self->ctx = ctx;
 
 	/* Hook to the query plan. */
-	query_plan_step(plan, QPLAN_BEGIN, dnstap_message_log_query, self->ctx);
-	query_plan_step(plan, QPLAN_END, dnstap_message_log_response, self->ctx);
+	if (log_queries) {
+		query_plan_step(plan, QPLAN_BEGIN, dnstap_message_log_query, self->ctx);
+	}
+	if (log_responses) {
+		query_plan_step(plan, QPLAN_END, dnstap_message_log_response, self->ctx);
+	}
 
 	return KNOT_EOK;
 fail:

@@ -99,19 +99,20 @@ check_PROGRAMS = contrib/test_base32hex$(EXEEXT) \
 	libknot/test_cookies-opt$(EXEEXT) \
 	libknot/test_cookies-server$(EXEEXT) libknot/test_db$(EXEEXT) \
 	libknot/test_descriptor$(EXEEXT) libknot/test_dname$(EXEEXT) \
-	libknot/test_edns$(EXEEXT) libknot/test_lookup$(EXEEXT) \
-	libknot/test_pkt$(EXEEXT) libknot/test_rdata$(EXEEXT) \
-	libknot/test_rdataset$(EXEEXT) libknot/test_rrset$(EXEEXT) \
-	libknot/test_rrset-wire$(EXEEXT) libknot/test_tsig$(EXEEXT) \
-	libknot/test_yparser$(EXEEXT) libknot/test_ypscheme$(EXEEXT) \
-	libknot/test_yptrafo$(EXEEXT) modules/online_sign$(EXEEXT) \
-	utils/test_cert$(EXEEXT) utils/test_lookup$(EXEEXT) \
-	acl$(EXEEXT) changeset$(EXEEXT) conf$(EXEEXT) \
-	conf_tools$(EXEEXT) confdb$(EXEEXT) confio$(EXEEXT) \
-	dthreads$(EXEEXT) fdset$(EXEEXT) journal$(EXEEXT) \
-	node$(EXEEXT) process_answer$(EXEEXT) process_query$(EXEEXT) \
-	query_module$(EXEEXT) requestor$(EXEEXT) rrl$(EXEEXT) \
-	server$(EXEEXT) worker_pool$(EXEEXT) worker_queue$(EXEEXT) \
+	libknot/test_edns$(EXEEXT) libknot/test_edns_ecs$(EXEEXT) \
+	libknot/test_lookup$(EXEEXT) libknot/test_pkt$(EXEEXT) \
+	libknot/test_rdata$(EXEEXT) libknot/test_rdataset$(EXEEXT) \
+	libknot/test_rrset$(EXEEXT) libknot/test_rrset-wire$(EXEEXT) \
+	libknot/test_tsig$(EXEEXT) libknot/test_yparser$(EXEEXT) \
+	libknot/test_ypscheme$(EXEEXT) libknot/test_yptrafo$(EXEEXT) \
+	modules/online_sign$(EXEEXT) utils/test_cert$(EXEEXT) \
+	utils/test_lookup$(EXEEXT) acl$(EXEEXT) changeset$(EXEEXT) \
+	conf$(EXEEXT) conf_tools$(EXEEXT) confdb$(EXEEXT) \
+	confio$(EXEEXT) dthreads$(EXEEXT) fdset$(EXEEXT) \
+	journal$(EXEEXT) node$(EXEEXT) process_answer$(EXEEXT) \
+	process_query$(EXEEXT) query_module$(EXEEXT) \
+	requestor$(EXEEXT) rrl$(EXEEXT) server$(EXEEXT) \
+	worker_pool$(EXEEXT) worker_queue$(EXEEXT) \
 	zone_events$(EXEEXT) zone_serial$(EXEEXT) zone_timers$(EXEEXT) \
 	zone_update$(EXEEXT) zonedb$(EXEEXT) ztree$(EXEEXT)
 subdir = tests
@@ -293,6 +294,11 @@ libknot_test_edns_SOURCES = libknot/test_edns.c
 libknot_test_edns_OBJECTS = libknot/test_edns.$(OBJEXT)
 libknot_test_edns_LDADD = $(LDADD)
 libknot_test_edns_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
+	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
+libknot_test_edns_ecs_SOURCES = libknot/test_edns_ecs.c
+libknot_test_edns_ecs_OBJECTS = libknot/test_edns_ecs.$(OBJEXT)
+libknot_test_edns_ecs_LDADD = $(LDADD)
+libknot_test_edns_ecs_DEPENDENCIES = $(top_builddir)/libtap/libtap.la \
 	$(top_builddir)/src/libknot.la $(top_builddir)/src/libknotd.la
 libknot_test_lookup_SOURCES = libknot/test_lookup.c
 libknot_test_lookup_OBJECTS = libknot/test_lookup.$(OBJEXT)
@@ -480,7 +486,8 @@ SOURCES = $(acl_SOURCES) changeset.c $(conf_SOURCES) conf_tools.c \
 	journal.c libknot/test_control.c libknot/test_cookies-client.c \
 	libknot/test_cookies-opt.c libknot/test_cookies-server.c \
 	libknot/test_db.c libknot/test_descriptor.c \
-	libknot/test_dname.c libknot/test_edns.c libknot/test_lookup.c \
+	libknot/test_dname.c libknot/test_edns.c \
+	libknot/test_edns_ecs.c libknot/test_lookup.c \
 	libknot/test_pkt.c libknot/test_rdata.c \
 	libknot/test_rdataset.c libknot/test_rrset.c \
 	libknot/test_rrset-wire.c libknot/test_tsig.c \
@@ -501,7 +508,8 @@ DIST_SOURCES = $(acl_SOURCES) changeset.c $(conf_SOURCES) conf_tools.c \
 	journal.c libknot/test_control.c libknot/test_cookies-client.c \
 	libknot/test_cookies-opt.c libknot/test_cookies-server.c \
 	libknot/test_db.c libknot/test_descriptor.c \
-	libknot/test_dname.c libknot/test_edns.c libknot/test_lookup.c \
+	libknot/test_dname.c libknot/test_edns.c \
+	libknot/test_edns_ecs.c libknot/test_lookup.c \
 	libknot/test_pkt.c libknot/test_rdata.c \
 	libknot/test_rdataset.c libknot/test_rrset.c \
 	libknot/test_rrset-wire.c libknot/test_tsig.c \
@@ -967,6 +975,12 @@ libknot/test_edns.$(OBJEXT): libknot/$(am__dirstamp) \
 libknot/test_edns$(EXEEXT): $(libknot_test_edns_OBJECTS) $(libknot_test_edns_DEPENDENCIES) $(EXTRA_libknot_test_edns_DEPENDENCIES) libknot/$(am__dirstamp)
 	@rm -f libknot/test_edns$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(libknot_test_edns_OBJECTS) $(libknot_test_edns_LDADD) $(LIBS)
+libknot/test_edns_ecs.$(OBJEXT): libknot/$(am__dirstamp) \
+	libknot/$(DEPDIR)/$(am__dirstamp)
+
+libknot/test_edns_ecs$(EXEEXT): $(libknot_test_edns_ecs_OBJECTS) $(libknot_test_edns_ecs_DEPENDENCIES) $(EXTRA_libknot_test_edns_ecs_DEPENDENCIES) libknot/$(am__dirstamp)
+	@rm -f libknot/test_edns_ecs$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libknot_test_edns_ecs_OBJECTS) $(libknot_test_edns_ecs_LDADD) $(LIBS)
 libknot/test_lookup.$(OBJEXT): libknot/$(am__dirstamp) \
 	libknot/$(DEPDIR)/$(am__dirstamp)
 
@@ -1173,6 +1187,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_descriptor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_dname.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_edns.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_edns_ecs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_lookup.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_pkt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@libknot/$(DEPDIR)/test_rdata.Po@am__quote@

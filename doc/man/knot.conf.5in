@@ -510,7 +510,7 @@ policy:
     nsec3: BOOL
     nsec3\-iterations: INT
     nsec3\-salt\-length: INT
-    nsec3\-resalt: TIME
+    nsec3\-salt\-lifetime: TIME
     propagation\-delay: TIME
 .ft P
 .fi
@@ -581,7 +581,7 @@ A length of a salt field in octets, which is appended to the original owner
 name before hashing.
 .sp
 \fIDefault:\fP 8
-.SS nsec3\-resalt
+.SS nsec3\-salt\-lifetime
 .sp
 A validity period of newly issued salt field.
 .sp
@@ -1028,6 +1028,8 @@ mod\-dnstap:
     sink: STR
     identity: STR
     version: STR
+    log\-queries: BOOL
+    log\-responses: BOOL
 .ft P
 .fi
 .UNINDENT
@@ -1051,6 +1053,16 @@ A DNS server identity. Set empty value to disable.
 A DNS server version. Set empty value to disable.
 .sp
 \fIDefault:\fP server version
+.SS log\-queries
+.sp
+If enabled, query messages will be logged.
+.sp
+\fIDefault:\fP on
+.SS log\-responses
+.sp
+If enabled, response messages will be logged.
+.sp
+\fIDefault:\fP on
 .SH MODULE SYNTH-RECORD
 .sp
 This module is able to synthesize either forward or reverse records for the
@@ -1180,6 +1192,41 @@ The module provides online DNSSEC signing.
 .nf
 .ft C
 mod\-online\-sign:
+  \- id: STR
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS id
+.sp
+A module identifier.
+.SH MODULE WHOAMI
+.sp
+The module synthesizes an A or AAAA record containing the query source IP address,
+at the apex of the zone being served.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mod\-whoami:
+  \- id: STR
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS id
+.sp
+A module identifier.
+.SH MODULE NOUDP
+.sp
+The module sends empty truncated response to any UDP query.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mod\-noudp:
   \- id: STR
 .ft P
 .fi
