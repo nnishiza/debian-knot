@@ -306,6 +306,7 @@ libknot.so.4 libknot4 #MINVER#
  list_dup@Base 2.3.0
  list_size@Base 2.3.0
  make_dir@Base 2.3.0
+ make_path@Base 2.3.2
  memdup@Base 2.3.0
  mm_alloc@Base 2.3.0
  mm_ctx_init@Base 2.3.0
