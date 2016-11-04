@@ -1,3 +1,10 @@
+knot (2.3.2-1) unstable; urgency=medium
+
+  * Imported Upstream version 2.3.2
+  * Add new symbols to libknot4.symbols
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 04 Nov 2016 11:31:33 +0100
+
 knot (2.3.1-1) unstable; urgency=medium
 
   * Imported Upstream version 2.3.1
