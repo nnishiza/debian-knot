@@ -6,6 +6,9 @@
 /* PKCS #11 support available */
 #undef ENABLE_PKCS11
 
+/* Use recvmmsg(). */
+#undef ENABLE_RECVMMSG
+
 /* Use SO_REUSEPORT. */
 #undef ENABLE_REUSEPORT
 
@@ -90,9 +93,6 @@
 /* Define to 1 if you have the `pthread_setaffinity_np' function. */
 #undef HAVE_PTHREAD_SETAFFINITY_NP
 
-/* Define if struct mmsghdr and recvmmsg() exists. */
-#undef HAVE_RECVMMSG
-
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
 
@@ -101,9 +101,6 @@
 
 /* Define to 1 to enable static RR query module. */
 #undef HAVE_ROSEDB
-
-/* Define to 1 if you have the `sendmmsg' function. */
-#undef HAVE_SENDMMSG
 
 /* Define to 1 if you have the `setgroups' function. */
 #undef HAVE_SETGROUPS

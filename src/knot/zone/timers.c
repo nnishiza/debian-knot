@@ -19,30 +19,33 @@
 #include "contrib/wire.h"
 #include "contrib/wire_ctx.h"
 
-#define PERSISTENT_EVENT_COUNT 3
+#define PERSISTENT_EVENT_COUNT 4
 
 enum {
 	KEY_REFRESH = 1,
 	KEY_EXPIRE,
-	KEY_FLUSH
+	KEY_FLUSH,
+	KEY_XFER
 };
 
 // Do not change these mappings if you want backwards compatibility.
 static const uint8_t event_id_to_key[ZONE_EVENT_COUNT] = {
 	[ZONE_EVENT_REFRESH] = KEY_REFRESH,
 	[ZONE_EVENT_EXPIRE] = KEY_EXPIRE,
-	[ZONE_EVENT_FLUSH] = KEY_FLUSH
+	[ZONE_EVENT_FLUSH] = KEY_FLUSH,
+	[ZONE_EVENT_XFER] = KEY_XFER
 };
 
 static const int key_to_event_id[PERSISTENT_EVENT_COUNT + 1] = {
 	[KEY_REFRESH] = ZONE_EVENT_REFRESH,
 	[KEY_EXPIRE] = ZONE_EVENT_EXPIRE,
-	[KEY_FLUSH] = ZONE_EVENT_FLUSH
+	[KEY_FLUSH] = ZONE_EVENT_FLUSH,
+	[KEY_XFER] = ZONE_EVENT_XFER
 };
 
 static bool known_event_key(uint8_t key)
 {
-	return key <= KEY_FLUSH;
+	return key <= KEY_XFER;
 }
 
 #define EVENT_KEY_PAIR_SIZE (sizeof(uint8_t) + sizeof(int64_t))
@@ -212,6 +215,40 @@ int write_timer_db(knot_db_t *timer_db, knot_zonedb_t *zone_db)
 	}
 
 	knot_zonedb_foreach(zone_db, store_timers, &txn);
+
+	return db_api->txn_commit(&txn);
+}
+
+int remove_timer_db(knot_db_t *timer_db, knot_zonedb_t *zone_db,
+                    const knot_dname_t *zone_name)
+{
+	if (timer_db == NULL) {
+		return KNOT_EOK;
+	}
+
+	if (zone_db == NULL || zone_name == NULL) {
+		return KNOT_EINVAL;
+	}
+
+	const knot_db_api_t *db_api = knot_db_lmdb_api();
+	assert(db_api);
+
+	knot_db_txn_t txn;
+	int ret = db_api->txn_begin(timer_db, &txn, KNOT_DB_SORTED);
+	if (ret != KNOT_EOK) {
+		return ret;
+	}
+
+	knot_db_val_t key = {
+		.data = (void *)zone_name,
+		.len = knot_dname_size(zone_name)
+	};
+
+	ret = db_api->del(&txn, &key);
+	if (ret != KNOT_EOK) {
+		db_api->txn_abort(&txn);
+		return ret;
+	}
 
 	return db_api->txn_commit(&txn);
 }

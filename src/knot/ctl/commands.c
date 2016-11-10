@@ -22,6 +22,7 @@
 #include "knot/ctl/commands.h"
 #include "knot/events/handlers.h"
 #include "knot/updates/zone-update.h"
+#include "knot/zone/timers.h"
 #include "libknot/libknot.h"
 #include "libknot/yparser/yptrafo.h"
 #include "contrib/macros.h"
@@ -338,6 +339,11 @@ static int zone_txn_commit(zone_t *zone, ctl_args_t *args)
 
 	int ret = zone_update_commit(conf(), zone->control_update);
 	if (ret != KNOT_EOK) {
+		/* Invalidate the transaction if aborted. */
+		if (zone->control_update->zone == NULL) {
+			free(zone->control_update);
+			zone->control_update = NULL;
+		}
 		return ret;
 	}
 
@@ -916,7 +922,9 @@ static int zone_purge(zone_t *zone, ctl_args_t *args)
 	(void)unlink(journalfile);
 	free(journalfile);
 
-	// TODO: Purge the zone timers (after zone events refactoring).
+	// Purge the zone timers.
+	(void)remove_timer_db(args->server->timers_db, args->server->zone_db,
+	                      zone->name);
 
 	return KNOT_EOK;
 }
