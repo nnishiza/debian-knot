@@ -27,9 +27,9 @@ Build-Depends: autotools-dev,
                liburcu-dev (>= 0.4),
                pkg-config
 Standards-Version: 3.9.8
-Homepage: http://www.knot-dns.cz/
+Homepage: https://www.knot-dns.cz/
 Vcs-Browser: https://anonscm.debian.org/git/pkg-dns/knot.git
-Vcs-Git: git://anonscm.debian.org/pkg-dns/knot.git
+Vcs-Git: https://anonscm.debian.org/git/pkg-dns/knot.git
 
 Package: knot
 Architecture: any
