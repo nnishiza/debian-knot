@@ -136,7 +136,6 @@ Depends: libdnssec2 (= ${binary:Version}),
          libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Section: net
 Conflicts: dnsutils
 Replaces: dnsutils
 Provides: dnsutils
@@ -167,7 +166,6 @@ Depends: libdnssec2 (= ${binary:Version}),
          libzscanner1 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Section: net
 Conflicts: host
 Provides: host
 Replaces: host
