@@ -32,7 +32,7 @@ License: GPL-3+ with OpenSSL exception
  On Debian systems, the full text of the GNU General Public License
  version 3 can be found in the file `/usr/share/common-licenses/GPL-3'.
 
-Files: src/common/hattrie/*
+Files: src/contrib/hat-trie/*
 Copyright: (c) 2011 by Daniel C. Jones <dcjones@cs.washington.edu>
 License: Expat
 
@@ -40,15 +40,9 @@ Files: libtap/*
 Copyright: 2000-2001, 2004, 2006-2011 Russ Allbery <rra@stanford.edu>
 License: Expat
 
-Files: src/common/lists.c
+Files: src/contrib/ucw/lists.c
 Copyright: 1998 Martin Mares <mj@ucw.cz>
 License: GPL-3+
-
-Files: src/common/skip-list.c src/common/skip-list.h
-Copyright: 2010 the authors listed at the following URL, and/or
- the authors of referenced articles or incorporated external code:
- http://en.literateprograms.org/Skip_list_(C)?action=history&offset=20080313195128
-License: Expat
 
 Files: debian/*
 Copyright: 2011 Ondřej Surý <ondrej@debian.org>
