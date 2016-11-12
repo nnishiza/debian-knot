@@ -2,6 +2,7 @@
 Description=Knot DNS server
 Wants=network-online.target
 After=network-online.target
+Documentation=man:knotd(8) man:knot.conf(5) man:knotc(8)
 
 [Service]
 EnvironmentFile=/etc/default/knot
