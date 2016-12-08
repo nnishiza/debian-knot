@@ -1,3 +1,20 @@
+knot (2.3.3-1) unstable; urgency=medium
+
+  [ Daniel Kahn Gillmor ]
+  * Use secure URLs where possible
+  * Clean up debian/copyright.
+  * Drop duplicate Source: lines (clears lintian binary-control-field-duplicates-source)
+  * Avoid using asterisk in NEWS (clears lintian debian-news-entry-uses-asterisk)
+  * Knot needs a dependency on lsb-base (clears lintian init.d-script-needs-depends-on-lsb-base)
+  * Filter auto-reconfed files out during future gbp import-orig operations
+  * debian/control: clean up Description: lines
+  * Added Documentation= to knot.service
+
+  [ Ondřej Surý ]
+  * Imported Upstream version 2.3.3
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 08 Dec 2016 14:10:05 +0100
+
 knot (2.3.2-1) unstable; urgency=medium
 
   * Imported Upstream version 2.3.2
