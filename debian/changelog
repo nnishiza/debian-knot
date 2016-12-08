@@ -12,8 +12,9 @@ knot (2.3.3-1) unstable; urgency=medium
 
   [ Ondřej Surý ]
   * Imported Upstream version 2.3.3
+  * Add kjournalprint to knot package
 
- -- Ondřej Surý <ondrej@debian.org>  Thu, 08 Dec 2016 14:10:05 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 08 Dec 2016 14:49:31 +0100
 
 knot (2.3.2-1) unstable; urgency=medium
 
