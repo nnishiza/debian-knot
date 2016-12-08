@@ -56,8 +56,8 @@ Comments
 ========
 
 A comment begins with a ``#`` character and is ignored during processing.
-Also each configuration section or sequence block allows to specify permanent
-comment using ``comment`` item which is stored in the server beside the
+Also each configuration section or sequence block allows a permanent
+comment using the ``comment`` item which is stored in the server beside the
 configuration.
 
 .. _Includes:
@@ -775,7 +775,7 @@ can be appended to the address using ``@`` separator.
 key
 ---
 
-A :ref:`reference<key_id>` to the TSIG key which ise used to autenticate
+A :ref:`reference<key_id>` to the TSIG key which ise used to authenticate
 the communication with the remote server.
 
 *Default:* not set
@@ -1023,6 +1023,11 @@ can be used (manual zone flush is still possible).
 .. NOTE::
    If you are serving large zones with frequent updates where
    the immediate sync with a zone file is not desirable, increase the value.
+
+.. WARNING::
+   If the zone file is not up-to-date, the zone should be flushed before its
+   zone file editation or the SOA record must be untouched after editation.
+   Otherwise the journal can't be applied.
 
 *Default:* 0 (immediate)
 

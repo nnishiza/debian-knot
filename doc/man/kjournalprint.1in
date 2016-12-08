@@ -1,8 +1,8 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KZONECHECK" "1" "@RELEASE_DATE@" "@VERSION@" "Knot DNS"
+.TH "KJOURNALPRINT" "1" "@RELEASE_DATE@" "@VERSION@" "Knot DNS"
 .SH NAME
-kzonecheck \- Knot DNS zone check tool
+kjournalprint \- Knot DNS journal print utility
 .
 .nr rst2man-indent-level 0
 .
@@ -32,30 +32,42 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 ..
 .SH SYNOPSIS
 .sp
-\fBkzonecheck\fP [\fIoptions\fP] \fIfilename\fP
+\fBkjournalprint\fP [\fIparameters\fP] \fIjournal\fP \fIzone_name\fP
 .SH DESCRIPTION
 .sp
-The utility checks zone file syntax and runs semantic checks on the zone
-content. The executed checks are the same as the checks run by the Knot
-DNS server.
-.sp
-Please, refer to the \fBsemantic\-checks\fP configuration option in
-\fBknot.conf(5)\fP for the full list of available semantic checks.
-.SS Options
+Program requires journal. As default, changes are colored for terminal.
+.SS Parameters
 .INDENT 0.0
 .TP
-\fB\-o\fP, \fB\-\-origin\fP \fIorigin\fP
-Zone origin. If not specified, the origin is determined from the file name
-(possibly removing the \fB\&.zone\fP suffix).
+\fB\-n\fP, \fB\-\-no\-color\fP
+Removes changes coloring.
 .TP
-\fB\-v\fP, \fB\-\-verbose\fP
-Enable debug output.
+\fB\-l\fP, \fB\-\-limit\fP \fIlimit\fP
+Limits the number of displayed changes.
 .TP
 \fB\-h\fP, \fB\-\-help\fP
 Print the program help.
 .TP
 \fB\-V\fP, \fB\-\-version\fP
 Print the program version.
+.UNINDENT
+.SS Journal
+.sp
+Requires journal in the form of path/zone\-name.db
+.SS Zone name
+.sp
+Requires name of the zone contained in the journal.
+.SH EXAMPLES
+.SS Last (\fImost recent\fP) 5 changes without colors
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ kjournalprint \-nl 5 example.com.db example.com.
+.ft P
+.fi
+.UNINDENT
 .UNINDENT
 .SH SEE ALSO
 .sp
