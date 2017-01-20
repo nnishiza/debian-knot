@@ -29,6 +29,7 @@ libdnssec.so.2 libdnssec2 #MINVER#
  dnssec_event_execute@Base 2.3.0
  dnssec_event_get_next@Base 2.3.0
  dnssec_event_name@Base 2.3.0
+ dnssec_get_key_state@Base 2.4.0
  dnssec_item_get@Base 2.3.0
  dnssec_item_set@Base 2.3.0
  dnssec_kasp_close@Base 2.3.0
@@ -109,6 +110,8 @@ libdnssec.so.2 libdnssec2 #MINVER#
  dnssec_keystore_open@Base 2.3.0
  dnssec_keystore_remove_key@Base 2.3.0
  dnssec_keytag@Base 2.3.0
+ dnssec_keyusage_free@Base 2.4.0
+ dnssec_keyusage_new@Base 2.4.0
  dnssec_list_append@Base 2.3.0
  dnssec_list_clear@Base 2.3.0
  dnssec_list_clear_full@Base 2.3.0
