@@ -3,8 +3,9 @@ knot (2.4.0-1) unstable; urgency=medium
   * Fix gbp.conf to be readable by git config --file debian/gbp.conf on Jessie
   * New upstream version 2.4.0
   * Bump libknot SONAME 4->5
+  * Update symbols files for 2.4.0 release
 
- -- Ondřej Surý <ondrej@debian.org>  Fri, 20 Jan 2017 11:16:39 +0100
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 20 Jan 2017 12:15:30 +0100
 
 knot (2.3.3-1) unstable; urgency=medium
 
