@@ -88,7 +88,33 @@ Access control list (ACL)
 
 An ACL list specifies which remotes are allowed to send the server a specific
 request. A remote can be a single IP address or a network subnet. Also a TSIG
-key can be assigned (see :doc:`keymgr <man_keymgr>` how to generate a TSIG key)::
+key can be assigned (see :doc:`keymgr <man_keymgr>` how to generate a TSIG key).
+
+With no ACL rule, all the actions are denied for the zone. Each ACL rule
+can allow one or more actions for given address/subnet/TSIG, or deny them.
+
+The rule precendence, if multiple rules match (e.g. overlapping address ranges),
+is not for stricter or more specific rules. In any case, just the first -- in the
+order of rules in zone or template acl configuration item, not in the order of
+declarations in acl section -- matching rule applies and the rest is ignored.
+
+See following examples and :ref:`ACL section`.::
+
+    acl:
+      - id: address_rule
+        address: [2001:db8::1, 192.168.2.0/24]
+        action: transfer
+
+      - id: deny_rule
+        address: 192.168.2.100
+        action: transfer
+        deny: on
+
+    zone:
+      - domain: acl1.example.com.
+        acl: [deny_rule, address_rule] # deny_rule first here to take precendence
+
+::
 
     key:
       - id: key1
@@ -96,24 +122,17 @@ key can be assigned (see :doc:`keymgr <man_keymgr>` how to generate a TSIG key):
         secret: Wg==
 
     acl:
-      - id: address_rule
-        address: [2001:db8::1, 192.168.2.0/24] # Allowed IP address list
-        action: [transfer, update]  # Allow zone transfers and updates
-
-      - id: deny_rule             # Negative match rule
-        address: 192.168.2.100
-        action: transfer
-        deny: on                  # The request is denied
+      - id: deny_all
+        address: 192.168.3.0/24
+        deny: on # no action specified and deny on implies denial of all actions
 
       - id: key_rule
         key: key1                 # Access based just on TSIG key
-        action: transfer
-
-These rules can then be referenced from a zone :ref:`zone_acl`::
+        action: [transfer, notify]
 
     zone:
-      - domain: example.com
-        acl: [address_rule, deny_rule, key_rule]
+      - domain: acl2.example.com
+        acl: [deny_all, key_rule]
 
 Slave zone
 ==========
@@ -247,31 +266,6 @@ processed::
         file: example.com.zone
         acl: update_acl
 
-Response rate limiting
-======================
-
-Response rate limiting (RRL) is a method to combat DNS reflection amplification
-attacks. These attacks rely on the fact that source address of a UDP query
-can be forged, and without a worldwide deployment of `BCP38
-<https://tools.ietf.org/html/bcp38>`_, such a forgery cannot be prevented.
-An attacker can use a DNS server (or multiple servers) as an amplification
-source and can flood a victim with a large number of unsolicited DNS responses.
-
-The RRL lowers the amplification factor of these attacks by sending some of
-the responses as truncated or by dropping them altogether.
-
-You can enable RRL by setting the :ref:`server_rate-limit` option in the
-:ref:`server section<Server section>`. The option controls how many responses
-per second are permitted for each flow. Responses exceeding this rate are
-limited. The option :ref:`server_rate-limit-slip` then configures how many
-limited responses are sent as truncated (slip) instead of being dropped.
-
-::
-
-    server:
-        rate-limit: 200     # Allow 200 resp/s for each flow
-        rate-limit-slip: 2  # Every other response slips
-
 .. _dnssec:
 
 Automatic DNSSEC signing
@@ -368,8 +362,7 @@ with manual key management flag has to be set::
       dnssec-policy: manual
 
 To generate signing keys, use the :doc:`keymgr <man_keymgr>` utility.
-Let's use the Single-Type Signing scheme with two algorithms, which is
-a scheme currently not supported by the automatic key management. Run:
+Let's use the Single-Type Signing scheme with two algorithms. Run:
 
 .. code-block:: console
 
@@ -449,7 +442,7 @@ of the limitations will be hopefully removed in the near future.
 - Automatic key management:
 
   - Only one DNSSEC algorithm can be used per zone.
-  - Single-Type Signing scheme is not supported.
+  - CSK rollover with Single-Type Signing scheme is not implemented.
   - ZSK rollover always uses key pre-publish method (actually a feature).
   - KSK rollover is not implemented.
 
@@ -463,3 +456,84 @@ of the limitations will be hopefully removed in the near future.
   - Legacy key import requires a private key.
   - Legacy key export is not implemented.
   - DS record export is not implemented.
+
+.. _dnssec-keyusage:
+
+DNSSEC keys used by multiple zones 
+----------------------------------
+
+Using same key for multiple zones with automatic key management is possible. 
+However, all zones must be listed in keyusage (keys directory) or they will be deleted,
+when they retire in any zone.
+
+If keys are added manually as published, but not active (for next rollover event), they are added automatically.
+
+Performance Tuning
+==================
+
+Numbers of Workers
+------------------
+
+There are three types of workers ready for parallel execution of performance-oriented tasks:
+UDP workers, TCP workers, and Background workers. The first two types handle all network requests
+coming through UDP and TCP protocol (respectively) and do all the response job for common
+queries. Background workers process changes to the zone.
+
+By default, Knot determines well-fitting number of workers based on the number of CPU cores.
+The user can specify the numbers of workers for each type with configuration/server section:
+:ref:`server_udp-workers`, :ref:`server_tcp-workers`, :ref:`server_background-workers`.
+
+An indication on when to increase number of workers is a situation when the server is lagging behind
+the expected performance, while the CPU usage is low. This is usually because of waiting for network
+or I/O response during the operation. It may be caused by Knot design not fitting well the usecase.
+The user should try increasing the number of workers (of the related type) slightly above 100 and if
+the performance gets better, he can decide about further exact setting.
+
+Sysctl and NIC optimizations
+----------------------------
+
+There are several recommendations based on Knot developers' experience with their specific HW and SW
+(mainstream Intel-based servers, Debian-based GNU/Linux distribution). They may or may not positively
+(or negatively) influence performance in common use cases.
+
+If your NIC driver allows it (see /proc/interrupts for hint), set CPU affinity (/proc/irq/$IRQ/smp_affinity)
+manually so that each NIC channel is served by unique CPU core(s). You must turn off irqbalance service
+before to avoid configuration override.
+
+Configure sysctl as follows: ::
+
+    socket_bufsize=1048576
+    busy_latency=0
+    backlog=40000
+    optmem_max=20480
+
+    net.core.wmem_max     = $socket_bufsize
+    net.core.wmem_default = $socket_bufsize
+    net.core.rmem_max     = $socket_bufsize
+    net.core.rmem_default = $socket_bufsize
+    net.core.busy_read = $busy_latency
+    net.core.busy_poll = $busy_latency
+    net.core.netdev_max_backlog = $backlog
+    net.core.optmem_max = $optmem_max
+
+Disable huge pages.
+
+Configure your CPU to "performance" mode. This can be achieved depending on architecture, e.g. in BIOS,
+or e.g. configuring /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor to "performance".
+
+Tune your NIC device with ethtool: ::
+
+    ethtool -A $dev autoneg off rx off tx off
+    ethtool -K $dev tso off gro off ufo off
+    ethtool -G $dev rx 4096 tx 4096
+    ethtool -C $dev rx-usecs 75
+    ethtool -C $dev tx-usecs 75
+    ethtool -N $dev rx-flow-hash udp4 sdfn
+    ethtool -N $dev rx-flow-hash udp6 sdfn
+
+On FreeBSD you can just: ::
+
+    ifconfig ${dev} -rxcsum -txcsum -lro -tso
+
+Knot developers are open to hear about users' further suggestions about network devices tuning/optimization.
+

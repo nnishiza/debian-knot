@@ -1,4 +1,4 @@
-/*  Copyright (C) 2014 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
 #include "libknot/attribute.h"
 #include "libknot/errcode.h"
 #include "libknot/db/db_trie.h"
-#include "contrib/hat-trie/hat-trie.h"
+#include "contrib/qp-trie/trie.h"
+#include "contrib/macros.h"
 #include "contrib/mempattern.h"
 
 static int init(knot_db_t **db, knot_mm_t *mm, void *arg)
@@ -29,7 +30,8 @@ static int init(knot_db_t **db, knot_mm_t *mm, void *arg)
 	}
 
 	struct knot_db_trie_opts *opts = arg;
-	hattrie_t *trie = hattrie_create_n(opts->bucket_size, mm);
+	UNUSED(opts);
+	trie_t *trie = trie_create(mm);
 	if (!trie) {
 		return KNOT_ENOMEM;
 	}
@@ -41,7 +43,7 @@ static int init(knot_db_t **db, knot_mm_t *mm, void *arg)
 
 static void deinit(knot_db_t *db)
 {
-	hattrie_free((hattrie_t *)db);
+	trie_free((trie_t *)db);
 }
 
 static int txn_begin(knot_db_t *db, knot_db_txn_t *txn, unsigned flags)
@@ -53,12 +55,6 @@ static int txn_begin(knot_db_t *db, knot_db_txn_t *txn, unsigned flags)
 
 static int txn_commit(knot_db_txn_t *txn)
 {
-	/* Rebuild order index only for WR transactions. */
-	if ((size_t)txn->txn & KNOT_DB_RDONLY) {
-		return KNOT_EOK;
-	}
-
-	hattrie_build_index((hattrie_t *)txn->db);
 	return KNOT_EOK;
 }
 
@@ -68,25 +64,25 @@ static void txn_abort(knot_db_txn_t *txn)
 
 static int count(knot_db_txn_t *txn)
 {
-	return hattrie_weight((hattrie_t *)txn->db);
+	return trie_weight((trie_t *)txn->db);
 }
 
 static int clear(knot_db_txn_t *txn)
 {
-	hattrie_clear((hattrie_t *)txn->db);
+	trie_clear((trie_t *)txn->db);
 
 	return KNOT_EOK;
 }
 
 static int find(knot_db_txn_t *txn, knot_db_val_t *key, knot_db_val_t *val, unsigned flags)
 {
-	value_t *ret = hattrie_tryget((hattrie_t *)txn->db, key->data, key->len);
+	trie_val_t *ret = trie_get_try((trie_t *)txn->db, key->data, key->len);
 	if (ret == NULL) {
 		return KNOT_ENOENT;
 	}
 
 	val->data = *ret;
-	val->len  = sizeof(value_t); /* Trie doesn't support storing length. */
+	val->len  = sizeof(trie_val_t); /* Trie doesn't support storing length. */
 	return KNOT_EOK;
 }
 
@@ -97,7 +93,7 @@ static int insert(knot_db_txn_t *txn, knot_db_val_t *key, knot_db_val_t *val, un
 		return KNOT_ENOTSUP;
 	}
 
-	value_t *ret = hattrie_get((hattrie_t *)txn->db, key->data, key->len);
+	trie_val_t *ret = trie_get_ins((trie_t *)txn->db, key->data, key->len);
 	if (ret == NULL) {
 		return KNOT_ENOMEM;
 	}
@@ -108,12 +104,11 @@ static int insert(knot_db_txn_t *txn, knot_db_val_t *key, knot_db_val_t *val, un
 
 static int del(knot_db_txn_t *txn, knot_db_val_t *key)
 {
-	return hattrie_del((hattrie_t *)txn->db, key->data, key->len);
+	return trie_del((trie_t *)txn->db, key->data, key->len, NULL);
 }
 
 static knot_db_iter_t *iter_begin(knot_db_txn_t *txn, unsigned flags)
 {
-	bool is_sorted = (flags & KNOT_DB_SORTED);
 	flags &= ~KNOT_DB_SORTED;
 
 	/* No operations other than begin are supported right now. */
@@ -121,7 +116,7 @@ static knot_db_iter_t *iter_begin(knot_db_txn_t *txn, unsigned flags)
 		return NULL;
 	}
 
-	return hattrie_iter_begin((hattrie_t *)txn->db, is_sorted);
+	return trie_it_begin((trie_t *)txn->db);
 }
 
 static knot_db_iter_t *iter_seek(knot_db_iter_t *iter, knot_db_val_t *key, unsigned flags)
@@ -132,9 +127,9 @@ static knot_db_iter_t *iter_seek(knot_db_iter_t *iter, knot_db_val_t *key, unsig
 
 static knot_db_iter_t *iter_next(knot_db_iter_t *iter)
 {
-	hattrie_iter_next((hattrie_iter_t *)iter);
-	if (hattrie_iter_finished((hattrie_iter_t *)iter)) {
-		hattrie_iter_free((hattrie_iter_t *)iter);
+	trie_it_next((trie_it_t *)iter);
+	if (trie_it_finished((trie_it_t *)iter)) {
+		trie_it_free((trie_it_t *)iter);
 		return NULL;
 	}
 
@@ -143,7 +138,7 @@ static knot_db_iter_t *iter_next(knot_db_iter_t *iter)
 
 static int iter_key(knot_db_iter_t *iter, knot_db_val_t *val)
 {
-	val->data = (void *)hattrie_iter_key((hattrie_iter_t *)iter, &val->len);
+	val->data = (void *)trie_it_key((trie_it_t *)iter, &val->len);
 	if (val->data == NULL) {
 		return KNOT_ENOENT;
 	}
@@ -153,26 +148,26 @@ static int iter_key(knot_db_iter_t *iter, knot_db_val_t *val)
 
 static int iter_val(knot_db_iter_t *iter, knot_db_val_t *val)
 {
-	value_t *ret = hattrie_iter_val((hattrie_iter_t *)iter);
+	trie_val_t *ret = trie_it_val((trie_it_t *)iter);
 	if (ret == NULL) {
 		return KNOT_ENOENT;
 	}
 
 	val->data = *ret;
-	val->len  = sizeof(value_t);
+	val->len  = sizeof(trie_val_t);
 	return KNOT_EOK;
 }
 
 static void iter_finish(knot_db_iter_t *iter)
 {
-	hattrie_iter_free((hattrie_iter_t *)iter);
+	trie_it_free((trie_it_t *)iter);
 }
 
 _public_
 const knot_db_api_t *knot_db_trie_api(void)
 {
 	static const knot_db_api_t api = {
-		"hattrie",
+		"trie",
 		init, deinit,
 		txn_begin, txn_commit, txn_abort,
 		count, clear, find, insert, del,

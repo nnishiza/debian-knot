@@ -629,35 +629,32 @@ int zone_update_commit(conf_t *conf, zone_update_t *update)
 static int iter_init_tree_iters(zone_update_iter_t *it, zone_update_t *update,
                                 bool nsec3)
 {
-	zone_tree_t *tree;
-
 	/* Set zone iterator. */
 	zone_contents_t *_contents = update->new_cont;
 
 	/* Begin iteration. We can safely assume _contents is a valid pointer. */
-	tree = nsec3 ? _contents->nsec3_nodes : _contents->nodes;
-	hattrie_build_index(tree);
-	it->tree_it = hattrie_iter_begin(nsec3 ? _contents->nsec3_nodes : _contents->nodes, true);
+	zone_tree_t *tree = nsec3 ? _contents->nsec3_nodes : _contents->nodes;
+	it->tree_it = trie_it_begin(tree);
 	if (it->tree_it == NULL) {
 		return KNOT_ENOMEM;
 	}
 
-	it->cur_node = (zone_node_t *)(*hattrie_iter_val(it->tree_it));
+	it->cur_node = (zone_node_t *)(*trie_it_val(it->tree_it));
 
 	return KNOT_EOK;
 }
 
 static int iter_get_next_node(zone_update_iter_t *it)
 {
-	hattrie_iter_next(it->tree_it);
-	if (hattrie_iter_finished(it->tree_it)) {
-		hattrie_iter_free(it->tree_it);
+	trie_it_next(it->tree_it);
+	if (trie_it_finished(it->tree_it)) {
+		trie_it_free(it->tree_it);
 		it->tree_it = NULL;
 		it->cur_node = NULL;
 		return KNOT_ENOENT;
 	}
 
-	it->cur_node = (zone_node_t *)(*hattrie_iter_val(it->tree_it));
+	it->cur_node = (zone_node_t *)(*trie_it_val(it->tree_it));
 
 	return KNOT_EOK;
 }
@@ -673,7 +670,7 @@ static int iter_init(zone_update_iter_t *it, zone_update_t *update, const bool n
 		return ret;
 	}
 
-	it->cur_node = (zone_node_t *)(*hattrie_iter_val(it->tree_it));
+	it->cur_node = (zone_node_t *)(*trie_it_val(it->tree_it));
 
 	return KNOT_EOK;
 }
@@ -740,7 +737,7 @@ void zone_update_iter_finish(zone_update_iter_t *it)
 		return;
 	}
 
-	hattrie_iter_free(it->tree_it);
+	trie_it_free(it->tree_it);
 }
 
 bool zone_update_no_change(zone_update_t *update)

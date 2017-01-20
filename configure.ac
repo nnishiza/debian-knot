@@ -3,8 +3,8 @@
 AC_PREREQ([2.60])
 
 m4_define([knot_VERSION_MAJOR],2)dnl
-m4_define([knot_VERSION_MINOR],3)dnl
-m4_define([knot_VERSION_PATCH],3)dnl
+m4_define([knot_VERSION_MINOR],4)dnl
+m4_define([knot_VERSION_PATCH],0)dnl
 m4_define([knot_VERSION_EXTRA],)dnl
 m4_define([knot_PKG_VERSION],[knot_VERSION_MAJOR.knot_VERSION_MINOR.knot_VERSION_PATCH]knot_VERSION_EXTRA)dnl
 
@@ -28,8 +28,8 @@ AC_CONFIG_FILES([src/libknot/version.h
 
 # Updating version info
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-AC_SUBST([libknot_VERSION_INFO],["-version-info 4:0:0"])
-AC_SUBST([libdnssec_VERSION_INFO],["-version-info 2:0:0"])
+AC_SUBST([libknot_VERSION_INFO],["-version-info 5:0:0"])
+AC_SUBST([libdnssec_VERSION_INFO],["-version-info 3:0:1"])
 AC_SUBST([libzscanner_VERSION_INFO],["-version-info 1:0:0"])
 
 # Automatically update release date based on configure.ac date
@@ -172,6 +172,8 @@ AS_IF([test "$enable_reuseport" = yes],[
    AC_DEFINE([ENABLE_REUSEPORT], [1], [Use SO_REUSEPORT.])])
 
 AX_CHECK_COMPILE_FLAG("-fpredictive-commoning", [CFLAGS="$CFLAGS -fpredictive-commoning"], [], "-Werror")
+AX_CHECK_LINK_FLAG(["-Wl,--exclude-libs,ALL"], [ldflag_exclude_libs="-Wl,--exclude-libs,ALL"], [ldflag_exclude_libs=""], "")
+AC_SUBST([LDFLAG_EXCLUDE_LIBS], $ldflag_exclude_libs)
 
 # Default directories
 run_dir="${localstatedir}/run/knot"
@@ -347,13 +349,14 @@ AS_IF([test "$with_lmdb" != "no"],[
     ])
 
 AS_IF([test "$have_lmdb" != "no"],[
-    AC_SUBST([lmdb_CFLAGS])
     AC_SUBST([lmdb_LIBS])
     enable_lmdb=shared
     ],[
     enable_lmdb=embedded
+    lmdb_CFLAGS='-I$(srcdir)/contrib/lmdb'
     ])
-AM_CONDITIONAL([HAVE_LMDB], test "$have_lmdb" != "no")
+AM_CONDITIONAL([HAVE_LMDB], test "$enable_lmdb" = "shared")
+AC_SUBST([lmdb_CFLAGS])
 
 # LMDB mapping sizes
 conf_mapsize_default=500
@@ -528,6 +531,7 @@ AC_CONFIG_FILES([Makefile
                  tests/Makefile
                  tests-fuzz/Makefile
                  samples/Makefile
+                 python/Makefile
                  src/Makefile
                  src/contrib/dnstap/Makefile
                  src/dnssec/Makefile

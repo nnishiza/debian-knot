@@ -34,7 +34,6 @@
 #include "knot/common/fdset.h"
 #include "knot/server/dthreads.h"
 #include "knot/common/ref.h"
-#include "knot/server/rrl.h"
 #include "knot/worker/pool.h"
 #include "knot/zone/zonedb.h"
 #include "contrib/ucw/lists.h"
@@ -96,6 +95,7 @@ typedef struct server {
 	/*! \brief Zone database. */
 	knot_zonedb_t *zone_db;
 	knot_db_t *timers_db;
+	journal_db_t *journal_db;
 
 	/*! \brief I/O handlers. */
 	struct {
@@ -110,10 +110,7 @@ typedef struct server {
 	evsched_t sched;
 
 	/*! \brief List of interfaces. */
-	ifacelist_t* ifaces;
-
-	/*! \brief Rate limiting. */
-	rrl_table_t *rrl;
+	ifacelist_t *ifaces;
 
 } server_t;
 

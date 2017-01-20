@@ -55,26 +55,27 @@ typedef struct {
 	unsigned thread_id; /*!< Thread identifier. */
 } udp_context_t;
 
+static bool udp_state_active(int state)
+{
+	return (state == KNOT_STATE_PRODUCE || state == KNOT_STATE_FAIL);
+}
+
 static void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
                        struct iovec *rx, struct iovec *tx)
 {
 	/* Create query processing parameter. */
-	struct process_query_param param = {0};
-	param.remote = ss;
-	param.proc_flags  = NS_QUERY_NO_AXFR|NS_QUERY_NO_IXFR; /* No transfers. */
-	param.proc_flags |= NS_QUERY_LIMIT_SIZE; /* Enforce UDP packet size limit. */
-	param.proc_flags |= NS_QUERY_LIMIT_ANY;  /* Limit ANY over UDP (depends on zone as well). */
-	param.socket = fd;
-	param.server = udp->server;
-	param.thread_id = udp->thread_id;
-
-	/* Rate limit is applied? */
-	if (unlikely(udp->server->rrl != NULL) && udp->server->rrl->rate > 0) {
-		param.proc_flags |= NS_QUERY_LIMIT_RATE;
-	}
+	struct process_query_param param = {
+		.remote = ss,
+		.proc_flags = NS_QUERY_NO_AXFR | NS_QUERY_NO_IXFR | /* No transfers. */
+		              NS_QUERY_LIMIT_SIZE | /* Enforce UDP packet size limit. */
+		              NS_QUERY_LIMIT_ANY,  /* Limit ANY over UDP (depends on zone as well). */
+		.socket = fd,
+		.server = udp->server,
+		.thread_id = udp->thread_id
+	};
 
 	/* Start query processing. */
-	udp->layer.state = knot_layer_begin(&udp->layer, &param);
+	knot_layer_begin(&udp->layer, &param);
 
 	/* Create packets. */
 	knot_pkt_t *query = knot_pkt_new(rx->iov_base, rx->iov_len, udp->layer.mm);
@@ -82,15 +83,15 @@ static void udp_handle(udp_context_t *udp, int fd, struct sockaddr_storage *ss,
 
 	/* Input packet. */
 	(void) knot_pkt_parse(query, 0);
-	int state = knot_layer_consume(&udp->layer, query);
+	knot_layer_consume(&udp->layer, query);
 
 	/* Process answer. */
-	while (state & (KNOT_STATE_PRODUCE|KNOT_STATE_FAIL)) {
-		state = knot_layer_produce(&udp->layer, ans);
+	while (udp_state_active(udp->layer.state)) {
+		knot_layer_produce(&udp->layer, ans);
 	}
 
 	/* Send response only if finished successfully. */
-	if (state == KNOT_STATE_DONE) {
+	if (udp->layer.state == KNOT_STATE_DONE) {
 		tx->iov_len = ans->size;
 	} else {
 		tx->iov_len = 0;

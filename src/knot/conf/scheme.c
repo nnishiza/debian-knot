@@ -23,26 +23,36 @@
 #include "knot/conf/confio.h"
 #include "knot/conf/tools.h"
 #include "knot/common/log.h"
-#include "knot/server/rrl.h"
 #include "knot/updates/acl.h"
 #include "libknot/rrtype/opt.h"
 #include "dnssec/lib/dnssec/tsig.h"
 #include "dnssec/lib/dnssec/key.h"
 
-#include "knot/modules/synth_record.h"
-#include "knot/modules/dnsproxy.h"
-#include "knot/modules/online_sign/module.h"
+#include "knot/modules/rrl/rrl.h"
+#include "knot/modules/stats/stats.h"
+#include "knot/modules/synth_record/synth_record.h"
+#include "knot/modules/dnsproxy/dnsproxy.h"
+#include "knot/modules/online_sign/online_sign.h"
 #ifdef HAVE_ROSEDB
-#include "knot/modules/rosedb.h"
+#include "knot/modules/rosedb/rosedb.h"
 #endif
 #if USE_DNSTAP
-#include "knot/modules/dnstap.h"
+#include "knot/modules/dnstap/dnstap.h"
 #endif
-#include "knot/modules/whoami.h"
-#include "knot/modules/noudp.h"
+#include "knot/modules/whoami/whoami.h"
+#include "knot/modules/noudp/noudp.h"
 
 #define HOURS(x)	((x) * 3600)
 #define DAYS(x)		((x) * HOURS(24))
+
+#define KILO(x)		(1024LLU * (x))
+#define MEGA(x)		(KILO(1024) * (x))
+#define GIGA(x)		(MEGA(1024) * (x))
+#define TERA(x)		(GIGA(1024) * (x))
+
+#define VIRT_MEM_TOP_32BIT	GIGA(2)
+#define VIRT_MEM_LIMIT(x)	(((sizeof(void *) < 8) && ((x) > VIRT_MEM_TOP_32BIT)) \
+				 ? VIRT_MEM_TOP_32BIT : (x))
 
 #define FMOD		(YP_FMULTI | CONF_IO_FRLD_MOD | CONF_IO_FRLD_ZONES)
 
@@ -121,13 +131,14 @@ static const yp_item_t desc_server[] = {
 	{ C_MAX_IPV6_UDP_PAYLOAD, YP_TINT,  YP_VINT = { KNOT_EDNS_MIN_UDP_PAYLOAD,
 	                                                KNOT_EDNS_MAX_UDP_PAYLOAD,
 	                                                4096, YP_SSIZE } },
+	{ C_LISTEN,               YP_TADDR, YP_VADDR = { 53 }, YP_FMULTI },
+	{ C_COMMENT,              YP_TSTR,  YP_VNONE },
+	/* Obsolete items. */
 	{ C_RATE_LIMIT,           YP_TINT,  YP_VINT = { 0, INT32_MAX, 0 } },
-	{ C_RATE_LIMIT_SLIP,      YP_TINT,  YP_VINT = { 0, RRL_SLIP_MAX, 1 } },
+	{ C_RATE_LIMIT_SLIP,      YP_TINT,  YP_VINT = { 0, 100, 1 } },
 	{ C_RATE_LIMIT_TBL_SIZE,  YP_TINT,  YP_VINT = { 1, INT32_MAX, 393241 } },
 	{ C_RATE_LIMIT_WHITELIST, YP_TDATA, YP_VDATA = { 0, NULL, addr_range_to_bin,
 	                                                 addr_range_to_txt }, YP_FMULTI },
-	{ C_LISTEN,               YP_TADDR, YP_VADDR = { 53 }, YP_FMULTI },
-	{ C_COMMENT,              YP_TSTR,  YP_VNONE },
 	{ NULL }
 };
 
@@ -141,9 +152,17 @@ static const yp_item_t desc_control[] = {
 static const yp_item_t desc_log[] = {
 	{ C_TARGET,  YP_TSTR, YP_VNONE },
 	{ C_SERVER,  YP_TOPT, YP_VOPT = { log_severities, 0 } },
+	{ C_CTL,     YP_TOPT, YP_VOPT = { log_severities, 0 } },
 	{ C_ZONE,    YP_TOPT, YP_VOPT = { log_severities, 0 } },
 	{ C_ANY,     YP_TOPT, YP_VOPT = { log_severities, 0 } },
 	{ C_COMMENT, YP_TSTR, YP_VNONE },
+	{ NULL }
+};
+
+static const yp_item_t desc_stats[] = {
+	{ C_TIMER,  YP_TINT,  YP_VINT = { 1, UINT32_MAX, 0, YP_STIME } },
+	{ C_FILE,   YP_TSTR,  YP_VSTR = { "stats.yaml" } },
+	{ C_APPEND, YP_TBOOL, YP_VNONE },
 	{ NULL }
 };
 
@@ -161,6 +180,7 @@ static const yp_item_t desc_policy[] = {
 	{ C_KEYSTORE,            YP_TREF,  YP_VREF = { C_KEYSTORE }, CONF_IO_FRLD_ZONES,
 	                                   { check_ref_dflt } },
 	{ C_MANUAL,              YP_TBOOL, YP_VNONE, CONF_IO_FRLD_ZONES },
+	{ C_SINGLE_TYPE_SIGNING, YP_TBOOL, YP_VNONE, CONF_IO_FRLD_ZONES },
 	{ C_ALG,                 YP_TOPT,  YP_VOPT = { dnssec_key_algs,
 	                                               DNSSEC_KEY_ALGORITHM_ECDSA_P256_SHA256 },
 	                                   CONF_IO_FRLD_ZONES },
@@ -173,7 +193,7 @@ static const yp_item_t desc_policy[] = {
 	{ C_ZSK_LIFETIME,        YP_TINT,  YP_VINT = { 1, UINT32_MAX, DAYS(30), YP_STIME },
 	                                   CONF_IO_FRLD_ZONES },
 	{ C_PROPAG_DELAY,        YP_TINT,  YP_VINT = { 0, UINT32_MAX, HOURS(1), YP_STIME },
-					   CONF_IO_FRLD_ZONES },
+	                                   CONF_IO_FRLD_ZONES },
 	{ C_RRSIG_LIFETIME,      YP_TINT,  YP_VINT = { 1, UINT32_MAX, DAYS(14), YP_STIME },
 	                                   CONF_IO_FRLD_ZONES },
 	{ C_RRSIG_REFRESH,       YP_TINT,  YP_VINT = { 1, UINT32_MAX, DAYS(7), YP_STIME },
@@ -218,7 +238,6 @@ static const yp_item_t desc_remote[] = {
 #define ZONE_ITEMS(FLAGS) \
 	{ C_STORAGE,             YP_TSTR,  YP_VSTR = { STORAGE_DIR }, FLAGS }, \
 	{ C_FILE,                YP_TSTR,  YP_VNONE, FLAGS }, \
-	{ C_JOURNAL,             YP_TSTR,  YP_VNONE, FLAGS }, \
 	{ C_MASTER,              YP_TREF,  YP_VREF = { C_RMT }, YP_FMULTI, { check_ref } }, \
 	{ C_DDNS_MASTER,         YP_TREF,  YP_VREF = { C_RMT }, YP_FNONE, { check_ref } }, \
 	{ C_NOTIFY,              YP_TREF,  YP_VREF = { C_RMT }, YP_FMULTI, { check_ref } }, \
@@ -227,10 +246,9 @@ static const yp_item_t desc_remote[] = {
 	{ C_DISABLE_ANY,         YP_TBOOL, YP_VNONE }, \
 	{ C_ZONEFILE_SYNC,       YP_TINT,  YP_VINT = { -1, INT32_MAX, 0, YP_STIME } }, \
 	{ C_IXFR_DIFF,           YP_TBOOL, YP_VNONE }, \
-	{ C_MAX_JOURNAL_SIZE,    YP_TINT,  YP_VINT = { 0, INT64_MAX, INT64_MAX, YP_SSIZE }, \
-	                                   FLAGS }, \
-	{ C_MAX_ZONE_SIZE,       YP_TINT,  YP_VINT = { 0, INT64_MAX, INT64_MAX, YP_SSIZE }, \
-	                                   FLAGS }, \
+	{ C_MAX_ZONE_SIZE,       YP_TINT,  YP_VINT = { 0, INT64_MAX, INT64_MAX, YP_SSIZE }, FLAGS }, \
+	{ C_MAX_JOURNAL_USAGE,   YP_TINT,  YP_VINT = { KILO(40), INT64_MAX, MEGA(100), YP_SSIZE } }, \
+	{ C_MAX_JOURNAL_DEPTH,   YP_TINT,  YP_VINT = { 2, INT64_MAX, INT64_MAX } }, \
 	{ C_KASP_DB,             YP_TSTR,  YP_VSTR = { "keys" }, FLAGS }, \
 	{ C_DNSSEC_SIGNING,      YP_TBOOL, YP_VNONE, FLAGS }, \
 	{ C_DNSSEC_POLICY,       YP_TREF,  YP_VREF = { C_POLICY }, FLAGS, { check_ref_dflt } }, \
@@ -238,14 +256,21 @@ static const yp_item_t desc_remote[] = {
 	{ C_REQUEST_EDNS_OPTION, YP_TDATA, YP_VDATA = { 0, NULL, edns_opt_to_bin, edns_opt_to_txt } }, \
 	{ C_MODULE,              YP_TDATA, YP_VDATA = { 0, NULL, mod_id_to_bin, mod_id_to_txt }, \
 	                                   YP_FMULTI | FLAGS, { check_modref } }, \
-	{ C_COMMENT,             YP_TSTR,  YP_VNONE },
+	{ C_COMMENT,             YP_TSTR,  YP_VNONE }, \
+	/* Obsolete, old journal items. */ \
+	{ C_JOURNAL,             YP_TSTR,  YP_VNONE, FLAGS }, \
+	{ C_MAX_JOURNAL_SIZE,    YP_TINT,  YP_VINT = { 0, INT64_MAX, INT64_MAX, YP_SSIZE }, FLAGS }, \
 
 static const yp_item_t desc_template[] = {
 	{ C_ID, YP_TSTR, YP_VNONE, CONF_IO_FREF },
 	ZONE_ITEMS(CONF_IO_FRLD_ZONES)
-	{ C_TIMER_DB,            YP_TSTR,  YP_VSTR = { "timers" }, CONF_IO_FRLD_ZONES }, \
-	{ C_GLOBAL_MODULE,       YP_TDATA, YP_VDATA = { 0, NULL, mod_id_to_bin, mod_id_to_txt }, \
-	                                   YP_FMULTI | CONF_IO_FRLD_MOD, { check_modref } }, \
+	{ C_TIMER_DB,            YP_TSTR,  YP_VSTR = { "timers" }, CONF_IO_FRLD_ZONES },
+	{ C_GLOBAL_MODULE,       YP_TDATA, YP_VDATA = { 0, NULL, mod_id_to_bin, mod_id_to_txt },
+	                                   YP_FMULTI | CONF_IO_FRLD_MOD, { check_modref } },
+	{ C_JOURNAL_DB,          YP_TSTR,  YP_VSTR = { "journal" }, CONF_IO_FRLD_SRV },
+	{ C_MAX_JOURNAL_DB_SIZE, YP_TINT,  YP_VINT = { JOURNAL_MIN_FSLIMIT, VIRT_MEM_LIMIT(TERA(100)),
+	                                               VIRT_MEM_LIMIT(GIGA(20)), YP_SSIZE },
+	                                               CONF_IO_FRLD_SRV },
 	{ NULL }
 };
 
@@ -257,15 +282,19 @@ static const yp_item_t desc_zone[] = {
 };
 
 const yp_item_t conf_scheme[] = {
-	{ C_SRV,      YP_TGRP, YP_VGRP = { desc_server }, CONF_IO_FRLD_SRV },
+	{ C_SRV,      YP_TGRP, YP_VGRP = { desc_server }, CONF_IO_FRLD_SRV, { check_server } },
 	{ C_CTL,      YP_TGRP, YP_VGRP = { desc_control } },
 	{ C_LOG,      YP_TGRP, YP_VGRP = { desc_log }, YP_FMULTI | CONF_IO_FRLD_LOG },
+	{ C_STATS,    YP_TGRP, YP_VGRP = { desc_stats }, CONF_IO_FRLD_SRV },
 	{ C_KEYSTORE, YP_TGRP, YP_VGRP = { desc_keystore }, YP_FMULTI, { check_keystore } },
 	{ C_POLICY,   YP_TGRP, YP_VGRP = { desc_policy }, YP_FMULTI, { check_policy } },
 	{ C_KEY,      YP_TGRP, YP_VGRP = { desc_key }, YP_FMULTI, { check_key } },
 	{ C_ACL,      YP_TGRP, YP_VGRP = { desc_acl }, YP_FMULTI, { check_acl } },
 	{ C_RMT,      YP_TGRP, YP_VGRP = { desc_remote }, YP_FMULTI, { check_remote } },
 /* MODULES */
+	{ C_MOD_RRL,          YP_TGRP, YP_VGRP = { scheme_mod_rrl }, FMOD,
+	                                         { check_mod_rrl } },
+	{ C_MOD_STATS,        YP_TGRP, YP_VGRP = { scheme_mod_stats }, FMOD },
 	{ C_MOD_SYNTH_RECORD, YP_TGRP, YP_VGRP = { scheme_mod_synth_record }, FMOD,
 	                               { check_mod_synth_record } },
 	{ C_MOD_DNSPROXY,     YP_TGRP, YP_VGRP = { scheme_mod_dnsproxy }, FMOD,

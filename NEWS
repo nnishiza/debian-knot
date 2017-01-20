@@ -1,3 +1,36 @@
+Knot DNS 2.4.0 (2017-01-18)
+===========================
+
+Bugfixes:
+--------
+ - False positive semantic-check warning about invalid bitmap in NSEC
+ - Unnecessary SOA queries upon notify with up to date serial
+ - Timers for expired zones are reset on reload
+ - Zone doesn't expire when the server is down
+ - Failed to handle keys with duplicate keytags
+ - Per zone module and global module insconsistency
+ - Obsolete online signing module configuration
+ - Malformed output from kjournalprint
+ - Redundant SO_REUSEPORT activation on the TCP socket
+ - Failed to use higher number of background workers
+
+Improvements:
+-------------
+ - Lower memory consumption with qp-trie
+ - Zone events and zone timers improvements
+ - Print all zone names in the FQDN format
+ - Simplified query module interface
+ - Shared TCP connection between SOA query and transfer
+ - Response Rate Limiting as a module with statistics support
+ - Key filters in keymgr
+
+Features:
+---------
+ - New unified LMDB-based zone journal
+ - Server statistics support
+ - New statistics module for traffic measuring
+ - Automatic deletion of retired DNSSEC keys
+ - New control logging category
 
 Knot DNS 2.3.3 (2016-12-08)
 ===========================

@@ -30,9 +30,10 @@
 
 #include "knot/conf/conf.h"
 #include "knot/conf/confio.h"
-#include "knot/server/journal.h"
+#include "knot/journal/journal.h"
 #include "knot/events/events.h"
 #include "knot/zone/contents.h"
+#include "knot/zone/timers.h"
 #include "libknot/dname.h"
 #include "libknot/packet/pkt.h"
 
@@ -46,7 +47,6 @@ typedef enum zone_flag_t {
 	ZONE_FORCE_AXFR   = 1 << 0, /* Force AXFR as next transfer. */
 	ZONE_FORCE_RESIGN = 1 << 1, /* Force zone resign. */
 	ZONE_FORCE_FLUSH  = 1 << 2, /* Force zone flush. */
-	ZONE_EXPIRED      = 1 << 3, /* Zone is expired. */
 } zone_flag_t;
 
 /*!
@@ -69,8 +69,8 @@ typedef struct zone
 	} zonefile;
 
 	/*! \brief Zone events. */
-	uint32_t bootstrap_retry; /*!< AXFR/IN bootstrap retry. */
-	zone_events_t events;     /*!< Zone events timers. */
+	zone_timers_t timers;      //!< Persistent zone timers.
+	zone_events_t events;      //!< Zone events timers.
 
 	/*! \brief DDNS queue and lock. */
 	pthread_mutex_t ddns_lock;
@@ -80,8 +80,14 @@ typedef struct zone
 	/*! \brief Control update context. */
 	struct zone_update *control_update;
 
+	/*! \brief Journal structure. */
+	journal_t *journal;
+
 	/*! \brief Journal access lock. */
 	pthread_mutex_t journal_lock;
+
+	/*! \brief Ptr to journal DB (in struct server) */
+	journal_db_t **journal_db;
 
 	/*! \brief Preferred master lock. */
 	pthread_mutex_t preferred_lock;
@@ -123,8 +129,13 @@ void zone_control_clear(zone_t *zone);
  * \ref #223 New zone API
  * \todo get rid of this
  */
-int zone_changes_store(conf_t *conf, zone_t *zone, list_t *chgs);
 int zone_change_store(conf_t *conf, zone_t *zone, changeset_t *change);
+int zone_changes_store(conf_t *conf, zone_t *zone, list_t *chgs);
+int zone_changes_load(conf_t *conf, zone_t *zone, list_t *dst, uint32_t from);
+
+/*! \brief Synchronize zone file with journal. */
+int zone_flush_journal(conf_t *conf, zone_t *zone);
+
 /*!
  * \brief Atomically switch the content of the zone.
  */
@@ -138,6 +149,12 @@ void zone_set_preferred_master(zone_t *zone, const struct sockaddr_storage *addr
 
 /*! \brief Clears the current preferred master address. */
 void zone_clear_preferred_master(zone_t *zone);
+
+/*! \brief Get zone SOA RR. */
+const knot_rdataset_t *zone_soa(const zone_t *zone);
+
+/*! \brief Check if zone is expired according to timers. */
+bool zone_expired(const zone_t *zone);
 
 typedef int (*zone_master_cb)(conf_t *conf, zone_t *zone, const conf_remote_t *remote,
                               void *data);
@@ -154,16 +171,11 @@ typedef int (*zone_master_cb)(conf_t *conf, zone_t *zone, const conf_remote_t *r
 int zone_master_try(conf_t *conf, zone_t *zone, zone_master_cb callback,
                     void *callback_data, const char *err_str);
 
-/*! \brief Synchronize zone file with journal. */
-int zone_flush_journal(conf_t *conf, zone_t *zone);
 
 /*! \brief Enqueue UPDATE request for processing. */
 int zone_update_enqueue(zone_t *zone, knot_pkt_t *pkt, struct process_query_param *param);
 
 /*! \brief Dequeue UPDATE request. Returns number of queued updates. */
 size_t zone_update_dequeue(zone_t *zone, list_t *updates);
-
-/*! \brief Returns true if final SOA in transfer has newer serial than zone */
-bool zone_transfer_needed(const zone_t *zone, const knot_pkt_t *pkt);
 
 /*! @} */

@@ -43,9 +43,10 @@ static int apex_node_dump_text(zone_node_t *node, dump_params_t *params)
 
 	// Dump SOA record as a first.
 	if (!params->dump_nsec) {
-		if (knot_rrset_txt_dump(&soa, params->buf, params->buflen,
-		                        &soa_style) < 0) {
-			return KNOT_ENOMEM;
+		int ret = knot_rrset_txt_dump(&soa, &params->buf, &params->buflen,
+		                              &soa_style);
+		if (ret < 0) {
+			return ret;
 		}
 		params->rr_count += soa.rrs.rr_count;
 		fprintf(params->file, "%s", params->buf);
@@ -66,9 +67,10 @@ static int apex_node_dump_text(zone_node_t *node, dump_params_t *params)
 			break;
 		}
 
-		if (knot_rrset_txt_dump(&rrset, params->buf, params->buflen,
-		                        params->style) < 0) {
-			return KNOT_ENOMEM;
+		int ret = knot_rrset_txt_dump(&rrset, &params->buf, &params->buflen,
+		                              params->style);
+		if (ret < 0) {
+			return ret;
 		}
 		params->rr_count +=  rrset.rrs.rr_count;
 		fprintf(params->file, "%s", params->buf);
@@ -121,9 +123,10 @@ static int node_dump_text(zone_node_t *node, void *data)
 			params->first_comment = NULL;
 		}
 
-		if (knot_rrset_txt_dump(&rrset, params->buf, params->buflen,
-		                        params->style) < 0) {
-			return KNOT_ENOMEM;
+		int ret = knot_rrset_txt_dump(&rrset, &params->buf, &params->buflen,
+		                              params->style);
+		if (ret < 0) {
+			return ret;
 		}
 		params->rr_count += rrset.rrs.rr_count;
 		fprintf(params->file, "%s", params->buf);
@@ -163,7 +166,7 @@ int zone_dump_text(zone_contents_t *zone, FILE *file, bool comments)
 	};
 
 	// Dump standard zone records without RRSIGS.
-	int ret = zone_contents_tree_apply_inorder(zone, node_dump_text, &params);
+	int ret = zone_contents_apply(zone, node_dump_text, &params);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -172,7 +175,7 @@ int zone_dump_text(zone_contents_t *zone, FILE *file, bool comments)
 	params.dump_rrsig = true;
 	params.dump_nsec = false;
 	params.first_comment = comments ? ";; DNSSEC signatures\n" : NULL;
-	ret = zone_contents_tree_apply_inorder(zone, node_dump_text, &params);
+	ret = zone_contents_apply(zone, node_dump_text, &params);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -181,7 +184,7 @@ int zone_dump_text(zone_contents_t *zone, FILE *file, bool comments)
 	params.dump_rrsig = false;
 	params.dump_nsec = true;
 	params.first_comment = comments ? ";; DNSSEC NSEC chain\n" : NULL;
-	ret = zone_contents_tree_apply_inorder(zone, node_dump_text, &params);
+	ret = zone_contents_apply(zone, node_dump_text, &params);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -190,7 +193,7 @@ int zone_dump_text(zone_contents_t *zone, FILE *file, bool comments)
 	params.dump_rrsig = false;
 	params.dump_nsec = true;
 	params.first_comment = comments ? ";; DNSSEC NSEC3 chain\n" : NULL;
-	ret = zone_contents_nsec3_apply_inorder(zone, node_dump_text, &params);
+	ret = zone_contents_nsec3_apply(zone, node_dump_text, &params);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -198,7 +201,7 @@ int zone_dump_text(zone_contents_t *zone, FILE *file, bool comments)
 	params.dump_rrsig = true;
 	params.dump_nsec = false;
 	params.first_comment = comments ? ";; DNSSEC NSEC3 signatures\n" : NULL;
-	ret = zone_contents_nsec3_apply_inorder(zone, node_dump_text, &params);
+	ret = zone_contents_nsec3_apply(zone, node_dump_text, &params);
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
@@ -217,7 +220,7 @@ int zone_dump_text(zone_contents_t *zone, FILE *file, bool comments)
 	        	params.rr_count, date);
 	}
 
-	free(buf);
+	free(params.buf); // params.buf may be != buf because of knot_rrset_txt_dump_dynamic()
 
 	return KNOT_EOK;
 }

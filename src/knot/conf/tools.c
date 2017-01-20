@@ -353,6 +353,40 @@ int check_modref(
 	return KNOT_EOK;
 }
 
+int check_server(
+	conf_check_t *args)
+{
+	bool present = false;
+
+	conf_val_t val;
+	val = conf_get_txn(args->conf, args->txn, C_SRV, C_RATE_LIMIT);
+	if (val.code == KNOT_EOK) {
+		present = true;
+	}
+
+	val = conf_get_txn(args->conf, args->txn, C_SRV, C_RATE_LIMIT_SLIP);
+	if (val.code == KNOT_EOK) {
+		present = true;
+	}
+
+	val = conf_get_txn(args->conf, args->txn, C_SRV, C_RATE_LIMIT_TBL_SIZE);
+	if (val.code == KNOT_EOK) {
+		present = true;
+	}
+
+	val = conf_get_txn(args->conf, args->txn, C_SRV, C_RATE_LIMIT_WHITELIST);
+	if (val.code == KNOT_EOK) {
+		present = true;
+	}
+
+	if (present) {
+		CONF_LOG(LOG_NOTICE, "obsolete RRL configuration in the server, "
+		                     "use module mod-rrl instead");
+	}
+
+	return KNOT_EOK;
+}
+
 int check_keystore(
 	conf_check_t *args)
 {
@@ -461,24 +495,19 @@ int check_template(
 		return KNOT_EOK;
 	}
 
-	// Check global-module.
-	conf_val_t g_module = conf_rawid_get_txn(args->conf, args->txn, C_TPL,
-	                                         C_GLOBAL_MODULE, args->id,
-	                                         args->id_len);
+	conf_val_t val;
+	#define CHECK_DFLT(item, name) \
+		val = conf_rawid_get_txn(args->conf, args->txn, C_TPL, item, \
+		                         args->id, args->id_len); \
+		if (val.code == KNOT_EOK) { \
+			args->err_str = name " in non-default template"; \
+			return KNOT_EINVAL; \
+		}
 
-	if (g_module.code == KNOT_EOK) {
-		args->err_str = "global module in non-default template";
-		return KNOT_EINVAL;
-	}
-
-	// Check timer-db.
-	conf_val_t timer_db = conf_rawid_get_txn(args->conf, args->txn, C_TPL,
-	                                         C_TIMER_DB, args->id, args->id_len);
-
-	if (timer_db.code == KNOT_EOK) {
-		args->err_str = "timer database location in non-default template";
-		return KNOT_EINVAL;
-	}
+	CHECK_DFLT(C_TIMER_DB, "timer database");
+	CHECK_DFLT(C_GLOBAL_MODULE, "global module");
+	CHECK_DFLT(C_JOURNAL_DB, "journal database path");
+	CHECK_DFLT(C_MAX_JOURNAL_DB_SIZE, "journal database maximum size");
 
 	return KNOT_EOK;
 }
@@ -503,8 +532,8 @@ int check_zone(
 	                                       C_DNSSEC_POLICY, args->id);
 	if (conf_bool(&signing) && policy.code != KNOT_EOK) {
 		CONF_LOG(LOG_NOTICE, "DNSSEC policy settings in KASP database "
-		         "is obsolete and will be removed in the next major release. "
-		         "Use zone.dnssec-policy in server configuration instead.");
+		         "is obsolete and will be removed in the next major release, "
+		         "use zone.dnssec-policy in server configuration instead");
 	}
 
 	return KNOT_EOK;

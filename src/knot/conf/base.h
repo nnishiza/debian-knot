@@ -27,7 +27,7 @@
 
 #include "libknot/libknot.h"
 #include "libknot/yparser/ypscheme.h"
-#include "contrib/hat-trie/hat-trie.h"
+#include "contrib/qp-trie/trie.h"
 #include "contrib/ucw/lists.h"
 
 /*! Default template identifier. */
@@ -38,10 +38,16 @@
 #define CONF_DEFAULT_DBDIR	(STORAGE_DIR "/confdb")
 /*! Maximum depth of nested transactions. */
 #define CONF_MAX_TXN_DEPTH	5
+/*! Maximum number of concurrent DB readers. */
+#define CONF_MAX_DB_READERS	630
 
 /*! Configuration specific logging. */
 #define CONF_LOG(severity, msg, ...) do { \
 	log_msg(severity, "config, " msg, ##__VA_ARGS__); \
+	} while (0)
+
+#define CONF_LOG_ZONE(severity, zone, msg, ...) do { \
+	log_msg_zone(severity, zone, "config, " msg, ##__VA_ARGS__); \
 	} while (0)
 
 /*! Configuration getter output. */
@@ -85,7 +91,7 @@ typedef struct {
 		/*! Master transaction flags. */
 		yp_flag_t flags;
 		/*! Changed zones. */
-		hattrie_t *zones;
+		trie_t *zones;
 	} io;
 
 	/*! Current config file (for reload if started with config file). */
@@ -102,10 +108,8 @@ typedef struct {
 		int32_t srv_tcp_idle_timeout;
 		int32_t srv_tcp_reply_timeout;
 		int32_t srv_max_tcp_clients;
-		int32_t srv_rate_limit_slip;
 		int32_t ctl_timeout;
 		conf_val_t srv_nsid;
-		conf_val_t srv_rate_limit_whitelist;
 	} cache;
 
 	/*! List of active query modules. */

@@ -147,7 +147,7 @@ static bool can_remove(const zone_node_t *node, const knot_rrset_t *rr)
 static int apply_remove(apply_ctx_t *ctx, changeset_t *chset)
 {
 	changeset_iter_t itt;
-	changeset_iter_rem(&itt, chset, false);
+	changeset_iter_rem(&itt, chset);
 
 	knot_rrset_t rr = changeset_iter_next(&itt);
 	while (!knot_rrset_empty(&rr)) {
@@ -168,7 +168,7 @@ static int apply_remove(apply_ctx_t *ctx, changeset_t *chset)
 static int apply_add(apply_ctx_t *ctx, changeset_t *chset)
 {
 	changeset_iter_t itt;
-	changeset_iter_add(&itt, chset, false);
+	changeset_iter_add(&itt, chset);
 
 	knot_rrset_t rr = changeset_iter_next(&itt);
 	while(!knot_rrset_empty(&rr)) {
@@ -378,7 +378,7 @@ int apply_replace_soa(apply_ctx_t *ctx, changeset_t *chset)
 
 	// Check for SOA with proper serial but different rdata.
 	if (node_rrtype_exists(contents->apex, KNOT_RRTYPE_SOA)) {
-		return KNOT_EZONEINVAL;
+		return KNOT_ESOAINVAL;
 	}
 
 	return apply_add_rr(ctx, chset->soa_to);
@@ -389,16 +389,11 @@ int apply_prepare_to_sign(apply_ctx_t *ctx)
 	return zone_contents_adjust_pointers(ctx->contents);
 }
 
-int apply_changesets(apply_ctx_t *ctx, zone_t *zone, list_t *chsets,
-                     zone_contents_t **new_contents)
+int apply_changesets(apply_ctx_t *ctx, zone_contents_t *old_contents,
+                     list_t *chsets, zone_contents_t **new_contents)
 {
-	if (ctx == NULL || zone == NULL || chsets == NULL ||
+	if (ctx == NULL || old_contents == NULL || chsets == NULL ||
 	    EMPTY_LIST(*chsets) || new_contents == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	zone_contents_t *old_contents = zone->contents;
-	if (!old_contents) {
 		return KNOT_EINVAL;
 	}
 
@@ -434,15 +429,10 @@ int apply_changesets(apply_ctx_t *ctx, zone_t *zone, list_t *chsets,
 	return KNOT_EOK;
 }
 
-int apply_changeset(apply_ctx_t *ctx, zone_t *zone, changeset_t *ch,
-                    zone_contents_t **new_contents)
+int apply_changeset(apply_ctx_t *ctx, zone_contents_t *old_contents,
+                    changeset_t *ch, zone_contents_t **new_contents)
 {
-	if (ctx == NULL || zone == NULL || ch == NULL || new_contents == NULL) {
-		return KNOT_EINVAL;
-	}
-
-	zone_contents_t *old_contents = zone->contents;
-	if (!old_contents) {
+	if (ctx == NULL || old_contents == NULL || ch == NULL || new_contents == NULL) {
 		return KNOT_EINVAL;
 	}
 
