@@ -1,4 +1,4 @@
-libknot.so.4 libknot4 #MINVER#
+libknot.so.5 libknot5 #MINVER#
  KNOT_DB_LMDB_NOTLS@Base 2.3.0
  KNOT_DB_LMDB_RDONLY@Base 2.3.0
  KNOT_DUMP_STYLE_DEFAULT@Base 2.3.0
