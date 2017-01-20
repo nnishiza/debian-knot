@@ -1,4 +1,4 @@
-/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2017 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,8 +58,12 @@ enum knot_edns_const {
 	KNOT_EDNS_OPTION_CLIENT_SUBNET = 8,
 	/*! \brief EDNS DNS Cookie option code. */
 	KNOT_EDNS_OPTION_COOKIE        = 10,
+	/*! \brief EDNS TCP Keepalive option code. */
+	KNOT_EDNS_OPTION_TCP_KEEPALIVE = 11,
 	/*! \brief EDNS Padding option code. */
-	KNOT_EDNS_OPTION_PADDING       = 12
+	KNOT_EDNS_OPTION_PADDING       = 12,
+	/*! \brief EDNS Chain query option code. */
+	KNOT_EDNS_OPTION_CHAIN         = 13,
 };
 
 /* Helpers for splitting extended RCODE. */
@@ -426,7 +430,7 @@ int knot_edns_client_subnet_write(uint8_t *option, size_t option_len,
  * \return Error code, KNOT_EOK if successful.
  */
 int knot_edns_client_subnet_parse(knot_edns_client_subnet_t *ecs,
-                                  const uint8_t *option, size_t option_len);
+                                  const uint8_t *option, uint16_t option_len);
 
 /*!
  * \brief Set address to the ECS structure.
@@ -450,5 +454,70 @@ int knot_edns_client_subnet_set_addr(knot_edns_client_subnet_t *ecs,
  */
 int knot_edns_client_subnet_get_addr(struct sockaddr_storage *addr,
                                      const knot_edns_client_subnet_t *ecs);
+
+/*!
+ * \brief Get size of the EDNS Keepalive option wire size.
+ *
+ * \param[in] timeout  EDNS TCP Keepalive timeout.
+ *
+ * \return Size of the EDNS option data.
+ */
+size_t knot_edns_keepalive_size(uint16_t timeout);
+
+/*!
+ * \brief Writes EDNS TCP Keepalive wire data.
+ *
+ * \param[out] option      EDNS option data buffer.
+ * \param[in]  option_len  EDNS option data buffer size.
+ * \param[in]  timeout     EDNS TCP Keepalive timeout.
+ *
+ * \return Error code, KNOT_EOK if successful.
+ */
+int knot_edns_keepalive_write(uint8_t *option, size_t option_len, uint16_t timeout);
+
+/*!
+ * \brief Parses EDNS TCP Keepalive wire data.
+ *
+ * \param[out] timeout     EDNS TCP Keepalive timeout.
+ * \param[in]  option      EDNS option data.
+ * \param[in]  option_len  EDNS option size.
+ *
+ * \return Error code, KNOT_EOK if successful.
+ */
+int knot_edns_keepalive_parse(uint16_t *timeout, const uint8_t *option,
+                              uint16_t option_len);
+
+/*!
+ * \brief Get size of the EDNS Chain option wire size.
+ *
+ * \param[in] point  EDNS Chain closest trusted point.
+ *
+ * \return Size of the EDNS option data or 0 if invalid input.
+ */
+size_t knot_edns_chain_size(const knot_dname_t *point);
+
+/*!
+ * \brief Writes EDNS Chain wire data.
+ *
+ * \param[out] option      EDNS option data buffer.
+ * \param[in]  option_len  EDNS option data buffer size.
+ * \param[in]  point       EDNS Chain closest trusted point.
+ *
+ * \return Error code, KNOT_EOK if successful.
+ */
+int knot_edns_chain_write(uint8_t *option, size_t option_len,
+                          const knot_dname_t *point);
+
+/*!
+ * \brief Parses EDNS Chain wire data.
+ *
+ * \param[out] point       EDNS Chain closest trusted point.
+ * \param[in]  option      EDNS option data.
+ * \param[in]  option_len  EDNS option size.
+ *
+ * \return Error code, KNOT_EOK if successful.
+ */
+int knot_edns_chain_parse(knot_dname_t **point, const uint8_t *option,
+                          uint16_t option_len);
 
 /*! @} */

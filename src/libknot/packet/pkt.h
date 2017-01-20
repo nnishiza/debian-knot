@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2017 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,27 +40,6 @@
 
 /* Forward decls */
 struct knot_pkt;
-
-/*!
- * \brief DNS query types (internal use only).
- *
- * This type encompasses the different query types distinguished by both the
- * OPCODE and the QTYPE.
- */
-typedef enum {
-	KNOT_QUERY_INVALID   =      0, /*!< Invalid query. */
-	KNOT_QUERY_NORMAL    = 1 << 1, /*!< Normal query. */
-	KNOT_QUERY_AXFR      = 1 << 2, /*!< Request for AXFR transfer. */
-	KNOT_QUERY_IXFR      = 1 << 3, /*!< Request for IXFR transfer. */
-	KNOT_QUERY_NOTIFY    = 1 << 4, /*!< NOTIFY query. */
-	KNOT_QUERY_UPDATE    = 1 << 5, /*!< Dynamic update. */
-	KNOT_RESPONSE        = 1 << 0, /*!< Is response. */
-	KNOT_RESPONSE_NORMAL = KNOT_RESPONSE|KNOT_QUERY_NORMAL,/*!< Normal response. */
-	KNOT_RESPONSE_AXFR   = KNOT_RESPONSE|KNOT_QUERY_AXFR,  /*!< AXFR transfer response. */
-	KNOT_RESPONSE_IXFR   = KNOT_RESPONSE|KNOT_QUERY_IXFR,  /*!< IXFR transfer response. */
-	KNOT_RESPONSE_NOTIFY = KNOT_RESPONSE|KNOT_QUERY_NOTIFY,/*!< NOTIFY response. */
-	KNOT_RESPONSE_UPDATE = KNOT_RESPONSE|KNOT_QUERY_UPDATE /*!< Dynamic update response. */
-} knot_pkt_type_t;
 
 /*!
  * \brief Packet flags.
@@ -180,11 +159,6 @@ int knot_pkt_reserve(knot_pkt_t *pkt, uint16_t size);
  * \return KNOT_ERANGE if size can't be reclaimed
  */
 int knot_pkt_reclaim(knot_pkt_t *pkt, uint16_t size);
-
-/*! \brief Classify packet according to the question.
- *  \return see enum knot_pkt_type_t
- */
-uint16_t knot_pkt_type(const knot_pkt_t *pkt);
 
 /*
  * Packet QUESTION accessors.
@@ -316,17 +290,27 @@ int knot_pkt_parse_section(knot_pkt_t *pkt, unsigned flags);
 int knot_pkt_parse_payload(knot_pkt_t *pkt, unsigned flags);
 
 /*!
- * \brief Get the Extended RCODE from the packet.
+ * \brief Get packet extended RCODE.
  *
- * Extended RCODE is created by using the Extended RCODE field from OPT RR as
- * higher 8 bits and the RCODE from DNS Header as the lower 4 bits, resulting
- * in a 12-bit unsigned integer. (See RFC 6891, Section 6.1.3).
+ * Extended RCODE is created by considering TSIG RCODE, EDNS RCODE and
+ * DNS Header RCODE. (See RFC 6895, Section 2.3).
  *
  * \param pkt Packet to get the response code from.
  *
  * \return Whole extended RCODE (0 if pkt == NULL).
  */
-uint16_t knot_pkt_get_ext_rcode(const knot_pkt_t *pkt);
+uint16_t knot_pkt_ext_rcode(const knot_pkt_t *pkt);
+
+/*!
+ * \brief Get packet extended RCODE name.
+ *
+ * The packet parameter is important as the name depends on TSIG.
+ *
+ * \param pkt Packet to get the response code from.
+ *
+ * \return RCODE name (or empty string if not known).
+ */
+const char *knot_pkt_ext_rcode_name(const knot_pkt_t *pkt);
 
 /*!
  * \brief Checks if there is an OPT RR in the packet.

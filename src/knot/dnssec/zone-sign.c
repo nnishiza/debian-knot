@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2017 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,7 +35,10 @@
 #include "libknot/rrset.h"
 #include "libknot/rrtype/rrsig.h"
 #include "libknot/rrtype/soa.h"
+#include "contrib/dynarray.h"
 #include "contrib/macros.h"
+
+dynarray_define(keyptr, zone_key_t *, 1)
 
 typedef struct type_node {
 	node_t n;
@@ -110,8 +113,10 @@ static bool valid_signature_exists(const knot_rrset_t *covered,
 			continue;
 		}
 
-		return knot_check_signature(covered, rrsigs, i, key, ctx,
-		                            dnssec_ctx) == KNOT_EOK;
+		if (knot_check_signature(covered, rrsigs, i, key, ctx,
+		                         dnssec_ctx) == KNOT_EOK) {
+			return true;
+		}
 	}
 
 	return false;
@@ -182,18 +187,17 @@ static bool all_signatures_exist(const knot_rrset_t *covered,
  * \param pos     Number of RR in RR set.
  * \param keys    Zone keys.
  *
- * \return Zone key or NULL if a that key does not exist.
+ * \return Dynarray of such keys.
  */
-static const zone_key_t *get_matching_zone_key(const knot_rrset_t *rrsigs,
-                                               size_t pos,
-                                               const zone_keyset_t *keys)
+static struct keyptr_dynarray get_matching_zone_keys(const knot_rrset_t *rrsigs,
+                                                     size_t pos, const zone_keyset_t *keys)
 {
 	assert(rrsigs && rrsigs->type == KNOT_RRTYPE_RRSIG);
 	assert(keys);
 
 	uint16_t keytag = knot_rrsig_key_tag(&rrsigs->rrs, pos);
 
-	return get_zone_key(keys, keytag);
+	return get_zone_keys(keys, keytag);
 }
 
 /*!
@@ -257,21 +261,30 @@ static int remove_expired_rrsigs(const knot_rrset_t *covered,
 
 	uint16_t rrsig_rdata_count = synth_rrsig.rrs.rr_count;
 	for (uint16_t i = 0; i < rrsig_rdata_count; i++) {
-		const zone_key_t *key;
-		key = get_matching_zone_key(&synth_rrsig, i, zone_keys);
+		struct keyptr_dynarray keys = get_matching_zone_keys(&synth_rrsig, i, zone_keys);
+		keyptr_dynarray_fix(&keys);
+		int endloop = 0; // 1 - continue; 2 - break
 
-		if (key && key->is_active) {
+		for (size_t j = 0; j < keys.size && endloop == 0; j++) {
+			if (!keys.arr[j]->is_active) {
+				continue;
+			}
 			result = knot_check_signature(covered, &synth_rrsig, i,
-			                         key->key, key->ctx, dnssec_ctx);
+			                              keys.arr[j]->key, keys.arr[j]->ctx, dnssec_ctx);
 			if (result == KNOT_EOK) {
 				// valid signature
 				note_earliest_expiration(&synth_rrsig, i, expires_at);
-				continue;
+				endloop = 1;
+			} else if (result != DNSSEC_INVALID_SIGNATURE) {
+				endloop = 2;
 			}
+		}
+		keyptr_dynarray_free(&keys);
 
-			if (result != DNSSEC_INVALID_SIGNATURE) {
-				break;
-			}
+		if (endloop == 2) {
+			break;
+		} else if (endloop == 1) {
+			continue;
 		}
 
 		if (knot_rrset_empty(&to_remove)) {
@@ -602,7 +615,7 @@ typedef struct {
 	const zone_keyset_t *zone_keys;
 	const kdnssec_ctx_t *dnssec_ctx;
 	changeset_t *changeset;
-	hattrie_t *signed_tree;
+	trie_t *signed_tree;
 } changeset_signing_data_t;
 
 /*- private API - DNSKEY handling --------------------------------------------*/
@@ -643,9 +656,20 @@ static bool dnskey_in_keyset(const zone_keyset_t *keyset,
 
 	uint16_t tag = 0;
 	dnssec_keytag(&rdata, &tag);
-	const zone_key_t *key = get_zone_key(keyset, tag);
+	bool found = false;
 
-	return (key && key->is_public && dnskey_rdata_match(key, &rdata));
+	struct keyptr_dynarray keys = get_zone_keys(keyset, tag);
+	keyptr_dynarray_fix(&keys);
+
+	for (size_t i = 0; i < keys.size; i++) {
+		if (keys.arr[i]->is_public && dnskey_rdata_match(keys.arr[i], &rdata)) {
+			found = true;
+			break;
+		}
+	}
+	keyptr_dynarray_free(&keys);
+
+	return found;
 }
 
 /*!
@@ -954,7 +978,7 @@ static int add_rr_type_to_list(const knot_rrset_t *rr, list_t *l)
  *
  * \return KNOT_E*
  */
-static int rr_already_signed(const knot_rrset_t *rrset, hattrie_t *t,
+static int rr_already_signed(const knot_rrset_t *rrset, trie_t *t,
                              bool *rr_signed)
 {
 	assert(rrset);
@@ -963,7 +987,7 @@ static int rr_already_signed(const knot_rrset_t *rrset, hattrie_t *t,
 	// Create a key = RRSet owner converted to sortable format
 	uint8_t lf[KNOT_DNAME_MAXLEN];
 	knot_dname_lf(lf, rrset->owner, NULL);
-	value_t stored_info = (signed_info_t *)hattrie_tryget(t, (char *)lf+1,
+	trie_val_t stored_info = (signed_info_t *)trie_get_try(t, (char *)lf+1,
 	                                                      *lf);
 	if (stored_info == NULL) {
 		// Create new info struct
@@ -994,7 +1018,7 @@ static int rr_already_signed(const knot_rrset_t *rrset, hattrie_t *t,
 			free(info);
 			return ret;
 		}
-		*hattrie_get(t, (char *)lf+1, *lf) = info;
+		*trie_get_ins(t, (char *)lf+1, *lf) = info;
 	} else {
 		signed_info_t *info = *((signed_info_t **)stored_info);
 		assert(info->type_list);
@@ -1083,7 +1107,7 @@ static int sign_changeset_wrap(knot_rrset_t *chg_rrset, changeset_signing_data_t
  * \param val  Node to free.
  * \param d    Unused.
  */
-static int free_helper_trie_node(value_t *val, void *d)
+static int free_helper_trie_node(trie_val_t *val, void *d)
 {
 	UNUSED(d);
 	signed_info_t *info = (signed_info_t *)*val;
@@ -1102,10 +1126,10 @@ static int free_helper_trie_node(value_t *val, void *d)
  *
  * \param t  Trie to clear.
  */
-static void knot_zone_clear_sorted_changes(hattrie_t *t)
+static void knot_zone_clear_sorted_changes(trie_t *t)
 {
 	if (t) {
-		hattrie_apply_rev(t, free_helper_trie_node, NULL);
+		trie_apply(t, free_helper_trie_node, NULL);
 	}
 }
 
@@ -1233,13 +1257,13 @@ int knot_zone_sign_changeset(const zone_contents_t *zone,
 		return KNOT_EINVAL;
 	}
 
-	// Create args for wrapper function - hattrie for duplicate sigs
+	// Create args for wrapper function - trie for duplicate sigs
 	changeset_signing_data_t args = {
 		.zone = zone,
 		.zone_keys = zone_keys,
 		.dnssec_ctx = dnssec_ctx,
 		.changeset = out_ch,
-		.signed_tree = hattrie_create()
+		.signed_tree = trie_create(NULL)
 	};
 
 	if (args.signed_tree == NULL) {
@@ -1247,7 +1271,7 @@ int knot_zone_sign_changeset(const zone_contents_t *zone,
 
 	}
 	changeset_iter_t itt;
-	changeset_iter_all(&itt, in_ch, false);
+	changeset_iter_all(&itt, in_ch);
 
 	knot_rrset_t rr = changeset_iter_next(&itt);
 	while (!knot_rrset_empty(&rr)) {
@@ -1261,7 +1285,7 @@ int knot_zone_sign_changeset(const zone_contents_t *zone,
 	changeset_iter_clear(&itt);
 
 	knot_zone_clear_sorted_changes(args.signed_tree);
-	hattrie_free(args.signed_tree);
+	trie_free(args.signed_tree);
 
 	return KNOT_EOK;
 }
@@ -1275,7 +1299,7 @@ int knot_zone_sign_nsecs_in_changeset(const zone_keyset_t *zone_keys,
 	}
 
 	changeset_iter_t itt;
-	changeset_iter_add(&itt, changeset, false);
+	changeset_iter_add(&itt, changeset);
 
 	knot_rrset_t rr = changeset_iter_next(&itt);
 	while (!knot_rrset_empty(&rr)) {

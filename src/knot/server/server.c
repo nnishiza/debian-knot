@@ -22,7 +22,9 @@
 
 #include "libknot/errcode.h"
 #include "knot/common/log.h"
+#include "knot/common/stats.h"
 #include "knot/conf/confio.h"
+#include "knot/conf/migration.h"
 #include "knot/server/server.h"
 #include "knot/server/udp-handler.h"
 #include "knot/server/tcp-handler.h"
@@ -152,11 +154,11 @@ static int server_init_iface(iface_t *new_if, struct sockaddr_storage *addr, int
 	sockaddr_tostr(addr_str, sizeof(addr_str), (struct sockaddr *)addr);
 
 	int udp_socket_count = 1;
-	int bind_flags = 0;
+	int udp_bind_flags = 0;
 
 #ifdef ENABLE_REUSEPORT
 	udp_socket_count = udp_thread_count;
-	bind_flags |= NET_BIND_MULTIPLE;
+	udp_bind_flags |= NET_BIND_MULTIPLE;
 #endif
 
 	new_if->fd_udp = malloc(udp_socket_count * sizeof(int));
@@ -175,10 +177,10 @@ static int server_init_iface(iface_t *new_if, struct sockaddr_storage *addr, int
 
 	/* Create bound UDP sockets. */
 	for (int i = 0; i < udp_socket_count; i++ ) {
-		int sock = net_bound_socket(SOCK_DGRAM, (struct sockaddr *)addr, bind_flags);
+		int sock = net_bound_socket(SOCK_DGRAM, (struct sockaddr *)addr, udp_bind_flags);
 		if (sock == KNOT_EADDRNOTAVAIL) {
-			bind_flags |= NET_BIND_NONLOCAL;
-			sock = net_bound_socket(SOCK_DGRAM, (struct sockaddr *)addr, bind_flags);
+			udp_bind_flags |= NET_BIND_NONLOCAL;
+			sock = net_bound_socket(SOCK_DGRAM, (struct sockaddr *)addr, udp_bind_flags);
 			if (sock >= 0 && !warn_bind) {
 				log_warning("address '%s' is not available", addr_str);
 				warn_bind = true;
@@ -207,7 +209,7 @@ static int server_init_iface(iface_t *new_if, struct sockaddr_storage *addr, int
 	}
 
 	/* Create bound TCP socket. */
-	int sock = net_bound_socket(SOCK_STREAM, (struct sockaddr *)addr, bind_flags);
+	int sock = net_bound_socket(SOCK_STREAM, (struct sockaddr *)addr, 0);
 	if (sock < 0) {
 		log_error("cannot bind address '%s' (%s)", addr_str,
 		          knot_strerror(sock));
@@ -377,6 +379,17 @@ int server_init(server_t *server, int bg_workers)
 		return KNOT_ENOMEM;
 	}
 
+	char *journal_dir = conf_journalfile(conf());
+	conf_val_t journal_size = conf_default_get(conf(), C_MAX_JOURNAL_DB_SIZE);
+	int ret = journal_db_init(&server->journal_db, journal_dir,
+	                          conf_int(&journal_size));
+	free(journal_dir);
+	if (ret != KNOT_EOK) {
+		worker_pool_destroy(server->workers);
+		evsched_deinit(&server->sched);
+		return ret;
+	}
+
 	return KNOT_EOK;
 }
 
@@ -398,17 +411,17 @@ void server_deinit(server_t *server)
 	/* Free threads and event handlers. */
 	worker_pool_destroy(server->workers);
 
-	/* Free rate limits. */
-	rrl_destroy(server->rrl);
-
 	/* Free zone database. */
 	knot_zonedb_deep_free(&server->zone_db);
 
 	/* Free remaining events. */
 	evsched_deinit(&server->sched);
 
+	/* Close journal database if open. */
+	journal_db_close(&server->journal_db);
+
 	/* Close persistent timers database. */
-	close_timers_db(server->timers_db);
+	zone_timers_close(server->timers_db);
 
 	/* Clear the structure. */
 	memset(server, 0, sizeof(server_t));
@@ -527,6 +540,12 @@ static int reload_conf(conf_t *new_conf)
 		log_info("reloading configuration database");
 	}
 
+	// Migrate from old schema.
+	int ret = conf_migrate(new_conf);
+	if (ret != KNOT_EOK) {
+		log_error("failed to migrate configuration (%s)", knot_strerror(ret));
+	}
+
 	/* Refresh hostname. */
 	conf_refresh_hostname(new_conf);
 
@@ -585,6 +604,7 @@ int server_reload(server_t *server)
 	}
 	if (full || (flags & CONF_IO_FRLD_SRV)) {
 		server_reconfigure(conf(), server);
+		stats_reconfigure(conf(), server);
 	}
 	if (full || (flags & (CONF_IO_FRLD_ZONES | CONF_IO_FRLD_ZONE))) {
 		server_update_zones(conf(), server);
@@ -596,7 +616,7 @@ int server_reload(server_t *server)
 		// Reset confio reload context.
 		conf()->io.flags = YP_FNONE;
 		if (conf()->io.zones != NULL) {
-			hattrie_clear(conf()->io.zones);
+			trie_clear(conf()->io.zones);
 		}
 	}
 
@@ -654,37 +674,32 @@ static int reconfigure_threads(conf_t *conf, server_t *server)
 	return reset_handler(server, IO_TCP, conf_tcp_threads(conf), tcp_master);
 }
 
-static int reconfigure_rate_limits(conf_t *conf, server_t *server)
+static int reconfigure_journal_db(conf_t *conf, server_t *server)
 {
-	conf_val_t val = conf_get(conf, C_SRV, C_RATE_LIMIT);
-	int64_t rrl = conf_int(&val);
+	char *journal_dir = conf_journalfile(conf);
+	conf_val_t journal_size = conf_default_get(conf, C_MAX_JOURNAL_DB_SIZE);
+	bool changed_path = (strcmp(journal_dir, server->journal_db->path) != 0);
+	bool changed_size = (conf_int(&journal_size) != server->journal_db->fslimit);
+	int ret = KNOT_EOK;
 
-	/* Rate limiting. */
-	if (!server->rrl && rrl > 0) {
-		val = conf_get(conf, C_SRV, C_RATE_LIMIT_TBL_SIZE);
-		server->rrl = rrl_create(conf_int(&val));
-		if (!server->rrl) {
-			log_error("failed to initialize rate limiting table");
-		} else {
-			rrl_setlocks(server->rrl, RRL_LOCK_GRANULARITY);
+	if (server->journal_db->db != NULL) {
+		if (changed_path) {
+			log_warning("journal, ignored reconfiguration of journal DB path (already open)");
+		}
+		if (changed_size) {
+			log_warning("journal, ignored reconfiguration of journal DB max size (already open)");
+		}
+	} else if (changed_path || changed_size) {
+		journal_db_t *newjdb = NULL;
+		ret = journal_db_init(&newjdb, journal_dir, conf_int(&journal_size));
+		if (ret == KNOT_EOK) {
+			journal_db_close(&server->journal_db);
+			server->journal_db = newjdb;
 		}
 	}
-	if (server->rrl) {
-		if (rrl_rate(server->rrl) != rrl) {
-			/* We cannot free it, threads may use it.
-			 * Setting it to <1 will disable rate limiting. */
-			if (rrl < 1) {
-				log_info("rate limiting, disabled");
-			} else {
-				log_info("rate limiting, enabled with %i responses/second",
-					 (int)rrl);
-			}
-			rrl_setrate(server->rrl, rrl);
+	free(journal_dir);
 
-		} /* At this point, old buckets will converge to new rate. */
-	}
-
-	return KNOT_EOK;
+	return ret;
 }
 
 void server_reconfigure(conf_t *conf, server_t *server)
@@ -698,16 +713,16 @@ void server_reconfigure(conf_t *conf, server_t *server)
 		log_info("Knot DNS %s starting", PACKAGE_VERSION);
 	}
 
-	/* Reconfigure rate limits. */
+	/* Reconfigure server threads. */
 	int ret;
-	if ((ret = reconfigure_rate_limits(conf, server)) < 0) {
-		log_error("failed to reconfigure rate limits (%s)",
+	if ((ret = reconfigure_threads(conf, server)) < 0) {
+		log_error("failed to reconfigure server threads (%s)",
 		          knot_strerror(ret));
 	}
 
-	/* Reconfigure server threads. */
-	if ((ret = reconfigure_threads(conf, server)) < 0) {
-		log_error("failed to reconfigure server threads (%s)",
+	/* Reconfigure journal DB. */
+	if ((ret = reconfigure_journal_db(conf, server)) < 0) {
+		log_error("failed to reconfigure journal DB (%s)",
 		          knot_strerror(ret));
 	}
 
@@ -720,7 +735,7 @@ void server_reconfigure(conf_t *conf, server_t *server)
 
 static void reopen_timers_database(conf_t *conf, server_t *server)
 {
-	close_timers_db(server->timers_db);
+	zone_timers_close(server->timers_db);
 	server->timers_db = NULL;
 
 	conf_val_t val = conf_default_get(conf, C_STORAGE);
@@ -729,7 +744,7 @@ static void reopen_timers_database(conf_t *conf, server_t *server)
 	char *timer_db = conf_abs_path(&val, storage);
 	free(storage);
 
-	int ret = open_timers_db(timer_db, &server->timers_db);
+	int ret = zone_timers_open(timer_db, &server->timers_db);
 	if (ret != KNOT_EOK) {
 		log_warning("cannot open persistent timers DB '%s' (%s)",
 		            timer_db, knot_strerror(ret));

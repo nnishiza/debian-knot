@@ -1488,6 +1488,7 @@ AC_SUBST([am__untar])
 
 m4_include([m4/ax_cc_clang.m4])
 m4_include([m4/ax_check_compile_flag.m4])
+m4_include([m4/ax_check_link_flag.m4])
 m4_include([m4/code-coverage.m4])
 m4_include([m4/dnstap.m4])
 m4_include([m4/libtool.m4])
