@@ -1,3 +1,9 @@
+knot (2.4.0-2) unstable; urgency=medium
+
+  * Add -latomic to LDFLAGS to fix FTBFS on platforms that need it
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 23 Jan 2017 11:41:59 +0100
+
 knot (2.4.0-1) unstable; urgency=medium
 
   * Fix gbp.conf to be readable by git config --file debian/gbp.conf on Jessie
