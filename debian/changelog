@@ -1,3 +1,9 @@
+knot (2.4.0-3) unstable; urgency=medium
+
+  * Fix timeout call syntax in dh_auto_test invocation
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 25 Jan 2017 15:10:04 +0100
+
 knot (2.4.0-2) unstable; urgency=medium
 
   * Add -latomic to LDFLAGS to fix FTBFS on platforms that need it
