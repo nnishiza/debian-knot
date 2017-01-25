@@ -25,7 +25,7 @@ endif
 ifeq ($(DEB_HOST_ARCH),$(filter $(DEB_HOST_ARCH),amd64 i386))
   RUN_TEST := dh_auto_test
 else
-  RUN_TEST := -timeout 5m --kill=5s dh_auto_test
+  RUN_TEST := -timeout --kill-after=5s 5m dh_auto_test
 endif
 
 %:
