@@ -1,3 +1,9 @@
+knot (2.4.1-1) unstable; urgency=medium
+
+  * New upstream version 2.4.1
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 10 Feb 2017 13:54:24 +0100
+
 knot (2.4.0-3) unstable; urgency=medium
 
   * Fix timeout call syntax in dh_auto_test invocation
