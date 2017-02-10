@@ -4,7 +4,7 @@ AC_PREREQ([2.60])
 
 m4_define([knot_VERSION_MAJOR],2)dnl
 m4_define([knot_VERSION_MINOR],4)dnl
-m4_define([knot_VERSION_PATCH],0)dnl
+m4_define([knot_VERSION_PATCH],1)dnl
 m4_define([knot_VERSION_EXTRA],)dnl
 m4_define([knot_PKG_VERSION],[knot_VERSION_MAJOR.knot_VERSION_MINOR.knot_VERSION_PATCH]knot_VERSION_EXTRA)dnl
 
@@ -274,7 +274,7 @@ AC_SEARCH_LIBS([urcu_init], [urcu], [AC_MSG_ERROR([liburcu is too old (< 0.4.0),
 ])
 
 opt_dnstap=no
-AS_IF([test "$enable_daemon" = "yes"],[
+AS_IF([test "$enable_daemon" = "yes" -o "$enable_utilities" = "yes"],[
 dnl Check for dnstap.
 dt_DNSTAP([
     AC_DEFINE([USE_DNSTAP], [1], [Define to 1 to enable dnstap support])
@@ -485,6 +485,12 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread_np.h>]], [[cpuset_t set; CPU
 [AC_DEFINE(HAVE_CPUSET_BSD, 1, [Define if FreeBSD-like cpuset_t exists.])])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sched.h>]], [[cpuset_t* set = cpuset_create(); cpuset_destroy(set);]])],
 [AC_DEFINE(HAVE_CPUSET_NETBSD, 1, [Define if cpuset_t and cpuset(3) exists.])])
+
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([[#include <stdint.h>]],
+                   [[uint64_t val = 0; __atomic_add_fetch(&val, 1, __ATOMIC_RELAXED);]])],
+  [AC_DEFINE(HAVE_ATOMIC, 1, [Define to 1 if you have '__atomic' functions.])]
+)
 
 # Prepare CFLAG_VISIBILITY to be used where needed
 gl_VISIBILITY()

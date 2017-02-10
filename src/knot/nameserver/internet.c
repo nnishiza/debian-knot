@@ -1,4 +1,4 @@
-/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2017 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -140,6 +140,9 @@ static int put_answer(knot_pkt_t *pkt, uint16_t type, struct query_data *qdata)
 		compr_hint = KNOT_COMPR_HINT_QNAME;
 	}
 
+	unsigned put_rr_flags = (qdata->param->proc_flags & NS_QUERY_LIMIT_SIZE) ?
+	                        KNOT_PF_NULL : KNOT_PF_NOTRUNC;
+
 	int ret = KNOT_EOK;
 	switch (type) {
 	case KNOT_RRTYPE_ANY: /* Append all RRSets. */ {
@@ -154,7 +157,7 @@ static int put_answer(knot_pkt_t *pkt, uint16_t type, struct query_data *qdata)
 		for (unsigned i = 0; i < qdata->node->rrset_count; ++i) {
 			rrset = node_rrset_at(qdata->node, i);
 			ret = process_query_put_rr(pkt, qdata, &rrset, NULL,
-			                           compr_hint, 0);
+			                           compr_hint, put_rr_flags);
 			if (ret != KNOT_EOK) {
 				break;
 			}
@@ -166,7 +169,7 @@ static int put_answer(knot_pkt_t *pkt, uint16_t type, struct query_data *qdata)
 		if (!knot_rrset_empty(&rrset)) {
 			knot_rrset_t rrsigs = node_rrset(qdata->node, KNOT_RRTYPE_RRSIG);
 			ret = process_query_put_rr(pkt, qdata, &rrset, &rrsigs,
-			                           compr_hint, 0);
+			                           compr_hint, put_rr_flags);
 		}
 		break;
 	}
@@ -367,7 +370,7 @@ static int name_found(knot_pkt_t *pkt, struct query_data *qdata)
 	uint16_t old_rrcount = pkt->rrset_count;
 	int ret = put_answer(pkt, qtype, qdata);
 	if (ret != KNOT_EOK) {
-		if (ret == KNOT_ESPACE) {
+		if (ret == KNOT_ESPACE && (qdata->param->proc_flags & NS_QUERY_LIMIT_SIZE)) {
 			return TRUNC;
 		} else {
 			return ERROR;
@@ -687,7 +690,7 @@ int internet_process_query(knot_pkt_t *pkt, struct query_data *qdata)
 		NS_NEED_AUTH(qdata, qdata->zone->name, ACL_ACTION_NONE);
 
 		/* Reserve space for TSIG. */
-		knot_pkt_reserve(pkt, knot_tsig_wire_maxsize(&qdata->sign.tsig_key));
+		knot_pkt_reserve(pkt, knot_tsig_wire_size(&qdata->sign.tsig_key));
 	}
 
 	NS_NEED_ZONE_CONTENTS(qdata, KNOT_RCODE_SERVFAIL); /* Expired */
