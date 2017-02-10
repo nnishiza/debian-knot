@@ -60,6 +60,12 @@ int xfr_process_list(knot_pkt_t *pkt, xfr_put_cb process_item,
 	/* Update counters. */
 	xfr_stats_add(&xfer->stats, pkt->size);
 
+	/* If a rrset is larger than the message,
+	 * fail to avoid infinite loop of empty messages */
+	if (ret == KNOT_ESPACE && pkt->rrset_count < 1) {
+		return KNOT_ENOXFR;
+	}
+
 	return ret;
 }
 

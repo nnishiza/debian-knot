@@ -21,6 +21,9 @@
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
+/* Define to 1 if you have '__atomic' functions. */
+#undef HAVE_ATOMIC
+
 /* Define to 1 if you have the 'be64toh' function. */
 #undef HAVE_BE64TOH
 

@@ -48,6 +48,7 @@ struct knot_layer {
 	void *data;                   //!< Module specific.
 	const struct knot_layer_api *api;
 	tsig_ctx_t *tsig;             //!< TODO: remove
+	unsigned flags;               //!< Custom flags.
 };
 
 /*! \brief Packet processing module API. */
@@ -58,7 +59,6 @@ struct knot_layer_api {
 	int (*consume)(knot_layer_t *ctx, knot_pkt_t *pkt);
 	int (*produce)(knot_layer_t *ctx, knot_pkt_t *pkt);
 	int (*fail)(knot_layer_t *ctx, knot_pkt_t *pkt);
-	void *data;
 };
 
 /*!
