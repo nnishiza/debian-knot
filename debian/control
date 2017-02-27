@@ -18,14 +18,17 @@ Build-Depends: autotools-dev,
                dh-systemd,
                flex,
                libedit-dev,
+               libfstrm-dev,
                libgnutls28-dev,
                libidn11-dev,
                libjansson-dev (>= 2.4),
                liblmdb-dev,
+               libprotobuf-c-dev,
                libsystemd-dev [linux-any] | libsystemd-daemon-dev [linux-any],
                libsystemd-dev [linux-any] | libsystemd-journal-dev [linux-any],
                liburcu-dev (>= 0.4),
-               pkg-config
+               pkg-config,
+               protobuf-c-compiler
 Standards-Version: 3.9.8
 Homepage: https://www.knot-dns.cz/
 Vcs-Browser: https://anonscm.debian.org/git/pkg-dns/knot.git
