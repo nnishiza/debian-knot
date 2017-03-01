@@ -231,6 +231,7 @@ libknot.so.5 libknot5 #MINVER#
  knot_tsig_sign@Base 2.3.0
  knot_tsig_sign_next@Base 2.3.0
  knot_tsig_wire_maxsize@Base 2.3.0
+ knot_tsig_wire_size@Base 2.4.1
  knot_wire_add_ancount@Base 2.3.0
  knot_wire_add_arcount@Base 2.3.0
  knot_wire_add_nscount@Base 2.3.0
