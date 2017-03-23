@@ -1,3 +1,9 @@
+knot (2.4.2-1) unstable; urgency=medium
+
+  * New upstream version 2.4.2
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 23 Mar 2017 11:47:52 +0100
+
 knot (2.4.1-2) unstable; urgency=medium
 
   * Enable dnstap module
