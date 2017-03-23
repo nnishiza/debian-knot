@@ -206,6 +206,34 @@ static void axfr_cleanup(struct refresh_data *data)
 	zone_contents_deep_free(&data->axfr.zone);
 }
 
+/*! \brief Routine for calling call_rcu() easier way.
+ *
+ * TODO: move elsewhere, as it has no direct relation to AXFR
+ */
+typedef struct {
+	struct rcu_head rcuhead;
+	void (*ptr_free_fun)(void **);
+	void *ptr;
+} callrcu_wrapper_t;
+
+static void callrcu_wrapper_cb(struct rcu_head *param)
+{
+	callrcu_wrapper_t *wrap = (callrcu_wrapper_t *)param;
+	wrap->ptr_free_fun(&wrap->ptr);
+	free(wrap);
+}
+
+/* note: does nothing if not-enough-memory */
+static void callrcu_wrapper(void *ptr, void (*ptr_free_fun)(void **))
+{
+	callrcu_wrapper_t *wrap = calloc(1, sizeof(callrcu_wrapper_t));
+	if (wrap != NULL) {
+		wrap->ptr = ptr;
+		wrap->ptr_free_fun = ptr_free_fun;
+		call_rcu((struct rcu_head *)wrap, callrcu_wrapper_cb);
+	}
+}
+
 static int axfr_finalize(struct refresh_data *data)
 {
 	zone_contents_t *new_zone = data->axfr.zone;
@@ -222,11 +250,9 @@ static int axfr_finalize(struct refresh_data *data)
 
 	zone_contents_t *old_zone = zone_switch_contents(data->zone, new_zone);
 	xfr_log_publish(data->zone->name, data->remote, old_zone, new_zone);
-
-	synchronize_rcu();
-
 	data->axfr.zone = NULL; // seized
-	zone_contents_deep_free(&old_zone);
+	callrcu_wrapper(old_zone, (void (*)(void **))zone_contents_deep_free);
+
 
 	return KNOT_EOK;
 }
@@ -362,18 +388,30 @@ static void ixfr_cleanup(struct refresh_data *data)
 	changesets_free(&data->ixfr.changesets);
 }
 
+static void ixfr_finalize_cleanup(void **ptr)
+{
+	apply_ctx_t *ctx = *ptr;
+	update_free_zone(&ctx->contents);
+	update_cleanup(ctx);
+	free(ctx);
+}
+
 static int ixfr_finalize(struct refresh_data *data)
 {
 	zone_contents_t *new_zone = NULL;
-	apply_ctx_t ctx = { 0 };
+	apply_ctx_t *ctx = calloc(1, sizeof(apply_ctx_t));
+	if (ctx == NULL) {
+		return KNOT_ENOMEM;
+	}
 
-	apply_init_ctx(&ctx, NULL, APPLY_STRICT);
-	int ret = apply_changesets(&ctx, data->zone->contents,
+	apply_init_ctx(ctx, NULL, APPLY_STRICT);
+	int ret = apply_changesets(ctx, data->zone->contents,
 	                           &data->ixfr.changesets, &new_zone);
 	if (ret != KNOT_EOK) {
 		IXFRIN_LOG(LOG_WARNING, data->zone->name, data->remote,
 		           "failed to apply changes to zone (%s)",
 		           knot_strerror(ret));
+		free(ctx);
 		return ret;
 	}
 
@@ -381,8 +419,9 @@ static int ixfr_finalize(struct refresh_data *data)
 
 	ret = xfr_validate(new_zone, data);
 	if (ret != KNOT_EOK) {
-		update_rollback(&ctx);
+		update_rollback(ctx);
 		update_free_zone(&new_zone);
+		free(ctx);
 		return ret;
 	}
 
@@ -392,18 +431,17 @@ static int ixfr_finalize(struct refresh_data *data)
 		IXFRIN_LOG(LOG_WARNING, data->zone->name, data->remote,
 		           "failed to write changes to journal (%s)",
 		           knot_strerror(ret));
-		update_rollback(&ctx);
+		update_rollback(ctx);
 		update_free_zone(&new_zone);
+		free(ctx);
 		return ret;
 	}
 
 	zone_contents_t *old_zone = zone_switch_contents(data->zone, new_zone);
 	xfr_log_publish(data->zone->name, data->remote, old_zone, new_zone);
 
-	synchronize_rcu();
-
-	update_free_zone(&old_zone);
-	update_cleanup(&ctx);
+	ctx->contents = old_zone;
+	callrcu_wrapper(ctx, ixfr_finalize_cleanup);
 
 	return KNOT_EOK;
 }
@@ -752,13 +790,15 @@ static int soa_query_consume(knot_layer_t *layer, knot_pkt_t *pkt)
 	uint32_t local_serial = knot_soa_serial(&data->soa->rrs);
 	uint32_t remote_serial = knot_soa_serial(&rr->rrs);
 	bool current = serial_is_current(local_serial, remote_serial);
+	bool master_uptodate = serial_is_current(remote_serial, local_serial);
 
 	REFRESH_LOG(LOG_INFO, data->zone->name, data->remote,
 	            "remote serial %u, %s", remote_serial,
-	            current ? "zone is up-to-date" : "zone is outdated");
+	            current ? (master_uptodate ? "zone is up-to-date" :
+	            "master is outdated") : "zone is outdated");
 
 	if (current) {
-		return KNOT_STATE_DONE;
+		return master_uptodate ? KNOT_STATE_DONE : KNOT_STATE_FAIL;
 	} else {
 		data->state = STATE_TRANSFER;
 		return KNOT_STATE_RESET;

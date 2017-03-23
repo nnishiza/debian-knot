@@ -1,5 +1,14 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Passed CFLAGS from environment */
+#undef CONFIGURE_CFLAGS
+
+/* Params passed to configure */
+#undef CONFIGURE_PARAMS
+
+/* Configure summary */
+#undef CONFIGURE_SUMMARY
+
 /* Configuration DB mapsize. */
 #undef CONF_MAPSIZE
 
