@@ -203,6 +203,15 @@ static void format_data(ctl_cmd_t cmd, knot_ctl_type_t data_type,
 
 	switch (cmd) {
 	case CTL_STATUS:
+		if (error != NULL) {
+			printf("error: (%s)%s%s", error,
+			       (type != NULL) ? " "  : "",
+			       (type != NULL) ? type : "");
+		} else if (value != NULL) {
+			printf("%s", value);
+			*empty = false;
+		}
+		break;
 	case CTL_STOP:
 	case CTL_RELOAD:
 	case CTL_CONF_BEGIN:
@@ -319,7 +328,7 @@ static void format_block(ctl_cmd_t cmd, bool failed, bool empty)
 {
 	switch (cmd) {
 	case CTL_STATUS:
-		printf("%s\n", failed ? "" : "Running");
+		printf("%s\n", (failed || !empty) ? "" : "Running");
 		break;
 	case CTL_STOP:
 		printf("%s\n", failed ? "" : "Stopped");
@@ -403,14 +412,15 @@ static int ctl_receive(cmd_args_t *args)
 
 static int cmd_ctl(cmd_args_t *args)
 {
-	int ret = check_args(args, 0, 0);
+	int ret = check_args(args, 0, (args->desc->cmd == CTL_STATUS ? 1 : 0));
 	if (ret != KNOT_EOK) {
 		return ret;
 	}
 
 	knot_ctl_data_t data = {
 		[KNOT_CTL_IDX_CMD] = ctl_cmd_to_str(args->desc->cmd),
-		[KNOT_CTL_IDX_FLAGS] = args->force ? CTL_FLAG_FORCE : NULL
+		[KNOT_CTL_IDX_FLAGS] = args->force ? CTL_FLAG_FORCE : NULL,
+		[KNOT_CTL_IDX_TYPE] = args->argc > 0 ? args->argv[0] : NULL
 	};
 
 	// Send the command.
@@ -957,7 +967,7 @@ static int cmd_conf_ctl(cmd_args_t *args)
 const cmd_desc_t cmd_table[] = {
 	{ CMD_EXIT,            NULL,              CTL_NONE },
 
-	{ CMD_STATUS,          cmd_ctl,           CTL_STATUS },
+	{ CMD_STATUS,          cmd_ctl,           CTL_STATUS,          CMD_FOPT_DATA},
 	{ CMD_STOP,            cmd_ctl,           CTL_STOP },
 	{ CMD_RELOAD,          cmd_ctl,           CTL_RELOAD },
 	{ CMD_STATS,           cmd_stats_ctl,     CTL_STATS },
