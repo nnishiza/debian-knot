@@ -268,10 +268,12 @@ static int add_query_edns(knot_pkt_t *packet, const query_t *query, uint16_t max
 
 	/* Append EDNS Padding. */
 	int padding = query->padding;
-	if (query->alignment > 0) {
+	if (padding != -3 && query->alignment > 0) {
 		padding = knot_edns_alignment_size(packet->size,
 		                                   knot_rrset_size(&opt_rr),
 		                                   query->alignment);
+	} else if (query->padding == -2 || (query->padding == -1 && query->tls.enable)) {
+		padding = knot_edns_default_padding_size(packet, &opt_rr);
 	}
 	if (padding > -1) {
 		uint8_t zeros[padding];
@@ -294,11 +296,19 @@ static int add_query_edns(knot_pkt_t *packet, const query_t *query, uint16_t max
 	return ret;
 }
 
+static bool do_padding(const query_t *query)
+{
+	return (query->padding != -3) &&                       // Disabled padding.
+	       (query->padding > -1 || query->alignment > 0 || // Explicit padding.
+	        query->padding == -2 ||                        // Default padding.
+	        (query->padding == -1 && query->tls.enable));  // TLS automatic.
+}
+
 static bool use_edns(const query_t *query)
 {
 	return query->edns > -1 || query->udp_size > -1 || query->nsid ||
 	       query->flags.do_flag || query->subnet != NULL ||
-	       query->padding > -1 || query->alignment > 0;
+	       do_padding(query);
 }
 
 static knot_pkt_t *create_query_packet(const query_t *query)
@@ -438,6 +448,13 @@ static bool check_reply_id(const knot_pkt_t *reply,
 	}
 
 	return true;
+}
+
+static void check_reply_qr(const knot_pkt_t *reply)
+{
+	if (!knot_wire_get_qr(reply->wire)) {
+		WARN("response QR bit not set\n");
+	}
 }
 
 static void check_reply_question(const knot_pkt_t *reply,
@@ -637,6 +654,9 @@ static int process_query_packet(const knot_pkt_t      *query,
 
 	// Check for question sections equality.
 	check_reply_question(reply, query);
+
+	// Check QR bit
+	check_reply_qr(reply);
 
 	// Print reply packet.
 	print_packet(reply, net, in_len, time_diff_ms(&t_query, &t_end), 0,
@@ -908,6 +928,9 @@ static int process_xfr_packet(const knot_pkt_t      *query,
 
 			// Check for question sections equality.
 			check_reply_question(reply, query);
+
+			// Check QR bit
+			check_reply_qr(reply);
 		}
 
 		msg_count++;

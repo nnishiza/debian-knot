@@ -1,4 +1,4 @@
-/*  Copyright (C) 2016 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
+/*  Copyright (C) 2017 CZ.NIC, z.s.p.o. <knot-dns@labs.nic.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,6 +112,7 @@ typedef struct {
 	journal_t *j;
 	knot_db_txn_t *txn;
 	int ret;
+	bool opened;
 
 	bool is_rw;
 
@@ -124,19 +125,17 @@ typedef struct {
 	metadata_t shadow_md;
 } txn_t;
 
-static void md_get(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t *res);
-static void md_set(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t val);
+static void md_get(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint64_t *res);
+static void md_get32(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t *res);
+static void md_set(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint64_t val);
+static void md_set32(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t val);
 
 static void txn_init(txn_t *txn, knot_db_txn_t *db_txn, journal_t *j)
 {
+	memset(txn, 0, sizeof(*txn));
 	txn->j = j;
 	txn->txn = db_txn;
-	txn->ret = KNOT_ESEMCHECK;
-	txn->iter = NULL;
-	txn->key.len = 0;
 	txn->key.data = &txn->key_raw;
-	txn->val.len = 0;
-	txn->val.data = NULL;
 }
 
 #define local_txn_t(txn_name, journal) \
@@ -201,32 +200,39 @@ static int txn_cmpkey(txn_t *txn, knot_db_val_t *key2)
 	return memcmp(txn->key.data, key2->data, key2->len);
 }
 
-static void txn_val_u32(txn_t *txn, uint32_t *res)
+static void txn_val_u64(txn_t *txn, uint64_t *res)
 {
 	if (txn->ret != KNOT_EOK) {
 		return;
 	}
-	if (txn->val.len != sizeof(uint32_t)) {
+	uint32_t beval32;
+	uint64_t beval;
+	switch (txn->val.len) {
+	case sizeof(uint32_t):
+		memcpy(&beval32, (uint32_t *)txn->val.data, sizeof(beval32));
+		*res = (uint64_t)be32toh(beval32);
+		break;
+	case sizeof(uint64_t):
+		memcpy(&beval, (uint64_t *)txn->val.data, sizeof(beval));
+		*res = be64toh(beval);
+		break;
+	default:
 		txn->ret = KNOT_EMALF;
 	}
-	uint32_t beval;
-	memcpy(&beval, (uint32_t *)txn->val.data, sizeof(beval));
-	*res = be32toh(beval);
 }
 
-#define txn_begin_md(md) md_get(txn, txn->j->zone, #md, &txn->shadow_md.md)
-#define txn_commit_md(md) md_set(txn, txn->j->zone, #md, txn->shadow_md.md)
+#define txn_begin_md(md) md_get32(txn, txn->j->zone, #md, &txn->shadow_md.md)
+#define txn_commit_md(md) md_set32(txn, txn->j->zone, #md, txn->shadow_md.md)
 
-#define txn_check(txn) if ((txn)->ret != KNOT_EOK) return
-#define txn_check_ret(txn) if ((txn)->ret != KNOT_EOK) return ((txn)->ret)
-#define txn_ret(txn) return ((txn)->ret == KNOT_ESEMCHECK ? KNOT_EOK : (txn)->ret)
-
-#define txn_finished_ok(txn) ((txn)->ret == KNOT_ESEMCHECK || (txn)->ret == KNOT_EOK)
+#define txn_check_open(txn) if (((txn)->ret = ((txn)->opened ? (txn)->ret : KNOT_EINVAL)) != KNOT_EOK) return
+#define txn_check_ret(txn) if (((txn)->ret = ((txn)->opened ? (txn)->ret : KNOT_EINVAL)) != KNOT_EOK)  return ((txn)->ret)
 
 static void txn_begin(txn_t *txn, bool write_allowed)
 {
-	if (txn->ret != KNOT_ESEMCHECK) {
+	if (txn->ret == KNOT_EOK && txn->opened) {
 		txn->ret = KNOT_EINVAL;
+	}
+	if (txn->ret != KNOT_EOK) {
 		return;
 	}
 
@@ -234,6 +240,7 @@ static void txn_begin(txn_t *txn, bool write_allowed)
 	                                         (write_allowed ? 0 : KNOT_DB_RDONLY));
 
 	txn->is_rw = write_allowed;
+	txn->opened = true;
 
 	txn_begin_md(first_serial);
 	txn_begin_md(last_serial);
@@ -247,41 +254,38 @@ static void txn_begin(txn_t *txn, bool write_allowed)
 
 static void txn_find_force(txn_t *txn)
 {
-	if (txn->ret == KNOT_EOK) {
-		txn->ret = txn->j->db->db_api->find(txn->txn, &txn->key, &txn->val, 0);
-	}
+	txn_check_open(txn);
+	txn->ret = txn->j->db->db_api->find(txn->txn, &txn->key, &txn->val, 0);
 }
 
-static int txn_find(txn_t *txn)
+static bool txn_find(txn_t *txn)
 {
-	if (txn->ret != KNOT_EOK) {
-		return 0;
+	if (txn->ret != KNOT_EOK || !txn->opened) {
+		return false;
 	}
 	txn_find_force(txn);
 	if (txn->ret == KNOT_ENOENT) {
 		txn->ret = KNOT_EOK;
-		return 0;
+		return false;
 	}
-	return (txn->ret == KNOT_EOK ? 1 : 0);
+	return (txn->ret == KNOT_EOK);
 }
 
 static void txn_insert(txn_t *txn)
 {
-	if (txn->ret == KNOT_EOK) {
-		txn->ret = txn->j->db->db_api->insert(txn->txn, &txn->key, &txn->val, 0);
-	}
+	txn_check_open(txn);
+	txn->ret = txn->j->db->db_api->insert(txn->txn, &txn->key, &txn->val, 0);
 }
 
 static void txn_del(txn_t *txn)
 {
-	if (txn->ret == KNOT_EOK) {
-		txn->ret = txn->j->db->db_api->del(txn->txn, &txn->key);
-	}
+	txn_check_open(txn);
+	txn->ret = txn->j->db->db_api->del(txn->txn, &txn->key);
 }
 
 static void txn_iter_begin(txn_t *txn)
 {
-	txn_check(txn);
+	txn_check_open(txn);
 	txn->iter = txn->j->db->db_api->iter_begin(txn->txn, KNOT_DB_FIRST);
 	if (txn->iter == NULL) {
 		txn->ret = KNOT_ENOMEM;
@@ -331,13 +335,10 @@ static void txn_iter_finish(txn_t *txn)
 
 static void txn_abort(txn_t *txn)
 {
-	if (txn->ret == KNOT_ESEMCHECK) {
-		return;
-	}
-	txn_iter_finish(txn);
-	txn->j->db->db_api->txn_abort(txn->txn);
-	if (txn->ret == KNOT_EOK) {
-		txn->ret = KNOT_ESEMCHECK;
+	if (txn->opened) {
+		txn_iter_finish(txn);
+		txn->j->db->db_api->txn_abort(txn->txn);
+		txn->opened = false;
 	}
 }
 
@@ -363,7 +364,7 @@ static void txn_commit(txn_t *txn)
 	txn->ret = txn->j->db->db_api->txn_commit(txn->txn);
 
 	if (txn->ret == KNOT_EOK) {
-		txn->ret = KNOT_ESEMCHECK;
+		txn->opened = false;
 	}
 	txn_abort(txn); // no effect if all ok
 }
@@ -371,7 +372,8 @@ static void txn_commit(txn_t *txn)
 static void txn_restart(txn_t *txn)
 {
 	txn_commit(txn);
-	if (txn->ret == KNOT_ESEMCHECK) {
+	assert(!txn->opened);
+	if (txn->ret == KNOT_EOK) {
 		txn_begin(txn, txn->is_rw);
 	}
 }
@@ -404,21 +406,32 @@ static void txn_unreuse(txn_t **txn, txn_t *reused)
  * ********************************************************************
  */
 
-static void md_get(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t *res)
+static void md_get(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint64_t *res)
 {
-	txn_check(txn);
+	txn_check_open(txn);
 	txn_key_str(txn, zone, mdkey);
-	uint32_t res1 = 0;
+	uint64_t res1 = 0;
 	if (txn_find(txn)) {
-		txn_val_u32(txn, &res1);
+		txn_val_u64(txn, &res1);
 	}
 	*res = res1;
+}
+
+static void md_get32(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t *res)
+{
+	uint64_t res1 = 0;
+	md_get(txn, zone, mdkey, &res1);
+	if (res1 > UINT32_MAX) {
+		txn->ret = KNOT_EMALF;
+	} else {
+		*res = (uint32_t)res1;
+	}
 }
 
 // allocates res
 static void md_get_common_last_inserter_zone(txn_t *txn, knot_dname_t **res)
 {
-	txn_check(txn);
+	txn_check_open(txn);
 	txn_key_str(txn, NULL, MDKEY_GLOBAL_LAST_INSERTER_ZONE);
 	if (txn_find(txn)) {
 		*res = knot_dname_copy(txn->val.data, NULL);
@@ -438,14 +451,34 @@ static int md_set_common_last_inserter_zone(txn_t *txn, knot_dname_t *zone)
 	return txn->ret;
 }
 
+static void md_del_last_inserter_zone(txn_t *txn, knot_dname_t *if_equals)
+{
+	txn_check_open(txn);
+	txn_key_str(txn, NULL, MDKEY_GLOBAL_LAST_INSERTER_ZONE);
+	if (txn_find(txn)) {
+		if (if_equals == NULL || knot_dname_is_equal(txn->val.data, if_equals)) {
+			txn_del(txn);
+		}
+	}
+}
+
 static void md_get_common_last_occupied(txn_t *txn, size_t *res)
 {
-	uint32_t sres = 0;
+	uint64_t sres = 0;
 	md_get(txn, NULL, MDKEY_GLOBAL_LAST_TOTAL_OCCUPIED, &sres);
 	*res = (size_t) sres;
 }
 
-static void md_set(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t val)
+static void md_set(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint64_t val)
+{
+	txn_key_str(txn, zone, mdkey);
+	uint64_t val1 = htobe64(val);
+	txn->val.len = sizeof(uint64_t);
+	txn->val.data = &val1;
+	txn_insert(txn);
+}
+
+static void md_set32(txn_t *txn, const knot_dname_t *zone, const char *mdkey, uint32_t val)
 {
 	txn_key_str(txn, zone, mdkey);
 	uint32_t val1 = htobe32(val);
@@ -517,7 +550,7 @@ static int first_digit(char * of)
 
 static void md_update_journal_count(txn_t * txn, int change_amount)
 {
-	uint32_t jcnt = 0;
+	uint64_t jcnt = 0;
 	md_get(txn, NULL, MDKEY_GLOBAL_JOURNAL_COUNT, &jcnt);
 	md_set(txn, NULL, MDKEY_GLOBAL_JOURNAL_COUNT, jcnt + change_amount);
 }
@@ -558,7 +591,7 @@ static int initial_md_check(journal_t *j, bool *dirty_present)
 		txn_abort(txn);
 	}
 
-	txn_ret(txn);
+	return txn->ret;
 }
 
 /*
@@ -596,13 +629,18 @@ static void get_iter_next(txn_t *txn, uint32_t expect_serial, int expect_chunk)
 {
 	knot_db_val_t other_key = { 0 };
 
-	txn_check(txn);
+	txn_check_open(txn);
 	txn_iter_next(txn);
 	txn_iter_key(txn, &other_key);
 	txn_key_2u32(txn, txn->j->zone, expect_serial, (uint32_t)expect_chunk);
 	if (txn->ret == KNOT_ENOENT ||
 	    (txn->ret == KNOT_EOK && txn_cmpkey(txn, &other_key) != 0)) {
-			txn_iter_seek(txn);
+		txn->ret = KNOT_EOK;
+		if (txn->iter != NULL) {
+			txn_iter_finish(txn);
+		}
+		txn_iter_begin(txn);
+		txn_iter_seek(txn);
 	}
 }
 
@@ -681,7 +719,7 @@ static int iterate(journal_t *j, txn_t *_txn, iteration_cb_t cb, int method,
 
 	unreuse_txn(txn, _txn);
 
-	txn_ret(txn);
+	return txn->ret;
 }
 
 /*
@@ -750,11 +788,11 @@ static int load_one(journal_t *j, txn_t *_txn, uint32_t serial, changeset_t **ch
 	changeset_t *rch = NULL;
 	iterate(j, txn, load_one_itercb, JOURNAL_ITERATION_CHANGESETS, &rch, serial, serial);
 	unreuse_txn(txn, _txn);
-	if (txn_finished_ok(txn)) {
+	if (txn->ret == KNOT_EOK) {
 		if (rch == NULL) txn->ret = KNOT_ENOENT;
 		else *ch = rch;
 	}
-	txn_ret(txn);
+	return txn->ret;
 }
 
 static int load_merged_changeset(journal_t *j, txn_t *_txn, changeset_t **mch,
@@ -772,7 +810,7 @@ static int load_merged_changeset(journal_t *j, txn_t *_txn, changeset_t **mch,
 	}
 	unreuse_txn(txn, _txn);
 
-	txn_ret(txn);
+	return txn->ret;
 }
 
 /*! \brief API: load all changesets since "from" serial into dst. */
@@ -794,7 +832,7 @@ int journal_load_changesets(journal_t *j, list_t *dst, uint32_t from)
 	iterate(j, txn, load_list_itercb, JOURNAL_ITERATION_CHANGESETS, &dst, from, ls);
 	txn_commit(txn);
 
-	txn_ret(txn);
+	return txn->ret;
 }
 
 /*
@@ -856,7 +894,7 @@ static int delete_merged_changeset(journal_t *j, txn_t *t)
 		delete_upto(j, txn, txn->shadow_md.merged_serial, txn->shadow_md.merged_serial);
 	}
 	unreuse_txn(txn, t);
-	txn_ret(txn);
+	return txn->ret;
 }
 
 static int drop_journal(journal_t *j, txn_t *_txn)
@@ -869,8 +907,10 @@ static int drop_journal(journal_t *j, txn_t *_txn)
 	if (md_flag(txn, SERIAL_TO_VALID)) {
 		delete_upto(j, txn, txn->shadow_md.first_serial, txn->shadow_md.last_serial);
 	}
+	md_del_last_inserter_zone(txn, j->zone);
+	md_set(txn, j->zone, MDKEY_PERZONE_OCCUPIED, 0);
 	unreuse_txn(txn, _txn);
-	txn_ret(txn);
+	return txn->ret;
 }
 
 static int del_tofree_itercb(iteration_ctx_t *ctx)
@@ -927,8 +967,10 @@ static int delete_tofree(journal_t *j, txn_t *_txn, size_t to_be_freed, size_t *
 	        txn->shadow_md.first_serial, txn->shadow_md.last_serial);
 	unreuse_txn(txn, _txn);
 
-	if (txn_finished_ok(txn)) *really_freed = ds.freed_approx;
-	txn_ret(txn);
+	if (txn->ret == KNOT_EOK) {
+		*really_freed = ds.freed_approx;
+	}
+	return txn->ret;
 }
 
 static int del_count_itercb(iteration_ctx_t *ctx)
@@ -979,8 +1021,10 @@ static int delete_count(journal_t *j, txn_t *_txn, size_t to_be_deleted, size_t 
 	        txn->shadow_md.first_serial, txn->shadow_md.last_serial);
 	unreuse_txn(txn, _txn);
 
-	if (txn_finished_ok(txn)) *really_deleted = ds.freed_approx;
-	txn_ret(txn);
+	if (txn->ret == KNOT_EOK) {
+		*really_deleted = ds.freed_approx;
+	}
+	return txn->ret;
 }
 
 static int delete_dirty_serial(journal_t *j, txn_t *_txn)
@@ -998,10 +1042,10 @@ static int delete_dirty_serial(journal_t *j, txn_t *_txn)
 		txn_key_2u32(txn, j->zone, ds, ++chunk);
 	}
 	unreuse_txn(txn, _txn);
-	if (txn_finished_ok(txn)) {
+	if (txn->ret == KNOT_EOK) {
 		txn->shadow_md.flags &= ~DIRTY_SERIAL_VALID;
 	}
-	txn_ret(txn);
+	return txn->ret;
 }
 
 /*
@@ -1039,6 +1083,7 @@ static int merge_unflushed_changesets(journal_t *j, txn_t *_txn, changeset_t **m
 	                                            txn->shadow_md.first_serial);
 	txn->ret = load_one(j, txn, from, mch);
 	if (!was_merged && was_flushed && txn->ret == KNOT_EOK) {
+		// we have to jump to ONE AFTER last_flushed
 		from = knot_soa_serial(&(*mch)->soa_to->rrs);
 		changeset_free(*mch);
 		*mch = NULL;
@@ -1049,16 +1094,18 @@ static int merge_unflushed_changesets(journal_t *j, txn_t *_txn, changeset_t **m
 	}
 	from = knot_soa_serial(&(*mch)->soa_to->rrs);
 
-	txn->ret = iterate(j, txn, merge_itercb, JOURNAL_ITERATION_CHANGESETS,
-	                   mch, from, txn->shadow_md.last_serial);
+	if (serial_compare(from, txn->shadow_md.last_serial_to) != 0) {
+		txn->ret = iterate(j, txn, merge_itercb, JOURNAL_ITERATION_CHANGESETS,
+		                   mch, from, txn->shadow_md.last_serial);
+	}
 
 m_u_ch_end:
 	unreuse_txn(txn, _txn);
-	if (!txn_finished_ok(txn) && *mch != NULL) {
+	if (txn->ret != KNOT_EOK && *mch != NULL) {
 		changeset_free(*mch);
 		*mch = NULL;
 	}
-	txn_ret(txn);
+	return txn->ret;
 }
 
 // uses local context, e.g.: j, txn, changesets, nchs, serialized_size_total, store_changeset_cleanup, inserting_merged
@@ -1067,6 +1114,9 @@ m_u_ch_end:
 		if (journal_merge_allowed(j)) { \
 			changeset_t *merged; \
 			merge_unflushed_changesets(j, txn, &merged); \
+			if (txn->ret != KNOT_EOK) { \
+				goto store_changeset_cleanup; \
+			} \
 			add_tail(changesets, &merged->n); \
 			nchs++; \
 			serialized_size_total += changeset_serialized_size(merged); \
@@ -1110,17 +1160,20 @@ static int store_changesets(journal_t *j, list_t *changesets)
 	md_set(txn, NULL, MDKEY_GLOBAL_LAST_TOTAL_OCCUPIED, occupied_now);
 	if (occupied_now != occupied_last) {
 		knot_dname_t *last_zone = NULL;
-		uint32_t lz_occupied;
+		uint64_t lz_occupied;
 		md_get_common_last_inserter_zone(txn, &last_zone);
-		md_get(txn, last_zone, MDKEY_PERZONE_OCCUPIED, &lz_occupied);
-		lz_occupied += occupied_now - occupied_last;
-		md_set(txn, last_zone, MDKEY_PERZONE_OCCUPIED, lz_occupied);
-		free(last_zone);
+		if (last_zone != NULL) {
+			md_get(txn, last_zone, MDKEY_PERZONE_OCCUPIED, &lz_occupied);
+			lz_occupied = (lz_occupied + occupied_now > occupied_last ?
+			               lz_occupied + occupied_now - occupied_last : 0);
+			md_set(txn, last_zone, MDKEY_PERZONE_OCCUPIED, lz_occupied);
+			free(last_zone);
+		}
 	}
 	md_set_common_last_inserter_zone(txn, j->zone);
 
 	// PART 3 : check if we exceeded designed occupation and delete some
-	uint32_t occupied = 0, occupied_max;
+	uint64_t occupied = 0, occupied_max;
 	md_get(txn, j->zone, MDKEY_PERZONE_OCCUPIED, &occupied);
 	occupied_max = journal_max_usage(j);
 	occupied += serialized_size_total;
@@ -1136,7 +1189,7 @@ static int store_changesets(journal_t *j, list_t *changesets)
 			delete_tofree(j, txn, tofree, &freed);
 			if (freed < free_min) {
 				txn->ret = KNOT_ESPACE;
-				log_zone_warning(j->zone, "journal: unable to make free space for insert");
+				log_zone_warning(j->zone, "journal, unable to make free space for insert");
 				goto store_changeset_cleanup;
 			}
 		}
@@ -1144,7 +1197,7 @@ static int store_changesets(journal_t *j, list_t *changesets)
 
 	// PART 3.5 : check if we exceeded history depth
 	long over_limit = (long)txn->shadow_md.changeset_count - journal_max_changesets(j) +
-			  list_size(changesets) - (inserting_merged ? 1 : 0);
+	                  list_size(changesets) - (inserting_merged ? 1 : 0);
 	if (over_limit > 0) {
 		size_t deled;
 		delete_count(j, txn, over_limit, &deled);
@@ -1160,9 +1213,12 @@ static int store_changesets(journal_t *j, list_t *changesets)
 	changeset_t * chs_head = (HEAD(*changesets));
 	uint32_t serial = knot_soa_serial(&chs_head->soa_from->rrs);
 	if (md_flag(txn, SERIAL_TO_VALID) && serial_compare(txn->shadow_md.last_serial_to, serial) != 0) {
-		log_zone_warning(j->zone, "discontinuity in chages history (%u -> %u), dropping older changesets",
+		log_zone_warning(j->zone, "journal, discontinuity in changes history (%u -> %u), dropping older changesets",
 		                 txn->shadow_md.last_serial_to, serial);
-		try_flush
+		if (!md_flushed(txn) && !journal_merge_allowed(j)) {
+			txn->ret = KNOT_EBUSY; // aka try_flush, but don't merge
+			goto store_changeset_cleanup;
+		}
 		drop_journal(j, txn);
 		txn_restart(txn);
 	}
@@ -1173,7 +1229,7 @@ static int store_changesets(journal_t *j, list_t *changesets)
 		}
 		txn_key_2u32(txn, j->zone, serial_to, 0);
 		if (txn_find(txn)) {
-			log_zone_warning(j->zone, "duplicite changeset serial (%u), dropping older changesets",
+			log_zone_warning(j->zone, "journal, duplicate changeset serial (%u), dropping older changesets",
 			                 serial_to);
 			try_flush
 			delete_upto(j, txn, txn->shadow_md.first_serial, serial_to);
@@ -1266,7 +1322,7 @@ store_changeset_cleanup:
 
 	txn_commit(txn);
 
-	if (txn->ret != KNOT_ESEMCHECK) {
+	if (txn->ret != KNOT_EOK) {
 		local_txn_t(ddtxn, j);
 		txn_begin(ddtxn, true);
 		if (md_flag(ddtxn, DIRTY_SERIAL_VALID)) {
@@ -1288,7 +1344,7 @@ store_changeset_cleanup:
 		changeset_free(dbgchst);
 	}
 
-	txn_ret(txn);
+	return txn->ret;
 }
 #undef try_flush
 
@@ -1300,7 +1356,7 @@ int journal_store_changeset(journal_t *journal, changeset_t *ch)
 	if (ch_shallowcopy == NULL) {
 		return KNOT_ENOMEM;
 	}
-	memcpy(ch_shallowcopy, ch, sizeof(changeset_t)); // we need to copy the changeset_t sructure not to break ch->n
+	memcpy(ch_shallowcopy, ch, sizeof(changeset_t)); // we need to copy the changeset_t structure not to break ch->n
 
 	list_t list;
 	init_list(&list);
@@ -1354,6 +1410,8 @@ static int open_journal_db_unsafe(journal_db_t **db)
 	opts.mapsize = (*db)->fslimit;
 	opts.maxdbs = 1;
 	opts.maxreaders = JOURNAL_MAX_READERS;
+	opts.flags.env = ((*db)->mode == JOURNAL_MODE_ASYNC ?
+	                  KNOT_DB_LMDB_WRITEMAP | KNOT_DB_LMDB_MAPASYNC : 0);
 
 	int ret = (*db)->db_api->init(&(*db)->db, NULL, &opts);
 	if (ret != KNOT_EOK) {
@@ -1417,7 +1475,8 @@ void journal_close(journal_t *j)
 	j->zone = NULL;
 }
 
-int journal_db_init(journal_db_t **db, const char *lmdb_dir_path, size_t lmdb_fslimit)
+int journal_db_init(journal_db_t **db, const char *lmdb_dir_path, size_t lmdb_fslimit,
+                    journal_mode_t mode)
 {
 	if (*db != NULL) {
 		return KNOT_EOK;
@@ -1430,7 +1489,8 @@ int journal_db_init(journal_db_t **db, const char *lmdb_dir_path, size_t lmdb_fs
 		.db = NULL,
 		.db_api = knot_db_lmdb_api(),
 		.path = strdup(lmdb_dir_path),
-		.fslimit = ((lmdb_fslimit < JOURNAL_MIN_FSLIMIT) ? JOURNAL_MIN_FSLIMIT : lmdb_fslimit)
+		.fslimit = ((lmdb_fslimit < JOURNAL_MIN_FSLIMIT) ? JOURNAL_MIN_FSLIMIT : lmdb_fslimit),
+		.mode = mode,
 	};
 	memcpy(*db, &dbinit, sizeof(journal_db_t));
 	pthread_mutex_init(&(*db)->db_mutex, NULL);
@@ -1473,7 +1533,7 @@ int journal_flush(journal_t *journal)
 	txn_begin(txn, true);
 	md_flush(txn);
 	txn_commit(txn);
-	txn_ret(txn);
+	return txn->ret;
 }
 
 bool journal_exists(journal_db_t **db, knot_dname_t *zone_name)
@@ -1497,10 +1557,10 @@ bool journal_exists(journal_db_t **db, knot_dname_t *zone_name)
 	local_txn_t(txn, &fake_journal);
 	txn_begin(txn, false);
 	txn_key_str(txn, zone_name, MDKEY_PERZONE_FLAGS);
-	int res = txn_find(txn);
+	bool res = txn_find(txn);
 	txn_abort(txn);
 
-	return (res == 1);
+	return res;
 }
 
 static knot_db_val_t *dbval_copy(const knot_db_val_t *from)
@@ -1550,6 +1610,9 @@ int scrape_journal(journal_t *j)
 			txn->ret = j->db->db_api->del(txn->txn, (knot_db_val_t *)del_one->d);
 		}
 		md_update_journal_count(txn, -1);
+
+		md_del_last_inserter_zone(txn, j->zone);
+
 		txn->ret = j->db->db_api->txn_commit(txn->txn);
 	}
 scrape_end:
@@ -1574,7 +1637,7 @@ void journal_metadata_info(journal_t *j, bool *is_empty, uint32_t *serial_from, 
 
 	local_txn_t(txn, j);
 	txn_begin(txn, false);
-	txn_check(txn);
+	txn_check_open(txn);
 
 	*is_empty = !md_flag(txn, SERIAL_TO_VALID);
 	*serial_from = txn->shadow_md.first_serial;
@@ -1588,7 +1651,7 @@ void journal_metadata_info(journal_t *j, bool *is_empty, uint32_t *serial_from, 
 
 int journal_db_list_zones(journal_db_t **db, list_t *zones)
 {
-	uint32_t expected_count;
+	uint64_t expected_count;
 
 	if (list_size(zones) > 0) {
 		return KNOT_EINVAL;
@@ -1635,7 +1698,7 @@ int journal_db_list_zones(journal_db_t **db, list_t *zones)
 	if (list_size(zones) != expected_count) {
 		txn->ret = KNOT_EMALF;
 	}
-	txn_ret(txn);
+	return txn->ret;
 }
 
 /*
@@ -1671,11 +1734,11 @@ static void _jch_print(const knot_dname_t *zname, int warn_level, const char *fo
 #define jch_print(wl, fmt_args...) if ((wl) <= warn_level) _jch_print(j->zone, wl, fmt_args)
 #define jch_info(fmt_args...) jch_print(JOURNAL_CHECK_INFO, fmt_args)
 #define jch_warn(fmt_args...) jch_print((allok = 0, JOURNAL_CHECK_WARN), fmt_args)
-#define jch_txn(comment, fatal) do { if (txn->ret != KNOT_EOK && txn->ret != KNOT_ESEMCHECK) { \
+#define jch_txn(comment, fatal) do { if (txn->ret != KNOT_EOK) { \
                                      jch_warn("failed transaction: %s (%s)", (comment), knot_strerror(txn->ret)); \
                                      if (fatal) return txn->ret; } } while (0)
 
-int journal_check(journal_t *j, journal_check_level warn_level)
+int journal_check(journal_t *j, journal_check_level_t warn_level)
 {
 	int ret, allok = 1;
 	changeset_t *ch = NULL;
@@ -1789,7 +1852,7 @@ int journal_check(journal_t *j, journal_check_level warn_level)
 	changesets_free(&l);
 
 check_merged:
-	if (txn->ret != KNOT_ESEMCHECK) txn_abort(txn);
+	if (txn->opened) txn_abort(txn);
 	txn_begin(txn, false);
 	jch_txn("begin2", true);
 	if (md_flag(txn, MERGED_SERIAL_VALID)) {
