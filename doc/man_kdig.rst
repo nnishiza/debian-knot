@@ -89,7 +89,7 @@ Options
 
 **-y** [*alg*:]\ *name*:*key*
   Use the TSIG key named *name* to authenticate the request. The *alg*
-  part specifies the algorithm (the default is hmac-md5) and *key* specifies
+  part specifies the algorithm (the default is hmac-sha256) and *key* specifies
   the shared secret encoded in Base64.
 
 **-E** *tapfile*
@@ -199,8 +199,12 @@ Options
 **+**\ [\ **no**\ ]\ **bufsize**\ =\ *B*
   Set EDNS buffer size in bytes (default is 512 bytes).
 
-**+**\ [\ **no**\ ]\ **padding**\ =\ *B*
-  Set EDNS(0) padding option data length (default is no).
+**+**\ [\ **no**\ ]\ **padding**\[\ =\ *B*\]
+  Use EDNS(0) padding option to pad queries, optionally to a specific
+  size. The default is to pad queries with a sensible amount when using
+  +tls, and not to pad at all when queries are sent without TLS.  With
+  no argument (i.e., just +padding) pad every query with a sensible
+  amount regardless of the use of TLS. With +nopadding, never pad.
 
 **+**\ [\ **no**\ ]\ **alignment**\[\ =\ *B*\]
   Align the query to B\-byte-block message using the EDNS(0) padding option
