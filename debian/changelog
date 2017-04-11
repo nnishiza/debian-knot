@@ -1,3 +1,9 @@
+knot (2.4.3-1) unstable; urgency=medium
+
+  * New upstream version 2.4.3
+
+ -- Ondřej Surý <ondrej@debian.org>  Tue, 11 Apr 2017 21:17:47 +0200
+
 knot (2.4.2-1) unstable; urgency=medium
 
   * New upstream version 2.4.2
