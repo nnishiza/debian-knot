@@ -1,3 +1,9 @@
+knot (2.3.2-1~bpo8+1) jessie-backports; urgency=medium
+
+  * Backport for Jessie (8)
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 10 Nov 2016 18:10:50 +0100
+
 knot (2.3.2-1) unstable; urgency=medium
 
   * Imported Upstream version 2.3.2
