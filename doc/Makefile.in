@@ -312,6 +312,7 @@ prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
 run_dir = @run_dir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -617,19 +618,19 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@HAVE_DOCS_FALSE@install-pdf-local:
-@HAVE_PDFLATEX_FALSE@install-pdf-local:
-@HAVE_SPHINXBUILD_FALSE@install-pdf-local:
-@HAVE_DOCS_FALSE@html-local:
-@HAVE_SPHINXBUILD_FALSE@html-local:
-@HAVE_DOCS_FALSE@install-html-local:
-@HAVE_SPHINXBUILD_FALSE@install-html-local:
 @HAVE_DOCS_FALSE@install-info-local:
 @HAVE_MAKEINFO_FALSE@install-info-local:
 @HAVE_SPHINXBUILD_FALSE@install-info-local:
 @HAVE_DOCS_FALSE@info-local:
 @HAVE_MAKEINFO_FALSE@info-local:
 @HAVE_SPHINXBUILD_FALSE@info-local:
+@HAVE_DOCS_FALSE@install-html-local:
+@HAVE_SPHINXBUILD_FALSE@install-html-local:
+@HAVE_DOCS_FALSE@install-pdf-local:
+@HAVE_PDFLATEX_FALSE@install-pdf-local:
+@HAVE_SPHINXBUILD_FALSE@install-pdf-local:
+@HAVE_DOCS_FALSE@html-local:
+@HAVE_SPHINXBUILD_FALSE@html-local:
 @HAVE_DOCS_FALSE@pdf-local:
 @HAVE_PDFLATEX_FALSE@pdf-local:
 @HAVE_SPHINXBUILD_FALSE@pdf-local:
