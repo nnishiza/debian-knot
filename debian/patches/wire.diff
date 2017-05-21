@@ -1,0 +1,434 @@
+--- a/src/contrib/wire.h
++++ b/src/contrib/wire.h
+@@ -38,7 +38,9 @@
+  */
+ inline static uint16_t wire_read_u16(const uint8_t *pos)
+ {
+-	return be16toh(*(uint16_t *)pos);
++	uint16_t result;
++	memcpy(&result, pos, sizeof(result));
++	return be16toh(result);
+ }
+ 
+ /*!
+@@ -50,7 +52,9 @@
+  */
+ inline static uint32_t wire_read_u32(const uint8_t *pos)
+ {
+-	return be32toh(*(uint32_t *)pos);
++	uint32_t result;
++	memcpy(&result, pos, sizeof(result));
++	return be32toh(result);
+ }
+ 
+ /*!
+@@ -76,7 +80,9 @@
+  */
+ inline static uint64_t wire_read_u64(const uint8_t *pos)
+ {
+-	return be64toh(*(uint64_t *)pos);
++	uint64_t result;
++	memcpy(&result, pos, sizeof(result));
++	return be64toh(result);
+ }
+ 
+ /*!
+@@ -89,7 +95,8 @@
+  */
+ inline static void wire_write_u16(uint8_t *pos, uint16_t data)
+ {
+-	*(uint16_t *)pos = htobe16(data);
++	uint16_t beval = htobe16(data);
++	memcpy(pos, &beval, sizeof(beval));
+ }
+ 
+ /*!
+@@ -102,7 +109,8 @@
+  */
+ inline static void wire_write_u32(uint8_t *pos, uint32_t data)
+ {
+-	*(uint32_t *)pos = htobe32(data);
++	uint32_t beval = htobe32(data);
++	memcpy(pos, &beval, sizeof(beval));
+ }
+ 
+ /*!
+@@ -129,7 +137,8 @@
+  */
+ inline static void wire_write_u64(uint8_t *pos, uint64_t data)
+ {
+-	*(uint64_t *)pos = htobe64(data);
++	uint64_t beval = htobe64(data);
++	memcpy(pos, &beval, sizeof(beval));
+ }
+ 
+ /*! @} */
+--- a/src/contrib/wire_ctx.h
++++ b/src/contrib/wire_ctx.h
+@@ -187,222 +187,131 @@
+ 	return KNOT_EOK;
+ }
+ 
+-static inline uint8_t wire_ctx_read_u8(wire_ctx_t *ctx)
++
++static inline void wire_ctx_read(wire_ctx_t *ctx, void *data, size_t size)
+ {
+ 	assert(ctx);
++	assert(data);
+ 
+ 	if (ctx->error != KNOT_EOK) {
+-		return 0;
++		/* Avoid leaving data uninitialized. */
++		memset(data, 0, size);
++		return;
+ 	}
+ 
+-	int ret = wire_ctx_can_read(ctx, sizeof(uint8_t));
++	int ret = wire_ctx_can_read(ctx, size);
+ 	if (ret != KNOT_EOK) {
+ 		ctx->error = ret;
+-		return 0;
++		memset(data, 0, size);
++		return;
+ 	}
+ 
+-	uint8_t result = *ctx->position;
+-	ctx->position += sizeof(uint8_t);
++	memcpy(data, ctx->position, size);
++	ctx->position += size;
++}
++
++static inline uint8_t wire_ctx_read_u8(wire_ctx_t *ctx)
++{
++	uint8_t result;
++	wire_ctx_read(ctx, &result, sizeof(result));
+ 
+ 	return result;
+ }
+ 
+ static inline uint16_t wire_ctx_read_u16(wire_ctx_t *ctx)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return 0;
+-	}
+-
+-	int ret = wire_ctx_can_read(ctx, sizeof(uint16_t));
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return 0;
+-	}
+-
+-	uint16_t result = *((uint16_t *)ctx->position);
+-	ctx->position += sizeof(uint16_t);
++	uint16_t result;
++	wire_ctx_read(ctx, &result, sizeof(result));
+ 
+ 	return be16toh(result);
+ }
+ 
+ static inline uint32_t wire_ctx_read_u32(wire_ctx_t *ctx)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return 0;
+-	}
+-
+-	int ret = wire_ctx_can_read(ctx, sizeof(uint32_t));
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return 0;
+-	}
+-
+-	uint32_t result = *((uint32_t *)ctx->position);
+-	ctx->position += sizeof(uint32_t);
++	uint32_t result;
++	wire_ctx_read(ctx, &result, sizeof(result));
+ 
+ 	return be32toh(result);
+ }
+ 
+ static inline uint64_t wire_ctx_read_u48(wire_ctx_t *ctx)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return 0;
+-	}
+-
+-	int ret = wire_ctx_can_read(ctx, 6);
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return 0;
+-	}
+-
++	/* This case is slightly tricky. */
+ 	uint64_t result = 0;
+-	memcpy((uint8_t *)&result + 1, ctx->position, 6);
+-	ctx->position += 6;
++	wire_ctx_read(ctx, (uint8_t *)&result + 1, 6);
+ 
+ 	return be64toh(result) >> 8;
+ }
+ 
+ static inline uint64_t wire_ctx_read_u64(wire_ctx_t *ctx)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return 0;
+-	}
+-
+-	int ret = wire_ctx_can_read(ctx, sizeof(uint64_t));
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return 0;
+-	}
+-
+-	uint64_t result = *((uint64_t *)ctx->position);
+-	ctx->position += sizeof(uint64_t);
++	uint64_t result;
++	wire_ctx_read(ctx, &result, sizeof(result));
+ 
+ 	return be64toh(result);
+ }
+ 
+-static inline void wire_ctx_read(wire_ctx_t *ctx, uint8_t *data, size_t size)
++
++static inline void wire_ctx_write(wire_ctx_t *ctx, const void *data, size_t size)
+ {
+ 	assert(ctx);
+-	assert(data);
+ 
+ 	if (ctx->error != KNOT_EOK) {
+ 		return;
+ 	}
+ 
+-	int ret = wire_ctx_can_read(ctx, size);
++	if (size == 0) {
++		return;
++	}
++
++	assert(data);
++
++	int ret = wire_ctx_can_write(ctx, size);
+ 	if (ret != KNOT_EOK) {
+ 		ctx->error = ret;
+ 		return;
+ 	}
+ 
+-	memcpy(data, ctx->position, size);
++	memcpy(ctx->position, data, size);
+ 	ctx->position += size;
+ }
+ 
+ static inline void wire_ctx_write_u8(wire_ctx_t *ctx, uint8_t value)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return;
+-	}
+-
+-	int ret = wire_ctx_can_write(ctx, sizeof(uint8_t));
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return;
+-	}
+-
+-	*ctx->position = value;
+-	ctx->position += sizeof(uint8_t);
++	wire_ctx_write(ctx, &value, sizeof(value));
+ }
+ 
+ static inline void wire_ctx_write_u16(wire_ctx_t *ctx, uint16_t value)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return;
+-	}
+-
+-	int ret = wire_ctx_can_write(ctx, sizeof(uint16_t));
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return;
+-	}
+-
+-	*((uint16_t *)ctx->position) = htobe16(value);
+-	ctx->position += sizeof(uint16_t);
++	uint16_t beval = htobe16(value);
++	wire_ctx_write(ctx, &beval, sizeof(beval));
+ }
+ 
+ static inline void wire_ctx_write_u32(wire_ctx_t *ctx, uint32_t value)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return;
+-	}
+-
+-	int ret = wire_ctx_can_write(ctx, sizeof(uint32_t));
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return;
+-	}
+-
+-	*((uint32_t *)ctx->position) = htobe32(value);
+-	ctx->position += sizeof(uint32_t);
++	uint32_t beval = htobe32(value);
++	wire_ctx_write(ctx, &beval, sizeof(beval));
+ }
+ 
+ static inline void wire_ctx_write_u48(wire_ctx_t *ctx, uint64_t value)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return;
+-	}
+-
+-	int ret = wire_ctx_can_write(ctx, 6);
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return;
+-	}
+-
++	/* This case is slightly tricky. */
+ 	uint64_t swapped = htobe64(value << 8);
+-	memcpy(ctx->position, (uint8_t *)&swapped + 1, 6);
+-	ctx->position += 6;
++	wire_ctx_write(ctx, (uint8_t *)&swapped + 1, 6);
+ }
+ 
+ static inline void wire_ctx_write_u64(wire_ctx_t *ctx, uint64_t value)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return;
+-	}
+-
+-	int ret = wire_ctx_can_write(ctx, sizeof(uint64_t));
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return;
+-	}
+-
+-	*((uint64_t *)ctx->position) = htobe64(value);
+-	ctx->position += sizeof(uint64_t);
++	uint64_t beval = htobe64(value);
++	wire_ctx_write(ctx, &beval, sizeof(beval));
+ }
+ 
+-static inline void wire_ctx_write(wire_ctx_t *ctx, const uint8_t *data, size_t size)
++
++static inline void wire_ctx_memset(wire_ctx_t *dst, int value, size_t size)
+ {
+-	assert(ctx);
++	assert(dst);
+ 
+-	if (ctx->error != KNOT_EOK) {
++	if (dst->error != KNOT_EOK) {
+ 		return;
+ 	}
+ 
+@@ -410,34 +319,19 @@
+ 		return;
+ 	}
+ 
+-	assert(data);
+-
+-	int ret = wire_ctx_can_write(ctx, size);
++	int ret = wire_ctx_can_write(dst, size);
+ 	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
++		dst->error = ret;
+ 		return;
+ 	}
+ 
+-	memcpy(ctx->position, data, size);
+-	ctx->position += size;
++	memset(dst->position, value, size);
++	dst->position += size;
+ }
+ 
+ static inline void wire_ctx_clear(wire_ctx_t *ctx, size_t size)
+ {
+-	assert(ctx);
+-
+-	if (ctx->error != KNOT_EOK) {
+-		return;
+-	}
+-
+-	int ret = wire_ctx_can_write(ctx, size);
+-	if (ret != KNOT_EOK) {
+-		ctx->error = ret;
+-		return;
+-	}
+-
+-	memset(ctx->position, 0, size);
+-	ctx->position += size;
++	wire_ctx_memset(ctx, 0, size);
+ }
+ 
+ static inline void wire_ctx_copy(wire_ctx_t *dst, wire_ctx_t *src, size_t size)
+@@ -465,24 +359,3 @@
+ 	src->position += size;
+ }
+ 
+-static inline void wire_ctx_memset(wire_ctx_t *dst, int value, size_t size)
+-{
+-	assert(dst);
+-
+-	if (dst->error != KNOT_EOK) {
+-		return;
+-	}
+-
+-	if (size == 0) {
+-		return;
+-	}
+-
+-	int ret = wire_ctx_can_write(dst, size);
+-	if (ret != KNOT_EOK) {
+-		dst->error = ret;
+-		return;
+-	}
+-
+-	memset(dst->position, value, size);
+-	dst->position += size;
+-}
+--- a/src/libknot/control/control.c
++++ b/src/libknot/control/control.c
+@@ -491,7 +491,7 @@
+ 	if (*value == NULL) {
+ 		return KNOT_ENOMEM;
+ 	}
+-	wire_ctx_read(w, (uint8_t *)*value, data_len);
++	wire_ctx_read(w, *value, data_len);
+ 	if (w->error != KNOT_EOK) {
+ 		return w->error;
+ 	}
+--- a/src/libknot/yparser/yptrafo.c
++++ b/src/libknot/yparser/yptrafo.c
+@@ -409,7 +409,7 @@
+ 		}
+ 		break;
+ 	case 4:
+-		wire_ctx_read(in, (uint8_t *)&(addr4.s_addr), sizeof(addr4.s_addr));
++		wire_ctx_read(in, &(addr4.s_addr), sizeof(addr4.s_addr));
+ 		if (inet_ntop(AF_INET, &addr4, (char *)out->position,
+ 		    wire_ctx_available(out)) == NULL) {
+ 			return KNOT_EINVAL;
+@@ -417,7 +417,7 @@
+ 		wire_ctx_skip(out, strlen((char *)out->position));
+ 		break;
+ 	case 6:
+-		wire_ctx_read(in, (uint8_t *)&(addr6.s6_addr), sizeof(addr6.s6_addr));
++		wire_ctx_read(in, &(addr6.s6_addr), sizeof(addr6.s6_addr));
+ 		if (inet_ntop(AF_INET6, &addr6, (char *)out->position,
+ 		    wire_ctx_available(out)) == NULL) {
+ 			return KNOT_EINVAL;

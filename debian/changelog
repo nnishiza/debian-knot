@@ -1,3 +1,9 @@
+knot (2.3.2-1~bpo8+1wm1) jessie-backports; urgency=medium
+
+  * Fix alignment issues in some processors such as ARM.
+
+ -- Nobuyuki Nishizawa <nobuyuki@westmarsh.jp>  Sun, 21 May 2017 16:01:58 +0900
+
 knot (2.3.2-1~bpo8+1) jessie-backports; urgency=medium
 
   * Backport for Jessie (8)
